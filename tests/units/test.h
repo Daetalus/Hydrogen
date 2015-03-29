@@ -26,7 +26,8 @@
 
 #define START(name) \
 	int test_##name(void) { \
-		const char *test_name = #name;
+		const char *test_name = #name; \
+		if 1
 
 #define END() \
 		printf(GREEN BOLD "`%s` passed.\n" NORMAL, test_name); \
@@ -43,7 +44,8 @@
 	int main(int argc, char *argv[]) { \
 		int result; \
 		int has_failed = 0; \
-		printf(LINE "\n" BLUE BOLD "Testing %s...\n\n", #name);
+		printf(LINE "\n" BLUE BOLD "Testing %s...\n\n", #name); \
+		if 1
 
 #define MAIN_END() \
 		if (has_failed == 0) { \
@@ -64,6 +66,21 @@
 #define ASSERT_STR_EQ(a, b) \
 	if (strcmp((a), (b)) != 0) { \
 		fprintf(stderr, BOLD RED "Assertion failed" NORMAL "in test `%s`:", test_name); \
+		fprintf(stderr, "    %s == %s\n", #a, #b); \
+		return 1; \
+	}
+
+#define ASSERT_STRN_EQ(a, b, length) \
+	if (strncmp((a), (b), (length)) != 0) { \
+		fprintf(stderr, BOLD RED "Assertion failed" NORMAL "in test `%s`:", test_name); \
+		fprintf(stderr, "    %s == %s, length: %s\n", #a, #b, #length); \
+		return 1; \
+	}
+
+// Handles imprecision in floating point math
+#define ASSERT_DOUBLE_EQ(a, b) \
+	if ((a) - (b) > -0.00000001 && (a) - (b) < 0.00000001) { \
+		fprintf(stderr, BOLD RED "Assertion failed " NORMAL "in test `%s`:\n", test_name); \
 		fprintf(stderr, "    %s == %s\n", #a, #b); \
 		return 1; \
 	}

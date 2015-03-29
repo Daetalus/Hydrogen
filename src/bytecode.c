@@ -48,6 +48,10 @@ int resize(Bytecode *bytecode, int amount) {
 // Emit a bytecode instruction. Returns the index of the
 // bytecode instruction in the bytecode array.
 int emit(Bytecode *bytecode, uint8_t instruction) {
+	if (!bytecode->should_record) {
+		return -1;
+	}
+
 	int index = resize(bytecode, 1);
 	bytecode->instructions[index] = instruction;
 	return index;
@@ -56,6 +60,10 @@ int emit(Bytecode *bytecode, uint8_t instruction) {
 
 // Emit a 1 byte argument.
 void emit_arg_1(Bytecode *bytecode, uint8_t arg) {
+	if (!bytecode->should_record) {
+		return;
+	}
+
 	int index = resize(bytecode, 1);
 	bytecode->instructions[index] = arg;
 }
@@ -63,6 +71,10 @@ void emit_arg_1(Bytecode *bytecode, uint8_t arg) {
 
 // Emit a 2 byte argument.
 void emit_arg_2(Bytecode *bytecode, uint16_t arg) {
+	if (!bytecode->should_record) {
+		return;
+	}
+
 	int index = resize(bytecode, 2);
 	bytecode->instructions[index] = arg & 0xff;
 	bytecode->instructions[index + 1] = (arg >> (1 << 3)) & 0xff;
@@ -71,6 +83,10 @@ void emit_arg_2(Bytecode *bytecode, uint16_t arg) {
 
 // Emit a 4 byte argument.
 void emit_arg_4(Bytecode *bytecode, uint32_t arg) {
+	if (!bytecode->should_record) {
+		return;
+	}
+
 	int index = resize(bytecode, 4);
 	bytecode->instructions[index] = arg & 0xff;
 	bytecode->instructions[index + 1] = (arg >> (1 << 3)) & 0xff;
@@ -81,6 +97,10 @@ void emit_arg_4(Bytecode *bytecode, uint32_t arg) {
 
 // Emit an 8 byte argument.
 void emit_arg_8(Bytecode *bytecode, uint64_t arg) {
+	if (!bytecode->should_record) {
+		return;
+	}
+
 	int index = resize(bytecode, 8);
 	bytecode->instructions[index] = arg & 0xff;
 	bytecode->instructions[index + 1] = (arg >> (1 << 3)) & 0xff;
@@ -95,6 +115,10 @@ void emit_arg_8(Bytecode *bytecode, uint64_t arg) {
 
 // Emit an incomplete jump instruction.
 int emit_jump(Bytecode *bytecode, uint8_t instruction) {
+	if (!bytecode->should_record) {
+		return -1;
+	}
+
 	int index = emit(bytecode, CODE_CONDITIONAL_JUMP);
 	emit_arg_2(bytecode, 0);
 	return index;
@@ -105,6 +129,10 @@ int emit_jump(Bytecode *bytecode, uint8_t instruction) {
 // jump to the instruction after the most recent
 // instruction emitted.
 void patch_jump(Bytecode *bytecode, int index) {
+	if (!bytecode->should_record) {
+		return;
+	}
+
 	uint16_t amount = bytecode->count - index;
 
 	// Add one to the index initially to skip the actual
