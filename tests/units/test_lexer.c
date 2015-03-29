@@ -9,39 +9,39 @@
 #include "../../src/lexer.h"
 
 
-#define NEW_LEXER(source) \
-	char *source = (source); \
+#define NEW_LEXER(source_string) \
+	char *source = (source_string); \
 	Lexer lexer; \
 	lexer_new(&lexer, source);
 
-#define TEST_TOKEN(type, location, length) \
-	ASSERT_EQ(token->type, (type)); \
-	ASSERT_EQ(token->location, (location)); \
-	ASSERT_EQ(token->length, (length));
+#define TEST_TOKEN(token_type, src_location, src_length) \
+	ASSERT_EQ(token->type, (token_type)); \
+	ASSERT_EQ(token->location, (src_location)); \
+	ASSERT_EQ(token->length, (src_length));
 
-#define TEST_CONSUME_TOKEN(type, location, length) \
+#define TEST_CONSUME_TOKEN(token_type, src_location, src_length) \
 	token = consume(&lexer); \
-	TEST_TOKEN(type, location, length);
+	TEST_TOKEN(token_type, src_location, src_length);
 
-#define TEST_STRING(type, location, length, string) \
-	ASSERT_EQ(token->type, (type)); \
-	ASSERT_EQ(token->location, (location)); \
-	ASSERT_EQ(token->length, (length)); \
+#define TEST_STRING(token_type, src_location, src_length, string) \
+	ASSERT_EQ(token->type, (token_type)); \
+	ASSERT_EQ(token->location, (src_location)); \
+	ASSERT_EQ(token->length, (src_length)); \
 	ASSERT_STRN_EQ(token->location, (string), token->length);
 
-#define TEST_CONSUME_STRING(type, location, length, string) \
+#define TEST_CONSUME_STRING(token_type, src_location, src_length, string) \
 	token = consume(&lexer); \
-	TEST_STRING(type, location, length, string);
+	TEST_STRING(token_type, src_location, src_length, string);
 
-#define TEST_DOUBLE(type, location, length, value) \
-	ASSERT_EQ(token->type, (type)); \
-	ASSERT_EQ(token->location, (location)); \
-	ASSERT_EQ(token->length, (length)); \
+#define TEST_DOUBLE(token_type, src_location, src_length, value) \
+	ASSERT_EQ(token->type, (token_type)); \
+	ASSERT_EQ(token->location, (src_location)); \
+	ASSERT_EQ(token->length, (src_length)); \
 	ASSERT_DOUBLE_EQ(token->number, (value));
 
-#define TEST_CONSUME_DOUBLE(type, location, length, value) \
+#define TEST_CONSUME_DOUBLE(token_type, src_location, src_length, value) \
 	token = consume(&lexer); \
-	TEST_DOUBLE(type, location, length, value);
+	TEST_DOUBLE(token_type, src_location, src_length, value);
 
 
 START(operators) {
@@ -70,7 +70,7 @@ START(syntax) {
 	TEST_CONSUME_TOKEN(TOKEN_OPEN_BRACKET, source + 3, 1);
 	TEST_CONSUME_TOKEN(TOKEN_CLOSE_BRACE, source + 4, 1);
 	TEST_CONSUME_TOKEN(TOKEN_CLOSE_BRACKET, source + 5, 1);
-	TEST_CONSUME_TOKEN(TOKEN_CLOSE_PARETHESIS, source + 6, 1);
+	TEST_CONSUME_TOKEN(TOKEN_CLOSE_PARENTHESIS, source + 6, 1);
 	TEST_CONSUME_TOKEN(TOKEN_END_OF_FILE, source + 7, 0);
 }
 END()

@@ -139,7 +139,7 @@ typedef struct {
 typedef struct {
 	// A parser providing cursor functionality within the source
 	// code.
-	Parser *parser;
+	Parser parser;
 
 	// The line number of the current token.
 	int line;

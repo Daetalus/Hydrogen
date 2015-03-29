@@ -27,7 +27,7 @@
 #define START(name) \
 	int test_##name(void) { \
 		const char *test_name = #name; \
-		if 1
+		if (1)
 
 #define END() \
 		printf(GREEN BOLD "`%s` passed.\n" NORMAL, test_name); \
@@ -44,8 +44,8 @@
 	int main(int argc, char *argv[]) { \
 		int result; \
 		int has_failed = 0; \
-		printf(LINE "\n" BLUE BOLD "Testing %s...\n\n", #name); \
-		if 1
+		printf(LINE "\n" BLUE BOLD "Testing %s...\n\n" NORMAL, #name); \
+		if (1)
 
 #define MAIN_END() \
 		if (has_failed == 0) { \

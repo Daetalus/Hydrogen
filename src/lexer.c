@@ -215,7 +215,7 @@ bool consume_number(Parser *parser, double *result) {
 
 // Create a new lexer with the given source.
 void lexer_new(Lexer *lexer, char *source) {
-	parser_new(lexer->parser, source);
+	parser_new(&lexer->parser, source);
 	lexer->line = 0;
 	lexer->cache_size = 0;
 }
