@@ -495,7 +495,7 @@ void next(Lexer *lexer, Token *token) {
 		}
 
 		// Unrecognised token
-		set_token(token, TOKEN_UNRECOGNISED, NULL, 0);
+		set_token(token, TOKEN_NONE, NULL, 0);
 	}
 }
 
@@ -506,46 +506,70 @@ void next(Lexer *lexer, Token *token) {
 //
 
 // Consumes a token, moving to the next one.
-Token * consume(Lexer *lexer) {
+Token consume(Lexer *lexer) {
 	if (lexer->cache_size == 0) {
 		next(lexer, &lexer->cache[0]);
 		lexer->cache_size++;
 	}
 
+	// Pop an item off the queue
+	Token token = lexer->cache[0];
+
+	// Shift all items back 1 place (to remove the first item).
+	for (int i = 1; i < lexer->cache_size; i++) {
+		lexer->cache[i - 1] = lexer->cache[i];
+	}
+
 	lexer->cache_size--;
-	return &lexer->cache[lexer->cache_size];
+	return token;
 }
 
 
 // Peeks at a token further ahead in the source code, without
 // advancing the cursor.
-Token * peek(Lexer *lexer, int amount) {
+Token peek(Lexer *lexer, int amount) {
+	// If we're past the maximum cache amount, then don't bother.
+	if (amount >= MAX_TOKEN_CACHE_SIZE) {
+		// Return an end of file token.
+		Token token;
+		token.type = TOKEN_END_OF_FILE;
+		token.location = &lexer->parser.source[lexer->parser.length];
+		token.length = 0;
+		return token;
+	}
+
 	// Populate the cache with enough tokens to include
 	// the one we're wanting to peek at.
 	if (lexer->cache_size <= amount) {
 		for (int i = 0; i <= amount - lexer->cache_size; i++) {
-			next(lexer, &lexer->cache[lexer->cache_size]);
+			Token *token = &lexer->cache[lexer->cache_size];
+			next(lexer, token);
 			lexer->cache_size++;
+
+			// Stop if we hit the end of the file.
+			if (token->type == TOKEN_END_OF_FILE) {
+				break;
+			}
 		}
 	}
 
 	// Return the token we're after.
-	return &lexer->cache[amount];
+	return lexer->cache[lexer->cache_size - 1];
 }
 
 
 // Returns true if the lexer starts with the given token type.
 bool match(Lexer *lexer, TokenType token) {
-	Token *current = peek(lexer, 0);
-	return current->type == token;
+	Token current = peek(lexer, 0);
+	return current.type == token;
 }
 
 
 // Returns true if the lexer starts with the two given tokens.
 bool match2(Lexer *lexer, TokenType one, TokenType two) {
-	Token *second = peek(lexer, 1);
-	Token *first = peek(lexer, 0);
-	return first->type == one && second->type == two;
+	Token second = peek(lexer, 1);
+	Token first = peek(lexer, 0);
+	return first.type == one && second.type == two;
 }
 
 

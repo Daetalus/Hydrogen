@@ -93,7 +93,7 @@ typedef enum {
 	// Other
 	TOKEN_LINE,
 	TOKEN_END_OF_FILE,
-	TOKEN_UNRECOGNISED,
+	TOKEN_NONE,
 } TokenType;
 
 
@@ -158,11 +158,11 @@ typedef struct {
 void lexer_new(Lexer *lexer, char *source);
 
 // Consumes a token, moving to the next one.
-Token * consume(Lexer *lexer);
+Token consume(Lexer *lexer);
 
 // Peeks at a token further ahead in the source code, without
 // advancing the cursor.
-Token * peek(Lexer *lexer, int amount);
+Token peek(Lexer *lexer, int amount);
 
 // Returns true if the lexer starts with the given token type.
 bool match(Lexer *lexer, TokenType token);

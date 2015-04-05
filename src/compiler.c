@@ -35,7 +35,7 @@ void pop_scope(Compiler *compiler);
 int index_of_local(Compiler *compiler, char *name, int length);
 uint16_t define_local(Compiler *compiler, char *name, int length);
 
-Token * expect(Compiler *compiler, TokenType expected, char *message);
+Token expect(Compiler *compiler, TokenType expected, char *message);
 
 
 // Compile source code into bytecode.
@@ -124,22 +124,25 @@ void variable_assignment(Compiler *compiler) {
 	}
 
 	// Expect an identifier (the variable's name).
-	Token *name = expect(compiler, TOKEN_IDENTIFIER,
+	Token name = expect(compiler, TOKEN_IDENTIFIER,
 		"Expected variable name after `let`.");
+	if (name.type == TOKEN_NONE) {
+		return;
+	}
 
 	// Check to see if the variable already exists.
-	int index = index_of_local(compiler, name->location, name->length);
+	int index = index_of_local(compiler, name.location, name.length);
 	if (is_new_var && index != -1) {
 		// We're trying to create a new variable using a variable
 		// name that's already taken.
 		error(compiler, "Variable name `%.*s` already taken in assignment.",
-			name->location, name->length);
+			name.location, name.length);
 		return;
 	} else if (index == -1) {
 		// We're trying to assign a new value to a variable that
 		// doesn't exist.
 		error(compiler, "Variable `%.*s` doesn't exist in assignment.",
-			name->location, name->length);
+			name.location, name.length);
 		return;
 	}
 
@@ -164,7 +167,7 @@ void variable_assignment(Compiler *compiler) {
 	if (index == -1) {
 		// We're assigning to a new variable, so we need a new
 		// index for it.
-		index = define_local(compiler, name->location, name->length);
+		index = define_local(compiler, name.location, name.length);
 	}
 
 	emit_arg_2(bytecode, index);
@@ -558,15 +561,19 @@ void error(Compiler *compiler, char *fmt, ...) {
 //
 // Returns the consumed token if successful, or NULL if the token
 // was of an unexpected type.
-Token * expect(Compiler *compiler, TokenType expected, char *message) {
+Token expect(Compiler *compiler, TokenType expected, char *message) {
 	Lexer *lexer = &compiler->vm->lexer;
-	Token *token = consume(lexer);
+	Token token = consume(lexer);
 
 	// If the consumed token is of an unexpected type.
-	if (token->type != expected) {
+	if (token.type != expected) {
 		// Trigger the error message.
 		error(compiler, message);
-		return NULL;
+
+		// Return a none token
+		Token token;
+		token.type = TOKEN_NONE;
+		return token;
 	} else {
 		// The token was what we expected, so return it.
 		return token;

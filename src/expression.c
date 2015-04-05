@@ -49,22 +49,22 @@ void expression_precedence(Compiler *compiler, TokenType terminator,
 	left(compiler);
 
 	// Peek at the next token.
-	Token *operator = peek(lexer, 0);
+	Token operator = peek(lexer, 0);
 
 	// Keep compiling operators while their precedence is greater
 	// than the precedence argument.
-	while (operator->type != terminator &&
-			precedence < operator_precedence(operator->type)) {
-		if (is_binary_operator(operator->type)) {
+	while (operator.type != terminator &&
+			precedence < operator_precedence(operator.type)) {
+		if (is_binary_operator(operator.type)) {
 			// Consume the operator token.
 			consume(lexer);
 
 			// Compile an infix operator.
-			infix(compiler, terminator, operator->type);
+			infix(compiler, terminator, operator.type);
 		} else {
 			// Unexpected binary operator.
 			error(compiler, "Expected binary operator, found `%.*s`.",
-				operator->length, operator->location);
+				operator.length, operator.location);
 			return;
 		}
 	}
@@ -93,21 +93,21 @@ void left(Compiler *compiler) {
 		prefix(compiler, TOKEN_BITWISE_NOT);
 	} else if (match2(lexer, TOKEN_IDENTIFIER, TOKEN_OPEN_PARENTHESIS)) {
 		// Function call
-		Token *function = consume(lexer);
-		emit_function_call(compiler, function->location, function->length);
+		Token function = consume(lexer);
+		emit_function_call(compiler, function.location, function.length);
 	} else if (match(lexer, TOKEN_IDENTIFIER)) {
 		// Variable
-		Token *variable = consume(lexer);
-		push_local(compiler, variable->location, variable->length);
+		Token variable = consume(lexer);
+		push_local(compiler, variable.location, variable.length);
 	} else if (match(lexer, TOKEN_NUMBER)) {
 		// Number literal
-		Token *number = consume(lexer);
-		push_number(compiler, number->number);
+		Token number = consume(lexer);
+		push_number(compiler, number.number);
 	} else if (match(lexer, TOKEN_STRING)) {
 		// String literal
-		Token *literal = consume(lexer);
+		Token literal = consume(lexer);
 		String *string = push_string(compiler);
-		char *sequence = extract_string_literal(literal, string);
+		char *sequence = extract_string_literal(&literal, string);
 
 		if (sequence != NULL) {
 			// Invalid escape sequence in string
@@ -115,9 +115,9 @@ void left(Compiler *compiler) {
 		}
 	} else {
 		// Unrecognised operand, so trigger an error.
-		Token *token = peek(lexer, 0);
+		Token token = peek(lexer, 0);
 		error(compiler, "Expected operand in expression, found `%.*s`",
-			token->length, token->location);
+			token.length, token.location);
 	}
 }
 
