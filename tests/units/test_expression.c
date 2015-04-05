@@ -179,6 +179,96 @@ START(multi_precedence_five) {
 END()
 
 
+START(boolean) {
+	EXPRESSION("1 + 2 < 8 + 9 && 3 >= 90");
+
+	ASSERT_NUMBER_PUSH(1.0);
+	ASSERT_NUMBER_PUSH(2.0);
+	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NUMBER_PUSH(8.0);
+	ASSERT_NUMBER_PUSH(9.0);
+	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_OPERATOR_CALL(operator_less_than);
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_NUMBER_PUSH(90.0);
+	ASSERT_OPERATOR_CALL(operator_greater_than_equal_to);
+	ASSERT_OPERATOR_CALL(operator_boolean_and);
+}
+END()
+
+
+START(single_parenthesis_one) {
+	EXPRESSION("(1 + 2) * 3");
+
+	ASSERT_NUMBER_PUSH(1.0);
+	ASSERT_NUMBER_PUSH(2.0);
+	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_OPERATOR_CALL(operator_multiplication);
+}
+END()
+
+
+START(single_parenthesis_two) {
+	EXPRESSION("1 * (3 - 2)");
+
+	ASSERT_NUMBER_PUSH(1.0);
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_NUMBER_PUSH(2.0);
+	ASSERT_OPERATOR_CALL(operator_subtraction);
+	ASSERT_OPERATOR_CALL(operator_multiplication);
+}
+END()
+
+
+START(single_parenthesis_three) {
+	EXPRESSION("2 * (3 + 4) / (9 - 3)");
+
+	ASSERT_NUMBER_PUSH(2.0);
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_NUMBER_PUSH(4.0);
+	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_OPERATOR_CALL(operator_multiplication);
+	ASSERT_NUMBER_PUSH(9.0);
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_OPERATOR_CALL(operator_subtraction);
+	ASSERT_OPERATOR_CALL(operator_division);
+}
+END()
+
+
+START(nested_parenthesis_one) {
+	EXPRESSION("2 * (3 + 4 * (2 + 6))");
+
+	ASSERT_NUMBER_PUSH(2.0);
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_NUMBER_PUSH(4.0);
+	ASSERT_NUMBER_PUSH(2.0);
+	ASSERT_NUMBER_PUSH(6.0);
+	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_OPERATOR_CALL(operator_multiplication);
+	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_OPERATOR_CALL(operator_multiplication);
+}
+END()
+
+
+START(nested_parenthesis_two) {
+	EXPRESSION("2 / (9 - ((7 + 3) * 8))");
+
+	ASSERT_NUMBER_PUSH(2.0);
+	ASSERT_NUMBER_PUSH(9.0);
+	ASSERT_NUMBER_PUSH(7.0);
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NUMBER_PUSH(8.0);
+	ASSERT_OPERATOR_CALL(operator_multiplication);
+	ASSERT_OPERATOR_CALL(operator_subtraction);
+	ASSERT_OPERATOR_CALL(operator_division);
+}
+END()
+
+
 MAIN(expression) {
 	RUN(single_operand)
 	RUN(single_precedence_one)
@@ -189,5 +279,11 @@ MAIN(expression) {
 	RUN(multi_precedence_three)
 	RUN(multi_precedence_four)
 	RUN(multi_precedence_five)
+	RUN(boolean)
+	RUN(single_parenthesis_one)
+	RUN(single_parenthesis_two)
+	RUN(single_parenthesis_three)
+	RUN(nested_parenthesis_one)
+	RUN(nested_parenthesis_two)
 }
 MAIN_END()

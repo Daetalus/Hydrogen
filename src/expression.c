@@ -56,7 +56,7 @@ void parse_precedence(Compiler *compiler, TokenType terminator,
 
 	// Keep compiling operators while their precedence is greater
 	// than the precedence argument.
-	while (operator.type != terminator &&
+	while (operator.type != TOKEN_END_OF_FILE && operator.type != terminator &&
 			precedence < operator_precedence(operator.type)) {
 		if (is_binary_operator(operator.type)) {
 			// Consume the operator token.
@@ -118,6 +118,17 @@ void left(Compiler *compiler) {
 			// Invalid escape sequence in string
 			error(compiler, "Invalid escape sequence `%.*s`", 2, sequence);
 		}
+	} else if (match(lexer, TOKEN_OPEN_PARENTHESIS)) {
+		// Sub-expression
+		// Consume the parenthesis
+		consume(lexer);
+
+		// Parse the expression
+		parse_precedence(compiler, TOKEN_CLOSE_PARENTHESIS, 0);
+
+		// Consume the closing parenthesis
+		expect(compiler, TOKEN_CLOSE_PARENTHESIS,
+			"Expected `)` to close opening parenthesis.");
 	} else {
 		// Unrecognised operand, so trigger an error.
 		Token token = peek(lexer, 0);

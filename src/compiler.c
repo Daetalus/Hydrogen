@@ -35,8 +35,6 @@ void pop_scope(Compiler *compiler);
 int index_of_local(Compiler *compiler, char *name, int length);
 uint16_t define_local(Compiler *compiler, char *name, int length);
 
-Token expect(Compiler *compiler, TokenType expected, char *message);
-
 
 // Compile source code into bytecode.
 //

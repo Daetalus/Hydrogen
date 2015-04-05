@@ -125,9 +125,6 @@ void push_number(Compiler *compiler, double number);
 // so the string that will be pushed can be modified.
 String * push_string(Compiler *compiler);
 
-// Triggers the given error on the compiler.
-void error(Compiler *compiler, char *fmt, ...);
-
 
 // Emits bytecode to call the function with the given name.
 void emit_function_call(Compiler *compiler, char *name, int length);
@@ -136,5 +133,16 @@ void emit_function_call(Compiler *compiler, char *name, int length);
 // operator.
 // Assumes the arguments to the call are on the stack already.
 void emit_native_operator_call(Compiler *compiler, TokenType operator);
+
+
+// Triggers the given error on the compiler.
+void error(Compiler *compiler, char *fmt, ...);
+
+// Consumes the next token, triggering an error with the given
+// message if it isn't of the expected type.
+//
+// Returns the consumed token if successful, or NULL if the token
+// was of an unexpected type.
+Token expect(Compiler *compiler, TokenType expected, char *message);
 
 #endif
