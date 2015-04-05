@@ -94,6 +94,9 @@ typedef struct {
 // Allocate a new string with the given capacity.
 void string_new(String *string, int capacity);
 
+// Free a string.
+void string_free(String *string);
+
 // Copy a character array into a new string.
 void string_copy(String *destination, char *source, int length);
 

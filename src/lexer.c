@@ -575,10 +575,10 @@ bool match2(Lexer *lexer, TokenType one, TokenType two) {
 //  String Literal
 //
 
-#define ESCAPE_SEQUENCE(escape_ch, replacement) \
-	if (ch == (escape_ch)) {                    \
-		string->contents[i] = (replacement);    \
-		continue;                               \
+#define ESCAPE_SEQUENCE(escape_ch, replacement)    \
+	if (ch == (escape_ch)) {                       \
+		string_append_char(string, (replacement)); \
+		continue;                                  \
 	}
 
 
@@ -603,18 +603,18 @@ char * extract_string_literal(Token *literal, String *string) {
 			ch = literal->location[i];
 
 			// Insert the corresponding escape sequence
-			ESCAPE_SEQUENCE('n', '\n')
-			ESCAPE_SEQUENCE('r', '\r')
-			ESCAPE_SEQUENCE('t', '\t')
-			ESCAPE_SEQUENCE('\'', '\'')
-			ESCAPE_SEQUENCE('"', '"')
-			ESCAPE_SEQUENCE('\\', '\\')
+			ESCAPE_SEQUENCE('n', '\n');
+			ESCAPE_SEQUENCE('r', '\r');
+			ESCAPE_SEQUENCE('t', '\t');
+			ESCAPE_SEQUENCE('\'', '\'');
+			ESCAPE_SEQUENCE('"', '"');
+			ESCAPE_SEQUENCE('\\', '\\');
 
 			// No escape sequence was found
 			return &literal->location[i - 1];
 		} else {
 			// It's a normal character, so just insert it.
-			string->contents[i] = ch;
+			string_append_char(string, ch);
 		}
 	}
 

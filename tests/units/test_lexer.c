@@ -14,34 +14,16 @@
 	Lexer lexer;                    \
 	lexer_new(&lexer, source);
 
+
 #define TEST_TOKEN(token_type, src_location, src_length) \
 	ASSERT_EQ(token.type, token_type);                   \
 	ASSERT_EQ(token.location, src_location);             \
 	ASSERT_EQ(token.length, src_length);
 
+
 #define TEST_CONSUME_TOKEN(token_type, src_location, src_length) \
 	token = consume(&lexer);                                     \
 	TEST_TOKEN(token_type, src_location, src_length);
-
-#define TEST_STRING(token_type, src_location, src_length, string) \
-	ASSERT_EQ(token.type, token_type);                            \
-	ASSERT_EQ(token.location, src_location);                      \
-	ASSERT_EQ(token.length, src_length);                          \
-	ASSERT_STRN_EQ(token.location, string, token.length);
-
-#define TEST_CONSUME_STRING(token_type, src_location, src_length, string) \
-	token = consume(&lexer);                                              \
-	TEST_STRING(token_type, src_location, src_length, string);
-
-#define TEST_DOUBLE(token_type, src_location, src_length, value) \
-	ASSERT_EQ(token.type, token_type);                           \
-	ASSERT_EQ(token.location, src_location);                     \
-	ASSERT_EQ(token.length, src_length);                         \
-	ASSERT_EQ(token.number, value);
-
-#define TEST_CONSUME_DOUBLE(token_type, src_location, src_length, value) \
-	token = consume(&lexer);                                             \
-	TEST_DOUBLE(token_type, src_location, src_length, value);
 
 
 START(operators) {
@@ -94,6 +76,14 @@ START(keywords) {
 END()
 
 
+#define TEST_CONSUME_STRING(token_type, src_location, src_length, string) \
+	token = consume(&lexer);                                              \
+	ASSERT_EQ(token.type, token_type);                                    \
+	ASSERT_EQ(token.location, src_location);                              \
+	ASSERT_EQ(token.length, src_length);                                  \
+	ASSERT_STRN_EQ(token.location, string, token.length);
+
+
 START(identifiers) {
 	NEW_LEXER("hello\twhat is up\t\t testing");
 
@@ -106,6 +96,14 @@ START(identifiers) {
 	TEST_CONSUME_TOKEN(TOKEN_END_OF_FILE, source + 26, 0);
 }
 END()
+
+
+#define TEST_CONSUME_DOUBLE(token_type, src_location, src_length, value) \
+	token = consume(&lexer);                                             \
+	ASSERT_EQ(token.type, token_type);                                   \
+	ASSERT_EQ(token.location, src_location);                             \
+	ASSERT_EQ(token.length, src_length);                                 \
+	ASSERT_EQ(token.number, value);
 
 
 START(numbers) {
@@ -169,9 +167,28 @@ START(peek) {
 END()
 
 
+#define TEST_EXTRACT(expected) \
+	extracted = extract_string_literal(&token, &string); \
+	ASSERT_EQ(extracted, NULL); \
+	ASSERT_STR_EQ(string.contents, expected);
+
+
 START(extract_string_literal) {
-	Parser parser;
-	parser_new(&parser, "'test' 'test\t\ntesting' 'test\\t \rtest' '\\'\\\"'");
+	NEW_LEXER("'test' 'test\t\ntesting' 'test\\t \rtest' '\\'\\\"'");
+
+	Token token;
+	char *extracted;
+	String string;
+
+	TEST_CONSUME_STRING(TOKEN_STRING, source + 1, 4, "test");
+	TEST_EXTRACT("test");
+	TEST_CONSUME_STRING(TOKEN_STRING, source + 8, 13, "test\t\ntesting");
+	TEST_EXTRACT("test\t\ntesting");
+	TEST_CONSUME_STRING(TOKEN_STRING, source + 24, 12, "test\\t \rtest");
+	TEST_EXTRACT("test\t \rtest");
+	TEST_CONSUME_STRING(TOKEN_STRING, source + 39, 4, "\\'\\\"");
+	TEST_EXTRACT("'\"");
+	TEST_CONSUME_TOKEN(TOKEN_END_OF_FILE, source + 44, 0);
 }
 END()
 
@@ -184,6 +201,6 @@ MAIN(lexer) {
 	RUN(numbers)
 	RUN(string_literals)
 	RUN(peek)
-	// RUN(extract_string_literal)
+	RUN(extract_string_literal)
 }
 MAIN_END()

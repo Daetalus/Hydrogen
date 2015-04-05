@@ -48,6 +48,12 @@ void string_new(String *string, int capacity) {
 }
 
 
+// Free a string.
+void string_free(String *string) {
+	free(string->contents);
+}
+
+
 // Resize a string to fix a minimum of the given size.
 void string_resize(String *string, int length) {
 	if (string->capacity < length) {
