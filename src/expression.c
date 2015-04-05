@@ -12,7 +12,7 @@
 
 
 // Forward declarations.
-void expression_precedence(Compiler *compiler, TokenType terminator,
+void parse_precedence(Compiler *compiler, TokenType terminator,
 	int precedence);
 void left(Compiler *compiler);
 void prefix(Compiler *compiler, TokenType operator);
@@ -36,13 +36,13 @@ Associativity operator_associativity(TokenType operator);
 //
 // The terminator token is not consumed.
 void expression(Compiler *compiler, TokenType terminator) {
-	expression_precedence(compiler, terminator, 0);
+	parse_precedence(compiler, terminator, 0);
 }
 
 
 // Compiles an expression, stopping once we reach an operator
 // with a higher precedence than the given precedence level.
-void expression_precedence(Compiler *compiler, TokenType terminator,
+void parse_precedence(Compiler *compiler, TokenType terminator,
 		int precedence) {
 	Lexer *lexer = &compiler->vm->lexer;
 
@@ -67,7 +67,7 @@ void expression_precedence(Compiler *compiler, TokenType terminator,
 
 			operator = peek(lexer, 0);
 		} else {
-			// Unexpected binary operator.
+			// Expected binary operator.
 			error(compiler, "Expected binary operator, found `%.*s`.",
 				operator.length, operator.location);
 			return;
@@ -142,7 +142,7 @@ void prefix(Compiler *compiler, TokenType operator) {
 	// only compiling the left hand side of an expression, and it
 	// would be invalid for the terminator token to appear here
 	// anyway.
-	expression_precedence(compiler, TOKEN_END_OF_FILE, 0);
+	parse_precedence(compiler, TOKEN_END_OF_FILE, 0);
 
 	// Push a native call to the operator's corresponding
 	// handling function.
@@ -165,7 +165,7 @@ void infix(Compiler *compiler, TokenType terminator, TokenType operator) {
 
 	// Push the right hand side of the expression onto
 	// the stack.
-	expression_precedence(compiler, terminator, precedence);
+	parse_precedence(compiler, terminator, precedence);
 
 	// Emit the native call for this operator.
 	emit_native_operator_call(compiler, operator);
@@ -203,41 +203,41 @@ int operator_precedence(TokenType operator) {
 	case TOKEN_NEGATION:
 	case TOKEN_BITWISE_NOT:
 	case TOKEN_BOOLEAN_NOT:
-		return 1;
+		return 11;
 
 	case TOKEN_MULTIPLICATION:
 	case TOKEN_DIVISION:
 	case TOKEN_MODULO:
-		return 2;
+		return 10;
 
 	case TOKEN_ADDITION:
 	case TOKEN_SUBTRACTION:
-		return 3;
+		return 9;
 
 	case TOKEN_LEFT_SHIFT:
 	case TOKEN_RIGHT_SHIFT:
-		return 4;
+		return 8;
 
 	case TOKEN_LESS_THAN:
 	case TOKEN_LESS_THAN_EQUAL_TO:
 	case TOKEN_GREATER_THAN:
 	case TOKEN_GREATER_THAN_EQUAL_TO:
-		return 5;
+		return 7;
 
 	case TOKEN_EQUAL:
 	case TOKEN_NOT_EQUAL:
 		return 6;
 
 	case TOKEN_BITWISE_AND:
-		return 7;
+		return 5;
 	case TOKEN_BITWISE_XOR:
-		return 8;
+		return 4;
 	case TOKEN_BITWISE_OR:
-		return 9;
+		return 3;
 	case TOKEN_BOOLEAN_AND:
-		return 10;
+		return 2;
 	case TOKEN_BOOLEAN_OR:
-		return 11;
+		return 1;
 
 	default:
 		return -1;

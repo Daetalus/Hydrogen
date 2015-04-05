@@ -112,7 +112,7 @@ END()
 
 
 START(multi_precedence_one) {
-	EXPRESSION("3 * 4 + 5")
+	EXPRESSION("3 * 4 + 5");
 
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
@@ -124,19 +124,19 @@ END()
 
 
 START(multi_precedence_two) {
-	EXPRESSION("5 + 3 * 4")
+	EXPRESSION("5 + 3 * 4");
 
+	ASSERT_NUMBER_PUSH(5.0);
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
 	ASSERT_OPERATOR_CALL(operator_multiplication);
-	ASSERT_NUMBER_PUSH(5.0);
 	ASSERT_OPERATOR_CALL(operator_addition);
 }
 END()
 
 
 START(multi_precedence_three) {
-	EXPRESSION("2 * 3 + 4 / 5")
+	EXPRESSION("2 * 3 + 4 / 5");
 
 	ASSERT_NUMBER_PUSH(2.0);
 	ASSERT_NUMBER_PUSH(3.0);
