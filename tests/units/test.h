@@ -82,11 +82,3 @@
 		fprintf(stderr, "    %s == %s, length: %d\n", #a, #b, (length)); \
 		return 1; \
 	}
-
-// Handles imprecision in floating point math
-#define ASSERT_DOUBLE_EQ(a, b) \
-	if (((a) > (b) ? ((a) - (b)) : ((b) - (a))) < 0.01) { \
-		PRINT_ASSERTION_FAILED() \
-		fprintf(stderr, "    %s == %s\n", #a, #b); \
-		return 1; \
-	}

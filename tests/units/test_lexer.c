@@ -37,7 +37,7 @@
 	ASSERT_EQ(token->type, token_type);                          \
 	ASSERT_EQ(token->location, src_location);                    \
 	ASSERT_EQ(token->length, src_length);                        \
-	ASSERT_DOUBLE_EQ(token->number, value);
+	ASSERT_EQ(token->number, value);
 
 #define TEST_CONSUME_DOUBLE(token_type, src_location, src_length, value) \
 	token = consume(&lexer);                                             \
@@ -95,7 +95,7 @@ END()
 
 
 START(identifiers) {
-	NEW_LEXER("hello\nwhat is up\n\t testing");
+	NEW_LEXER("hello\twhat is up\t\t testing");
 
 	Token *token;
 	TEST_CONSUME_STRING(TOKEN_IDENTIFIER, source, 5, "hello");
@@ -122,17 +122,17 @@ END()
 
 
 START(string_literals) {
-	NEW_LEXER("'hello' \"again\", '\\''\n\r { \"\\\"\" \t''");
+	NEW_LEXER("'hello' \"again\", '\\''\t\t { \"\\\"\" \t''");
 
 	Token *token;
 	TEST_CONSUME_STRING(TOKEN_STRING, source + 1, 5, "hello");
 	TEST_CONSUME_STRING(TOKEN_STRING, source + 9, 5, "again");
 	TEST_CONSUME_TOKEN(TOKEN_COMMA, source + 15, 1);
-	TEST_CONSUME_STRING(TOKEN_STRING, source + 18, 1, "'");
-	TEST_CONSUME_TOKEN(TOKEN_OPEN_BRACE, source + 23, 1);
-	TEST_CONSUME_STRING(TOKEN_STRING, source + 26, 1, "\"");
-	TEST_CONSUME_STRING(TOKEN_STRING, source + 31, 0, "");
-	TEST_CONSUME_TOKEN(TOKEN_END_OF_FILE, source + 32, 0);
+	TEST_CONSUME_STRING(TOKEN_STRING, source + 18, 2, "\\'");
+	TEST_CONSUME_TOKEN(TOKEN_OPEN_BRACE, source + 24, 1);
+	TEST_CONSUME_STRING(TOKEN_STRING, source + 27, 2, "\\\"");
+	TEST_CONSUME_STRING(TOKEN_STRING, source + 33, 0, "");
+	TEST_CONSUME_TOKEN(TOKEN_END_OF_FILE, source + 34, 0);
 }
 END()
 
