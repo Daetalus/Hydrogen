@@ -7,9 +7,18 @@
 #ifndef OPERATORS_H
 #define OPERATORS_H
 
+#include "lexer.h"
 
-// This file provides function pointers that perform arithmetic
-// operations on numbers.
+
+// Returns true if the given token is a binary operator.
+bool is_binary_operator(TokenType operator);
+
+// Returns the precedence of an operator.
+int operator_precedence(TokenType operator);
+
+// Returns the associativity of an operator.
+Associativity operator_associativity(TokenType operator);
+
 
 // Mathematical operators
 void operator_addition(void);
