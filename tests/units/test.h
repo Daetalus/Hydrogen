@@ -35,52 +35,58 @@
 	}
 
 #define RUN(name) \
-	result = test_##name(); \
-	if (result != 0 && has_failed == 0) { \
-		has_failed = result; \
+	printf(BLUE BOLD "Starting test " NORMAL "`%s`\n", #name); \
+	if (test_##name()) { \
+		failed++; \
 	}
 
 #define MAIN(name) \
 	int main(int argc, char *argv[]) { \
 		int result; \
-		int has_failed = 0; \
+		int failed = 0; \
 		printf(LINE "\n" BLUE BOLD "Testing %s...\n\n" NORMAL, #name); \
 		if (1)
 
 #define MAIN_END() \
-		if (has_failed == 0) { \
+		if (failed == 0) { \
 			printf(GREEN BOLD "\nAll tests passed.\n" NORMAL LINE "\n"); \
+		} else if (failed == 1) { \
+			printf(RED BOLD "\n1 test failed.\n" NORMAL LINE "\n"); \
 		} else { \
-			printf(RED BOLD "\nSome tests failed.\n" NORMAL LINE "\n"); \
+			printf(RED BOLD "\n%d tests failed.\n" NORMAL LINE "\n", failed); \
 		} \
-		return has_failed; \
+		return failed; \
 	}
+
+#define PRINT_ASSERTION_FAILED() \
+	fprintf(stderr, BOLD RED "Assertion failed " NORMAL "in test `%s` on line %d:\n", \
+		test_name, __LINE__);
 
 #define ASSERT_EQ(a, b) \
 	if ((a) != (b)) { \
-		fprintf(stderr, BOLD RED "Assertion failed " NORMAL "in test `%s`:\n", test_name); \
+		PRINT_ASSERTION_FAILED() \
 		fprintf(stderr, "    %s == %s\n", #a, #b); \
 		return 1; \
 	}
 
 #define ASSERT_STR_EQ(a, b) \
 	if (strcmp((a), (b)) != 0) { \
-		fprintf(stderr, BOLD RED "Assertion failed" NORMAL "in test `%s`:", test_name); \
+		PRINT_ASSERTION_FAILED() \
 		fprintf(stderr, "    %s == %s\n", #a, #b); \
 		return 1; \
 	}
 
 #define ASSERT_STRN_EQ(a, b, length) \
 	if (strncmp((a), (b), (length)) != 0) { \
-		fprintf(stderr, BOLD RED "Assertion failed" NORMAL "in test `%s`:", test_name); \
-		fprintf(stderr, "    %s == %s, length: %s\n", #a, #b, #length); \
+		PRINT_ASSERTION_FAILED() \
+		fprintf(stderr, "    %s == %s, length: %d\n", #a, #b, (length)); \
 		return 1; \
 	}
 
 // Handles imprecision in floating point math
 #define ASSERT_DOUBLE_EQ(a, b) \
-	if ((a) - (b) > -0.00000001 && (a) - (b) < 0.00000001) { \
-		fprintf(stderr, BOLD RED "Assertion failed " NORMAL "in test `%s`:\n", test_name); \
+	if (((a) > (b) ? ((a) - (b)) : ((b) - (a))) < 0.01) { \
+		PRINT_ASSERTION_FAILED() \
 		fprintf(stderr, "    %s == %s\n", #a, #b); \
 		return 1; \
 	}

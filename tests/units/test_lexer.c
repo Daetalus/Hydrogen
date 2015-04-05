@@ -6,7 +6,7 @@
 
 #include "test.h"
 
-#include "../../src/lexer.h"
+#include "../../src/lexer.c"
 
 
 #define NEW_LEXER(source_string) \
@@ -15,6 +15,7 @@
 	lexer_new(&lexer, source);
 
 #define TEST_TOKEN(token_type, src_location, src_length) \
+	printf("token: %.*s, %d\n", (src_length), (src_location), (token->type)); \
 	ASSERT_EQ(token->type, (token_type)); \
 	ASSERT_EQ(token->location, (src_location)); \
 	ASSERT_EQ(token->length, (src_length));
@@ -45,17 +46,17 @@
 
 
 START(operators) {
-	NEW_LEXER("  + - \n\t += && \r \t<< !=");
+	NEW_LEXER("  + - \t += && \r << !=");
 
 	Token *token;
 	TEST_CONSUME_TOKEN(TOKEN_ADDITION, source + 2, 1);
 	TEST_CONSUME_TOKEN(TOKEN_SUBTRACTION, source + 4, 1);
-	TEST_CONSUME_TOKEN(TOKEN_ADDITION_ASSIGNMENT, source + 9, 2);
-	TEST_CONSUME_TOKEN(TOKEN_BOOLEAN_AND, source + 12, 2);
-	TEST_CONSUME_TOKEN(TOKEN_LEFT_SHIFT, source + 18, 2);
-	TEST_CONSUME_TOKEN(TOKEN_NOT_EQUAL, source + 21, 2);
-	TEST_CONSUME_TOKEN(TOKEN_END_OF_FILE, source + 23, 0);
-	TEST_CONSUME_TOKEN(TOKEN_END_OF_FILE, source + 23, 0);
+	TEST_CONSUME_TOKEN(TOKEN_ADDITION_ASSIGNMENT, source + 8, 2);
+	TEST_CONSUME_TOKEN(TOKEN_BOOLEAN_AND, source + 11, 2);
+	TEST_CONSUME_TOKEN(TOKEN_LEFT_SHIFT, source + 16, 2);
+	TEST_CONSUME_TOKEN(TOKEN_NOT_EQUAL, source + 19, 2);
+	TEST_CONSUME_TOKEN(TOKEN_END_OF_FILE, source + 21, 0);
+	TEST_CONSUME_TOKEN(TOKEN_END_OF_FILE, source + 21, 0);
 }
 END()
 

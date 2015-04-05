@@ -29,16 +29,11 @@ void if_statement(Compiler *compiler);
 bool match_variable_assignment(Compiler *compiler);
 bool match_if_statement(Compiler *compiler);
 
-void emit_native_operator_call(Compiler *compiler, TokenType operator);
-
 void push_scope(Compiler *compiler);
 void pop_scope(Compiler *compiler);
 
 int index_of_local(Compiler *compiler, char *name, int length);
 uint16_t define_local(Compiler *compiler, char *name, int length);
-void push_local(Compiler *compiler, char *name, int length);
-void push_number(Compiler *compiler, double number);
-void push_string(Compiler *compiler, char *location, int length);
 
 Token * expect(Compiler *compiler, TokenType expected, char *message);
 
@@ -61,6 +56,7 @@ void compile(VirtualMachine *vm, Function *fn, TokenType terminator) {
 	compiler.local_count = 0;
 	compiler.scope_depth = -1;
 	compiler.has_error = false;
+	compiler.string_literal_count = 0;
 
 	// Treat the source code as a top level block, stopping when
 	// we reach the terminator character.
@@ -505,13 +501,18 @@ void push_number(Compiler *compiler, double number) {
 }
 
 
-// Emits bytecode to push a string literal onto the stack.
-void push_string(Compiler *compiler, char *location, int length) {
+// Pushes a string onto the stack.
+// Returns a pointer to an unallocated string,
+// so the string that will be pushed can be modified.
+String * push_string(Compiler *compiler) {
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
+	int index = compiler->string_literal_count;
+	compiler->string_literal_count++;
+
 	emit(bytecode, CODE_PUSH_STRING);
-	emit_arg_8(bytecode, (uint64_t) location);
-	emit_arg_4(bytecode, length);
+	emit_arg_2(bytecode, index);
+	return &compiler->string_literals[index];
 }
 
 

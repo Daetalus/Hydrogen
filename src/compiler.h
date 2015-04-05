@@ -10,6 +10,7 @@
 #include "vm.h"
 #include "bytecode.h"
 #include "lexer.h"
+#include "value.h"
 
 
 // The maximum number of local variables that can be
@@ -20,6 +21,11 @@
 // hold. We set the maximum to less than this though to
 // save on space.
 #define MAX_LOCALS 256
+
+
+// The maximum number of string literals that can be
+// int he source code.
+#define MAX_STRING_LITERALS 1024
 
 
 // A local variable.
@@ -87,6 +93,11 @@ typedef struct {
 	// Set to true when the compiler encounters a syntax
 	// or compilation error.
 	bool has_error;
+
+	// A list containing all the string literal constants
+	// found during compilation.
+	String string_literals[MAX_STRING_LITERALS];
+	int string_literal_count;
 } Compiler;
 
 
@@ -109,8 +120,10 @@ void push_local(Compiler *compiler, char *name, int length);
 // Emits bytecode to push a number onto the stack.
 void push_number(Compiler *compiler, double number);
 
-// Emits bytecode to push a string literal onto the stack.
-void push_string(Compiler *compiler, char *location, int length);
+// Pushes a string onto the stack.
+// Returns a pointer to an unallocated string,
+// so the string that will be pushed can be modified.
+String * push_string(Compiler *compiler);
 
 // Triggers the given error on the compiler.
 void error(Compiler *compiler, char *fmt, ...);

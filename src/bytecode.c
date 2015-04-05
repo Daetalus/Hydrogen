@@ -37,6 +37,10 @@ int resize(Bytecode *bytecode, int amount) {
 	if (bytecode->count > bytecode->capacity) {
 		// Reisze the array
 		bytecode->capacity *= 1.5;
+		if (bytecode->capacity < bytecode->count) {
+			bytecode->capacity = bytecode->count * 1.5;
+		}
+
 		size_t new_size = bytecode->capacity * sizeof(uint8_t);
 		bytecode->instructions = realloc(bytecode->instructions, new_size);
 	}

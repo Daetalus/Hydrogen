@@ -28,9 +28,6 @@ add_library(
 	src/vm.c
 )
 
-install(TARGETS vm DESTINATION lib)
-install(FILES include/hydrogen.h DESTINATION include)
-
 
 
 # --
@@ -45,6 +42,7 @@ macro(test name)
 	add_test(test_${name} test_${name})
 endmacro()
 
+test(parser)
 test(lexer)
 test(expression)
 

@@ -9,6 +9,8 @@
 
 #include <stdbool.h>
 
+#include "value.h"
+
 
 // The maximum number of tokens that the lexer can store in
 // its token cache.
@@ -91,6 +93,7 @@ typedef enum {
 	// Other
 	TOKEN_LINE,
 	TOKEN_END_OF_FILE,
+	TOKEN_UNRECOGNISED,
 } TokenType;
 
 
@@ -107,7 +110,7 @@ typedef struct {
 	TokenType type;
 
 	// A number used when the parsed token is a number.
-	// Set to 0 if the token isn't a number.
+	// Undefined if the token isn't a number.
 	double number;
 
 	// A pointer into the source code specifying the start
@@ -166,5 +169,13 @@ bool match(Lexer *lexer, TokenType token);
 
 // Returns true if the lexer starts with the two given tokens.
 bool match2(Lexer *lexer, TokenType one, TokenType two);
+
+// Extracts a string literal pointed to by the given token
+// from the source code, populating `string` (assumed to be
+// unallocated.
+// If the string contains an invalid escape sequence, returns
+// a pointer to the start of the escape sequence, else returns
+// NULL.
+char * extract_string_literal(Token *literal, String *string);
 
 #endif

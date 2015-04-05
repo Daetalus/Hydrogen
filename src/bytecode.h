@@ -22,9 +22,8 @@ typedef enum {
 	// The literal's value is extracted from the source
 	// and allocated as a new object on the heap.
 	//
-	// Takes 2 arguments: a pointer to the literal in
-	// the source code (8 bytes), and the literal's
-	// length (4 bytes).
+	// Takes 1, 2 byte argument: the index in the compiler's
+	// string constants list of the literal to push.
 	CODE_PUSH_STRING,
 
 	// Push the value of a variable in the value stack

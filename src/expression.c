@@ -106,7 +106,13 @@ void left(Compiler *compiler) {
 	} else if (match(lexer, TOKEN_STRING)) {
 		// String literal
 		Token *literal = consume(lexer);
-		push_string(compiler, literal->location, literal->length);
+		String *string = push_string(compiler);
+		char *sequence = extract_string_literal(literal, string);
+
+		if (sequence != NULL) {
+			// Invalid escape sequence in string
+			error(compiler, "Invalid escape sequence `%.*s`", 2, sequence);
+		}
 	} else {
 		// Unrecognised operand, so trigger an error.
 		Token *token = peek(lexer, 0);

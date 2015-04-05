@@ -55,4 +55,52 @@ double as_number(uint64_t value);
 // Converts a number into a value.
 uint64_t to_number(double number);
 
+
+
+//
+//  Object
+//
+
+// An object.
+typedef struct _obj {
+	// A pointer to the next object in the linked list of
+	// all allocated objects. Used when collecting garbage
+	// to loop over all allocated objects.
+	struct _obj *next;
+} Obj;
+
+
+
+//
+//  String
+//
+
+// A string.
+typedef struct {
+	// A pointer to the string's underlying object.
+	Obj *obj;
+
+	// The string's length.
+	int length;
+
+	// The allocated capacity for the string.
+	int capacity;
+
+	// A pointer to the string's heap allocated contents.
+	char *contents;
+} String;
+
+
+// Allocate a new string with the given capacity.
+void string_new(String *string, int capacity);
+
+// Copy a character array into a new string.
+void string_copy(String *destination, char *source, int length);
+
+// Append a character onto the given string.
+void string_append_char(String *string, char ch);
+
+// Append a string onto the given string.
+void string_append(String *destination, String *source);
+
 #endif
