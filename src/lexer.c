@@ -530,11 +530,8 @@ Token consume(Lexer *lexer) {
 Token peek(Lexer *lexer, int amount) {
 	// If we're past the maximum cache amount, then don't bother.
 	if (amount >= MAX_TOKEN_CACHE_SIZE) {
-		// Return an end of file token.
 		Token token;
-		token.type = TOKEN_END_OF_FILE;
-		token.location = &lexer->parser.source[lexer->parser.length];
-		token.length = 0;
+		token.type = TOKEN_NONE;
 		return token;
 	}
 
@@ -554,7 +551,7 @@ Token peek(Lexer *lexer, int amount) {
 	}
 
 	// Return the token we're after.
-	return lexer->cache[lexer->cache_size - 1];
+	return lexer->cache[amount];
 }
 
 

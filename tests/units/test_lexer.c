@@ -15,7 +15,6 @@
 	lexer_new(&lexer, source);
 
 #define TEST_TOKEN(token_type, src_location, src_length) \
-	printf("%d\n", token.type);\
 	ASSERT_EQ(token.type, token_type);                   \
 	ASSERT_EQ(token.location, src_location);             \
 	ASSERT_EQ(token.length, src_length);
@@ -147,8 +146,6 @@ START(peek) {
 	TEST_TOKEN(TOKEN_SUBTRACTION, source + 2, 1);
 	token = peek(&lexer, 2);
 	TEST_TOKEN(TOKEN_MULTIPLICATION, source + 4, 1);
-	token = peek(&lexer, 100);
-	TEST_TOKEN(TOKEN_END_OF_FILE, source + 9, 0);
 
 	TEST_CONSUME_TOKEN(TOKEN_ADDITION, source, 1);
 
@@ -156,8 +153,6 @@ START(peek) {
 	TEST_TOKEN(TOKEN_SUBTRACTION, source + 2, 1);
 	token = peek(&lexer, 1);
 	TEST_TOKEN(TOKEN_MULTIPLICATION, source + 4, 1);
-	token = peek(&lexer, 100);
-	TEST_TOKEN(TOKEN_END_OF_FILE, source + 9, 0);
 
 	TEST_CONSUME_TOKEN(TOKEN_SUBTRACTION, source + 2, 1);
 	TEST_CONSUME_TOKEN(TOKEN_MULTIPLICATION, source + 4, 1);
@@ -167,6 +162,8 @@ START(peek) {
 	token = peek(&lexer, 1);
 	TEST_TOKEN(TOKEN_MODULO, source + 8, 1);
 
+	TEST_CONSUME_TOKEN(TOKEN_DIVISION, source + 6, 1);
+	TEST_CONSUME_TOKEN(TOKEN_MODULO, source + 8, 1);
 	TEST_CONSUME_TOKEN(TOKEN_END_OF_FILE, source + 9, 0);
 }
 END()
