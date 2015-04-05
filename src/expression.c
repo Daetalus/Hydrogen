@@ -4,8 +4,11 @@
 //
 
 
+#include <stdio.h>
+
 #include "compiler.h"
 #include "lexer.h"
+#include "value.h"
 
 
 // Forward declarations.
@@ -61,6 +64,8 @@ void expression_precedence(Compiler *compiler, TokenType terminator,
 
 			// Compile an infix operator.
 			infix(compiler, terminator, operator.type);
+
+			operator = peek(lexer, 0);
 		} else {
 			// Unexpected binary operator.
 			error(compiler, "Expected binary operator, found `%.*s`.",

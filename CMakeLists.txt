@@ -45,6 +45,7 @@ endmacro()
 test(parser)
 test(lexer)
 test(expression)
+test(value)
 
 
 

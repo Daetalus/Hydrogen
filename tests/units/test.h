@@ -49,7 +49,8 @@
 
 #define MAIN_END() \
 		if (failed == 0) { \
-			printf(GREEN BOLD "\nAll tests passed.\n" NORMAL LINE "\n"); \
+			printf(GREEN BOLD "\nAll tests passed.\n"); \
+			printf(GREEN BOLD "You are awesome!\n" NORMAL LINE "\n"); \
 		} else if (failed == 1) { \
 			printf(RED BOLD "\n1 test failed.\n" NORMAL LINE "\n"); \
 		} else { \

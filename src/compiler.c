@@ -498,7 +498,7 @@ void push_local(Compiler *compiler, char *name, int length) {
 void push_number(Compiler *compiler, double number) {
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
-	uint64_t converted = as_number(number);
+	uint64_t converted = as_value(number);
 	emit(bytecode, CODE_PUSH_NUMBER);
 	emit_arg_8(bytecode, converted);
 }

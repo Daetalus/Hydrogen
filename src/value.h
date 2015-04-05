@@ -47,13 +47,14 @@
 
 // Converts the value to an object pointer.
 #define AS_OBJ(value) ((Obj *) ((uint64_t) ((value) & ~(QUIET_NAN | SIGN))))
+#define AS_FN(value) (void (*)(void)) ((uint64_t) ((value) & ~(QUIET_NAN | SIGN)))
 
 
 // Converts a value into a number.
 double as_number(uint64_t value);
 
 // Converts a number into a value.
-uint64_t to_number(double number);
+uint64_t as_value(double number);
 
 
 

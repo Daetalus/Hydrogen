@@ -27,7 +27,7 @@ double as_number(uint64_t value) {
 
 
 // Converts a number into a value.
-uint64_t to_number(double number) {
+uint64_t as_value(double number) {
 	Convert convert;
 	convert.number = number;
 	return convert.value;
