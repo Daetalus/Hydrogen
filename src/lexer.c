@@ -47,7 +47,8 @@ bool is_separator(char c) {
 		c == ';' || c == '<' || c == '>' || c == '~' || c == '!' || c == '@' ||
 		c == '#' || c == '$' || c == '%' || c == '^' || c == '&' || c == '*' ||
 		c == '|' || c == '+' || c == '=' || c == '[' || c == ']' || c == '{' ||
-		c == '}' || c == '`' || c == '~' || c == '?';
+		c == '}' || c == '`' || c == '~' || c == '?' || c == ' ' || c == '\n' ||
+		c == '\t' || c == '\r' || c == '\0';
 }
 
 
@@ -388,9 +389,9 @@ void set_token(Token *token, TokenType type, char *location, int length) {
 		move_cursor(parser, (length1));                           \
 		consume_whitespace(parser);                               \
 		if (starts_with_identifier(parser, (word2), (length2))) { \
+			move_cursor(parser, (length2));                       \
 			int length = current(parser) - saved;                 \
 			set_token(token, (type), saved, length);              \
-			move_cursor(parser, (length2));                       \
 			break;                                                \
 		} else {                                                  \
 			restore_state(parser, saved);                         \

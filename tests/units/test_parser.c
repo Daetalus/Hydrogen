@@ -160,7 +160,12 @@ END()
 
 START(starts_with_identifier) {
 	Parser parser;
-	parser_new(&parser, "hello.something()");
+	parser_new(&parser, "test hello.something");
+
+	ASSERT_EQ(starts_with_identifier(&parser, "test", 4), true);
+	ASSERT_EQ(starts_with_identifier(&parser, "test ", 5), false);
+	ASSERT_EQ(starts_with_identifier(&parser, "t", 1), false);
+	move_cursor(&parser, 5);
 
 	ASSERT_EQ(starts_with_identifier(&parser, "hello", 5), true);
 	ASSERT_EQ(starts_with_identifier(&parser, "hel", 3), false);

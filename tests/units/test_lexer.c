@@ -9,44 +9,43 @@
 #include "../../src/lexer.c"
 
 
-#define NEW_LEXER(source_string) \
+#define NEW_LEXER(source_string)    \
 	char *source = (source_string); \
-	Lexer lexer; \
+	Lexer lexer;                    \
 	lexer_new(&lexer, source);
 
 #define TEST_TOKEN(token_type, src_location, src_length) \
-	printf("token: %.*s, %d\n", (src_length), (src_location), (token->type)); \
-	ASSERT_EQ(token->type, (token_type)); \
-	ASSERT_EQ(token->location, (src_location)); \
-	ASSERT_EQ(token->length, (src_length));
+	ASSERT_EQ(token->type, token_type);                  \
+	ASSERT_EQ(token->location, src_location);            \
+	ASSERT_EQ(token->length, src_length);
 
 #define TEST_CONSUME_TOKEN(token_type, src_location, src_length) \
-	token = consume(&lexer); \
+	token = consume(&lexer);                                     \
 	TEST_TOKEN(token_type, src_location, src_length);
 
 #define TEST_STRING(token_type, src_location, src_length, string) \
-	ASSERT_EQ(token->type, (token_type)); \
-	ASSERT_EQ(token->location, (src_location)); \
-	ASSERT_EQ(token->length, (src_length)); \
-	ASSERT_STRN_EQ(token->location, (string), token->length);
+	ASSERT_EQ(token->type, token_type);                           \
+	ASSERT_EQ(token->location, src_location);                     \
+	ASSERT_EQ(token->length, src_length);                         \
+	ASSERT_STRN_EQ(token->location, string, token->length);
 
 #define TEST_CONSUME_STRING(token_type, src_location, src_length, string) \
-	token = consume(&lexer); \
+	token = consume(&lexer);                                              \
 	TEST_STRING(token_type, src_location, src_length, string);
 
 #define TEST_DOUBLE(token_type, src_location, src_length, value) \
-	ASSERT_EQ(token->type, (token_type)); \
-	ASSERT_EQ(token->location, (src_location)); \
-	ASSERT_EQ(token->length, (src_length)); \
-	ASSERT_DOUBLE_EQ(token->number, (value));
+	ASSERT_EQ(token->type, token_type);                          \
+	ASSERT_EQ(token->location, src_location);                    \
+	ASSERT_EQ(token->length, src_length);                        \
+	ASSERT_DOUBLE_EQ(token->number, value);
 
 #define TEST_CONSUME_DOUBLE(token_type, src_location, src_length, value) \
-	token = consume(&lexer); \
+	token = consume(&lexer);                                             \
 	TEST_DOUBLE(token_type, src_location, src_length, value);
 
 
 START(operators) {
-	NEW_LEXER("  + - \t += && \r << !=");
+	NEW_LEXER("  + - \t += && \t << !=");
 
 	Token *token;
 	TEST_CONSUME_TOKEN(TOKEN_ADDITION, source + 2, 1);
@@ -78,19 +77,19 @@ END()
 
 
 START(keywords) {
-	NEW_LEXER("if \n\r for in\n\t fn \n else {\n else if } else\n\r\t  if");
+	NEW_LEXER("if \t\t for in\t\t fn \t else {\t else if } else\t\t\t  if");
 
 	Token *token;
 	TEST_CONSUME_TOKEN(TOKEN_IF, source, 2);
-	TEST_CONSUME_TOKEN(TOKEN_FOR, source + 7, 3);
-	TEST_CONSUME_TOKEN(TOKEN_IN, source + 11, 2);
-	TEST_CONSUME_TOKEN(TOKEN_FUNCTION, source + 16, 2);
-	TEST_CONSUME_TOKEN(TOKEN_ELSE, source + 21, 4);
-	TEST_CONSUME_TOKEN(TOKEN_OPEN_BRACE, source + 26, 1);
-	TEST_CONSUME_TOKEN(TOKEN_ELSE_IF, source + 29, 7);
-	TEST_CONSUME_TOKEN(TOKEN_CLOSE_BRACE, source + 37, 1);
-	TEST_CONSUME_TOKEN(TOKEN_ELSE_IF, source + 39, 11);
-	TEST_CONSUME_TOKEN(TOKEN_END_OF_FILE, source + 50, 0);
+	TEST_CONSUME_TOKEN(TOKEN_FOR, source + 6, 3);
+	TEST_CONSUME_TOKEN(TOKEN_IN, source + 10, 2);
+	TEST_CONSUME_TOKEN(TOKEN_FUNCTION, source + 15, 2);
+	TEST_CONSUME_TOKEN(TOKEN_ELSE, source + 20, 4);
+	TEST_CONSUME_TOKEN(TOKEN_OPEN_BRACE, source + 25, 1);
+	TEST_CONSUME_TOKEN(TOKEN_ELSE_IF, source + 28, 7);
+	TEST_CONSUME_TOKEN(TOKEN_CLOSE_BRACE, source + 36, 1);
+	TEST_CONSUME_TOKEN(TOKEN_ELSE_IF, source + 38, 11);
+	TEST_CONSUME_TOKEN(TOKEN_END_OF_FILE, source + 49, 0);
 }
 END()
 
@@ -172,6 +171,13 @@ START(peek) {
 END()
 
 
+START(extract_string_literal) {
+	Parser parser;
+	parser_new(&parser, "'test' 'test\t\ntesting' 'test\\t \rtest' '\\'\\\"'");
+}
+END()
+
+
 MAIN(lexer) {
 	RUN(operators)
 	RUN(syntax)
@@ -180,5 +186,6 @@ MAIN(lexer) {
 	RUN(numbers)
 	RUN(string_literals)
 	RUN(peek)
+	// RUN(extract_string_literal)
 }
 MAIN_END()

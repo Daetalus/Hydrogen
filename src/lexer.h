@@ -60,7 +60,7 @@ typedef enum {
 	TOKEN_MODULO_ASSIGNMENT,
 
 	// Constants
-	TOKEN_IDENTIFIER,
+	TOKEN_IDENTIFIER, // 27
 	TOKEN_NUMBER,
 
 	// Used for string literals. The location and size of this
@@ -76,7 +76,7 @@ typedef enum {
 	TOKEN_OPEN_BRACE,
 	TOKEN_CLOSE_BRACE,
 	TOKEN_DOT,
-	TOKEN_COMMA,
+	TOKEN_COMMA, // 37
 
 	// Keywords
 	TOKEN_LET,
