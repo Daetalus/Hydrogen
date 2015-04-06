@@ -157,6 +157,46 @@ START(if_else_statement_two) {
 END()
 
 
+START(while_loop_one) {
+	COMPILER("while 1 {let test = 3}");
+
+	// Conditional
+	ASSERT_NUMBER_PUSH(1.0);
+	ASSERT_CONDITIONAL_JUMP(16);
+
+	// Block
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_STORE(0);
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_BACKWARDS_JUMP(25);
+
+	// After
+	ASSERT_INSTRUCTION(CODE_RETURN);
+}
+END()
+
+
+START(while_loop_two) {
+	COMPILER("\n\nwhile\n 1 + 2\n {\n\nlet test = 3\r}\n");
+
+	// Conditional
+	ASSERT_NUMBER_PUSH(1.0);
+	ASSERT_NUMBER_PUSH(2.0);
+	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_CONDITIONAL_JUMP(16);
+
+	// Block
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_STORE(0);
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_BACKWARDS_JUMP(43);
+
+	// After
+	ASSERT_INSTRUCTION(CODE_RETURN);
+}
+END()
+
+
 MAIN(compiler) {
 	RUN(variable_assignment_one)
 	RUN(variable_assignment_two)
@@ -167,5 +207,7 @@ MAIN(compiler) {
 	RUN(if_statement_two)
 	RUN(if_else_statement_one)
 	RUN(if_else_statement_two)
+	RUN(while_loop_one)
+	RUN(while_loop_two)
 }
 MAIN_END()

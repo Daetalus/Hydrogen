@@ -171,3 +171,8 @@
 #define ASSERT_JUMP(amount)                    \
 	ASSERT_EQ(READ_BYTE(), CODE_JUMP_FORWARD); \
 	ASSERT_EQ(READ_2_BYTES(), amount);
+
+
+#define ASSERT_BACKWARDS_JUMP(amount)           \
+	ASSERT_EQ(READ_BYTE(), CODE_JUMP_BACKWARD); \
+	ASSERT_EQ(READ_2_BYTES(), amount);

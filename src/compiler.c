@@ -30,6 +30,9 @@ void variable_assignment(Compiler *compiler);
 bool match_if_statement(Compiler *compiler);
 void if_statement(Compiler *compiler);
 
+bool match_while_loop(Compiler *compiler);
+void while_loop(Compiler *compiler);
+
 void push_scope(Compiler *compiler);
 void pop_scope(Compiler *compiler);
 
@@ -109,6 +112,8 @@ void statement(Compiler *compiler) {
 		variable_assignment(compiler);
 	} else if (match_if_statement(compiler)) {
 		if_statement(compiler);
+	} else if (match_while_loop(compiler)) {
+		while_loop(compiler);
 	} else {
 		Token current = peek(lexer, 0);
 		error(compiler, "Unrecognised statement beginning with `%.*s`.",
@@ -127,11 +132,8 @@ void statement(Compiler *compiler) {
 bool match_variable_assignment(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 
-	// Assigning to a new variable looks like:
-	// let name = expression
-	//
-	// Assigning to an already created variable looks like:
-	// name = expression
+	// Recognise either a let token (for new variables) or
+	// an identifier followed by an assignment token.
 	return match(lexer, TOKEN_LET) ||
 		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_ASSIGNMENT) ||
 		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_ADDITION_ASSIGNMENT) ||
@@ -384,6 +386,52 @@ void if_statement(Compiler *compiler) {
 	for (int i = 0; i < jump_count; i++) {
 		patch_jump(bytecode, unpatched_jumps[i]);
 	}
+}
+
+
+
+//
+//  While Loops
+//
+
+// Returns true if the lexer matches a while loop.
+bool match_while_loop(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+	return match(lexer, TOKEN_WHILE);
+}
+
+
+// Compiles a while loop.
+void while_loop(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+	Bytecode *bytecode = &compiler->fn->bytecode;
+
+	// Consume the while keyword.
+	consume(lexer);
+
+	// Compile the expression
+	int start_of_expression = bytecode->count;
+	expression(compiler, TOKEN_OPEN_BRACE);
+	disable_newlines(lexer);
+
+	// Jump conditionally
+	int condition_jump = emit_jump(bytecode, CODE_CONDITIONAL_JUMP);
+
+	// Compile the block.
+	expect(compiler, TOKEN_OPEN_BRACE,
+		"Expected `{` after expression in while loop.");
+	enable_newlines(lexer);
+	block(compiler, TOKEN_CLOSE_BRACE);
+	expect(compiler, TOKEN_CLOSE_BRACE,
+		"Expected `}` to close while loop block.");
+
+	// Insert a jump statement to re-evaluate the condition
+	emit(bytecode, CODE_JUMP_BACKWARD);
+	emit_arg_2(bytecode, (bytecode->count - 1) - start_of_expression);
+
+	// Patch the conditional jump to point to here (after
+	// the block)
+	patch_jump(bytecode, condition_jump);
 }
 
 
