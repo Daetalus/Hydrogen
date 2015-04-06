@@ -7,8 +7,17 @@
 #include "test.h"
 
 
-START(single_operand) {
+START(single_operand_one) {
 	EXPRESSION("3");
+
+	ASSERT_EQ(READ_BYTE(), CODE_PUSH_NUMBER);
+	ASSERT_EQ(as_number(READ_8_BYTES()), 3.0);
+}
+END()
+
+
+START(single_operand_two) {
+	EXPRESSION("\n3\r\n");
 
 	ASSERT_EQ(READ_BYTE(), CODE_PUSH_NUMBER);
 	ASSERT_EQ(as_number(READ_8_BYTES()), 3.0);
@@ -27,7 +36,7 @@ END()
 
 
 START(single_precedence_two) {
-	EXPRESSION("3 * 4 / 5")
+	EXPRESSION("3 * 4\n / 5")
 
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
@@ -39,7 +48,7 @@ END()
 
 
 START(single_precedence_three) {
-	EXPRESSION("1 - 2 - 3");
+	EXPRESSION("1\n \n-\n 2 - 3");
 
 	ASSERT_NUMBER_PUSH(1.0);
 	ASSERT_NUMBER_PUSH(2.0);
@@ -51,7 +60,7 @@ END()
 
 
 START(multi_precedence_one) {
-	EXPRESSION("3 * 4 + 5");
+	EXPRESSION("3 * 4 +\n 5\n");
 
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
@@ -63,7 +72,7 @@ END()
 
 
 START(multi_precedence_two) {
-	EXPRESSION("5 + 3 * 4");
+	EXPRESSION("5 +\n 3 * 4");
 
 	ASSERT_NUMBER_PUSH(5.0);
 	ASSERT_NUMBER_PUSH(3.0);
@@ -89,7 +98,7 @@ END()
 
 
 START(multi_precedence_four) {
-	EXPRESSION("2 + 3 * 4 + 5");
+	EXPRESSION("2 +\r 3 * 4 + 5");
 
 	ASSERT_NUMBER_PUSH(2.0);
 	ASSERT_NUMBER_PUSH(3.0);
@@ -239,7 +248,8 @@ END()
 
 
 MAIN(expression) {
-	RUN(single_operand)
+	RUN(single_operand_one)
+	RUN(single_operand_two)
 	RUN(single_precedence_one)
 	RUN(single_precedence_two)
 	RUN(single_precedence_three)

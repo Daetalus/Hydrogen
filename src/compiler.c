@@ -33,6 +33,8 @@ void if_statement(Compiler *compiler);
 void push_scope(Compiler *compiler);
 void pop_scope(Compiler *compiler);
 
+void emit_operator(Compiler *compiler, void (*operator_fn)(void));
+void push_local_at_index(Compiler *compiler, int index);
 int index_of_local(Compiler *compiler, char *name, int length);
 uint16_t define_local(Compiler *compiler, char *name, int length);
 
@@ -107,6 +109,10 @@ void statement(Compiler *compiler) {
 		variable_assignment(compiler);
 	} else if (match_if_statement(compiler)) {
 		if_statement(compiler);
+	} else {
+		Token current = peek(lexer, 0);
+		error(compiler, "Unrecognised statement beginning with `%.*s`.",
+			current.length, current.location);
 	}
 }
 
@@ -127,7 +133,12 @@ bool match_variable_assignment(Compiler *compiler) {
 	// Assigning to an already created variable looks like:
 	// name = expression
 	return match(lexer, TOKEN_LET) ||
-		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_ASSIGNMENT);
+		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_ASSIGNMENT) ||
+		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_ADDITION_ASSIGNMENT) ||
+		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_SUBTRACTION_ASSIGNMENT) ||
+		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_DIVISION_ASSIGNMENT) ||
+		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_MODULO_ASSIGNMENT) ||
+		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_MULTIPLICATION_ASSIGNMENT);
 }
 
 
@@ -175,15 +186,41 @@ void variable_assignment(Compiler *compiler) {
 	}
 
 	// Expect an equals sign.
-	// TODO: support other types of assignment
-	expect(compiler, TOKEN_ASSIGNMENT,
-		"Expected `=` after variable name in assignment.");
+	void (*fn)(void) = NULL;
+	if (match(lexer, TOKEN_ADDITION_ASSIGNMENT)) {
+		fn = &operator_addition;
+	} else if (match(lexer, TOKEN_SUBTRACTION_ASSIGNMENT)) {
+		fn = &operator_subtraction;
+	} else if (match(lexer, TOKEN_MULTIPLICATION_ASSIGNMENT)) {
+		fn = &operator_multiplication;
+	} else if (match(lexer, TOKEN_DIVISION_ASSIGNMENT)) {
+		fn = &operator_division;
+	} else if (match(lexer, TOKEN_MODULO_ASSIGNMENT)) {
+		fn = &operator_modulo;
+	} else if (match(lexer, TOKEN_ASSIGNMENT)) {
+		// No modification needed
+	} else {
+		error(compiler, "Expected `=` after variable name in assignment.");
+	}
+	consume(lexer);
+
+	// Disallow modifier operators on new variables
+	if (is_new_var && fn != NULL) {
+		error(compiler, "Expected `=` after variable name in assignment.");
+	}
 
 	// Compile the expression after this. This will push bytecode
 	// that will leave the resulting expression on top of the
 	// stack.
 	enable_newlines(lexer);
 	expression(compiler, TOKEN_LINE);
+
+	// Modify the value on the top of the stack in accordance to the
+	// equals sign modifier.
+	if (fn != NULL) {
+		push_local_at_index(compiler, index);
+		emit_operator(compiler, fn);
+	}
 
 	// Emit the bytecode to store the item that's on the top of
 	// the stack into a stack slot.
@@ -355,6 +392,14 @@ void if_statement(Compiler *compiler) {
 //  Function Calls
 //
 
+// Emits an operator.
+void emit_operator(Compiler *compiler, void (*operator_fn)(void)) {
+	Bytecode *bytecode = &compiler->fn->bytecode;
+	emit(bytecode, CODE_CALL_NATIVE);
+	emit_arg_8(bytecode, (uint64_t) operator_fn);
+}
+
+
 // Emits bytecode to call the native function for the given
 // operator.
 // Assumes the arguments to the call are on the stack already.
@@ -406,9 +451,7 @@ void emit_native_operator_call(Compiler *compiler, TokenType operator) {
 	}
 
 	// Emit the call native bytecode.
-	Bytecode *bytecode = &compiler->fn->bytecode;
-	emit(bytecode, CODE_CALL_NATIVE);
-	emit_arg_8(bytecode, (uint64_t) ptr);
+	emit_operator(compiler, ptr);
 }
 
 
@@ -525,6 +568,14 @@ uint16_t define_local(Compiler *compiler, char *name, int length) {
 }
 
 
+// Emits bytecode to push a local at a given index onto the stack.
+void push_local_at_index(Compiler *compiler, int index) {
+	Bytecode *bytecode = &compiler->fn->bytecode;
+	emit(bytecode, CODE_PUSH_VARIABLE);
+	emit_arg_2(bytecode, index);
+}
+
+
 // Emits bytecode to push the local with the given name onto the
 // stack.
 void push_local(Compiler *compiler, char *name, int length) {
@@ -536,10 +587,7 @@ void push_local(Compiler *compiler, char *name, int length) {
 		return;
 	}
 
-	// Emit the bytecode.
-	Bytecode *bytecode = &compiler->fn->bytecode;
-	emit(bytecode, CODE_PUSH_VARIABLE);
-	emit_arg_2(bytecode, index);
+	push_local_at_index(compiler, index);
 }
 
 

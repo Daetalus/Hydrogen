@@ -63,6 +63,23 @@ START(variable_assignment_four) {
 END()
 
 
+START(modifier_assignment_operators) {
+	COMPILER("let testing = 3\ntesting += 1");
+
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_STORE(0);
+
+	ASSERT_NUMBER_PUSH(1.0);
+	ASSERT_VARIABLE_PUSH(0);
+	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_STORE(0);
+
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_INSTRUCTION(CODE_RETURN);
+}
+END()
+
+
 START(if_statement_one) {
 	COMPILER("if 1 + 2 > 3 {let testing = 3}");
 
@@ -145,6 +162,7 @@ MAIN(compiler) {
 	RUN(variable_assignment_two)
 	RUN(variable_assignment_three)
 	RUN(variable_assignment_four)
+	RUN(modifier_assignment_operators)
 	RUN(if_statement_one)
 	RUN(if_statement_two)
 	RUN(if_else_statement_one)

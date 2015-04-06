@@ -148,6 +148,11 @@
 	ASSERT_EQ(as_number(READ_8_BYTES()), number);
 
 
+#define ASSERT_VARIABLE_PUSH(slot)              \
+	ASSERT_EQ(READ_BYTE(), CODE_PUSH_VARIABLE); \
+	ASSERT_EQ(READ_2_BYTES(), slot);
+
+
 #define ASSERT_OPERATOR_CALL(fn)              \
 	ASSERT_EQ(READ_BYTE(), CODE_CALL_NATIVE); \
 	ASSERT_EQ(AS_FN(READ_8_BYTES()), &(fn));

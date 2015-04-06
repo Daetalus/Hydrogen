@@ -79,7 +79,7 @@ void parse_precedence(Compiler *compiler, TokenType terminator,
 
 	// Keep compiling operators while their precedence is greater
 	// than the precedence argument.
-	while (operator.type != TOKEN_END_OF_FILE && operator.type != terminator &&
+	while (operator.type != TOKEN_NONE &&
 			precedence < operator_precedence(operator.type)) {
 		if (is_binary_operator(operator.type)) {
 			// Compile an infix operator.
