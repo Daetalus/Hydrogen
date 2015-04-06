@@ -114,11 +114,10 @@ void variable_assignment(Compiler *compiler) {
 
 	// Check for the let keyword.
 	if (match(lexer, TOKEN_LET)) {
+		is_new_var = true;
+
 		// Consume the let keyword.
 		consume(lexer);
-
-		// Change the is new variable.
-		is_new_var = true;
 	}
 
 	// Expect an identifier (the variable's name).
@@ -134,13 +133,13 @@ void variable_assignment(Compiler *compiler) {
 		// We're trying to create a new variable using a variable
 		// name that's already taken.
 		error(compiler, "Variable name `%.*s` already taken in assignment.",
-			name.location, name.length);
+			name.length, name.location);
 		return;
-	} else if (index == -1) {
+	} else if (!is_new_var && index == -1) {
 		// We're trying to assign a new value to a variable that
 		// doesn't exist.
 		error(compiler, "Variable `%.*s` doesn't exist in assignment.",
-			name.location, name.length);
+			name.length, name.location);
 		return;
 	}
 
@@ -415,7 +414,7 @@ void pop_scope(Compiler *compiler) {
 	// The locals are sorted from lowest to highest scope depth,
 	// so just loop over from the end of the list until we find
 	// a variable that's in scope.
-	while(local->scope_depth > compiler->scope_depth) {
+	while(i > 0 && local->scope_depth > compiler->scope_depth) {
 		// Emit a pop instruction.
 		emit(bytecode, CODE_POP);
 
@@ -466,7 +465,6 @@ uint16_t define_local(Compiler *compiler, char *name, int length) {
 	}
 
 	// Create the local
-	Local *local = &compiler->locals[compiler->local_count];
 	compiler->local_count++;
 
 	// Return the index as the last item in the locals list.

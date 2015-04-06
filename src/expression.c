@@ -40,7 +40,8 @@ void expression(Compiler *compiler, TokenType terminator) {
 // Peeks at the next token, assuming its a binary operator.
 Token peek_operator(Lexer *lexer, TokenType terminator) {
 	Token operator = peek(lexer, 0);
-	if (operator.type == TOKEN_END_OF_FILE || operator.type == terminator) {
+	if (operator.type == TOKEN_END_OF_FILE ||
+			(terminator != TOKEN_LINE && operator.type == terminator)) {
 		// Stop the expression
 		Token result;
 		result.type = TOKEN_NONE;
@@ -197,8 +198,6 @@ void prefix(Compiler *compiler, TokenType operator) {
 // Assumes the left side of the operator is already on the
 // top of the stack.
 void infix(Compiler *compiler, TokenType terminator, TokenType operator) {
-	Lexer *lexer = &compiler->vm->lexer;
-
 	// Determine the precedence level of the operator.
 	int precedence = operator_precedence(operator);
 	if (operator_associativity(operator) == ASSOCIATIVITY_RIGHT) {

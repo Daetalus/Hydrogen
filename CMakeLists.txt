@@ -6,8 +6,8 @@
 cmake_minimum_required(VERSION 2.6)
 project(Hydrogen)
 
-set(HYDROGEN_VERSION_MAJOR 0)
-set(HYDROGEN_VERSION_MINOR 1)
+set(CMAKE_C_FLAGS_DEBUG "-g -Wall")
+set(CMAKE_C_FLAGS_RELEASE "-O3 -Wall")
 
 
 
@@ -42,10 +42,11 @@ macro(test name)
 	add_test(test_${name} test_${name})
 endmacro()
 
+test(value)
 test(parser)
 test(lexer)
 test(expression)
-test(value)
+test(compiler)
 
 
 
