@@ -132,7 +132,7 @@ void variable_assignment(Compiler *compiler) {
 
 	// Expect an identifier (the variable's name).
 	Token name = expect(compiler, TOKEN_IDENTIFIER,
-		"Expected variable name after `let`.");
+		"Expected variable name.");
 	if (name.type == TOKEN_NONE) {
 		return;
 	}
@@ -453,15 +453,16 @@ void pop_scope(Compiler *compiler) {
 	// The locals are sorted from lowest to highest scope depth,
 	// so just loop over from the end of the list until we find
 	// a variable that's in scope.
-	while(i > 0 && local->scope_depth > compiler->scope_depth) {
+	while (i > 0 && local->scope_depth > compiler->scope_depth) {
 		// Emit a pop instruction.
 		emit(bytecode, CODE_POP);
 
 		// Decrement counters
 		compiler->local_count--;
 		i--;
+
+		// Prevent invalid memory access before accessing the local
 		if (i > 0) {
-			// Prevent invalid memory access with if clause
 			local = &compiler->locals[i];
 		}
 	}
@@ -482,7 +483,7 @@ int index_of_local(Compiler *compiler, char *name, int length) {
 	//
 	// This isn't based on any scientific fact! It's just
 	// speculation.
-	for (int i = compiler->local_count; i >= 0; i--) {
+	for (int i = compiler->local_count - 1; i >= 0; i--) {
 		Local *local = &compiler->locals[i];
 
 		if (local->length == length &&
@@ -508,10 +509,13 @@ uint16_t define_local(Compiler *compiler, char *name, int length) {
 	}
 
 	// Create the local
+	int index = compiler->local_count;
+	Local *local = &compiler->locals[index];
 	compiler->local_count++;
-
-	// Return the index as the last item in the locals list.
-	return compiler->local_count - 1;
+	local->name = name;
+	local->length = length;
+	local->scope_depth = compiler->scope_depth;
+	return index;
 }
 
 

@@ -12,6 +12,8 @@ START(variable_assignment_one) {
 
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_STORE(0);
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_INSTRUCTION(CODE_RETURN);
 }
 END()
 
@@ -21,6 +23,8 @@ START(variable_assignment_two) {
 
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_STORE(0);
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_INSTRUCTION(CODE_RETURN);
 }
 END()
 
@@ -34,6 +38,27 @@ START(variable_assignment_three) {
 	ASSERT_OPERATOR_CALL(operator_multiplication);
 	ASSERT_OPERATOR_CALL(operator_addition);
 	ASSERT_STORE(0);
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_INSTRUCTION(CODE_RETURN);
+}
+END()
+
+
+START(variable_assignment_four) {
+	COMPILER("\nlet testing = 3 + 4 *\n 9\ntesting = 5\r");
+
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_NUMBER_PUSH(4.0);
+	ASSERT_NUMBER_PUSH(9.0);
+	ASSERT_OPERATOR_CALL(operator_multiplication);
+	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_STORE(0);
+
+	ASSERT_NUMBER_PUSH(5.0);
+	ASSERT_STORE(0);
+
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_INSTRUCTION(CODE_RETURN);
 }
 END()
 
@@ -119,6 +144,7 @@ MAIN(compiler) {
 	RUN(variable_assignment_one)
 	RUN(variable_assignment_two)
 	RUN(variable_assignment_three)
+	RUN(variable_assignment_four)
 	RUN(if_statement_one)
 	RUN(if_statement_two)
 	RUN(if_else_statement_one)

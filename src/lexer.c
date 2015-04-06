@@ -21,6 +21,11 @@ bool is_whitespace(char c) {
 }
 
 
+bool is_newline(char c) {
+	return c == '\n' || c == '\r';
+}
+
+
 bool is_space_or_tab(char c) {
 	return c == ' ' || c == '\t';
 }
@@ -312,7 +317,7 @@ void lexer_new(Lexer *lexer, char *source) {
 	parser_new(&lexer->parser, source);
 	lexer->line = 1;
 	lexer->cache_size = 0;
-	lexer->should_ignore_newlines = false;
+	lexer->emit_newlines = true;
 }
 
 
@@ -403,23 +408,23 @@ void set_token(Token *token, TokenType type, char *location, int length) {
 // Assumes the current character is a newline. Generates a
 // newline token, collapsing multiple sequential newlines
 // (potentially separated by whitespace) into one token.
-#define HANDLE_NEWLINES()                                                      \
-	lexer->line++;                                                             \
-	if (!lexer->should_ignore_newlines) {                                      \
-		consume_char(parser);                                                  \
-		char *saved = current(parser);                                         \
-		consume_spaces_tabs(parser);                                           \
-		while (current_char(parser) == '\n' || current_char(parser) == '\r') { \
-			lexer->line++;                                                     \
-			consume_char(parser);                                              \
-			consume_spaces_tabs(parser);                                       \
-		}                                                                      \
-		set_token(token, TOKEN_LINE, saved, 1);                                \
-		break;                                                                 \
-	} else {                                                                   \
-		consume_whitespace(parser);                                            \
-		next(lexer, token);                                                    \
-	}                                                                          \
+#define HANDLE_NEWLINES()                          \
+	lexer->line++;                                 \
+	if (lexer->emit_newlines) {                    \
+		consume_char(parser);                      \
+		char *saved = current(parser);             \
+		consume_spaces_tabs(parser);               \
+		while (is_newline(current_char(parser))) { \
+			lexer->line++;                         \
+			consume_char(parser);                  \
+			consume_spaces_tabs(parser);           \
+		}                                          \
+		set_token(token, TOKEN_LINE, saved, 1);    \
+		break;                                     \
+	} else {                                       \
+		consume_whitespace(parser);                \
+		next(lexer, token);                        \
+	}                                              \
 	break;
 
 
@@ -558,7 +563,7 @@ Token consume_from_cache(Lexer *lexer) {
 // or not.
 Token consume(Lexer *lexer) {
 	Token token = consume_from_cache(lexer);
-	if (lexer->should_ignore_newlines && token.type == TOKEN_LINE) {
+	if (!lexer->emit_newlines && token.type == TOKEN_LINE) {
 		token = consume_from_cache(lexer);
 	}
 	return token;
@@ -612,13 +617,13 @@ bool match_double(Lexer *lexer, TokenType one, TokenType two) {
 
 // Tells the lexer to not emit any newline tokens.
 void enable_newlines(Lexer *lexer) {
-	lexer->should_ignore_newlines = true;
+	lexer->emit_newlines = true;
 }
 
 
 // Tells the lexer to emit newline tokens.
 void disable_newlines(Lexer *lexer) {
-	lexer->should_ignore_newlines = false;
+	lexer->emit_newlines = false;
 }
 
 

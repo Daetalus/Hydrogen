@@ -49,7 +49,7 @@ typedef enum {
 	TOKEN_BITWISE_AND,
 	TOKEN_BITWISE_OR,
 	TOKEN_BITWISE_NOT,
-	TOKEN_BITWISE_XOR,
+	TOKEN_BITWISE_XOR, // 20
 
 	// Assignment
 	TOKEN_ASSIGNMENT,
@@ -69,7 +69,7 @@ typedef enum {
 	TOKEN_STRING,
 
 	// Syntax
-	TOKEN_OPEN_PARENTHESIS,
+	TOKEN_OPEN_PARENTHESIS, // 30
 	TOKEN_CLOSE_PARENTHESIS,
 	TOKEN_OPEN_BRACKET,
 	TOKEN_CLOSE_BRACKET,
@@ -81,7 +81,7 @@ typedef enum {
 	// Keywords
 	TOKEN_LET,
 	TOKEN_IF,
-	TOKEN_IN,
+	TOKEN_IN, // 40
 	TOKEN_ELSE,
 	TOKEN_ELSE_IF,
 	TOKEN_FOR,
@@ -93,7 +93,7 @@ typedef enum {
 	// Other
 	TOKEN_LINE,
 	TOKEN_END_OF_FILE,
-	TOKEN_NONE,
+	TOKEN_NONE, // 50
 } TokenType;
 
 
@@ -155,8 +155,8 @@ typedef struct {
 	int cache_size;
 
 	// Whether to ignore newlines.
-	// Defaults to false.
-	bool should_ignore_newlines;
+	// Defaults to true.
+	bool emit_newlines;
 } Lexer;
 
 
