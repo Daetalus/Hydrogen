@@ -24,62 +24,72 @@
 	"--------------------------------------------------------------------------------"
 
 
-#define START(name) \
-	int test_##name(void) { \
+#define START(name)                    \
+	int test_##name(void) {            \
 		const char *test_name = #name; \
 		if (1)
 
-#define END() \
+
+#define END()                                                  \
 		printf(GREEN BOLD "`%s` passed.\n" NORMAL, test_name); \
-		return 0; \
+		return 0;                                              \
 	}
 
-#define RUN(name) \
+
+#define RUN(name)                                              \
 	printf(BLUE BOLD "Starting test " NORMAL "`%s`\n", #name); \
-	if (test_##name()) { \
-		failed++; \
+	if (test_##name()) {                                       \
+		failed++;                                              \
 	}
 
-#define MAIN(name) \
-	int main(int argc, char *argv[]) { \
-		int result; \
-		int failed = 0; \
+
+#define MAIN(name)                                                     \
+	int main(int argc, char *argv[]) {                                 \
+		int result;                                                    \
+		int failed = 0;                                                \
 		printf(LINE "\n" BLUE BOLD "Testing %s...\n\n" NORMAL, #name); \
 		if (1)
 
-#define MAIN_END() \
-		if (failed == 0) { \
-			printf(GREEN BOLD "\nAll tests passed.\n"); \
-			printf(GREEN BOLD "You are awesome!\n" NORMAL LINE "\n"); \
-		} else if (failed == 1) { \
-			printf(RED BOLD "\n1 test failed.\n" NORMAL LINE "\n"); \
-		} else { \
+
+#define MAIN_END()                                                            \
+		if (failed == 0) {                                                    \
+			printf(GREEN BOLD "\nAll tests passed.\n");                       \
+			printf(GREEN BOLD "You are awesome!\n" NORMAL LINE "\n");         \
+			return 0;                                                         \
+		} else if (failed == 1) {                                             \
+			printf(RED BOLD "\n1 test failed.\n" NORMAL LINE "\n");           \
+			return 1;                                                         \
+		} else {                                                              \
 			printf(RED BOLD "\n%d tests failed.\n" NORMAL LINE "\n", failed); \
-		} \
-		return failed; \
+			return 1;                                                         \
+		}                                                                     \
 	}
 
-#define PRINT_ASSERTION_FAILED() \
+
+#define PRINT_ASSERTION_FAILED()                                                      \
 	fprintf(stderr, BOLD RED "Assertion failed " NORMAL "in test `%s` on line %d:\n", \
 		test_name, __LINE__);
 
-#define ASSERT_EQ(a, b) \
-	if ((a) != (b)) { \
-		PRINT_ASSERTION_FAILED() \
+
+#define ASSERT_EQ(a, b)                            \
+	if ((a) != (b)) {                              \
+		PRINT_ASSERTION_FAILED()                   \
 		fprintf(stderr, "    %s == %s\n", #a, #b); \
-		return 1; \
+		return 1;                                  \
 	}
 
-#define ASSERT_STR_EQ(a, b) \
-	if (strcmp((a), (b)) != 0) { \
-		PRINT_ASSERTION_FAILED() \
+
+#define ASSERT_STR_EQ(a, b)                        \
+	if (strcmp((a), (b)) != 0) {                   \
+		PRINT_ASSERTION_FAILED()                   \
 		fprintf(stderr, "    %s == %s\n", #a, #b); \
-		return 1; \
+		return 1;                                  \
 	}
 
-#define ASSERT_STRN_EQ(a, b, length) \
-	if (strncmp((a), (b), (length)) != 0) { \
-		PRINT_ASSERTION_FAILED() \
+
+#define ASSERT_STRN_EQ(a, b, length)                                     \
+	if (strncmp((a), (b), (length)) != 0) {                              \
+		PRINT_ASSERTION_FAILED()                                         \
 		fprintf(stderr, "    %s == %s, length: %d\n", #a, #b, (length)); \
-		return 1; \
+		return 1;                                                        \
 	}

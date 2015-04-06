@@ -312,6 +312,7 @@ void lexer_new(Lexer *lexer, char *source) {
 	parser_new(&lexer->parser, source);
 	lexer->line = 0;
 	lexer->cache_size = 0;
+	lexer->should_ignore_newlines = false;
 }
 
 
@@ -399,6 +400,23 @@ void set_token(Token *token, TokenType type, char *location, int length) {
 	}
 
 
+// Assumes the current character is a newline. Generates a
+// newline token, collapsing multiple sequential newlines
+// (potentially separated by whitespace) into one token.
+#define HANDLE_NEWLINES()                                                      \
+	if (!lexer->should_ignore_newlines) {                                      \
+		consume_char(parser);                                                  \
+		char *saved = current(parser);                                         \
+		consume_spaces_tabs(parser);                                           \
+		while (current_char(parser) == '\n' || current_char(parser) == '\r') { \
+			consume_char(parser);                                              \
+			consume_spaces_tabs(parser);                                       \
+		}                                                                      \
+		set_token(token, TOKEN_LINE, saved, 1);                                \
+		break;                                                                 \
+	}
+
+
 // Parses the next token, populating the token pointer.
 void next(Lexer *lexer, Token *token) {
 	Parser *parser = &lexer->parser;
@@ -448,8 +466,10 @@ void next(Lexer *lexer, Token *token) {
 		SINGLE_TOKEN('}', TOKEN_CLOSE_BRACE);
 		SINGLE_TOKEN('.', TOKEN_DOT);
 		SINGLE_TOKEN(',', TOKEN_COMMA);
-		SINGLE_TOKEN('\n', TOKEN_LINE);
-		SINGLE_TOKEN('\r', TOKEN_LINE);
+
+		case '\n':
+		case '\r':
+			HANDLE_NEWLINES();
 
 	default:
 		// Keywords
@@ -563,10 +583,22 @@ bool match(Lexer *lexer, TokenType token) {
 
 
 // Returns true if the lexer starts with the two given tokens.
-bool match2(Lexer *lexer, TokenType one, TokenType two) {
+bool match_double(Lexer *lexer, TokenType one, TokenType two) {
 	Token second = peek(lexer, 1);
 	Token first = peek(lexer, 0);
 	return first.type == one && second.type == two;
+}
+
+
+// Tells the lexer to not emit any newline tokens.
+void ignore_newlines(Lexer *lexer) {
+	lexer->should_ignore_newlines = true;
+}
+
+
+// Tells the lexer to emit newline tokens.
+void obey_newlines(Lexer *lexer) {
+	lexer->should_ignore_newlines = false;
 }
 
 

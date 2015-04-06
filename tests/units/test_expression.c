@@ -269,6 +269,36 @@ START(nested_parenthesis_two) {
 END()
 
 
+START(newlines_one) {
+	EXPRESSION("3 + \n\t 4\n");
+
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_NUMBER_PUSH(4.0);
+	ASSERT_OPERATOR_CALL(operator_addition);
+}
+END()
+
+
+START(newlines_two) {
+	EXPRESSION("3\n\t + 4");
+
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_NUMBER_PUSH(4.0);
+	ASSERT_OPERATOR_CALL(operator_addition);
+}
+END()
+
+
+START(newlines_three) {
+	EXPRESSION("3\n\r\n\r +\n\r\n\r\n\n 4");
+
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_NUMBER_PUSH(4.0);
+	ASSERT_OPERATOR_CALL(operator_addition);
+}
+END()
+
+
 MAIN(expression) {
 	RUN(single_operand)
 	RUN(single_precedence_one)
@@ -285,5 +315,8 @@ MAIN(expression) {
 	RUN(single_parenthesis_three)
 	RUN(nested_parenthesis_one)
 	RUN(nested_parenthesis_two)
+	RUN(newlines_one)
+	RUN(newlines_two)
+	RUN(newlines_three)
 }
 MAIN_END()

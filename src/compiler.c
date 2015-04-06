@@ -292,7 +292,7 @@ bool match_variable_assignment(Compiler *compiler) {
 	// Assigning to an already created variable looks like:
 	// name = expression
 	return match(lexer, TOKEN_LET) ||
-		match2(lexer, TOKEN_IDENTIFIER, TOKEN_ASSIGNMENT);
+		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_ASSIGNMENT);
 }
 
 

@@ -19,10 +19,6 @@ void left(Compiler *compiler);
 void prefix(Compiler *compiler, TokenType operator);
 void infix(Compiler *compiler, TokenType terminator, TokenType operator);
 
-bool is_binary_operator(TokenType operator);
-int operator_precedence(TokenType operator);
-Associativity operator_associativity(TokenType operator);
-
 
 // Generates bytecode for evaluating an expression, leaving the
 // resulting value on the top of the stack.
@@ -41,6 +37,31 @@ void expression(Compiler *compiler, TokenType terminator) {
 }
 
 
+// Peeks at the next token, assuming its a binary operator.
+Token peek_operator(Lexer *lexer, TokenType terminator) {
+	Token operator = peek(lexer, 0);
+	if (operator.type == TOKEN_END_OF_FILE || operator.type == terminator) {
+		// Stop the expression
+		Token result;
+		result.type = TOKEN_NONE;
+		return result;
+	} else if (operator.type == TOKEN_LINE) {
+		Token token = peek(lexer, 1);
+		if (is_binary_operator(token.type)) {
+			consume(lexer);
+			operator = token;
+		} else {
+			// Terminate the expression here
+			Token result;
+			result.type = TOKEN_NONE;
+			return result;
+		}
+	}
+
+	return operator;
+}
+
+
 // Compiles an expression, stopping once we reach an operator
 // with a higher precedence than the given precedence level.
 void parse_precedence(Compiler *compiler, TokenType terminator,
@@ -53,21 +74,17 @@ void parse_precedence(Compiler *compiler, TokenType terminator,
 	left(compiler);
 
 	// Peek at the next token.
-	Token operator = peek(lexer, 0);
+	Token operator = peek_operator(lexer, terminator);
 
 	// Keep compiling operators while their precedence is greater
 	// than the precedence argument.
 	while (operator.type != TOKEN_END_OF_FILE && operator.type != terminator &&
 			precedence < operator_precedence(operator.type)) {
 		if (is_binary_operator(operator.type)) {
-			// Consume the operator token.
-			consume(lexer);
-
 			// Compile an infix operator.
+			consume(lexer);
 			infix(compiler, terminator, operator.type);
-
-			// Update the operator
-			operator = peek(lexer, 0);
+			operator = peek_operator(lexer, terminator);
 		} else {
 			// Expected binary operator.
 			error(compiler, "Expected binary operator, found `%.*s`.",
@@ -75,6 +92,23 @@ void parse_precedence(Compiler *compiler, TokenType terminator,
 			return;
 		}
 	}
+}
+
+
+// Matches across newlines.
+bool newline_match(Lexer *lexer, TokenType expected) {
+	Token operator = peek(lexer, 0);
+	if (operator.type == expected) {
+		return true;
+	} else if (operator.type == TOKEN_LINE) {
+		Token token = peek(lexer, 1);
+		if (token.type == expected) {
+			consume(lexer);
+			return true;
+		}
+	}
+
+	return false;
 }
 
 
@@ -89,28 +123,28 @@ void left(Compiler *compiler) {
 
 	// Match a prefix operator, variable, function call, or
 	// constant.
-	if (match(lexer, TOKEN_SUBTRACTION)) {
+	if (newline_match(lexer, TOKEN_SUBTRACTION)) {
 		// Negation operator
 		prefix(compiler, TOKEN_NEGATION);
-	} else if (match(lexer, TOKEN_BOOLEAN_NOT)) {
+	} else if (newline_match(lexer, TOKEN_BOOLEAN_NOT)) {
 		// Boolean not operator
 		prefix(compiler, TOKEN_BOOLEAN_NOT);
-	} else if (match(lexer, TOKEN_BITWISE_NOT)) {
+	} else if (newline_match(lexer, TOKEN_BITWISE_NOT)) {
 		// Bitwise not operator
 		prefix(compiler, TOKEN_BITWISE_NOT);
-	} else if (match2(lexer, TOKEN_IDENTIFIER, TOKEN_OPEN_PARENTHESIS)) {
-		// Function call
-		Token function = consume(lexer);
-		emit_function_call(compiler, function.location, function.length);
-	} else if (match(lexer, TOKEN_IDENTIFIER)) {
+	// } else if (match_double(lexer, TOKEN_IDENTIFIER, TOKEN_OPEN_PARENTHESIS)) {
+	// 	// Function call
+	// 	Token function = consume(lexer);
+	// 	emit_function_call(compiler, function.location, function.length);
+	} else if (newline_match(lexer, TOKEN_IDENTIFIER)) {
 		// Variable
 		Token variable = consume(lexer);
 		push_local(compiler, variable.location, variable.length);
-	} else if (match(lexer, TOKEN_NUMBER)) {
+	} else if (newline_match(lexer, TOKEN_NUMBER)) {
 		// Number literal
 		Token number = consume(lexer);
 		push_number(compiler, number.number);
-	} else if (match(lexer, TOKEN_STRING)) {
+	} else if (newline_match(lexer, TOKEN_STRING)) {
 		// String literal
 		Token literal = consume(lexer);
 		String *string = push_string(compiler);
@@ -120,15 +154,10 @@ void left(Compiler *compiler) {
 			// Invalid escape sequence in string
 			error(compiler, "Invalid escape sequence `%.*s`", 2, sequence);
 		}
-	} else if (match(lexer, TOKEN_OPEN_PARENTHESIS)) {
+	} else if (newline_match(lexer, TOKEN_OPEN_PARENTHESIS)) {
 		// Sub-expression
-		// Consume the parenthesis
 		consume(lexer);
-
-		// Parse the expression
 		parse_precedence(compiler, TOKEN_CLOSE_PARENTHESIS, 0);
-
-		// Consume the closing parenthesis
 		expect(compiler, TOKEN_CLOSE_PARENTHESIS,
 			"Expected `)` to close opening parenthesis.");
 	} else {
