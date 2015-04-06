@@ -310,7 +310,7 @@ char * consume_string_literal(Parser *parser, int *length) {
 // Create a new lexer with the given source.
 void lexer_new(Lexer *lexer, char *source) {
 	parser_new(&lexer->parser, source);
-	lexer->line = 0;
+	lexer->line = 1;
 	lexer->cache_size = 0;
 	lexer->should_ignore_newlines = false;
 }
@@ -404,17 +404,23 @@ void set_token(Token *token, TokenType type, char *location, int length) {
 // newline token, collapsing multiple sequential newlines
 // (potentially separated by whitespace) into one token.
 #define HANDLE_NEWLINES()                                                      \
+	lexer->line++;                                                             \
 	if (!lexer->should_ignore_newlines) {                                      \
 		consume_char(parser);                                                  \
 		char *saved = current(parser);                                         \
 		consume_spaces_tabs(parser);                                           \
 		while (current_char(parser) == '\n' || current_char(parser) == '\r') { \
+			lexer->line++;                                                     \
 			consume_char(parser);                                              \
 			consume_spaces_tabs(parser);                                       \
 		}                                                                      \
 		set_token(token, TOKEN_LINE, saved, 1);                                \
 		break;                                                                 \
-	}
+	} else {                                                                   \
+		consume_whitespace(parser);                                            \
+		next(lexer, token);                                                    \
+	}                                                                          \
+	break;
 
 
 // Parses the next token, populating the token pointer.

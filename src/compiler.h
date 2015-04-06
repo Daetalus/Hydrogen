@@ -90,10 +90,6 @@ typedef struct {
 	// The current scope depth of the compiler.
 	int scope_depth;
 
-	// Set to true when the compiler encounters a syntax
-	// or compilation error.
-	bool has_error;
-
 	// A list containing all the string literal constants
 	// found during compilation.
 	String string_literals[MAX_STRING_LITERALS];

@@ -105,15 +105,6 @@ typedef struct {
 	// The capacity of the bytecode array (total amount of
 	// memory allocated for the array).
 	int capacity;
-
-	// If this is set to false, then any attempts to emit
-	// instructions will do nothing.
-	//
-	// Is set to false when the compiler compiling this
-	// bytecode encounters an error. At that point, the
-	// compiler will continue to compile, but any
-	// outputted bytecode is just ignored.
-	bool should_record;
 } Bytecode;
 
 

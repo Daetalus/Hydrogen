@@ -122,7 +122,6 @@
 	compiler.fn = &fn;                        \
 	compiler.local_count = 0;                 \
 	compiler.scope_depth = 0;                 \
-	compiler.has_error = false;               \
 	compiler.string_literal_count = 0;        \
 	expression(&compiler, TOKEN_END_OF_FILE); \
 	uint8_t *cursor = &bytecode->instructions[0];

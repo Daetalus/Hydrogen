@@ -53,7 +53,6 @@ void compile(VirtualMachine *vm, Function *fn, TokenType terminator) {
 	compiler.fn = fn;
 	compiler.local_count = 0;
 	compiler.scope_depth = -1;
-	compiler.has_error = false;
 	compiler.string_literal_count = 0;
 
 	// Treat the source code as a top level block, stopping when
@@ -95,7 +94,12 @@ void block(Compiler *compiler, TokenType terminator) {
 // * Variable assignment
 // * If statements
 void statement(Compiler *compiler) {
-	if (match_variable_assignment(compiler)) {
+	Lexer *lexer = &compiler->vm->lexer;
+
+	if (match(lexer, TOKEN_LINE)) {
+		// Ignore empty lines
+		consume(lexer);
+	} else if (match_variable_assignment(compiler)) {
 		variable_assignment(compiler);
 	} else if (match_if_statement(compiler)) {
 		if_statement(compiler);
@@ -111,6 +115,9 @@ void variable_assignment(Compiler *compiler) {
 	// defined before, or whether we're defining it for the first
 	// time here.
 	bool is_new_var = false;
+
+	// Ignore newlines until the expression
+	ignore_newlines(lexer);
 
 	// Check for the let keyword.
 	if (match(lexer, TOKEN_LET)) {
@@ -151,6 +158,7 @@ void variable_assignment(Compiler *compiler) {
 	// Compile the expression after this. This will push bytecode
 	// that will leave the resulting expression on top of the
 	// stack.
+	obey_newlines(lexer);
 	expression(compiler, TOKEN_LINE);
 
 	// Emit the bytecode to store the item that's on the top of
@@ -534,21 +542,21 @@ String * push_string(Compiler *compiler) {
 
 // Triggers the given error on the compiler.
 void error(Compiler *compiler, char *fmt, ...) {
-	// Tell the compiler an error has occurred.
-	// This will stop any bytecode from being outputted.
-	compiler->has_error = true;
-
 	// Start the variable arguments list.
 	va_list args;
 	va_start(args, fmt);
 
-	// Print the error to the standard error output.
+	// Print the error.
 	int line = compiler->vm->lexer.line;
-	fprintf(stderr, RED BOLD "error: " NORMAL " line %d:\n", line);
+	fprintf(stderr, RED BOLD "error " WHITE "line %d: ", line);
 	vfprintf(stderr, fmt, args);
+	fprintf(stderr, NORMAL "\n");
 
 	// Stop the variable arguments list.
 	va_end(args);
+
+	// Halt the program
+	exit(0);
 }
 
 
