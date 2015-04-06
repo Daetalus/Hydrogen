@@ -6,7 +6,7 @@
 
 #include "test.h"
 
-#include "../../src/value.h"
+#include "../src/value.h"
 
 
 START(conversion) {

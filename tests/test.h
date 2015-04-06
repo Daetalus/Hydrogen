@@ -100,13 +100,13 @@
 //
 
 
-#include "../../src/vm.h"
-#include "../../src/compiler.h"
-#include "../../src/expression.h"
-#include "../../src/debug.h"
-#include "../../src/bytecode.h"
-#include "../../src/lexer.h"
-#include "../../src/operators.h"
+#include "../src/vm.h"
+#include "../src/compiler.h"
+#include "../src/expression.h"
+#include "../src/debug.h"
+#include "../src/bytecode.h"
+#include "../src/lexer.h"
+#include "../src/operators.h"
 
 
 #define EXPRESSION(content)                   \

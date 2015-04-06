@@ -25,6 +25,11 @@ void bytecode_free(Bytecode *bytecode) {
 }
 
 
+
+//
+//  Emission
+//
+
 // Increases the bytecode's instruction array size by the given
 // amount, potentially resizing the array and modifying the
 // capacity.
@@ -96,6 +101,11 @@ void emit_arg_8(Bytecode *bytecode, uint64_t arg) {
 	bytecode->instructions[index + 7] = (arg >> (7 << 3)) & 0xff;
 }
 
+
+
+//
+//  Jumps
+//
 
 // Emit an incomplete jump instruction.
 int emit_jump(Bytecode *bytecode, uint8_t instruction) {

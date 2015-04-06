@@ -36,7 +36,7 @@ uint64_t as_value(double number) {
 
 
 //
-//  String
+//  Strings
 //
 
 // Allocate a new string with the given capacity.

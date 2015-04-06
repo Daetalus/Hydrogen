@@ -629,7 +629,7 @@ void disable_newlines(Lexer *lexer) {
 
 
 //
-//  String Literal
+//  String Literals
 //
 
 #define ESCAPE_SEQUENCE(escape_ch, replacement)    \

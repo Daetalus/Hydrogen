@@ -23,11 +23,12 @@
 // Forward definitions.
 void block(Compiler *compiler, TokenType terminator);
 void statement(Compiler *compiler);
-void variable_assignment(Compiler *compiler);
-void if_statement(Compiler *compiler);
 
 bool match_variable_assignment(Compiler *compiler);
+void variable_assignment(Compiler *compiler);
+
 bool match_if_statement(Compiler *compiler);
+void if_statement(Compiler *compiler);
 
 void push_scope(Compiler *compiler);
 void pop_scope(Compiler *compiler);
@@ -110,6 +111,26 @@ void statement(Compiler *compiler) {
 }
 
 
+
+//
+//  Variable Assignment
+//
+
+// Returns true if the current sequence of tokens represent a
+// variable assignment.
+bool match_variable_assignment(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+
+	// Assigning to a new variable looks like:
+	// let name = expression
+	//
+	// Assigning to an already created variable looks like:
+	// name = expression
+	return match(lexer, TOKEN_LET) ||
+		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_ASSIGNMENT);
+}
+
+
 // Compile a variable assignment.
 void variable_assignment(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
@@ -179,6 +200,21 @@ void variable_assignment(Compiler *compiler) {
 	}
 
 	emit_arg_2(bytecode, index);
+}
+
+
+
+//
+//  If Statement
+//
+
+// Returns true if the current sequence of tokens represents an
+// if statement.
+bool match_if_statement(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+
+	// An if statement starts with the if token.
+	return match(lexer, TOKEN_IF);
 }
 
 
@@ -311,36 +347,6 @@ void if_statement(Compiler *compiler) {
 	for (int i = 0; i < jump_count; i++) {
 		patch_jump(bytecode, unpatched_jumps[i]);
 	}
-}
-
-
-
-//
-//  Matching
-//
-
-// Returns true if the current sequence of tokens represent a
-// variable assignment.
-bool match_variable_assignment(Compiler *compiler) {
-	Lexer *lexer = &compiler->vm->lexer;
-
-	// Assigning to a new variable looks like:
-	// let name = expression
-	//
-	// Assigning to an already created variable looks like:
-	// name = expression
-	return match(lexer, TOKEN_LET) ||
-		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_ASSIGNMENT);
-}
-
-
-// Returns true if the current sequence of tokens represents an
-// if statement.
-bool match_if_statement(Compiler *compiler) {
-	Lexer *lexer = &compiler->vm->lexer;
-
-	// An if statement starts with the if token.
-	return match(lexer, TOKEN_IF);
 }
 
 

@@ -37,7 +37,7 @@ add_library(
 enable_testing()
 
 macro(test name)
-	add_executable(test_${name} tests/units/test_${name}.c)
+	add_executable(test_${name} tests/test_${name}.c)
 	target_link_libraries(test_${name} vm)
 	add_test(test_${name} test_${name})
 endmacro()

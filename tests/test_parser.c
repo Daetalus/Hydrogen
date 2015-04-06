@@ -6,7 +6,7 @@
 
 #include "test.h"
 
-#include "../../src/lexer.c"
+#include "../src/lexer.c"
 
 
 START(consuming) {
