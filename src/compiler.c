@@ -58,6 +58,9 @@ void compile(VirtualMachine *vm, Function *fn, TokenType terminator) {
 	// Treat the source code as a top level block, stopping when
 	// we reach the terminator character.
 	block(&compiler, terminator);
+
+	// Insert an ending instruction
+	emit(&compiler.fn->bytecode, CODE_RETURN);
 }
 
 
@@ -116,9 +119,6 @@ void variable_assignment(Compiler *compiler) {
 	// time here.
 	bool is_new_var = false;
 
-	// Ignore newlines until the expression
-	ignore_newlines(lexer);
-
 	// Check for the let keyword.
 	if (match(lexer, TOKEN_LET)) {
 		is_new_var = true;
@@ -126,6 +126,9 @@ void variable_assignment(Compiler *compiler) {
 		// Consume the let keyword.
 		consume(lexer);
 	}
+
+	// Ignore newlines until the expression
+	disable_newlines(lexer);
 
 	// Expect an identifier (the variable's name).
 	Token name = expect(compiler, TOKEN_IDENTIFIER,
@@ -158,7 +161,7 @@ void variable_assignment(Compiler *compiler) {
 	// Compile the expression after this. This will push bytecode
 	// that will leave the resulting expression on top of the
 	// stack.
-	obey_newlines(lexer);
+	enable_newlines(lexer);
 	expression(compiler, TOKEN_LINE);
 
 	// Emit the bytecode to store the item that's on the top of
@@ -185,7 +188,11 @@ void variable_assignment(Compiler *compiler) {
 //
 // Expects the lexer to start on the first token of the
 // expression.
-void if_condition(Compiler *compiler) {
+//
+// Returns the index of the conditional jump emitted, which can be
+// patched after the final jump statement (after an if or else if
+// to jump to the end of entire statement).
+int if_condition_and_block(Compiler *compiler) {
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
 	// Expect an expression, terminated by the opening brace of
@@ -201,19 +208,19 @@ void if_condition(Compiler *compiler) {
 	int jump = emit_jump(bytecode, CODE_CONDITIONAL_JUMP);
 
 	// Consume the opening brace of the if statement's block.
+	disable_newlines(&compiler->vm->lexer);
 	expect(compiler, TOKEN_OPEN_BRACE,
 		"Expected `{` after conditional expression in if statement.");
 
 	// Compile the block.
+	enable_newlines(&compiler->vm->lexer);
 	block(compiler, TOKEN_CLOSE_BRACE);
 
 	// Consume the closing brace.
 	expect(compiler, TOKEN_CLOSE_BRACE,
 		"Expected `}` to close if statement block.");
 
-	// Patch the jump instruction to point to the instruction
-	// after the if statement's block.
-	patch_jump(bytecode, jump);
+	return jump;
 }
 
 
@@ -226,7 +233,7 @@ void if_statement(Compiler *compiler) {
 	consume(lexer);
 
 	// Compile the conditional expression and block.
-	if_condition(compiler);
+	int previous_jump = if_condition_and_block(compiler);
 
 	// Store all the unpatched jump statements at the end of if
 	// or else if blocks so we can patch all of them once we've
@@ -236,7 +243,12 @@ void if_statement(Compiler *compiler) {
 
 	// Check for multiple else if statements after the if
 	// statement.
+	bool had_else = false;
+	bool had_else_if = false;
+	disable_newlines(lexer);
 	while (match(lexer, TOKEN_ELSE_IF)) {
+		had_else_if = true;
+
 		// Firstly append another instruction to the previous if
 		// or else if statement's block. The instruction jumps
 		// from the end of that block to after the entire
@@ -245,34 +257,53 @@ void if_statement(Compiler *compiler) {
 		// Because we need to compile all of the else if and else
 		// blocks before we can patch these jump instructions,
 		// store them in an array.
-		unpatched_jumps[jump_count] = emit_jump(bytecode,
-			CODE_CONDITIONAL_JUMP);
+		unpatched_jumps[jump_count] = emit_jump(bytecode, CODE_JUMP_FORWARD);
 		jump_count++;
+
+		// Now that we've added the very last thing to the if
+		// statement's block, we can patch it's conditional to
+		// point here.
+		patch_jump(bytecode, previous_jump);
 
 		// Consume the else if token.
 		consume(lexer);
 
 		// Compile the conditional expression and block.
-		if_condition(compiler);
+		enable_newlines(lexer);
+		previous_jump = if_condition_and_block(compiler);
+		disable_newlines(lexer);
 	}
 
 	// If there's an else block to follow.
 	if (match(lexer, TOKEN_ELSE)) {
+		had_else = true;
+
 		// Consume the else token.
 		consume(lexer);
 
 		// Emit an unpatched jump instruction for the if/elseif
 		// statement that preceded this else statement.
-		unpatched_jumps[jump_count] = emit_jump(bytecode,
-			CODE_CONDITIONAL_JUMP);
+		unpatched_jumps[jump_count] = emit_jump(bytecode, CODE_JUMP_FORWARD);
 		jump_count++;
+
+		// Patch the previous jump statement
+		patch_jump(bytecode, previous_jump);
 
 		// Compile the else statement's block.
 		expect(compiler, TOKEN_OPEN_BRACE,
 			"Expected `{` after `else`.");
+		enable_newlines(lexer);
 		block(compiler, TOKEN_CLOSE_BRACE);
 		expect(compiler, TOKEN_CLOSE_BRACE,
 			"Expected `}` to close else statement block.");
+	} else {
+		enable_newlines(lexer);
+	}
+
+	if (!had_else && !had_else_if) {
+		// There were no else or else if statements, so the
+		// original if's conditional still hasn't been patched.
+		patch_jump(bytecode, previous_jump);
 	}
 
 	// We've compiled the entire statement now, so patch all the
@@ -426,9 +457,13 @@ void pop_scope(Compiler *compiler) {
 		// Emit a pop instruction.
 		emit(bytecode, CODE_POP);
 
-		// Decrement the counter
+		// Decrement counters
+		compiler->local_count--;
 		i--;
-		local = &compiler->locals[i];
+		if (i > 0) {
+			// Prevent invalid memory access with if clause
+			local = &compiler->locals[i];
+		}
 	}
 }
 

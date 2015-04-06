@@ -5,6 +5,7 @@
 
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "bytecode.h"
 
@@ -44,7 +45,7 @@ int resize(Bytecode *bytecode, int amount) {
 		bytecode->instructions = realloc(bytecode->instructions, new_size);
 	}
 
-	return bytecode->count - amount + 1;
+	return bytecode->count - amount;
 }
 
 
@@ -98,7 +99,7 @@ void emit_arg_8(Bytecode *bytecode, uint64_t arg) {
 
 // Emit an incomplete jump instruction.
 int emit_jump(Bytecode *bytecode, uint8_t instruction) {
-	int index = emit(bytecode, CODE_CONDITIONAL_JUMP);
+	int index = emit(bytecode, instruction);
 	emit_arg_2(bytecode, 0);
 	return index;
 }
@@ -108,7 +109,8 @@ int emit_jump(Bytecode *bytecode, uint8_t instruction) {
 // jump to the instruction after the most recent
 // instruction emitted.
 void patch_jump(Bytecode *bytecode, int index) {
-	uint16_t amount = bytecode->count - index;
+	// Subtract 3 to count for the argument to the jump statement
+	uint16_t amount = bytecode->count - index - 3;
 
 	// Add one to the index initially to skip the actual
 	// instruction and start at the 2 byte argument.

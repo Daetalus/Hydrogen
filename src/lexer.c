@@ -531,15 +531,18 @@ void next(Lexer *lexer, Token *token) {
 //  Consuming
 //
 
-// Consumes a token, moving to the next one.
-Token consume(Lexer *lexer) {
+// Consumes a token, either from the populated cache, or
+// consuming one from the source.
+Token consume_from_cache(Lexer *lexer) {
 	if (lexer->cache_size == 0) {
 		next(lexer, &lexer->cache[0]);
 		lexer->cache_size++;
 	}
 
 	// Pop an item off the queue
-	Token token = lexer->cache[0];
+	Token token;
+
+	token = lexer->cache[0];
 
 	// Shift all items back 1 place (to remove the first item).
 	for (int i = 1; i < lexer->cache_size; i++) {
@@ -547,6 +550,17 @@ Token consume(Lexer *lexer) {
 	}
 
 	lexer->cache_size--;
+	return token;
+}
+
+
+// Consumes a token, respecting whether we should return newline tokens
+// or not.
+Token consume(Lexer *lexer) {
+	Token token = consume_from_cache(lexer);
+	if (lexer->should_ignore_newlines && token.type == TOKEN_LINE) {
+		token = consume_from_cache(lexer);
+	}
 	return token;
 }
 
@@ -597,13 +611,13 @@ bool match_double(Lexer *lexer, TokenType one, TokenType two) {
 
 
 // Tells the lexer to not emit any newline tokens.
-void ignore_newlines(Lexer *lexer) {
+void enable_newlines(Lexer *lexer) {
 	lexer->should_ignore_newlines = true;
 }
 
 
 // Tells the lexer to emit newline tokens.
-void obey_newlines(Lexer *lexer) {
+void disable_newlines(Lexer *lexer) {
 	lexer->should_ignore_newlines = false;
 }
 

@@ -91,6 +91,11 @@ typedef enum {
 	// Takes 1, 8 byte argument - the function pointer of
 	// the C function to call.
 	CODE_CALL_NATIVE,
+
+	// Emitted to return from a function.
+	//
+	// Takes no arguments.
+	CODE_RETURN,
 } Instruction;
 
 

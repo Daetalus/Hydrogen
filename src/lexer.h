@@ -185,9 +185,9 @@ bool match_double(Lexer *lexer, TokenType one, TokenType two);
 char * extract_string_literal(Token *literal, String *string);
 
 // Tells the lexer to not emit any newline tokens.
-void ignore_newlines(Lexer *lexer);
+void enable_newlines(Lexer *lexer);
 
 // Tells the lexer to emit newline tokens.
-void obey_newlines(Lexer *lexer);
+void disable_newlines(Lexer *lexer);
 
 #endif
