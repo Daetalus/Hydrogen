@@ -110,7 +110,7 @@ typedef enum {
 	//
 	// Takes 1, 2 byte argument - the number of instructions
 	// to jump forward if the value is false.
-	CODE_CONDITIONAL_JUMP,
+	CODE_JUMP_IF_NOT,
 
 	// Calls the function at [index] in the virtual machine's
 	// function list, by pushing a new call frame onto the call

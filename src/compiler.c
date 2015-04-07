@@ -298,7 +298,7 @@ int if_condition_and_block(Compiler *compiler) {
 	// argument.
 	// We'll patch the jump instruction once we know how big the
 	// if statement's block is.
-	int jump = emit_jump(bytecode, CODE_CONDITIONAL_JUMP);
+	int jump = emit_jump(bytecode, CODE_JUMP_IF_NOT);
 
 	// Consume the opening brace of the if statement's block.
 	disable_newlines(&compiler->vm->lexer);
@@ -433,7 +433,7 @@ void while_loop(Compiler *compiler) {
 	disable_newlines(lexer);
 
 	// Jump conditionally
-	int condition_jump = emit_jump(bytecode, CODE_CONDITIONAL_JUMP);
+	int condition_jump = emit_jump(bytecode, CODE_JUMP_IF_NOT);
 
 	// Compile the block.
 	expect(compiler, TOKEN_OPEN_BRACE,
@@ -621,7 +621,6 @@ void function_definition(Compiler *compiler) {
 	int index = find_function(compiler->vm, name.location, name.length,
 		fn->argument_count);
 	if (index != -1) {
-		printf("%d\n", index);
 		error(compiler, "Function `%.*s` is already defined",
 			name.length, name.location);
 	}
@@ -831,7 +830,7 @@ void push_local(Compiler *compiler, char *name, int length) {
 void push_number(Compiler *compiler, double number) {
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
-	uint64_t converted = as_value(number);
+	uint64_t converted = number_to_value(number);
 	emit(bytecode, CODE_PUSH_NUMBER);
 	emit_arg_8(bytecode, converted);
 }
@@ -857,31 +856,17 @@ String ** push_string(Compiler *compiler) {
 //  Error Handling
 //
 
-// Color codes
-#define NORMAL  "\x1B[0m"
-#define BOLD    "\x1B[1m"
-#define RED     "\x1B[31m"
-#define GREEN   "\x1B[32m"
-#define YELLOW  "\x1B[33m"
-#define BLUE    "\x1B[34m"
-#define MAGENTA "\x1B[35m"
-#define CYAN    "\x1B[36m"
-#define WHITE   "\x1B[37m"
-
-
 // Triggers the given error on the compiler.
 void error(Compiler *compiler, char *fmt, ...) {
-	// Start the variable arguments list.
+	// Print the error
 	va_list args;
 	va_start(args, fmt);
 
-	// Print the error.
 	int line = compiler->vm->lexer.line;
 	fprintf(stderr, RED BOLD "error " WHITE "line %d: ", line);
 	vfprintf(stderr, fmt, args);
 	fprintf(stderr, NORMAL "\n");
 
-	// Stop the variable arguments list.
 	va_end(args);
 
 	// Halt the program

@@ -95,6 +95,7 @@ io.println(a.test() + 3)
 * Comments
 * Variable assignments
 	* Mathematical assignments
+* Strings/numbers/booleans/nil
 * If statements
 * While loops
 * For loops

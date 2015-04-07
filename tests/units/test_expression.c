@@ -10,8 +10,7 @@
 START(single_operand_one) {
 	EXPRESSION("3");
 
-	ASSERT_EQ(READ_BYTE(), CODE_PUSH_NUMBER);
-	ASSERT_EQ(as_number(READ_8_BYTES()), 3.0);
+	ASSERT_NUMBER_PUSH(3.0);
 }
 END()
 
@@ -19,8 +18,7 @@ END()
 START(single_operand_two) {
 	EXPRESSION("\n3\r\n");
 
-	ASSERT_EQ(READ_BYTE(), CODE_PUSH_NUMBER);
-	ASSERT_EQ(as_number(READ_8_BYTES()), 3.0);
+	ASSERT_NUMBER_PUSH(3.0);
 }
 END()
 

@@ -6,11 +6,13 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "vm.h"
 #include "operators.h"
 #include "bytecode.h"
 #include "compiler.h"
+#include "debug.h"
 
 
 // Create a new virtual machine with the given source code.
@@ -114,6 +116,27 @@ NativeFunction find_native_function(
 
 
 //
+//  Errors
+//
+
+// Trigger a runtime error on the virtual machine.
+void vm_crash(VirtualMachine *vm, char *fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+
+	fprintf(stderr, RED BOLD "error: " WHITE);
+	vfprintf(stderr, fmt, args);
+	fprintf(stderr, "\n" NORMAL);
+
+	va_end(args);
+
+	// Halt the program
+	exit(0);
+}
+
+
+
+//
 //  Execution
 //
 
@@ -121,34 +144,127 @@ NativeFunction find_native_function(
 #define MAX_STACK_SIZE 2048
 
 // The maximum call stack size.
-#define MAX_CALL_STACK_SIZE 512
+#define MAX_CALL_STACK_SIZE 1024
 
 
 // Runs the compiled bytecode.
 void vm_run(VirtualMachine *vm) {
+	// The value stack which the program pushes to.
 	uint64_t stack[MAX_STACK_SIZE];
-	CallFrame call_stack[MAX_CALL_STACK_SIZE];
-
 	int stack_size;
+
+	// The function call frame stack, which maintains
+	// which functions are being executed.
+	CallFrame call_stack[MAX_CALL_STACK_SIZE];
 	int call_stack_size;
+
+	// The currently executing instruction (ip stands for instruction
+	// pointer).
 	uint8_t *ip;
 
-	// Push the main function onto the call stack
-	Function *main_fn = &vm->functions[0];
-	ip = main_fn->bytecode.instructions;
-	call_stack[0].stack_ptr = &stack[stack_size];
-	call_stack[0].instruction_ptr = ip;
-	call_stack_size++;
+	// The stack pointer of the top most call frame, pointing
+	// to a place on the stack where the function's variables
+	// start.
+	uint64_t *stack_ptr;
 
+	// Push a value onto the top of the stack.
 	#define PUSH(value) stack[stack_size++] = (value);
 
+	// Pop a value from the top of the stack.
+	#define POP() stack_size--;
+
+	// Evaluates to the value on the top of the stack.
+	#define TOP() stack[stack_size - 1]
+
+	// Pushes a new call frame for `fn` onto the call frame stack.
+	// Updates `ip` and `stack_ptr` with the values for the new function.
+	#define PUSH_FRAME(fn) {                                         \
+		ip = (fn)->bytecode.instructions;                            \
+		stack_ptr = (&stack[stack_size - 1]) - (fn)->argument_count; \
+		call_stack[call_stack_size].stack_ptr = stack_ptr;           \
+		call_stack[call_stack_size].instruction_ptr = ip;            \
+		call_stack_size++;                                           \
+	}
+
+	// Returns from the executing function to the function that called it.
+
+	#define POP_FRAME()                                       \
+		call_stack_size--;                                    \
+		ip = call_stack[call_stack_size - 1].instruction_ptr; \
+		stack_ptr = call_stack[call_stack_size - 1].stack_ptr;
+
+
+	// Push the main function onto the call stack as the very first
+	// executing function.
+	PUSH_FRAME(&vm->functions[0]);
+
 	// Begin execution
+instructions:
 	switch (READ_BYTE()) {
 	case CODE_PUSH_NUMBER:
 		PUSH(READ_8_BYTES());
+		goto instructions;
 
 	case CODE_PUSH_STRING: {
 		uint16_t index = READ_2_BYTES();
+		String *copy = string_duplicate(vm->literals[index]);
+		PUSH(ptr_to_value(copy));
+		goto instructions;
 	}
+
+	case CODE_PUSH_VARIABLE:
+		PUSH(stack[READ_2_BYTES()]);
+		goto instructions;
+
+	case CODE_POP:
+		POP();
+		goto instructions;
+
+	case CODE_STORE:
+		stack[READ_2_BYTES()] = TOP();
+		POP();
+		goto instructions;
+
+	case CODE_JUMP_FORWARD: {
+		uint16_t amount = READ_2_BYTES();
+		ip += amount;
+		goto instructions;
 	}
+
+	case CODE_JUMP_BACKWARD: {
+		uint16_t amount = READ_2_BYTES();
+		ip -= amount;
+		goto instructions;
+	}
+
+	case CODE_JUMP_IF_NOT:
+		if (IS_NIL(TOP()) || IS_FALSE(TOP())) {
+			uint16_t amount = READ_2_BYTES();
+			ip += amount;
+		} else {
+			// Discard the two bytes
+			READ_2_BYTES();
+		}
+		goto instructions;
+
+	case CODE_CALL:
+		PUSH_FRAME(&vm->functions[READ_2_BYTES()])
+		goto instructions;
+
+	case CODE_CALL_NATIVE: {
+		NativeFunction fn = value_to_ptr(READ_8_BYTES());
+		fn(vm, stack, &stack_size);
+		goto instructions;
+	}
+
+	case CODE_RETURN:
+		if (call_stack_size == 1) {
+			goto end;
+		}
+		POP_FRAME();
+		goto instructions;
+	}
+
+end:
+	return;
 }

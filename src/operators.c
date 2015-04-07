@@ -5,6 +5,8 @@
 
 
 #include <stdio.h>
+#include <string.h>
+#include <math.h>
 
 #include "operators.h"
 
@@ -99,16 +101,52 @@ Associativity operator_associativity(TokenType operator) {
 
 
 //
+//  Stack Modifiers
+//
+
+// Pops an argument from the stack.
+#define POP() ((*stack_size)--, stack[*stack_size])
+
+
+// Pushes an argument onto the stack.
+#define PUSH(value) stack[(*stack_size)++] = (value)
+
+
+// Pops a numerical argument from the stack, triggering
+// a runtime error if it isn't a number.
+#define POP_NUMBER(name)                 \
+	uint64_t value_##name = POP();       \
+	if (!IS_NUMBER(value_##name)) {      \
+		vm_crash(vm, "Expected number"); \
+	}                                    \
+	double name = value_to_number(value_##name);
+
+
+// Pushes a number by converting it to a value.
+#define PUSH_NUMBER(value) PUSH(number_to_value((value)))
+
+
+
+//
 //  Testing Print Statements
 //
 
-void native_print(void) {
-	printf("IT WORKS!\n");
+void native_print(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
+	uint64_t arg = POP();
+
+	if (IS_PTR(arg)) {
+		String *string = value_to_ptr(arg);
+		printf("%s\n", string->contents);
+	} else if (IS_NUMBER(arg)) {
+		printf("%.2f\n", value_to_number(arg));
+	}
 }
 
 
-void native_print_2(void) {
-	printf("IT WORKS AGAIN!\n");
+void native_print_2(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
+	// Pop our 2 arguments
+	POP();
+	POP();
 }
 
 
@@ -117,33 +155,88 @@ void native_print_2(void) {
 //  Mathematical Operators
 //
 
-void operator_addition(void) {
+void operator_addition(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
+	uint64_t right = POP();
+	uint64_t left = POP();
 
+	if (IS_NUMBER(left) && IS_NUMBER(right)) {
+		// Add to numbers
+		PUSH_NUMBER(value_to_number(left) + value_to_number(right));
+	} else if (IS_PTR(left) && IS_NUMBER(right)) {
+		// Concatenate a string and number
+		String *left_str = value_to_ptr(left);
+		double right_number = value_to_number(right);
+		size_t size = left_str->length + 50;
+		String *result = string_new(size);
+
+		int length = sprintf(result->contents, "%s%.2f", left_str->contents,
+			right_number);
+		result->length = length;
+
+		PUSH(ptr_to_value(result));
+	} else if (IS_NUMBER(left) && IS_PTR(right)) {
+		// Concatenate a number and string
+		double left_number = value_to_number(left);
+		String *right_str = value_to_ptr(right);
+		size_t size = right_str->length + 50;
+		String *result = string_new(size);
+
+		int length = sprintf(result->contents, "%.2f%s", left_number,
+			right_str->contents);
+		result->length = length;
+
+		PUSH(ptr_to_value(result));
+	} else if (IS_PTR(left) && IS_PTR(right)) {
+		// Concatenate two strings
+		String *left_str = value_to_ptr(left);
+		String *right_str = value_to_ptr(right);
+		size_t size = left_str->length + right_str->length + 1;
+		String *result = string_new(size);
+
+		strcpy(result->contents, left_str->contents);
+		strcpy(&result->contents[left_str->length], right_str->contents);
+		result->length = left_str->length + right_str->length;
+
+		PUSH(ptr_to_value(result));
+	} else {
+		vm_crash(vm, "Expected string or number");
+	}
 }
 
 
-void operator_subtraction(void) {
-
+void operator_subtraction(VirtualMachine *vm, uint64_t *stack,
+		int *stack_size) {
+	POP_NUMBER(right);
+	POP_NUMBER(left);
+	PUSH_NUMBER(left - right);
 }
 
 
-void operator_multiplication(void) {
-
+void operator_multiplication(VirtualMachine *vm, uint64_t *stack,
+		int *stack_size) {
+	POP_NUMBER(right);
+	POP_NUMBER(left);
+	PUSH_NUMBER(left * right);
 }
 
 
-void operator_division(void) {
-
+void operator_division(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
+	POP_NUMBER(right);
+	POP_NUMBER(left);
+	PUSH_NUMBER(left / right);
 }
 
 
-void operator_modulo(void) {
-
+void operator_modulo(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
+	POP_NUMBER(right);
+	POP_NUMBER(left);
+	PUSH_NUMBER(fmod(left, right));
 }
 
 
-void operator_negation(void) {
-
+void operator_negation(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
+	POP_NUMBER(operand);
+	PUSH_NUMBER(-operand);
 }
 
 
@@ -152,47 +245,53 @@ void operator_negation(void) {
 //  Boolean Operators
 //
 
-void operator_boolean_and(void) {
+void operator_boolean_and(VirtualMachine *vm, uint64_t *stack,
+		int *stack_size) {
 
 }
 
 
-void operator_boolean_or(void) {
+void operator_boolean_or(VirtualMachine *vm, uint64_t *stack,
+		int *stack_size) {
 
 }
 
 
-void operator_boolean_not(void) {
+void operator_boolean_not(VirtualMachine *vm, uint64_t *stack,
+		int *stack_size) {
 
 }
 
 
-void operator_equal(void) {
+void operator_equal(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
 
 }
 
 
-void operator_not_equal(void) {
+void operator_not_equal(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
 
 }
 
 
-void operator_less_than(void) {
+void operator_less_than(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
 
 }
 
 
-void operator_less_than_equal_to(void) {
+void operator_less_than_equal_to(VirtualMachine *vm, uint64_t *stack,
+		int *stack_size) {
 
 }
 
 
-void operator_greater_than(void) {
+void operator_greater_than(VirtualMachine *vm, uint64_t *stack,
+		int *stack_size) {
 
 }
 
 
-void operator_greater_than_equal_to(void) {
+void operator_greater_than_equal_to(VirtualMachine *vm, uint64_t *stack,
+		int *stack_size) {
 
 }
 
@@ -202,31 +301,37 @@ void operator_greater_than_equal_to(void) {
 //  Bitwise Operators
 //
 
-void operator_left_shift(void) {
+void operator_left_shift(VirtualMachine *vm, uint64_t *stack,
+		int *stack_size) {
 
 }
 
 
-void operator_right_shift(void) {
+void operator_right_shift(VirtualMachine *vm, uint64_t *stack,
+		int *stack_size) {
 
 }
 
 
-void operator_bitwise_and(void) {
+void operator_bitwise_and(VirtualMachine *vm, uint64_t *stack,
+		int *stack_size) {
 
 }
 
 
-void operator_bitwise_or(void) {
+void operator_bitwise_or(VirtualMachine *vm, uint64_t *stack,
+		int *stack_size) {
 
 }
 
 
-void operator_bitwise_not(void) {
+void operator_bitwise_not(VirtualMachine *vm, uint64_t *stack,
+		int *stack_size) {
 
 }
 
 
-void operator_bitwise_xor(void) {
+void operator_bitwise_xor(VirtualMachine *vm, uint64_t *stack,
+		int *stack_size) {
 
 }

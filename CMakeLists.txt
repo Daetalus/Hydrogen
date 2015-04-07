@@ -36,17 +36,24 @@ add_library(
 
 enable_testing()
 
-macro(test name)
-	add_executable(test_${name} tests/test_${name}.c)
+macro(unit_test name)
+	add_executable(test_${name} tests/units/test_${name}.c)
 	target_link_libraries(test_${name} vm)
 	add_test(test_${name} test_${name})
 endmacro()
 
-test(value)
-test(parser)
-test(lexer)
-test(expression)
-test(compiler)
+macro(test name)
+	add_executable(test_${name} tests/${name}.c)
+	target_link_libraries(test_${name} vm)
+	add_test(test_${name} test_${name})
+endmacro()
+
+unit_test(value)
+unit_test(parser)
+unit_test(lexer)
+unit_test(expression)
+unit_test(compiler)
+test(runtime)
 
 
 

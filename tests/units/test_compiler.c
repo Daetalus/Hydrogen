@@ -6,6 +6,8 @@
 
 #include "test.h"
 
+#include "../../src/vm.c"
+
 
 START(variable_assignment_one) {
 	COMPILER("let a = 3");
@@ -196,8 +198,6 @@ START(while_loop_two) {
 }
 END()
 
-
-#include "../src/vm.c"
 
 START(function_call_one) {
 	COMPILER("print('hello')");

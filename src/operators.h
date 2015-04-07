@@ -8,6 +8,7 @@
 #define OPERATORS_H
 
 #include "lexer.h"
+#include "vm.h"
 
 
 // Returns true if the given token is a binary operator.
@@ -20,35 +21,40 @@ int operator_precedence(TokenType operator);
 Associativity operator_associativity(TokenType operator);
 
 
+// Defines a native function.
+#define DEFINE_NATIVE_FUNCTION(name) \
+	void name(VirtualMachine *vm, uint64_t *stack, int *stack_size);
+
+
 // Testing print statements
-void native_print(void);
-void native_print_2(void);
+DEFINE_NATIVE_FUNCTION(native_print);
+DEFINE_NATIVE_FUNCTION(native_print_2);
 
 // Mathematical operators
-void operator_addition(void);
-void operator_subtraction(void);
-void operator_multiplication(void);
-void operator_division(void);
-void operator_modulo(void);
-void operator_negation(void);
+DEFINE_NATIVE_FUNCTION(operator_addition);
+DEFINE_NATIVE_FUNCTION(operator_subtraction);
+DEFINE_NATIVE_FUNCTION(operator_multiplication);
+DEFINE_NATIVE_FUNCTION(operator_division);
+DEFINE_NATIVE_FUNCTION(operator_modulo);
+DEFINE_NATIVE_FUNCTION(operator_negation);
 
 // Boolean operators
-void operator_boolean_and(void);
-void operator_boolean_or(void);
-void operator_boolean_not(void);
-void operator_equal(void);
-void operator_not_equal(void);
-void operator_less_than(void);
-void operator_less_than_equal_to(void);
-void operator_greater_than(void);
-void operator_greater_than_equal_to(void);
+DEFINE_NATIVE_FUNCTION(operator_boolean_and);
+DEFINE_NATIVE_FUNCTION(operator_boolean_or);
+DEFINE_NATIVE_FUNCTION(operator_boolean_not);
+DEFINE_NATIVE_FUNCTION(operator_equal);
+DEFINE_NATIVE_FUNCTION(operator_not_equal);
+DEFINE_NATIVE_FUNCTION(operator_less_than);
+DEFINE_NATIVE_FUNCTION(operator_less_than_equal_to);
+DEFINE_NATIVE_FUNCTION(operator_greater_than);
+DEFINE_NATIVE_FUNCTION(operator_greater_than_equal_to);
 
 // Bitwise operators
-void operator_left_shift(void);
-void operator_right_shift(void);
-void operator_bitwise_and(void);
-void operator_bitwise_or(void);
-void operator_bitwise_not(void);
-void operator_bitwise_xor(void);
+DEFINE_NATIVE_FUNCTION(operator_left_shift);
+DEFINE_NATIVE_FUNCTION(operator_right_shift);
+DEFINE_NATIVE_FUNCTION(operator_bitwise_and);
+DEFINE_NATIVE_FUNCTION(operator_bitwise_or);
+DEFINE_NATIVE_FUNCTION(operator_bitwise_not);
+DEFINE_NATIVE_FUNCTION(operator_bitwise_xor);
 
 #endif

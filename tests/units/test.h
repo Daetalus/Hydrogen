@@ -8,6 +8,14 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "../../src/vm.h"
+#include "../../src/compiler.h"
+#include "../../src/expression.h"
+#include "../../src/debug.h"
+#include "../../src/bytecode.h"
+#include "../../src/lexer.h"
+#include "../../src/operators.h"
+
 
 // Color codes
 #define NORMAL  "\x1B[0m"
@@ -100,15 +108,6 @@
 //
 
 
-#include "../src/vm.h"
-#include "../src/compiler.h"
-#include "../src/expression.h"
-#include "../src/debug.h"
-#include "../src/bytecode.h"
-#include "../src/lexer.h"
-#include "../src/operators.h"
-
-
 #define EXPRESSION(content)                   \
 	VirtualMachine vm = vm_new((content));    \
 	Function fn;                              \
@@ -156,7 +155,7 @@
 
 #define ASSERT_NUMBER_PUSH(number)            \
 	ASSERT_EQ(READ_BYTE(), CODE_PUSH_NUMBER); \
-	ASSERT_EQ(as_number(READ_8_BYTES()), number);
+	ASSERT_EQ(value_to_number(READ_8_BYTES()), number);
 
 
 #define ASSERT_STRING_PUSH(index, str)        \
@@ -172,7 +171,7 @@
 
 #define ASSERT_NATIVE_CALL(fn)                \
 	ASSERT_EQ(READ_BYTE(), CODE_CALL_NATIVE); \
-	ASSERT_EQ(AS_FN(READ_8_BYTES()), &(fn));
+	ASSERT_EQ(value_to_ptr(READ_8_BYTES()), &(fn));
 
 
 #define ASSERT_CALL(slot)              \
@@ -185,8 +184,8 @@
 	ASSERT_EQ(READ_2_BYTES(), slot);
 
 
-#define ASSERT_CONDITIONAL_JUMP(amount)            \
-	ASSERT_EQ(READ_BYTE(), CODE_CONDITIONAL_JUMP); \
+#define ASSERT_CONDITIONAL_JUMP(amount)       \
+	ASSERT_EQ(READ_BYTE(), CODE_JUMP_IF_NOT); \
 	ASSERT_EQ(READ_2_BYTES(), amount);
 
 
