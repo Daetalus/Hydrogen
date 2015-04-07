@@ -6,7 +6,7 @@ The Hydrogen Programming Language.
 
 Hydrogen is a simple programming language. It's object oriented, interpreted, dynamically typed, and garbage collected, with C-style syntax and a (hopefully soon to be) extensive standard library.
 
-Hydrogen is intended as more of a learning project for me about writing a bytecode-interpreted language. I'm yet to run any benchmarks to see how it stacks up against the popular languages, but I can't wait.
+Hydrogen is intended as more of a learning project for me about writing a bytecode-interpreted language. I've just tested it against Python in the world's most inaccurate and pointless benchmark, and it ran twice as fast! :D
 
 
 ## Building
