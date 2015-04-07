@@ -4,6 +4,8 @@
 //
 
 
+#include <stdio.h>
+
 #include "operators.h"
 
 
@@ -92,6 +94,21 @@ Associativity operator_associativity(TokenType operator) {
 	}
 
 	return -1;
+}
+
+
+
+//
+//  Testing Print Statements
+//
+
+void native_print(void) {
+	printf("IT WORKS!\n");
+}
+
+
+void native_print_2(void) {
+	printf("IT WORKS AGAIN!\n");
 }
 
 

@@ -264,6 +264,12 @@ Standard Library
 * `acosh(value)`
 * `atanh(value)`
 * `sqrt(value)`
+* `rand()`
+* `rand(max)`
+* `rand(min, max)`
+* `rand_int()`
+* `rand_int(max)`
+* `rand_int(min, max)`
 
 
 ## `iter`
@@ -418,10 +424,44 @@ Standard Library
 	* `hours()`
 
 
+## `crypto`
+
+
+## `compress`
+
+* `gzip`
+
+
+## `database`
+
+* `sqlite`
+* `mongodb`
+
+
+## `reflect`
+
+
+## `encoding`
+
+* `base64`
+* `json`
+* `xml`
+* `binary`
+* `csv`
+
+
+## `http`
+
+
+## `testing`
+
+* `assert`
+
+
+## `image`
+
+
 ## `mime`
-
-
-
 
 
 ## `net`

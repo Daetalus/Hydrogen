@@ -50,6 +50,19 @@ typedef struct {
 } Function;
 
 
+// A call frame, storing information about the functions
+// currently executing.
+typedef struct {
+	// The function's stack pointer, indicating the start of
+	// the function's stack of values.
+	uint64_t *stack_ptr;
+
+	// The instruction pointer, pointing into the function's
+	// bytecode.
+	uint8_t *instruction_ptr;
+} CallFrame;
+
+
 // The virtual machine.
 //
 // The VM is responsible for compiling the code initially, and then
@@ -71,7 +84,7 @@ typedef struct {
 	int function_count;
 
 	// A list of string literal constants.
-	String literals[MAX_STRING_LITERALS];
+	String *literals[MAX_STRING_LITERALS];
 
 	// The number of string literals in the constants list.
 	int literal_count;

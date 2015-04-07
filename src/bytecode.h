@@ -11,6 +11,38 @@
 #include <stdbool.h>
 
 
+// Read a single byte from an instruction cursor.
+#define READ_BYTE() \
+	(ip++, (uint8_t) (*(ip - 1)))
+
+
+// Read two bytes from an instruction cursor.
+#define READ_2_BYTES() \
+	(ip += 2, ((uint16_t) *(ip - 1) << (1 << 3)) | *(ip - 2))
+
+
+// Read four bytes from an instruction cursor.
+#define READ_4_BYTES()                           \
+	(ip += 4,                                \
+		((uint32_t) *(ip - 1) << (3 << 3)) | \
+		((uint32_t) *(ip - 2) << (2 << 3)) | \
+		((uint32_t) *(ip - 3) << (1 << 3)) | \
+		((uint32_t) *(ip - 4)))
+
+
+// Read eight bytes from an instruction cursor.
+#define READ_8_BYTES()                           \
+	(ip += 8,                                \
+		((uint64_t) *(ip - 1) << (7 << 3)) | \
+		((uint64_t) *(ip - 2) << (6 << 3)) | \
+		((uint64_t) *(ip - 3) << (5 << 3)) | \
+		((uint64_t) *(ip - 4) << (4 << 3)) | \
+		((uint64_t) *(ip - 5) << (3 << 3)) | \
+		((uint64_t) *(ip - 6) << (2 << 3)) | \
+		((uint64_t) *(ip - 7) << (1 << 3)) | \
+		((uint64_t) *(ip - 8)))
+
+
 // The default capacity for the instructions array in a function.
 #define DEFAULT_INSTRUCTION_CAPACITY 64
 

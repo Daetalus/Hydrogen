@@ -840,7 +840,7 @@ void push_number(Compiler *compiler, double number) {
 // Pushes a string onto the stack.
 // Returns a pointer to an unallocated string,
 // so the string that will be pushed can be modified.
-String * push_string(Compiler *compiler) {
+String ** push_string(Compiler *compiler) {
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
 	int index = compiler->vm->literal_count;

@@ -14,12 +14,12 @@
 
 // Pretty prints out the contents of a bytecode array.
 void pretty_print_bytecode(Bytecode *bytecode) {
-	uint8_t *cursor = bytecode->instructions;
+	uint8_t *ip = bytecode->instructions;
 	uint8_t *first = bytecode->instructions;
 	uint8_t *last = &bytecode->instructions[bytecode->count];
 
-	while (cursor < last) {
-		long position = cursor - first;
+	while (ip < last) {
+		long position = ip - first;
 		uint8_t instruction = READ_BYTE();
 
 		switch(instruction) {

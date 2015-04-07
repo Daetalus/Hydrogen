@@ -641,10 +641,10 @@ void disable_newlines(Lexer *lexer) {
 //  String Literals
 //
 
-#define ESCAPE_SEQUENCE(escape_ch, replacement)    \
-	if (ch == (escape_ch)) {                       \
-		string_append_char(string, (replacement)); \
-		continue;                                  \
+#define ESCAPE_SEQUENCE(escape_ch, replacement)     \
+	if (ch == (escape_ch)) {                        \
+		string_append_char(*string, (replacement)); \
+		continue;                                   \
 	}
 
 
@@ -654,11 +654,11 @@ void disable_newlines(Lexer *lexer) {
 // If the string contains an invalid escape sequence, returns
 // a pointer to the start of the escape sequence, else returns
 // NULL.
-char * extract_string_literal(Token *literal, String *string) {
+char * extract_string_literal(Token *literal, String **string) {
 	// Allocate space for the string, using the literal's
 	// length as the capacity, as the string can't get
 	// longer than the literal in the source code.
-	string_new(string, literal->length);
+	*string = string_new(literal->length);
 
 	for (int i = 0; i < literal->length; i++) {
 		char ch = literal->location[i];
@@ -680,7 +680,7 @@ char * extract_string_literal(Token *literal, String *string) {
 			return &literal->location[i - 1];
 		} else {
 			// It's a normal character, so just insert it.
-			string_append_char(string, ch);
+			string_append_char(*string, ch);
 		}
 	}
 

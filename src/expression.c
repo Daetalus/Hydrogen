@@ -144,7 +144,7 @@ void left(Compiler *compiler) {
 	} else if (newline_match(lexer, TOKEN_STRING)) {
 		// String literal
 		Token literal = consume(lexer);
-		String *string = push_string(compiler);
+		String **string = push_string(compiler);
 		char *sequence = extract_string_literal(&literal, string);
 
 		if (sequence != NULL) {

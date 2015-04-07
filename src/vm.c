@@ -8,12 +8,13 @@
 #include <stdio.h>
 
 #include "vm.h"
+#include "operators.h"
 #include "bytecode.h"
 #include "compiler.h"
 
 
 // Create a new virtual machine with the given source code.
-// Initialises the VM with default values, and doesn't compile
+// Initializes the VM with default values, and doesn't compile
 // anything.
 VirtualMachine vm_new(char *source) {
 	VirtualMachine vm;
@@ -31,6 +32,11 @@ void vm_free(VirtualMachine *vm) {
 	for (int i = 0; i < vm->function_count; i++) {
 		free(&vm->functions[i].bytecode);
 	}
+
+	// Free string literals
+	for (int i = 0; i < vm->literal_count; i++) {
+		string_free(vm->literals[i]);
+	}
 }
 
 
@@ -44,21 +50,16 @@ void vm_compile(VirtualMachine *vm) {
 	fn->argument_count = 0;
 	bytecode_new(&fn->bytecode, DEFAULT_INSTRUCTION_CAPACITY);
 
-	// Create the constants list that will be populated
-	Constants constants;
-	constants.count = 0;
-
 	// Compile the source code into the function's
 	// bytecode array.
 	compile(vm, fn, TOKEN_END_OF_FILE);
 }
 
 
-// Runs the compiled bytecode.
-void vm_run(VirtualMachine *vm) {
 
-}
-
+//
+//  Function Definitions
+//
 
 // Defines a new function on the virtual machine, returning
 // a pointer to it.
@@ -73,7 +74,10 @@ Function * define_bytecode_function(VirtualMachine *vm) {
 // Returns the index of a function with the given name and
 // name length.
 // Returns -1 if the function isn't found.
-int find_function(VirtualMachine *vm, char *name, int length,
+int find_function(
+		VirtualMachine *vm,
+		char *name,
+		int length,
 		int argument_count) {
 	for (int i = 0; i < vm->function_count; i++) {
 		Function *fn = &vm->functions[i];
@@ -88,21 +92,14 @@ int find_function(VirtualMachine *vm, char *name, int length,
 }
 
 
-void native_print(void) {
-	printf("IT WORKS!\n");
-}
-
-
-void native_print_2(void) {
-	printf("IT WORKS AGAIN!\n");
-}
-
-
 // Returns a function pointer to a library function with the
 // given name and length.
 // Returns NULL if the function isn't found.
-NativeFunction find_native_function(VirtualMachine *vm,
-		char *name, int length, int argument_count) {
+NativeFunction find_native_function(
+		VirtualMachine *vm,
+		char *name,
+		int length,
+		int argument_count) {
 	if (strncmp(name, "print", length) == 0) {
 		if (argument_count == 1) {
 			return &native_print;
@@ -112,4 +109,46 @@ NativeFunction find_native_function(VirtualMachine *vm,
 	}
 
 	return NULL;
+}
+
+
+
+//
+//  Execution
+//
+
+// The maximum value stack size.
+#define MAX_STACK_SIZE 2048
+
+// The maximum call stack size.
+#define MAX_CALL_STACK_SIZE 512
+
+
+// Runs the compiled bytecode.
+void vm_run(VirtualMachine *vm) {
+	uint64_t stack[MAX_STACK_SIZE];
+	CallFrame call_stack[MAX_CALL_STACK_SIZE];
+
+	int stack_size;
+	int call_stack_size;
+	uint8_t *ip;
+
+	// Push the main function onto the call stack
+	Function *main_fn = &vm->functions[0];
+	ip = main_fn->bytecode.instructions;
+	call_stack[0].stack_ptr = &stack[stack_size];
+	call_stack[0].instruction_ptr = ip;
+	call_stack_size++;
+
+	#define PUSH(value) stack[stack_size++] = (value);
+
+	// Begin execution
+	switch (READ_BYTE()) {
+	case CODE_PUSH_NUMBER:
+		PUSH(READ_8_BYTES());
+
+	case CODE_PUSH_STRING: {
+		uint16_t index = READ_2_BYTES();
+	}
+	}
 }

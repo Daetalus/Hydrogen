@@ -167,18 +167,18 @@ START(peek) {
 END()
 
 
-#define TEST_EXTRACT(expected) \
-	extracted = extract_string_literal(&token, &string); \
-	ASSERT_EQ(extracted, NULL); \
-	ASSERT_STR_EQ(string.contents, expected);
+#define TEST_EXTRACT(expected)                        \
+	err = extract_string_literal(&token, &extracted); \
+	ASSERT_EQ(err, NULL);                             \
+	ASSERT_STR_EQ(extracted->contents, expected);
 
 
 START(extract_string_literal) {
 	NEW_LEXER("'test' 'test\t\ntesting' 'test\\t \rtest' '\\'\\\"'");
 
 	Token token;
-	char *extracted;
-	String string;
+	char *err;
+	String *extracted;
 
 	TEST_CONSUME_STRING(TOKEN_STRING, source + 1, 4, "test");
 	TEST_EXTRACT("test");

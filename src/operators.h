@@ -20,6 +20,10 @@ int operator_precedence(TokenType operator);
 Associativity operator_associativity(TokenType operator);
 
 
+// Testing print statements
+void native_print(void);
+void native_print_2(void);
+
 // Mathematical operators
 void operator_addition(void);
 void operator_subtraction(void);

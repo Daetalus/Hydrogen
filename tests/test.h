@@ -123,7 +123,7 @@
 	compiler.local_count = 0;                 \
 	compiler.scope_depth = 0;                 \
 	expression(&compiler, TOKEN_END_OF_FILE); \
-	uint8_t *cursor = &bytecode->instructions[0];
+	uint8_t *ip = &bytecode->instructions[0];
 
 
 #define COMPILER(code)                                \
@@ -134,20 +134,20 @@
 	fn.argument_count = 0;                            \
 	Bytecode *bytecode = &fn.bytecode;                \
 	bytecode_new(bytecode, 10);                       \
-	compile(&vm, &fn, TOKEN_END_OF_FILE); \
-	uint8_t *cursor = &bytecode->instructions[0];
+	compile(&vm, &fn, TOKEN_END_OF_FILE);             \
+	uint8_t *ip = &bytecode->instructions[0];
 
 
 #define VM(code)                        \
 	VirtualMachine vm = vm_new((code)); \
 	vm_compile(&vm);                    \
 	Bytecode *bytecode;                 \
-	uint8_t *cursor;
+	uint8_t *ip;
 
 
-#define USE_FUNCTION(slot)                      \
+#define USE_FUNCTION(slot)                     \
 	bytecode = &vm.functions[(slot)].bytecode; \
-	cursor = &bytecode->instructions[0];
+	ip = &bytecode->instructions[0];
 
 
 #define ASSERT_INSTRUCTION(instruction) \
@@ -162,7 +162,7 @@
 #define ASSERT_STRING_PUSH(index, str)        \
 	ASSERT_EQ(READ_BYTE(), CODE_PUSH_STRING); \
 	ASSERT_EQ(READ_2_BYTES(), index);         \
-	ASSERT_STR_EQ(vm.literals[index].contents, str);
+	ASSERT_STR_EQ(vm.literals[index]->contents, str);
 
 
 #define ASSERT_VARIABLE_PUSH(slot)              \

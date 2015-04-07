@@ -43,16 +43,6 @@ typedef struct {
 } Local;
 
 
-// A constants list.
-typedef struct {
-	// The number of string literals in the constants list.
-	int count;
-
-	// The sting literals themselves.
-	String literals[MAX_STRING_LITERALS];
-} Constants;
-
-
 // The compiler.
 //
 // Responsible for taking some Hydrogen source code and
@@ -94,9 +84,6 @@ typedef struct {
 
 	// The current scope depth of the compiler.
 	int scope_depth;
-
-	// A pointer to the constants list we can append to.
-	Constants *constants;
 } Compiler;
 
 
@@ -124,7 +111,7 @@ void push_number(Compiler *compiler, double number);
 // Pushes a string onto the stack.
 // Returns a pointer to an unallocated string,
 // so the string that will be pushed can be modified.
-String * push_string(Compiler *compiler);
+String ** push_string(Compiler *compiler);
 
 
 // Returns the function pointer for an operator.

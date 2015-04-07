@@ -87,10 +87,10 @@ typedef struct _obj {
 //  String
 //
 
-// A string.
+// A heap allocated string.
 typedef struct {
-	// A pointer to the string's underlying object.
-	Obj *obj;
+	// The string's underlying object.
+	Obj obj;
 
 	// The string's length.
 	int length;
@@ -98,19 +98,23 @@ typedef struct {
 	// The allocated capacity for the string.
 	int capacity;
 
-	// A pointer to the string's heap allocated contents.
-	char *contents;
+	// The string's contents, stored using the C struct "hack",
+	// where we allocate more space in the heap for the struct than
+	// we need, and just use the unused part of memory after the
+	// other struct fields for the string.
+	char contents[0];
 } String;
 
 
 // Allocate a new string with the given capacity.
-void string_new(String *string, int capacity);
+String * string_new(int capacity);
+
+// Duplicates a string, allocating new space on the heap
+// for the second one.
+String * string_duplicate(String *original);
 
 // Free a string.
 void string_free(String *string);
-
-// Copy a character array into a new string.
-void string_copy(String *destination, char *source, int length);
 
 // Append a character onto the given string.
 void string_append_char(String *string, char ch);

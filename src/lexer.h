@@ -182,7 +182,7 @@ bool match_double(Lexer *lexer, TokenType one, TokenType two);
 // If the string contains an invalid escape sequence, returns
 // a pointer to the start of the escape sequence, else returns
 // NULL.
-char * extract_string_literal(Token *literal, String *string);
+char * extract_string_literal(Token *literal, String **string);
 
 // Tells the lexer to not emit any newline tokens.
 void enable_newlines(Lexer *lexer);
