@@ -57,6 +57,17 @@ double as_number(uint64_t value);
 uint64_t as_value(double number);
 
 
+// A string in the source code.
+typedef struct {
+	// The length of the string in the source code.
+	int length;
+
+	// The pointer into the source code specifying the
+	// start of the string.
+	char *location;
+} SourceString;
+
+
 
 //
 //  Object

@@ -11,6 +11,10 @@
 #include <stdbool.h>
 
 
+// The default capacity for the instructions array in a function.
+#define DEFAULT_INSTRUCTION_CAPACITY 64
+
+
 // All instructions that can be emitted as valid bytecode.
 typedef enum {
 	// Pushes a number value onto the stack.

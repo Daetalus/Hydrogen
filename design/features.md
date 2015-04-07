@@ -101,12 +101,13 @@ io.println(a.test() + 3)
 * Iterators
 * Function calls
 * Function definitions
+* Return values
 * Closures
-* Variable function arguments
 * Classes
 	* Constructors
 	* Properties
 	* Methods
 * Arrays
 * Dictionaries
+* Variable function arguments
 * Standard library

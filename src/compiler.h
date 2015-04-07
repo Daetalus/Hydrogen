@@ -23,11 +23,6 @@
 #define MAX_LOCALS 256
 
 
-// The maximum number of string literals that can be
-// in the source code.
-#define MAX_STRING_LITERALS 1024
-
-
 // A local variable.
 //
 // This is used only during compilation. When we encounter
@@ -117,11 +112,7 @@ typedef struct {
 // is found, or end of file is reached.
 //
 // Constants are added to the constants list.
-void compile(
-	VirtualMachine *vm,
-	Function *fn,
-	Constants *constants,
-	TokenType terminator);
+void compile(VirtualMachine *vm, Function *fn, TokenType terminator);
 
 // Emits bytecode to push the local with the given name onto the
 // stack.

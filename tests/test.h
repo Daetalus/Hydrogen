@@ -117,12 +117,9 @@
 	fn.argument_count = 0;                    \
 	Bytecode *bytecode = &fn.bytecode;        \
 	bytecode_new(bytecode, 10);               \
-	Constants constants;                      \
-	constants.count = 0;                      \
 	Compiler compiler;                        \
 	compiler.vm = &vm;                        \
 	compiler.fn = &fn;                        \
-	compiler.constants = &constants;          \
 	compiler.local_count = 0;                 \
 	compiler.scope_depth = 0;                 \
 	expression(&compiler, TOKEN_END_OF_FILE); \
@@ -137,10 +134,20 @@
 	fn.argument_count = 0;                            \
 	Bytecode *bytecode = &fn.bytecode;                \
 	bytecode_new(bytecode, 10);                       \
-	Constants constants;                              \
-	constants.count = 0;                              \
-	compile(&vm, &fn, &constants, TOKEN_END_OF_FILE); \
+	compile(&vm, &fn, TOKEN_END_OF_FILE); \
 	uint8_t *cursor = &bytecode->instructions[0];
+
+
+#define VM(code)                        \
+	VirtualMachine vm = vm_new((code)); \
+	vm_compile(&vm);                    \
+	Bytecode *bytecode;                 \
+	uint8_t *cursor;
+
+
+#define USE_FUNCTION(slot)                      \
+	bytecode = &vm.functions[(slot)].bytecode; \
+	cursor = &bytecode->instructions[0];
 
 
 #define ASSERT_INSTRUCTION(instruction) \
@@ -155,7 +162,7 @@
 #define ASSERT_STRING_PUSH(index, str)        \
 	ASSERT_EQ(READ_BYTE(), CODE_PUSH_STRING); \
 	ASSERT_EQ(READ_2_BYTES(), index);         \
-	ASSERT_STR_EQ(constants.literals[index].contents, str);
+	ASSERT_STR_EQ(vm.literals[index].contents, str);
 
 
 #define ASSERT_VARIABLE_PUSH(slot)              \
@@ -166,6 +173,11 @@
 #define ASSERT_NATIVE_CALL(fn)                \
 	ASSERT_EQ(READ_BYTE(), CODE_CALL_NATIVE); \
 	ASSERT_EQ(AS_FN(READ_8_BYTES()), &(fn));
+
+
+#define ASSERT_CALL(slot)              \
+	ASSERT_EQ(READ_BYTE(), CODE_CALL); \
+	ASSERT_EQ(READ_2_BYTES(), slot);
 
 
 #define ASSERT_STORE(slot)              \

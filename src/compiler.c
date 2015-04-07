@@ -34,13 +34,16 @@ bool match_while_loop(Compiler *compiler);
 void while_loop(Compiler *compiler);
 
 bool match_function_call(Compiler *compiler);
-void emit_user(Compiler *compiler, int index);
+void emit_bytecode_call(Compiler *compiler, int index);
+
+bool match_function_definition(Compiler *compiler);
+void function_definition(Compiler *compiler);
 
 void push_scope(Compiler *compiler);
 void pop_scope(Compiler *compiler);
 
 void push_local_at_index(Compiler *compiler, int index);
-int index_of_local(Compiler *compiler, char *name, int length);
+int find_local(Compiler *compiler, char *name, int length);
 uint16_t define_local(Compiler *compiler, char *name, int length);
 
 
@@ -56,17 +59,23 @@ uint16_t define_local(Compiler *compiler, char *name, int length);
 // or end of file is reached.
 //
 // Constants are added to the constants list.
-void compile(VirtualMachine *vm,
-		Function *fn,
-		Constants *constants,
-		TokenType terminator) {
+void compile(VirtualMachine *vm, Function *fn, TokenType terminator) {
 	// Create a compiler for this function.
 	Compiler compiler;
 	compiler.vm = vm;
 	compiler.fn = fn;
 	compiler.local_count = 0;
 	compiler.scope_depth = -1;
-	compiler.constants = constants;
+
+	// Push the function's arguments as locals
+	for (int i = 0; i < fn->argument_count; i++) {
+		Local *local = &compiler.locals[compiler.local_count];
+		compiler.local_count++;
+
+		local->name = fn->arguments[i].location;
+		local->length = fn->arguments[i].length;
+		local->scope_depth = 0;
+	}
 
 	// Treat the source code as a top level block, stopping when
 	// we reach the terminator character.
@@ -123,6 +132,8 @@ void statement(Compiler *compiler) {
 		while_loop(compiler);
 	} else if (match_function_call(compiler)) {
 		function_call(compiler);
+	} else if (match_function_definition(compiler)) {
+		function_definition(compiler);
 	} else {
 		Token current = peek(lexer, 0);
 		error(compiler, "Unrecognized statement beginning with `%.*s`",
@@ -181,19 +192,17 @@ void variable_assignment(Compiler *compiler) {
 	}
 
 	// Check to see if the variable already exists.
-	int index = index_of_local(compiler, name.location, name.length);
+	int index = find_local(compiler, name.location, name.length);
 	if (is_new_var && index != -1) {
 		// We're trying to create a new variable using a variable
 		// name that's already taken.
 		error(compiler, "Variable name `%.*s` already taken in assignment",
 			name.length, name.location);
-		return;
 	} else if (!is_new_var && index == -1) {
 		// We're trying to assign a new value to a variable that
 		// doesn't exist.
 		error(compiler, "Variable `%.*s` doesn't exist in assignment",
 			name.length, name.location);
-		return;
 	}
 
 	// Expect an equals sign.
@@ -474,32 +483,34 @@ int function_call_arguments(Compiler *compiler) {
 
 	// Consume expressions separated by commas.
 	int count = 0;
-	while (1) {
-		enable_newlines(lexer);
-		expression(compiler, TOKEN_COMMA);
-		disable_newlines(lexer);
-		count++;
+	if (!match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
+		while (1) {
+			enable_newlines(lexer);
+			expression(compiler, TOKEN_COMMA);
+			disable_newlines(lexer);
+			count++;
 
-		if (match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
-			// Finish expression
-			break;
-		} else if (match(lexer, TOKEN_COMMA)) {
-			// Another argument
-			consume(lexer);
-		} else {
-			// Unrecognised operator
-			Token token = peek(lexer, 0);
-			error(compiler,
-				"Expected `,` between arguments in function call, found `%.*s`",
-				token.length, token.location);
+			if (match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
+				// Finish expression
+				consume(lexer);
+				break;
+			} else if (match(lexer, TOKEN_COMMA)) {
+				// Another argument
+				consume(lexer);
+			} else {
+				// Unrecognised operator
+				Token token = peek(lexer, 0);
+				error(compiler,
+					"Unexpected `%.*s` in arguments to function call.",
+					token.length, token.location);
+			}
 		}
+	} else {
+		// No arguments, consume the closing parenthesis
+		consume(lexer);
 	}
 
-	// Expect the closing parenthesis
-	expect(compiler, TOKEN_CLOSE_PARENTHESIS,
-		"Expected `)` to close function arguments list");
 	enable_newlines(lexer);
-
 	return count;
 }
 
@@ -515,15 +526,15 @@ void function_call(Compiler *compiler) {
 	int argument_count = function_call_arguments(compiler);
 
 	// Check the function exists.
-	int index = index_of_function(compiler->vm, name.location, name.length,
+	int index = find_function(compiler->vm, name.location, name.length,
 		argument_count);
 	if (index != -1) {
-		emit_user(compiler, index);
+		emit_bytecode_call(compiler, index);
 		return;
 	}
 
 	// Not a user function, so check for native functions.
-	NativeFunction fn = index_of_native_function(compiler->vm,
+	NativeFunction fn = find_native_function(compiler->vm,
 		name.location, name.length, argument_count);
 	if (fn != NULL) {
 		emit_native(compiler, fn);
@@ -532,6 +543,106 @@ void function_call(Compiler *compiler) {
 
 	// Undefined function if we reach here
 	error(compiler, "Undefined function `%.*s`", name.length, name.location);
+}
+
+
+
+//
+//  Function Definitions
+//
+
+// Returns true if the lexer matches a function definition.
+bool match_function_definition(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+	return match(lexer, TOKEN_FUNCTION);
+}
+
+
+// Compiles a function definition.
+void function_definition(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+
+	// Consume the function keyword.
+	consume(lexer);
+
+	// Expect the function name identifier.
+	disable_newlines(lexer);
+	Token name = expect(compiler, TOKEN_IDENTIFIER,
+		"Expected identifier after `fn` keyword");
+
+	// Expect the opening token to the arguments list
+	expect(compiler, TOKEN_OPEN_PARENTHESIS,
+		"Expected `(` after name in function definition.");
+
+	// Compile the arguments list
+	Function *fn = define_bytecode_function(compiler->vm);
+	fn->argument_count = 0;
+
+	// Set the name and length after we've checked that the
+	// function isn't already defined, because if we set them
+	// here, then we've defined the function already and we'll
+	// trigger a compilation error.
+	fn->name = NULL;
+	fn->length = 0;
+
+	if (!match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
+		while (1) {
+			// Expect an identifier, the function argument
+			Token name = expect(compiler, TOKEN_IDENTIFIER,
+				"Expected argument name in function argument list");
+
+			int index = fn->argument_count;
+			fn->argument_count++;
+			fn->arguments[index].location = name.location;
+			fn->arguments[index].length = name.length;
+
+			// Expect a comma or closing parenthesis
+			if (match(lexer, TOKEN_COMMA)) {
+				consume(lexer);
+			} else if (match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
+				consume(lexer);
+				break;
+			} else {
+				Token token = peek(lexer, 1);
+				error(compiler,
+					"Unexpected `%.*s` in arguments to function definition",
+					token.length, token.location);
+			}
+		}
+	} else {
+		// Consume the closing parenthesis
+		consume(lexer);
+	}
+
+	// Expect the opening brace to the function block.
+	expect(compiler, TOKEN_OPEN_BRACE, "Expected `{` to begin function block");
+
+	// Check the function isn't already defined.
+	int index = find_function(compiler->vm, name.location, name.length,
+		fn->argument_count);
+	if (index != -1) {
+		printf("%d\n", index);
+		error(compiler, "Function `%.*s` is already defined",
+			name.length, name.location);
+	}
+
+	NativeFunction ptr = find_native_function(compiler->vm, name.location,
+		name.length, fn->argument_count);
+	if (ptr != NULL) {
+		error(compiler, "Function `%.*s` is already defined in a library",
+			name.length, name.location);
+	}
+
+	fn->name = name.location;
+	fn->length = name.length;
+
+	// Compile the function
+	bytecode_new(&fn->bytecode, DEFAULT_INSTRUCTION_CAPACITY);
+	compile(compiler->vm, fn, TOKEN_CLOSE_BRACE);
+
+	// Consume the closing brace.
+	expect(compiler, TOKEN_CLOSE_BRACE,
+		"Expected `}` to close function block.");
 }
 
 
@@ -596,7 +707,7 @@ void emit_native(Compiler *compiler, NativeFunction fn) {
 
 
 // Emits a call to a user function.
-void emit_user(Compiler *compiler, int index) {
+void emit_bytecode_call(Compiler *compiler, int index) {
 	Bytecode *bytecode = &compiler->fn->bytecode;
 	emit(bytecode, CODE_CALL);
 	emit_arg_2(bytecode, index);
@@ -620,7 +731,7 @@ void pop_scope(Compiler *compiler) {
 	// TODO: Check for underflow
 	compiler->scope_depth--;
 
-	int i = compiler->local_count;
+	int i = compiler->local_count - 1;
 	Local *local = &compiler->locals[i];
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
@@ -629,7 +740,7 @@ void pop_scope(Compiler *compiler) {
 	// The locals are sorted from lowest to highest scope depth,
 	// so just loop over from the end of the list until we find
 	// a variable that's in scope.
-	while (i > 0 && local->scope_depth > compiler->scope_depth) {
+	while (i >= 0 && local->scope_depth > compiler->scope_depth) {
 		// Emit a pop instruction.
 		emit(bytecode, CODE_POP);
 
@@ -652,7 +763,7 @@ void pop_scope(Compiler *compiler) {
 
 // Returns the index of a variable in the locals list, or -1
 // if the variable doesn't exist.
-int index_of_local(Compiler *compiler, char *name, int length) {
+int find_local(Compiler *compiler, char *name, int length) {
 	// Starting from the end of the locals list is going to be
 	// (hopefully) faster, as people are more likely to use
 	// variables they've defined recently.
@@ -681,7 +792,6 @@ uint16_t define_local(Compiler *compiler, char *name, int length) {
 		// trigger an error.
 		error(compiler, "Cannot have more than %d locals in scope",
 			MAX_LOCALS);
-		return -1;
 	}
 
 	// Create the local
@@ -706,12 +816,11 @@ void push_local_at_index(Compiler *compiler, int index) {
 // Emits bytecode to push the local with the given name onto the
 // stack.
 void push_local(Compiler *compiler, char *name, int length) {
-	int index = index_of_local(compiler, name, length);
+	int index = find_local(compiler, name, length);
 
 	// Check for an undefined variable.
 	if (index == -1) {
 		error(compiler, "Undefined variable `%.*s`", length, name);
-		return;
 	}
 
 	push_local_at_index(compiler, index);
@@ -734,12 +843,12 @@ void push_number(Compiler *compiler, double number) {
 String * push_string(Compiler *compiler) {
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
-	int index = compiler->constants->count;
-	compiler->constants->count++;
+	int index = compiler->vm->literal_count;
+	compiler->vm->literal_count++;
 
 	emit(bytecode, CODE_PUSH_STRING);
 	emit_arg_2(bytecode, index);
-	return &compiler->constants->literals[index];
+	return &compiler->vm->literals[index];
 }
 
 

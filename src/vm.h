@@ -14,6 +14,13 @@
 // The maximum number of functions a program can define.
 #define MAX_FUNCTIONS 1024
 
+// The maximum number of arguments that can be passed to a function.
+#define MAX_ARGUMENTS 32
+
+// The maximum number of string literals that can be
+// in the source code.
+#define MAX_STRING_LITERALS 1024
+
 
 // The type of a native function.
 typedef void (*NativeFunction)(void);
@@ -35,10 +42,10 @@ typedef struct {
 	// The function's compiled bytecode.
 	Bytecode bytecode;
 
+	// The names of the arguments passed to the function.
+	SourceString arguments[MAX_ARGUMENTS];
+
 	// The number of arguments passed to the function.
-	// All functions return 1 argument (nil if it isn't
-	// explicitly stated in the code), so there's no value
-	// here indicating if the function returns something.
 	int argument_count;
 } Function;
 
@@ -62,6 +69,12 @@ typedef struct {
 
 	// The number of functions that we've compiled.
 	int function_count;
+
+	// A list of string literal constants.
+	String literals[MAX_STRING_LITERALS];
+
+	// The number of string literals in the constants list.
+	int literal_count;
 } VirtualMachine;
 
 
@@ -82,16 +95,14 @@ void vm_run(VirtualMachine *vm);
 
 // Defines a new function on the virtual machine, returning
 // a pointer to it.
-Function * define_bytecode_function(
-	VirtualMachine *vm,
-	char *name,
-	int length,
-	int argument_count);
+// Performs no allocation, so the bytecode array for the
+// returned function still needs to be allocated.
+Function * define_bytecode_function(VirtualMachine *vm);
 
 // Returns the index of a function with the given name and
 // name length.
 // Returns -1 if the function isn't found.
-int index_of_function(
+int find_function(
 	VirtualMachine *vm,
 	char *name,
 	int length,
@@ -100,7 +111,7 @@ int index_of_function(
 // Returns a function pointer to a library function with the
 // given name and length.
 // Returns NULL if the function isn't found.
-NativeFunction index_of_native_function(
+NativeFunction find_native_function(
 	VirtualMachine *vm,
 	char *name,
 	int length,
