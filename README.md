@@ -4,7 +4,31 @@ Hydrogen
 
 The Hydrogen Programming Language.
 
-Hydrogen's a simple programming language. It's object oriented, interpreted, dynamically typed, and garbage collected, with C-style syntax and a (hopefully soon to be) extensive standard library. Here's some sample code:
+Hydrogen is a simple programming language. It's object oriented, interpreted, dynamically typed, and garbage collected, with C-style syntax and a (hopefully soon to be) extensive standard library.
+
+Hydrogen is intended as more of a learning project for me about writing a bytecode-interpreted language. I'm yet to run any benchmarks to see how it stacks up against the popular languages, but I can't wait.
+
+
+## Building
+
+Make sure you have [CMake](http://www.cmake.org/download/) and GNU Make installed, and build the project like any other CMake project:
+
+```
+cd hydrogen
+mkdir build
+cd build
+cmake ..
+make
+```
+
+Create your Hydrogen script in a `.hy` file, and execute it with:
+
+```
+./hydrogen my-script.hy
+```
+
+
+## Sample Code
 
 ```rust
 fn fib(n) {
@@ -15,23 +39,17 @@ fn fib(n) {
 	}
 }
 
-fib(5)
+io.println(fib(5)0
 ```
 
 Iterators:
 
 ```rust
-fn fib(max) {
-	n = 0
+fn fib_iter(max) {
 	current = 1
 	previous = 1
 
 	return fn() {
-		n += 1
-		if n == max {
-			return nil
-		}
-
 		old_current = current
 		current += previous
 		previous = old_current
@@ -39,7 +57,7 @@ fn fib(max) {
 	}
 }
 
-for fib in fib(10) {
+for fib in iter.only(fib_iter(10), 10) {
 	io.println("The next fibonacci number is", fib)
 }
 ```
@@ -79,5 +97,3 @@ class Node {
 tree = new Node(2, new Node(7, new Node(2), new Node(6)), new Node(5))
 tree.print() // Will print [2, [7, [2], [6]], [5]]
 ```
-
-Hydrogen is intended as more of a learning project for me about writing a bytecode-interpreted language. I'm yet to run any benchmarks to see how it stacks up against the popular languages, but I honestly can't wait.

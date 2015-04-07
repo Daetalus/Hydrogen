@@ -284,6 +284,8 @@ Standard Library
 	* Returns an array containing all items returned by the iterator function `fn`.
 * `collect(fn, count)`
 	* Returns an array containing `count` items returned by `fn`.
+* `only(fn, n)`
+	* Only iterate `n` times over the iterator function `fn`.
 
 
 ## `collections`
