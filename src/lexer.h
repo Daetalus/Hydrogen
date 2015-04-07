@@ -90,10 +90,14 @@ typedef enum {
 	TOKEN_FUNCTION,
 	TOKEN_CLASS,
 
+	TOKEN_TRUE,
+	TOKEN_FALSE,
+	TOKEN_NIL, // 50
+
 	// Other
 	TOKEN_LINE,
 	TOKEN_END_OF_FILE,
-	TOKEN_NONE, // 50
+	TOKEN_NONE,
 } TokenType;
 
 

@@ -10,6 +10,7 @@
 #include "lexer.h"
 #include "value.h"
 #include "operators.h"
+#include "bytecode.h"
 
 
 // Forward declarations.
@@ -121,6 +122,7 @@ bool newline_match(Lexer *lexer, TokenType expected) {
 // stack.
 void left(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
+	Bytecode *bytecode = &compiler->fn->bytecode;
 
 	// Match a prefix operator, variable, function call, or
 	// constant.
@@ -133,6 +135,18 @@ void left(Compiler *compiler) {
 	} else if (newline_match(lexer, TOKEN_BITWISE_NOT)) {
 		// Bitwise not operator
 		prefix(compiler, TOKEN_BITWISE_NOT);
+	} else if (newline_match(lexer, TOKEN_TRUE)) {
+		// True
+		consume(lexer);
+		emit(bytecode, CODE_PUSH_TRUE);
+	} else if (newline_match(lexer, TOKEN_FALSE)) {
+		// False
+		consume(lexer);
+		emit(bytecode, CODE_PUSH_FALSE);
+	} else if (newline_match(lexer, TOKEN_NIL)) {
+		// Nil
+		consume(lexer);
+		emit(bytecode, CODE_PUSH_NIL);
 	} else if (newline_match(lexer, TOKEN_IDENTIFIER)) {
 		// Variable
 		Token variable = consume(lexer);

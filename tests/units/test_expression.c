@@ -125,7 +125,7 @@ START(multi_precedence_five) {
 END()
 
 
-START(boolean) {
+START(boolean_one) {
 	EXPRESSION("1 + 2 < 8 + 9 && 3 >= 90");
 
 	ASSERT_NUMBER_PUSH(1.0);
@@ -138,6 +138,16 @@ START(boolean) {
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(90.0);
 	ASSERT_NATIVE_CALL(operator_greater_than_equal_to);
+	ASSERT_NATIVE_CALL(operator_boolean_and);
+}
+END()
+
+
+START(boolean_two) {
+	EXPRESSION("false && true");
+
+	ASSERT_INSTRUCTION(CODE_PUSH_FALSE);
+	ASSERT_INSTRUCTION(CODE_PUSH_TRUE);
 	ASSERT_NATIVE_CALL(operator_boolean_and);
 }
 END()
@@ -266,7 +276,8 @@ MAIN(expression) {
 	RUN(multi_precedence_three)
 	RUN(multi_precedence_four)
 	RUN(multi_precedence_five)
-	RUN(boolean)
+	RUN(boolean_one)
+	RUN(boolean_two)
 	RUN(single_parenthesis_one)
 	RUN(single_parenthesis_two)
 	RUN(single_parenthesis_three)

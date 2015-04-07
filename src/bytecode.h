@@ -62,6 +62,15 @@ typedef enum {
 	// string constants list of the literal to push.
 	CODE_PUSH_STRING,
 
+	// Pushes true onto the stack.
+	CODE_PUSH_TRUE,
+
+	// Pushes false onto the stack.
+	CODE_PUSH_FALSE,
+
+	// Pushes nil onto the stack.
+	CODE_PUSH_NIL,
+
 	// Push the value of a variable in the value stack
 	// slot [slot] onto the stack.
 	//

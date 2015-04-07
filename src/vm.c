@@ -212,6 +212,18 @@ instructions:
 		goto instructions;
 	}
 
+	case CODE_PUSH_TRUE:
+		PUSH(TRUE_VALUE)
+		goto instructions;
+
+	case CODE_PUSH_FALSE:
+		PUSH(FALSE_VALUE)
+		goto instructions;
+
+	case CODE_PUSH_NIL:
+		PUSH(NIL_VALUE)
+		goto instructions;
+
 	case CODE_PUSH_VARIABLE:
 		PUSH(stack[READ_2_BYTES()]);
 		goto instructions;

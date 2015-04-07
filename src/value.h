@@ -18,13 +18,11 @@
 
 // Bits to set on a quiet NaN value to give it
 // different values.
-#define NAN_MASK   (0x0)
 #define TRUE_MASK  (0x1)
 #define FALSE_MASK (0x2)
 #define NIL_MASK   (0x3)
 
 // Values.
-#define NAN_VALUE   (QUIET_NAN | NAN_MASK)
 #define TRUE_VALUE  (QUIET_NAN | TRUE_MASK)
 #define FALSE_VALUE (QUIET_NAN | FALSE_MASK)
 #define NIL_VALUE   (QUIET_NAN | NIL_MASK)
@@ -40,7 +38,6 @@
 #define IS_PTR(value) (((value) & (QUIET_NAN | SIGN)) == (QUIET_NAN | SIGN))
 
 // Compares the value against.
-#define IS_NAN(value)   ((value) == NAN_VALUE)
 #define IS_TRUE(value)  ((value) == TRUE_VALUE)
 #define IS_FALSE(value) ((value) == FALSE_VALUE)
 #define IS_NIL(value)   ((value) == NIL_VALUE)

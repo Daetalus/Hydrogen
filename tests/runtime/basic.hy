@@ -1,1 +1,1 @@
-print("hello" + 0.2)
+print(false || true)

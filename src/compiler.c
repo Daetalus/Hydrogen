@@ -701,7 +701,7 @@ NativeFunction operator_ptr(TokenType operator) {
 void emit_native(Compiler *compiler, NativeFunction fn) {
 	Bytecode *bytecode = &compiler->fn->bytecode;
 	emit(bytecode, CODE_CALL_NATIVE);
-	emit_arg_8(bytecode, (uint64_t) fn);
+	emit_arg_8(bytecode, ptr_to_value(fn));
 }
 
 

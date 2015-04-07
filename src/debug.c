@@ -41,6 +41,18 @@ void pretty_print_bytecode(Bytecode *bytecode) {
 			break;
 		}
 
+		case CODE_PUSH_TRUE:
+			printf("%lu: push true\n", position);
+			break;
+
+		case CODE_PUSH_FALSE:
+			printf("%lu: push false\n", position);
+			break;
+
+		case CODE_PUSH_NIL:
+			printf("%lu: push nil\n", position);
+			break;
+
 		case CODE_POP: {
 			printf("%lu: pop\n", position);
 			break;
@@ -86,6 +98,10 @@ void pretty_print_bytecode(Bytecode *bytecode) {
 			printf("%lu: return\n", position);
 			break;
 		}
+
+		default:
+			printf("Unrecognised instruction %d\n", instruction);
+			break;
 		}
 	}
 }

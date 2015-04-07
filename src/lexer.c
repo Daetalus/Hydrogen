@@ -494,6 +494,9 @@ void next(Lexer *lexer, Token *token) {
 		KEYWORD("if", 2, TOKEN_IF);
 		DOUBLE_KEYWORD("else", 4, "if", 2, TOKEN_ELSE_IF);
 		KEYWORD("else", 4, TOKEN_ELSE);
+		KEYWORD("true", 4, TOKEN_TRUE);
+		KEYWORD("false", 5, TOKEN_FALSE);
+		KEYWORD("nil", 3, TOKEN_NIL);
 
 		// Number
 		if (is_digit(ch)) {

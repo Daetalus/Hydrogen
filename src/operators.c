@@ -139,6 +139,14 @@ void native_print(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
 		printf("%s\n", string->contents);
 	} else if (IS_NUMBER(arg)) {
 		printf("%.2f\n", value_to_number(arg));
+	} else if (IS_TRUE(arg)) {
+		printf("true\n");
+	} else if (IS_FALSE(arg)) {
+		printf("false\n");
+	} else if (IS_NIL(arg)) {
+		printf("nil\n");
+	} else {
+		vm_crash(vm, "Unexpected argument to `print`");
 	}
 }
 
@@ -214,6 +222,7 @@ void operator_subtraction(VirtualMachine *vm, uint64_t *stack,
 
 void operator_multiplication(VirtualMachine *vm, uint64_t *stack,
 		int *stack_size) {
+	// TODO: implement string multiplication
 	POP_NUMBER(right);
 	POP_NUMBER(left);
 	PUSH_NUMBER(left * right);
@@ -247,52 +256,144 @@ void operator_negation(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
 
 void operator_boolean_and(VirtualMachine *vm, uint64_t *stack,
 		int *stack_size) {
+	uint64_t right = POP();
+	uint64_t left = POP();
 
+	if (IS_FALSE(left) || IS_NIL(left) || IS_FALSE(right) || IS_NIL(right)) {
+		PUSH(FALSE_VALUE);
+	} else {
+		PUSH(TRUE_VALUE);
+	}
 }
 
 
 void operator_boolean_or(VirtualMachine *vm, uint64_t *stack,
 		int *stack_size) {
+	uint64_t right = POP();
+	uint64_t left = POP();
 
+	if ((IS_FALSE(left) || IS_NIL(left)) &&
+			(IS_FALSE(right) || IS_NIL(right))) {
+		PUSH(FALSE_VALUE);
+	} else {
+		PUSH(TRUE_VALUE);
+	}
 }
 
 
 void operator_boolean_not(VirtualMachine *vm, uint64_t *stack,
 		int *stack_size) {
+	uint64_t argument = POP();
 
+	if (IS_FALSE(argument) || IS_NIL(argument)) {
+		PUSH(TRUE_VALUE);
+	} else {
+		PUSH(FALSE_VALUE);
+	}
+}
+
+
+// Pops the arguments to an equal or not equal operator and
+// returns the result as a boolean.
+bool are_equal(uint64_t *stack, int *stack_size) {
+	uint64_t right = POP();
+	uint64_t left = POP();
+
+	if (IS_TRUE(left) && IS_TRUE(right)) {
+		return true;
+	} else if (IS_FALSE(left) && IS_FALSE(right)) {
+		return true;
+	} else if (IS_NIL(left) && IS_NIL(right)) {
+		return true;
+	} else if (IS_NUMBER(left) && IS_NUMBER(right)) {
+		if (value_to_number(left) == value_to_number(right)) {
+			return true;
+		} else {
+			return false;
+		}
+	} else if (IS_PTR(left) && IS_PTR(right)) {
+		// Compare strings
+		String *left_str = value_to_ptr(left);
+		String *right_str = value_to_ptr(right);
+
+		if (left_str->length == right_str->length &&
+				strcmp(left_str->contents, right_str->contents) == 0) {
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	return false;
 }
 
 
 void operator_equal(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
-
+	if (are_equal(stack, stack_size)) {
+		PUSH(TRUE_VALUE);
+	} else {
+		PUSH(FALSE_VALUE);
+	}
 }
 
 
 void operator_not_equal(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
-
+	if (are_equal(stack, stack_size)) {
+		PUSH(FALSE_VALUE);
+	} else {
+		PUSH(TRUE_VALUE);
+	}
 }
 
 
 void operator_less_than(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
+	POP_NUMBER(right);
+	POP_NUMBER(left);
 
+	if (left < right) {
+		PUSH(TRUE_VALUE);
+	} else {
+		PUSH(FALSE_VALUE);
+	}
 }
 
 
 void operator_less_than_equal_to(VirtualMachine *vm, uint64_t *stack,
 		int *stack_size) {
+	POP_NUMBER(right);
+	POP_NUMBER(left);
 
+	if (left <= right) {
+		PUSH(TRUE_VALUE);
+	} else {
+		PUSH(FALSE_VALUE);
+	}
 }
 
 
 void operator_greater_than(VirtualMachine *vm, uint64_t *stack,
 		int *stack_size) {
+	POP_NUMBER(right);
+	POP_NUMBER(left);
 
+	if (left > right) {
+		PUSH(TRUE_VALUE);
+	} else {
+		PUSH(FALSE_VALUE);
+	}
 }
 
 
 void operator_greater_than_equal_to(VirtualMachine *vm, uint64_t *stack,
 		int *stack_size) {
+	POP_NUMBER(right);
+	POP_NUMBER(left);
 
+	if (left >= right) {
+		PUSH(TRUE_VALUE);
+	} else {
+		PUSH(FALSE_VALUE);
+	}
 }
 
 
