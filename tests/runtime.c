@@ -24,6 +24,20 @@ char *files[] = {
 	"variables/4.hy",
 	"variables/5.hy",
 	"variables/6.hy",
+
+	"if/1.hy",
+	"if/2.hy",
+	"if/3.hy",
+	"if/4.hy",
+	"if/5.hy",
+	"if/6.hy",
+	"if/7.hy",
+	"if/8.hy",
+	"if/9.hy",
+	"if/10.hy",
+	"if/11.hy",
+	"if/12.hy",
+	"if/13.hy",
 };
 
 

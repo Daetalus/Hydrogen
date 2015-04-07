@@ -1,7 +1,5 @@
 if 1 + 2 > 3 {
-	print("this is false")
+	assert(false)
 } else {
-	print("hello")
+	assert(true)
 }
-
-print("world")

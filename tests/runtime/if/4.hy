@@ -1,7 +1,7 @@
 if 1 + 2 == 3 {
-	print("hello")
+	assert(true)
 } else {
-	print("nope")
+	assert(false)
 }
 
-print("world")
+assert(true)

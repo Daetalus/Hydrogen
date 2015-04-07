@@ -1,9 +1,7 @@
 if 1 + 2 > 4 {
-	print("nope")
+	assert(false)
 } else if 1 + 2 > 3 {
-	print("still nope")
+	assert(false)
 } else {
-	print("hello")
+	assert(true)
 }
-
-print("world")

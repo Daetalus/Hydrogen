@@ -326,6 +326,7 @@ bool are_equal(uint64_t *stack, int *stack_size) {
 		// Compare strings
 		String *left_str = value_to_ptr(left);
 		String *right_str = value_to_ptr(right);
+		printf("compare strings %s, %s\n", left_str->contents, right_str->contents);
 
 		if (left_str->length == right_str->length &&
 				strcmp(left_str->contents, right_str->contents) == 0) {

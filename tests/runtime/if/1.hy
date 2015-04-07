@@ -1,5 +1,5 @@
 if true {
-	print("hello")
+	assert(true)
 }
 
-print("world")
+assert(true)

@@ -1,8 +1,6 @@
 let a = "hello"
 if a == "hello" {
-	print(a)
+	assert(true)
 } else {
-	print("nope")
+	assert(false)
 }
-
-print("world")

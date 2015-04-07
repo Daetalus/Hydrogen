@@ -69,9 +69,9 @@ String * string_new(int capacity) {
 // Duplicates a string, allocating new space on the heap
 // for the second one.
 String * string_duplicate(String *original) {
-	size_t size = sizeof(String) + original->capacity * sizeof(char);
-	String *copy = malloc(size);
-	memcpy(copy, original, size);
+	String *copy = string_new(original->length + 1);
+	copy->length = original->length;
+	strcpy(copy->contents, original->contents);
 	return copy;
 }
 

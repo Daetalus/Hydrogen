@@ -1,8 +1,9 @@
 let a = 3
 
 if a + 5 == 8 {
+	assert(true)
 	let b = 6
-	print("b is " + b)
+	assert(b == 6)
 } else {
-	print("nope")
+	assert(false)
 }

@@ -1,7 +1,5 @@
 if 1 {
-	print("hello")
+	assert(true)
 } else if false {
-	print("this is false")
+	assert(false)
 }
-
-print("world")

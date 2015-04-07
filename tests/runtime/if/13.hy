@@ -1,9 +1,10 @@
 let something_terrific = -30
 
-if 11 - 5 * 6 != something_terrific {
-	print(something_terrific + " is wrong")
+if 11 - 5 * 6 == something_terrific {
+	assert(false)
 } else {
+	assert(true)
 	let b = 10
 	let c = something_terrific + b
-	print("c is " + c)
+	assert(c == -20)
 }

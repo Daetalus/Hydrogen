@@ -1,15 +1,13 @@
 if 1 + 2 == 4 && 3 + 8 == 11 {
-	print("nope")
+	assert(false)
 } else if 3 + 4 == 5 || 19 < 10 {
-	print("still nope")
+	assert(false)
 } else if 11 == 12 || (3 == 4 && 5 == 5) {
-	print("nopedy nope")
+	assert(false)
 } else if 3 * 4 + 16 - 32 / 2 == 12 {
-	print("hello")
+	assert(true)
 } else if false && true {
-	print("something else")
+	assert(false)
 } else {
-	print("something")
+	assert(false)
 }
-
-print("world")
