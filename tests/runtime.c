@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
 		printf(BLUE BOLD "Starting test %s...\n" NORMAL, files[i]);
 
 		// Get the full path of the file
-		size_t path_length = (strlen(files[i]) + 17) * sizeof(char);
+		size_t path_length = (strlen(files[i]) + 18) * sizeof(char);
 		char path[path_length];
 		strcpy(path, "../tests/runtime/");
 		strcpy(&path[17], files[i]);

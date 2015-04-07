@@ -58,6 +58,15 @@ test(runtime)
 
 
 # --
+# Benchmarks
+# --
+
+add_executable(benchmark benchmarks/run.c)
+target_link_libraries(benchmark vm)
+
+
+
+# --
 # Command Line Interpreter
 # --
 

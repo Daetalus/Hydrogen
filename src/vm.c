@@ -151,8 +151,6 @@ void vm_crash(VirtualMachine *vm, char *fmt, ...) {
 
 // Runs the compiled bytecode.
 void vm_run(VirtualMachine *vm) {
-	pretty_print_bytecode(&vm->functions[0].bytecode);
-
 	// The value stack which the program pushes to.
 	uint64_t stack[MAX_STACK_SIZE];
 	int stack_size = 0;
