@@ -41,6 +41,7 @@ char *files[] = {
 
 	"while/1.hy",
 	"while/2.hy",
+	"while/3.hy",
 };
 
 

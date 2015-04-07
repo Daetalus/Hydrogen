@@ -281,10 +281,6 @@ instructions:
 	}
 
 	case CODE_CALL_NATIVE: {
-		printf("Stack: \n");
-		for (int i = 0; i < stack_size; i++) {
-			printf("%llu, %f\n", stack[i], value_to_number(stack[i]));
-		}
 		NativeFunction fn = value_to_ptr(READ_8_BYTES());
 		fn(vm, stack, &stack_size);
 		goto instructions;

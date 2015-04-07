@@ -326,7 +326,6 @@ bool are_equal(uint64_t *stack, int *stack_size) {
 		// Compare strings
 		String *left_str = value_to_ptr(left);
 		String *right_str = value_to_ptr(right);
-		printf("compare strings %s, %s\n", left_str->contents, right_str->contents);
 
 		if (left_str->length == right_str->length &&
 				strcmp(left_str->contents, right_str->contents) == 0) {
@@ -361,7 +360,6 @@ void operator_not_equal(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
 void operator_less_than(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
 	POP_NUMBER(right);
 	POP_NUMBER(left);
-	printf("numbers: %f, %f\n", left, right);
 
 	if (left < right) {
 		PUSH(TRUE_VALUE);
