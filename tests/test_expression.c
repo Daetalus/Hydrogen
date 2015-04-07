@@ -30,7 +30,7 @@ START(single_precedence_one) {
 
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_addition);
 }
 END()
 
@@ -40,9 +40,9 @@ START(single_precedence_two) {
 
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
-	ASSERT_OPERATOR_CALL(operator_multiplication);
+	ASSERT_NATIVE_CALL(operator_multiplication);
 	ASSERT_NUMBER_PUSH(5.0);
-	ASSERT_OPERATOR_CALL(operator_division);
+	ASSERT_NATIVE_CALL(operator_division);
 }
 END()
 
@@ -52,9 +52,9 @@ START(single_precedence_three) {
 
 	ASSERT_NUMBER_PUSH(1.0);
 	ASSERT_NUMBER_PUSH(2.0);
-	ASSERT_OPERATOR_CALL(operator_subtraction);
+	ASSERT_NATIVE_CALL(operator_subtraction);
 	ASSERT_NUMBER_PUSH(3.0);
-	ASSERT_OPERATOR_CALL(operator_subtraction);
+	ASSERT_NATIVE_CALL(operator_subtraction);
 }
 END()
 
@@ -64,9 +64,9 @@ START(multi_precedence_one) {
 
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
-	ASSERT_OPERATOR_CALL(operator_multiplication);
+	ASSERT_NATIVE_CALL(operator_multiplication);
 	ASSERT_NUMBER_PUSH(5.0);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_addition);
 }
 END()
 
@@ -77,8 +77,8 @@ START(multi_precedence_two) {
 	ASSERT_NUMBER_PUSH(5.0);
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
-	ASSERT_OPERATOR_CALL(operator_multiplication);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_multiplication);
+	ASSERT_NATIVE_CALL(operator_addition);
 }
 END()
 
@@ -88,11 +88,11 @@ START(multi_precedence_three) {
 
 	ASSERT_NUMBER_PUSH(2.0);
 	ASSERT_NUMBER_PUSH(3.0);
-	ASSERT_OPERATOR_CALL(operator_multiplication);
+	ASSERT_NATIVE_CALL(operator_multiplication);
 	ASSERT_NUMBER_PUSH(4.0);
 	ASSERT_NUMBER_PUSH(5.0);
-	ASSERT_OPERATOR_CALL(operator_division);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_division);
+	ASSERT_NATIVE_CALL(operator_addition);
 }
 END()
 
@@ -103,10 +103,10 @@ START(multi_precedence_four) {
 	ASSERT_NUMBER_PUSH(2.0);
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
-	ASSERT_OPERATOR_CALL(operator_multiplication);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_multiplication);
+	ASSERT_NATIVE_CALL(operator_addition);
 	ASSERT_NUMBER_PUSH(5.0);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_addition);
 }
 END()
 
@@ -117,12 +117,12 @@ START(multi_precedence_five) {
 	ASSERT_NUMBER_PUSH(2.0);
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
-	ASSERT_OPERATOR_CALL(operator_multiplication);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_multiplication);
+	ASSERT_NATIVE_CALL(operator_addition);
 	ASSERT_NUMBER_PUSH(5.0);
 	ASSERT_NUMBER_PUSH(6.0);
-	ASSERT_OPERATOR_CALL(operator_multiplication);
-	ASSERT_OPERATOR_CALL(operator_subtraction);
+	ASSERT_NATIVE_CALL(operator_multiplication);
+	ASSERT_NATIVE_CALL(operator_subtraction);
 }
 END()
 
@@ -132,15 +132,15 @@ START(boolean) {
 
 	ASSERT_NUMBER_PUSH(1.0);
 	ASSERT_NUMBER_PUSH(2.0);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_addition);
 	ASSERT_NUMBER_PUSH(8.0);
 	ASSERT_NUMBER_PUSH(9.0);
-	ASSERT_OPERATOR_CALL(operator_addition);
-	ASSERT_OPERATOR_CALL(operator_less_than);
+	ASSERT_NATIVE_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_less_than);
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(90.0);
-	ASSERT_OPERATOR_CALL(operator_greater_than_equal_to);
-	ASSERT_OPERATOR_CALL(operator_boolean_and);
+	ASSERT_NATIVE_CALL(operator_greater_than_equal_to);
+	ASSERT_NATIVE_CALL(operator_boolean_and);
 }
 END()
 
@@ -150,9 +150,9 @@ START(single_parenthesis_one) {
 
 	ASSERT_NUMBER_PUSH(1.0);
 	ASSERT_NUMBER_PUSH(2.0);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_addition);
 	ASSERT_NUMBER_PUSH(3.0);
-	ASSERT_OPERATOR_CALL(operator_multiplication);
+	ASSERT_NATIVE_CALL(operator_multiplication);
 }
 END()
 
@@ -163,8 +163,8 @@ START(single_parenthesis_two) {
 	ASSERT_NUMBER_PUSH(1.0);
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(2.0);
-	ASSERT_OPERATOR_CALL(operator_subtraction);
-	ASSERT_OPERATOR_CALL(operator_multiplication);
+	ASSERT_NATIVE_CALL(operator_subtraction);
+	ASSERT_NATIVE_CALL(operator_multiplication);
 }
 END()
 
@@ -175,12 +175,12 @@ START(single_parenthesis_three) {
 	ASSERT_NUMBER_PUSH(2.0);
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
-	ASSERT_OPERATOR_CALL(operator_addition);
-	ASSERT_OPERATOR_CALL(operator_multiplication);
+	ASSERT_NATIVE_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_multiplication);
 	ASSERT_NUMBER_PUSH(9.0);
 	ASSERT_NUMBER_PUSH(3.0);
-	ASSERT_OPERATOR_CALL(operator_subtraction);
-	ASSERT_OPERATOR_CALL(operator_division);
+	ASSERT_NATIVE_CALL(operator_subtraction);
+	ASSERT_NATIVE_CALL(operator_division);
 }
 END()
 
@@ -193,10 +193,10 @@ START(nested_parenthesis_one) {
 	ASSERT_NUMBER_PUSH(4.0);
 	ASSERT_NUMBER_PUSH(2.0);
 	ASSERT_NUMBER_PUSH(6.0);
-	ASSERT_OPERATOR_CALL(operator_addition);
-	ASSERT_OPERATOR_CALL(operator_multiplication);
-	ASSERT_OPERATOR_CALL(operator_addition);
-	ASSERT_OPERATOR_CALL(operator_multiplication);
+	ASSERT_NATIVE_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_multiplication);
+	ASSERT_NATIVE_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_multiplication);
 }
 END()
 
@@ -208,11 +208,11 @@ START(nested_parenthesis_two) {
 	ASSERT_NUMBER_PUSH(9.0);
 	ASSERT_NUMBER_PUSH(7.0);
 	ASSERT_NUMBER_PUSH(3.0);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_addition);
 	ASSERT_NUMBER_PUSH(8.0);
-	ASSERT_OPERATOR_CALL(operator_multiplication);
-	ASSERT_OPERATOR_CALL(operator_subtraction);
-	ASSERT_OPERATOR_CALL(operator_division);
+	ASSERT_NATIVE_CALL(operator_multiplication);
+	ASSERT_NATIVE_CALL(operator_subtraction);
+	ASSERT_NATIVE_CALL(operator_division);
 }
 END()
 
@@ -222,7 +222,7 @@ START(newlines_one) {
 
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_addition);
 }
 END()
 
@@ -232,7 +232,7 @@ START(newlines_two) {
 
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_addition);
 }
 END()
 
@@ -242,7 +242,17 @@ START(newlines_three) {
 
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_addition);
+}
+END()
+
+
+START(strings) {
+	EXPRESSION("'hello' + 'hai'");
+
+	ASSERT_STRING_PUSH(0, "hello");
+	ASSERT_STRING_PUSH(1, "hai");
+	ASSERT_NATIVE_CALL(operator_addition);
 }
 END()
 
@@ -267,5 +277,6 @@ MAIN(expression) {
 	RUN(newlines_one)
 	RUN(newlines_two)
 	RUN(newlines_three)
+	RUN(strings)
 }
 MAIN_END()

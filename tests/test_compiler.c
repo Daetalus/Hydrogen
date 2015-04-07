@@ -35,8 +35,8 @@ START(variable_assignment_three) {
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
 	ASSERT_NUMBER_PUSH(9.0);
-	ASSERT_OPERATOR_CALL(operator_multiplication);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_multiplication);
+	ASSERT_NATIVE_CALL(operator_addition);
 	ASSERT_STORE(0);
 	ASSERT_INSTRUCTION(CODE_POP);
 	ASSERT_INSTRUCTION(CODE_RETURN);
@@ -50,8 +50,8 @@ START(variable_assignment_four) {
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NUMBER_PUSH(4.0);
 	ASSERT_NUMBER_PUSH(9.0);
-	ASSERT_OPERATOR_CALL(operator_multiplication);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_multiplication);
+	ASSERT_NATIVE_CALL(operator_addition);
 	ASSERT_STORE(0);
 
 	ASSERT_NUMBER_PUSH(5.0);
@@ -71,7 +71,7 @@ START(modifier_assignment_operators) {
 
 	ASSERT_NUMBER_PUSH(1.0);
 	ASSERT_VARIABLE_PUSH(0);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_addition);
 	ASSERT_STORE(0);
 
 	ASSERT_INSTRUCTION(CODE_POP);
@@ -85,9 +85,9 @@ START(if_statement_one) {
 
 	ASSERT_NUMBER_PUSH(1.0);
 	ASSERT_NUMBER_PUSH(2.0);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_addition);
 	ASSERT_NUMBER_PUSH(3.0);
-	ASSERT_OPERATOR_CALL(operator_greater_than);
+	ASSERT_NATIVE_CALL(operator_greater_than);
 	ASSERT_CONDITIONAL_JUMP(13);
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_STORE(0);
@@ -102,7 +102,7 @@ START(if_statement_two) {
 
 	ASSERT_NUMBER_PUSH(5.0);
 	ASSERT_NUMBER_PUSH(9.0);
-	ASSERT_OPERATOR_CALL(operator_equal);
+	ASSERT_NATIVE_CALL(operator_equal);
 	ASSERT_CONDITIONAL_JUMP(0);
 	ASSERT_INSTRUCTION(CODE_RETURN);
 }
@@ -182,7 +182,7 @@ START(while_loop_two) {
 	// Conditional
 	ASSERT_NUMBER_PUSH(1.0);
 	ASSERT_NUMBER_PUSH(2.0);
-	ASSERT_OPERATOR_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_addition);
 	ASSERT_CONDITIONAL_JUMP(16);
 
 	// Block
@@ -193,6 +193,46 @@ START(while_loop_two) {
 
 	// After
 	ASSERT_INSTRUCTION(CODE_RETURN);
+}
+END()
+
+
+#include "../src/vm.c"
+
+START(function_call_one) {
+	COMPILER("print('hello')");
+
+	ASSERT_STRING_PUSH(0, "hello");
+	ASSERT_NATIVE_CALL(native_print);
+}
+END()
+
+
+START(function_call_two) {
+	COMPILER("\n\rprint\n\n\r(\n'hello'\n\r)\n");
+
+	ASSERT_STRING_PUSH(0, "hello");
+	ASSERT_NATIVE_CALL(native_print);
+}
+END()
+
+
+START(function_call_three) {
+	COMPILER("print('hello', 'hai')");
+
+	ASSERT_STRING_PUSH(0, "hello");
+	ASSERT_STRING_PUSH(1, "hai");
+	ASSERT_NATIVE_CALL(native_print_2);
+}
+END()
+
+
+START(function_call_four) {
+	COMPILER("\n\rprint\n\r(\n\r'hello'\n\r\n,\n \n'hai'\n\t)\n\r");
+
+	ASSERT_STRING_PUSH(0, "hello");
+	ASSERT_STRING_PUSH(1, "hai");
+	ASSERT_NATIVE_CALL(native_print_2);
 }
 END()
 
@@ -209,5 +249,9 @@ MAIN(compiler) {
 	RUN(if_else_statement_two)
 	RUN(while_loop_one)
 	RUN(while_loop_two)
+	RUN(function_call_one)
+	RUN(function_call_two)
+	RUN(function_call_three)
+	RUN(function_call_four)
 }
 MAIN_END()

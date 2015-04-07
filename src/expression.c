@@ -88,7 +88,7 @@ void parse_precedence(Compiler *compiler, TokenType terminator,
 			operator = peek_operator(lexer, terminator);
 		} else {
 			// Expected binary operator.
-			error(compiler, "Expected binary operator, found `%.*s`.",
+			error(compiler, "Expected binary operator, found `%.*s`",
 				operator.length, operator.location);
 			return;
 		}
@@ -133,10 +133,6 @@ void left(Compiler *compiler) {
 	} else if (newline_match(lexer, TOKEN_BITWISE_NOT)) {
 		// Bitwise not operator
 		prefix(compiler, TOKEN_BITWISE_NOT);
-	// } else if (match_double(lexer, TOKEN_IDENTIFIER, TOKEN_OPEN_PARENTHESIS)) {
-	// 	// Function call
-	// 	Token function = consume(lexer);
-	// 	emit_function_call(compiler, function.location, function.length);
 	} else if (newline_match(lexer, TOKEN_IDENTIFIER)) {
 		// Variable
 		Token variable = consume(lexer);
@@ -160,7 +156,7 @@ void left(Compiler *compiler) {
 		consume(lexer);
 		parse_precedence(compiler, TOKEN_CLOSE_PARENTHESIS, 0);
 		expect(compiler, TOKEN_CLOSE_PARENTHESIS,
-			"Expected `)` to close opening parenthesis.");
+			"Expected `)` to close opening parenthesis");
 	} else {
 		// Unrecognised operand, so trigger an error.
 		Token token = peek(lexer, 0);
@@ -189,7 +185,8 @@ void prefix(Compiler *compiler, TokenType operator) {
 
 	// Push a native call to the operator's corresponding
 	// handling function.
-	emit_native_operator_call(compiler, operator);
+	NativeFunction fn = operator_ptr(operator);
+	emit_native(compiler, fn);
 }
 
 
@@ -209,5 +206,6 @@ void infix(Compiler *compiler, TokenType terminator, TokenType operator) {
 	parse_precedence(compiler, terminator, precedence);
 
 	// Emit the native call for this operator.
-	emit_native_operator_call(compiler, operator);
+	NativeFunction fn = operator_ptr(operator);
+	emit_native(compiler, fn);
 }

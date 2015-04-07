@@ -572,7 +572,7 @@ Token consume(Lexer *lexer) {
 
 // Peeks at a token further ahead in the source code, without
 // advancing the cursor.
-Token peek(Lexer *lexer, int amount) {
+Token peek_from_cache(Lexer *lexer, int amount) {
 	// If we're past the maximum cache amount, then don't bother.
 	if (amount >= MAX_TOKEN_CACHE_SIZE) {
 		Token token;
@@ -597,6 +597,15 @@ Token peek(Lexer *lexer, int amount) {
 
 	// Return the token we're after.
 	return lexer->cache[amount];
+}
+
+
+Token peek(Lexer *lexer, int amount) {
+	Token token = peek_from_cache(lexer, amount);
+	if (!lexer->emit_newlines && token.type == TOKEN_LINE) {
+		token = peek_from_cache(lexer, amount + 1);
+	}
+	return token;
 }
 
 

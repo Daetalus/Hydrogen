@@ -24,7 +24,7 @@
 
 
 // The maximum number of string literals that can be
-// int he source code.
+// in the source code.
 #define MAX_STRING_LITERALS 1024
 
 
@@ -46,6 +46,16 @@ typedef struct {
 	// The scope depth this local was defined at.
 	int scope_depth;
 } Local;
+
+
+// A constants list.
+typedef struct {
+	// The number of string literals in the constants list.
+	int count;
+
+	// The sting literals themselves.
+	String literals[MAX_STRING_LITERALS];
+} Constants;
 
 
 // The compiler.
@@ -90,10 +100,8 @@ typedef struct {
 	// The current scope depth of the compiler.
 	int scope_depth;
 
-	// A list containing all the string literal constants
-	// found during compilation.
-	String string_literals[MAX_STRING_LITERALS];
-	int string_literal_count;
+	// A pointer to the constants list we can append to.
+	Constants *constants;
 } Compiler;
 
 
@@ -107,7 +115,13 @@ typedef struct {
 //
 // It stops compiling when the given terminator token
 // is found, or end of file is reached.
-void compile(VirtualMachine *vm, Function *fn, TokenType terminator);
+//
+// Constants are added to the constants list.
+void compile(
+	VirtualMachine *vm,
+	Function *fn,
+	Constants *constants,
+	TokenType terminator);
 
 // Emits bytecode to push the local with the given name onto the
 // stack.
@@ -122,13 +136,15 @@ void push_number(Compiler *compiler, double number);
 String * push_string(Compiler *compiler);
 
 
-// Emits bytecode to call the function with the given name.
-void emit_function_call(Compiler *compiler, char *name, int length);
+// Returns the function pointer for an operator.
+// Returns NULL if the token is not an operator.
+NativeFunction operator_ptr(TokenType operator);
 
-// Emits bytecode to call the native function for the given
-// operator.
-// Assumes the arguments to the call are on the stack already.
-void emit_native_operator_call(Compiler *compiler, TokenType operator);
+// Emits a call to a native function.
+void emit_native(Compiler *compiler, NativeFunction fn);
+
+// Compiles a function call.
+void function_call(Compiler *compiler);
 
 
 // Triggers the given error on the compiler.
