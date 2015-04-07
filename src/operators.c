@@ -361,6 +361,7 @@ void operator_not_equal(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
 void operator_less_than(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
 	POP_NUMBER(right);
 	POP_NUMBER(left);
+	printf("numbers: %f, %f\n", left, right);
 
 	if (left < right) {
 		PUSH(TRUE_VALUE);

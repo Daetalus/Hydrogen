@@ -169,7 +169,7 @@ void vm_run(VirtualMachine *vm) {
 	// The stack pointer of the top most call frame, pointing
 	// to a place on the stack where the function's variables
 	// start.
-	uint64_t *stack_ptr;
+	uint64_t *stack_ptr = NULL;
 
 	// Push a value onto the top of the stack.
 	#define PUSH(value) stack[stack_size++] = (value);
@@ -243,7 +243,9 @@ instructions:
 	case CODE_STORE: {
 		uint16_t index = READ_2_BYTES();
 		stack_ptr[index] = TOP();
-		POP();
+		if (stack_size - 1 > index) {
+			POP();
+		}
 		goto instructions;
 	}
 
@@ -267,6 +269,9 @@ instructions:
 			// Discard the two bytes
 			READ_2_BYTES();
 		}
+
+		// Discard the conditional expression result
+		POP();
 		goto instructions;
 
 	case CODE_CALL: {
@@ -276,6 +281,10 @@ instructions:
 	}
 
 	case CODE_CALL_NATIVE: {
+		printf("Stack: \n");
+		for (int i = 0; i < stack_size; i++) {
+			printf("%llu, %f\n", stack[i], value_to_number(stack[i]));
+		}
 		NativeFunction fn = value_to_ptr(READ_8_BYTES());
 		fn(vm, stack, &stack_size);
 		goto instructions;

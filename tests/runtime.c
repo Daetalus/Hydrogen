@@ -38,6 +38,9 @@ char *files[] = {
 	"if/11.hy",
 	"if/12.hy",
 	"if/13.hy",
+
+	"while/1.hy",
+	"while/2.hy",
 };
 
 
