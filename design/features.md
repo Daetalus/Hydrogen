@@ -50,6 +50,16 @@ fn test(items...) {
 
 test("thing 1", 2, 3, "thing 4")
 
+let global = 3
+
+fn closure() {
+	global = 4
+}
+
+io.println(global)
+closure()
+io.println(global)
+
 let array = [1, 2, 3, 4]
 for item in array {
 	io.println(item)
@@ -89,13 +99,14 @@ io.println(a.test() + 3)
 * While loops
 * For loops
 * Iterators
-* Function definitions
 * Function calls
+* Function definitions
+* Closures
 * Variable function arguments
-* Arrays
-* Dictionaries
 * Classes
 	* Constructors
 	* Properties
 	* Methods
+* Arrays
+* Dictionaries
 * Standard library
