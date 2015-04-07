@@ -70,7 +70,7 @@ void pretty_print_bytecode(Bytecode *bytecode) {
 			break;
 		}
 
-		case CODE_JUMP_BACKWARD: {
+		case CODE_JUMP_BACK: {
 			uint16_t amount = READ_2_BYTES();
 			printf("%lu: jump -%hu\n", position, amount);
 			break;

@@ -444,8 +444,8 @@ void while_loop(Compiler *compiler) {
 		"Expected `}` to close while loop block");
 
 	// Insert a jump statement to re-evaluate the condition
-	emit(bytecode, CODE_JUMP_BACKWARD);
-	emit_arg_2(bytecode, (bytecode->count - 1) - start_of_expression);
+	emit(bytecode, CODE_JUMP_BACK);
+	emit_arg_2(bytecode, bytecode->count - start_of_expression + 2);
 
 	// Patch the conditional jump to point to here (after
 	// the block)

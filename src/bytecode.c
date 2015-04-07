@@ -118,8 +118,9 @@ int emit_jump(Bytecode *bytecode, uint8_t instruction) {
 // Patch a jump instruction at the given index. Will
 // jump to the instruction after the most recent
 // instruction emitted.
+// Assumes we are patching a forward jump.
 void patch_jump(Bytecode *bytecode, int index) {
-	// Subtract 3 to count for the argument to the jump statement
+	// Subtract 3 to account for the jump statement itself.
 	uint16_t amount = bytecode->count - index - 3;
 
 	// Add one to the index initially to skip the actual

@@ -179,6 +179,9 @@ void vm_run(VirtualMachine *vm) {
 	// Pushes a new call frame for `fn` onto the call frame stack.
 	// Updates `ip` and `stack_ptr` with the values for the new function.
 	#define PUSH_FRAME(fn) {                                         \
+		if (call_stack_size > 0) {                                   \
+			call_stack[call_stack_size - 1].instruction_ptr = ip;    \
+		}                                                            \
 		ip = (fn)->bytecode.instructions;                            \
 		stack_ptr = (&stack[stack_size - 1]) - (fn)->argument_count; \
 		call_stack[call_stack_size].stack_ptr = stack_ptr;           \
@@ -187,7 +190,6 @@ void vm_run(VirtualMachine *vm) {
 	}
 
 	// Returns from the executing function to the function that called it.
-
 	#define POP_FRAME()                                       \
 		call_stack_size--;                                    \
 		ip = call_stack[call_stack_size - 1].instruction_ptr; \
@@ -224,18 +226,22 @@ instructions:
 		PUSH(NIL_VALUE)
 		goto instructions;
 
-	case CODE_PUSH_VARIABLE:
-		PUSH(stack[READ_2_BYTES()]);
+	case CODE_PUSH_VARIABLE: {
+		uint16_t index = READ_2_BYTES();
+		PUSH(stack_ptr[index]);
 		goto instructions;
+	}
 
 	case CODE_POP:
 		POP();
 		goto instructions;
 
-	case CODE_STORE:
-		stack[READ_2_BYTES()] = TOP();
+	case CODE_STORE: {
+		uint16_t index = READ_2_BYTES();
+		stack_ptr[index] = TOP();
 		POP();
 		goto instructions;
+	}
 
 	case CODE_JUMP_FORWARD: {
 		uint16_t amount = READ_2_BYTES();
@@ -243,7 +249,7 @@ instructions:
 		goto instructions;
 	}
 
-	case CODE_JUMP_BACKWARD: {
+	case CODE_JUMP_BACK: {
 		uint16_t amount = READ_2_BYTES();
 		ip -= amount;
 		goto instructions;
@@ -259,9 +265,11 @@ instructions:
 		}
 		goto instructions;
 
-	case CODE_CALL:
-		PUSH_FRAME(&vm->functions[READ_2_BYTES()])
+	case CODE_CALL: {
+		uint16_t index = READ_2_BYTES();
+		PUSH_FRAME(&vm->functions[index]);
 		goto instructions;
+	}
 
 	case CODE_CALL_NATIVE: {
 		NativeFunction fn = value_to_ptr(READ_8_BYTES());

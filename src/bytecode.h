@@ -110,7 +110,7 @@ typedef enum {
 	//
 	// Takes 1, 2 byte argument - the number of instructions to
 	// jump back.
-	CODE_JUMP_BACKWARD,
+	CODE_JUMP_BACK,
 
 	// Pops the top item from the stack and, if it is false,
 	// jumps the instruction pointer forward [argument]
@@ -187,6 +187,7 @@ int emit_jump(Bytecode *bytecode, uint8_t instruction);
 // Patch a jump instruction at the given index. Will
 // jump to the instruction after the most recent
 // instruction emitted.
+// Assumes we are patching a forward jump.
 void patch_jump(Bytecode *bytecode, int index);
 
 #endif

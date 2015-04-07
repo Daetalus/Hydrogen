@@ -113,16 +113,17 @@ END()
 
 START(if_else_statement_one) {
 	COMPILER("if 1 {\nlet test = 3\n} else {\nlet meh = 4\n}\n");
+	pretty_print_bytecode(bytecode);
 
 	// If conditional
 	ASSERT_NUMBER_PUSH(1.0);
-	ASSERT_CONDITIONAL_JUMP(16);
+	ASSERT_CONDITIONAL_JUMP(19);
 
 	// If block
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_STORE(0);
 	ASSERT_INSTRUCTION(CODE_POP);
-	ASSERT_JUMP(13);
+	ASSERT_JUMP(16);
 
 	// Else block
 	ASSERT_NUMBER_PUSH(4.0);
@@ -161,10 +162,11 @@ END()
 
 START(while_loop_one) {
 	COMPILER("while 1 {let test = 3}");
+	pretty_print_bytecode(bytecode);
 
 	// Conditional
 	ASSERT_NUMBER_PUSH(1.0);
-	ASSERT_CONDITIONAL_JUMP(16);
+	ASSERT_CONDITIONAL_JUMP(19);
 
 	// Block
 	ASSERT_NUMBER_PUSH(3.0);
