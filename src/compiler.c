@@ -229,16 +229,19 @@ void variable_assignment(Compiler *compiler) {
 		error(compiler, "Expected `=` after variable name in assignment");
 	}
 
+	if (fn != NULL) {
+		// Push the variable for the modifier function
+		push_local_at_index(compiler, index);
+	}
+
 	// Compile the expression after this. This will push bytecode
 	// that will leave the resulting expression on top of the
 	// stack.
 	enable_newlines(lexer);
 	expression(compiler, TOKEN_LINE);
 
-	// Modify the value on the top of the stack in accordance to the
-	// equals sign modifier.
 	if (fn != NULL) {
-		push_local_at_index(compiler, index);
+		// Push the modifier function itself.
 		emit_native(compiler, fn);
 	}
 

@@ -108,6 +108,8 @@ NativeFunction find_native_function(
 		} else if (argument_count == 2) {
 			return &native_print_2;
 		}
+	} else if (strncmp(name, "assert", length) == 0) {
+		return &native_assert;
 	}
 
 	return NULL;
@@ -149,18 +151,20 @@ void vm_crash(VirtualMachine *vm, char *fmt, ...) {
 
 // Runs the compiled bytecode.
 void vm_run(VirtualMachine *vm) {
+	pretty_print_bytecode(&vm->functions[0].bytecode);
+
 	// The value stack which the program pushes to.
 	uint64_t stack[MAX_STACK_SIZE];
-	int stack_size;
+	int stack_size = 0;
 
 	// The function call frame stack, which maintains
 	// which functions are being executed.
 	CallFrame call_stack[MAX_CALL_STACK_SIZE];
-	int call_stack_size;
+	int call_stack_size = 0;
 
 	// The currently executing instruction (ip stands for instruction
 	// pointer).
-	uint8_t *ip;
+	uint8_t *ip = NULL;
 
 	// The stack pointer of the top most call frame, pointing
 	// to a place on the stack where the function's variables

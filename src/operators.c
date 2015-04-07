@@ -158,6 +158,17 @@ void native_print_2(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
 }
 
 
+void native_assert(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
+	uint64_t arg = POP();
+
+	if (IS_FALSE(arg) || IS_NIL(arg)) {
+		// Exit forcefully
+		fprintf(stderr, RED BOLD "assertion failed\n" NORMAL);
+		exit(1);
+	}
+}
+
+
 
 //
 //  Mathematical Operators

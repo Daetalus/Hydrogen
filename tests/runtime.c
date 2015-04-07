@@ -9,6 +9,7 @@
 #include <stdlib.h>
 
 #include "../include/hydrogen.h"
+#include "../src/vm.h"
 
 
 // The maximum number of characters that can be outputted by
@@ -17,12 +18,19 @@
 
 
 char *files[] = {
-	"basic.hy"
+	"variables/1.hy",
+	"variables/2.hy",
+	"variables/3.hy",
+	"variables/4.hy",
+	"variables/5.hy",
+	"variables/6.hy",
 };
 
 
 int main(int argc, char *argv[]) {
 	for (int i = 0; i < sizeof(files) / sizeof(files[0]); i++) {
+		printf(BLUE BOLD "Starting test %s...\n" NORMAL, files[i]);
+
 		// Get the full path of the file
 		size_t path_length = (strlen(files[i]) + 17) * sizeof(char);
 		char path[path_length];
@@ -55,6 +63,8 @@ int main(int argc, char *argv[]) {
 
 		// Execute the source code
 		hydrogen_run(source);
+
+		printf(GREEN BOLD "Test succeeded!\n" NORMAL);
 	}
 
 	return 0;

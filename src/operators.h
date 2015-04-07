@@ -29,6 +29,7 @@ Associativity operator_associativity(TokenType operator);
 // Testing print statements
 DEFINE_NATIVE_FUNCTION(native_print);
 DEFINE_NATIVE_FUNCTION(native_print_2);
+DEFINE_NATIVE_FUNCTION(native_assert);
 
 // Mathematical operators
 DEFINE_NATIVE_FUNCTION(operator_addition);
