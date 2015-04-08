@@ -9,10 +9,9 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "compiler.h"
-#include "value.h"
-#include "operators.h"
+#include "lib/operator.h"
 #include "expression.h"
+#include "compiler.h"
 
 
 // The maximum number of else if statements that are allowed to
@@ -104,7 +103,7 @@ void block(Compiler *compiler, TokenType terminator) {
 
 	// Blocks consist of a sequence of statements, so continually
 	// compile statements.
-	while (!match(lexer, terminator)) {
+	while (!lexer_match(lexer, terminator)) {
 		statement(compiler);
 	}
 
@@ -121,9 +120,9 @@ void block(Compiler *compiler, TokenType terminator) {
 void statement(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 
-	if (match(lexer, TOKEN_LINE)) {
+	if (lexer_match(lexer, TOKEN_LINE)) {
 		// Ignore empty lines
-		consume(lexer);
+		lexer_consume(lexer);
 	} else if (match_variable_assignment(compiler)) {
 		variable_assignment(compiler);
 	} else if (match_if_statement(compiler)) {
@@ -135,7 +134,7 @@ void statement(Compiler *compiler) {
 	} else if (match_function_definition(compiler)) {
 		function_definition(compiler);
 	} else {
-		Token current = peek(lexer, 0);
+		Token current = lexer_current(lexer);
 		error(compiler, "Unrecognized statement beginning with `%.*s`",
 			current.length, current.location);
 	}
@@ -154,13 +153,13 @@ bool match_variable_assignment(Compiler *compiler) {
 
 	// Recognise either a let token (for new variables) or
 	// an identifier followed by an assignment token.
-	return match(lexer, TOKEN_LET) ||
-		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_ASSIGNMENT) ||
-		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_ADDITION_ASSIGNMENT) ||
-		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_SUBTRACTION_ASSIGNMENT) ||
-		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_DIVISION_ASSIGNMENT) ||
-		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_MODULO_ASSIGNMENT) ||
-		match_double(lexer, TOKEN_IDENTIFIER, TOKEN_MULTIPLICATION_ASSIGNMENT);
+	return lexer_match(lexer, TOKEN_LET) ||
+		lexer_match_two(lexer, TOKEN_IDENTIFIER, TOKEN_ASSIGNMENT) ||
+		lexer_match_two(lexer, TOKEN_IDENTIFIER, TOKEN_ADDITION_ASSIGNMENT) ||
+		lexer_match_two(lexer, TOKEN_IDENTIFIER, TOKEN_SUBTRACTION_ASSIGNMENT) ||
+		lexer_match_two(lexer, TOKEN_IDENTIFIER, TOKEN_DIVISION_ASSIGNMENT) ||
+		lexer_match_two(lexer, TOKEN_IDENTIFIER, TOKEN_MODULO_ASSIGNMENT) ||
+		lexer_match_two(lexer, TOKEN_IDENTIFIER, TOKEN_MULTIPLICATION_ASSIGNMENT);
 }
 
 
@@ -174,15 +173,15 @@ void variable_assignment(Compiler *compiler) {
 	bool is_new_var = false;
 
 	// Check for the let keyword.
-	if (match(lexer, TOKEN_LET)) {
+	if (lexer_match(lexer, TOKEN_LET)) {
 		is_new_var = true;
 
 		// Consume the let keyword.
-		consume(lexer);
+		lexer_consume(lexer);
 	}
 
 	// Ignore newlines until the expression
-	disable_newlines(lexer);
+	lexer_disable_newlines(lexer);
 
 	// Expect an identifier (the variable's name).
 	Token name = expect(compiler, TOKEN_IDENTIFIER,
@@ -207,22 +206,22 @@ void variable_assignment(Compiler *compiler) {
 
 	// Expect an equals sign.
 	NativeFunction fn = NULL;
-	if (match(lexer, TOKEN_ADDITION_ASSIGNMENT)) {
+	if (lexer_match(lexer, TOKEN_ADDITION_ASSIGNMENT)) {
 		fn = &operator_addition;
-	} else if (match(lexer, TOKEN_SUBTRACTION_ASSIGNMENT)) {
+	} else if (lexer_match(lexer, TOKEN_SUBTRACTION_ASSIGNMENT)) {
 		fn = &operator_subtraction;
-	} else if (match(lexer, TOKEN_MULTIPLICATION_ASSIGNMENT)) {
+	} else if (lexer_match(lexer, TOKEN_MULTIPLICATION_ASSIGNMENT)) {
 		fn = &operator_multiplication;
-	} else if (match(lexer, TOKEN_DIVISION_ASSIGNMENT)) {
+	} else if (lexer_match(lexer, TOKEN_DIVISION_ASSIGNMENT)) {
 		fn = &operator_division;
-	} else if (match(lexer, TOKEN_MODULO_ASSIGNMENT)) {
+	} else if (lexer_match(lexer, TOKEN_MODULO_ASSIGNMENT)) {
 		fn = &operator_modulo;
-	} else if (match(lexer, TOKEN_ASSIGNMENT)) {
+	} else if (lexer_match(lexer, TOKEN_ASSIGNMENT)) {
 		// No modification needed
 	} else {
 		error(compiler, "Expected `=` after variable name in assignment");
 	}
-	consume(lexer);
+	lexer_consume(lexer);
 
 	// Disallow modifier operators on new variables
 	if (is_new_var && fn != NULL) {
@@ -237,7 +236,7 @@ void variable_assignment(Compiler *compiler) {
 	// Compile the expression after this. This will push bytecode
 	// that will leave the resulting expression on top of the
 	// stack.
-	enable_newlines(lexer);
+	lexer_enable_newlines(lexer);
 	expression(compiler, TOKEN_LINE);
 
 	if (fn != NULL) {
@@ -274,7 +273,7 @@ bool match_if_statement(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 
 	// An if statement starts with the if token.
-	return match(lexer, TOKEN_IF);
+	return lexer_match(lexer, TOKEN_IF);
 }
 
 
@@ -304,12 +303,12 @@ int if_condition_and_block(Compiler *compiler) {
 	int jump = emit_jump(bytecode, CODE_JUMP_IF_NOT);
 
 	// Consume the opening brace of the if statement's block.
-	disable_newlines(&compiler->vm->lexer);
+	lexer_disable_newlines(&compiler->vm->lexer);
 	expect(compiler, TOKEN_OPEN_BRACE,
 		"Expected `{` after conditional expression in if statement");
 
 	// Compile the block.
-	enable_newlines(&compiler->vm->lexer);
+	lexer_enable_newlines(&compiler->vm->lexer);
 	block(compiler, TOKEN_CLOSE_BRACE);
 
 	// Consume the closing brace.
@@ -326,7 +325,7 @@ void if_statement(Compiler *compiler) {
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
 	// Consume the if keyword.
-	consume(lexer);
+	lexer_consume(lexer);
 
 	// Compile the conditional expression and block.
 	int previous_jump = if_condition_and_block(compiler);
@@ -341,8 +340,8 @@ void if_statement(Compiler *compiler) {
 	// statement.
 	bool had_else = false;
 	bool had_else_if = false;
-	disable_newlines(lexer);
-	while (match(lexer, TOKEN_ELSE_IF)) {
+	lexer_disable_newlines(lexer);
+	while (lexer_match(lexer, TOKEN_ELSE_IF)) {
 		had_else_if = true;
 
 		// Firstly append another instruction to the previous if
@@ -362,20 +361,20 @@ void if_statement(Compiler *compiler) {
 		patch_jump(bytecode, previous_jump);
 
 		// Consume the else if token.
-		consume(lexer);
+		lexer_consume(lexer);
 
 		// Compile the conditional expression and block.
-		enable_newlines(lexer);
+		lexer_enable_newlines(lexer);
 		previous_jump = if_condition_and_block(compiler);
-		disable_newlines(lexer);
+		lexer_disable_newlines(lexer);
 	}
 
 	// If there's an else block to follow.
-	if (match(lexer, TOKEN_ELSE)) {
+	if (lexer_match(lexer, TOKEN_ELSE)) {
 		had_else = true;
 
 		// Consume the else token.
-		consume(lexer);
+		lexer_consume(lexer);
 
 		// Emit an unpatched jump instruction for the if/elseif
 		// statement that preceded this else statement.
@@ -388,12 +387,12 @@ void if_statement(Compiler *compiler) {
 		// Compile the else statement's block.
 		expect(compiler, TOKEN_OPEN_BRACE,
 			"Expected `{` after `else`");
-		enable_newlines(lexer);
+		lexer_enable_newlines(lexer);
 		block(compiler, TOKEN_CLOSE_BRACE);
 		expect(compiler, TOKEN_CLOSE_BRACE,
 			"Expected `}` to close else statement block");
 	} else {
-		enable_newlines(lexer);
+		lexer_enable_newlines(lexer);
 	}
 
 	if (!had_else && !had_else_if) {
@@ -418,7 +417,7 @@ void if_statement(Compiler *compiler) {
 // Returns true if the lexer matches a while loop.
 bool match_while_loop(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
-	return match(lexer, TOKEN_WHILE);
+	return lexer_match(lexer, TOKEN_WHILE);
 }
 
 
@@ -428,12 +427,12 @@ void while_loop(Compiler *compiler) {
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
 	// Consume the while keyword.
-	consume(lexer);
+	lexer_consume(lexer);
 
 	// Compile the expression
 	int start_of_expression = bytecode->count;
 	expression(compiler, TOKEN_OPEN_BRACE);
-	disable_newlines(lexer);
+	lexer_disable_newlines(lexer);
 
 	// Jump conditionally
 	int condition_jump = emit_jump(bytecode, CODE_JUMP_IF_NOT);
@@ -441,7 +440,7 @@ void while_loop(Compiler *compiler) {
 	// Compile the block.
 	expect(compiler, TOKEN_OPEN_BRACE,
 		"Expected `{` after expression in while loop");
-	enable_newlines(lexer);
+	lexer_enable_newlines(lexer);
 	block(compiler, TOKEN_CLOSE_BRACE);
 	expect(compiler, TOKEN_CLOSE_BRACE,
 		"Expected `}` to close while loop block");
@@ -467,9 +466,10 @@ bool match_function_call(Compiler *compiler) {
 
 	// Allow newlines between the identifier and open parenthesis,
 	// so disable newlines when checking.
-	disable_newlines(lexer);
-	bool result = match_double(lexer, TOKEN_IDENTIFIER, TOKEN_OPEN_PARENTHESIS);
-	enable_newlines(lexer);
+	lexer_disable_newlines(lexer);
+	bool result = lexer_match_two(lexer, TOKEN_IDENTIFIER,
+		TOKEN_OPEN_PARENTHESIS);
+	lexer_enable_newlines(lexer);
 
 	return result;
 }
@@ -480,29 +480,29 @@ int function_call_arguments(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 
 	// Consume the opening parenthesis
-	disable_newlines(lexer);
+	lexer_disable_newlines(lexer);
 	expect(compiler, TOKEN_OPEN_PARENTHESIS,
 		"Expected `(` to begin function call arguments");
 
 	// Consume expressions separated by commas.
 	int count = 0;
-	if (!match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
+	if (!lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
 		while (1) {
-			enable_newlines(lexer);
+			lexer_enable_newlines(lexer);
 			expression(compiler, TOKEN_COMMA);
-			disable_newlines(lexer);
+			lexer_disable_newlines(lexer);
 			count++;
 
-			if (match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
+			if (lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
 				// Finish expression
-				consume(lexer);
+				lexer_consume(lexer);
 				break;
-			} else if (match(lexer, TOKEN_COMMA)) {
+			} else if (lexer_match(lexer, TOKEN_COMMA)) {
 				// Another argument
-				consume(lexer);
+				lexer_consume(lexer);
 			} else {
 				// Unrecognised operator
-				Token token = peek(lexer, 0);
+				Token token = lexer_current(lexer);
 				error(compiler,
 					"Unexpected `%.*s` in arguments to function call.",
 					token.length, token.location);
@@ -510,10 +510,10 @@ int function_call_arguments(Compiler *compiler) {
 		}
 	} else {
 		// No arguments, consume the closing parenthesis
-		consume(lexer);
+		lexer_consume(lexer);
 	}
 
-	enable_newlines(lexer);
+	lexer_enable_newlines(lexer);
 	return count;
 }
 
@@ -523,7 +523,7 @@ void function_call(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 
 	// Consume the function's name.
-	Token name = consume(lexer);
+	Token name = lexer_consume(lexer);
 
 	// Compile the function's arguments.
 	int argument_count = function_call_arguments(compiler);
@@ -557,7 +557,7 @@ void function_call(Compiler *compiler) {
 // Returns true if the lexer matches a function definition.
 bool match_function_definition(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
-	return match(lexer, TOKEN_FUNCTION);
+	return lexer_match(lexer, TOKEN_FUNCTION);
 }
 
 
@@ -566,10 +566,10 @@ void function_definition(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 
 	// Consume the function keyword.
-	consume(lexer);
+	lexer_consume(lexer);
 
 	// Expect the function name identifier.
-	disable_newlines(lexer);
+	lexer_disable_newlines(lexer);
 	Token name = expect(compiler, TOKEN_IDENTIFIER,
 		"Expected identifier after `fn` keyword");
 
@@ -588,7 +588,7 @@ void function_definition(Compiler *compiler) {
 	fn->name = NULL;
 	fn->length = 0;
 
-	if (!match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
+	if (!lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
 		while (1) {
 			// Expect an identifier, the function argument
 			Token name = expect(compiler, TOKEN_IDENTIFIER,
@@ -600,13 +600,13 @@ void function_definition(Compiler *compiler) {
 			fn->arguments[index].length = name.length;
 
 			// Expect a comma or closing parenthesis
-			if (match(lexer, TOKEN_COMMA)) {
-				consume(lexer);
-			} else if (match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
-				consume(lexer);
+			if (lexer_match(lexer, TOKEN_COMMA)) {
+				lexer_consume(lexer);
+			} else if (lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
+				lexer_consume(lexer);
 				break;
 			} else {
-				Token token = peek(lexer, 1);
+				Token token = lexer_peek(lexer, 1);
 				error(compiler,
 					"Unexpected `%.*s` in arguments to function definition",
 					token.length, token.location);
@@ -614,7 +614,7 @@ void function_definition(Compiler *compiler) {
 		}
 	} else {
 		// Consume the closing parenthesis
-		consume(lexer);
+		lexer_consume(lexer);
 	}
 
 	// Expect the opening brace to the function block.
@@ -884,7 +884,7 @@ void error(Compiler *compiler, char *fmt, ...) {
 // was of an unexpected type.
 Token expect(Compiler *compiler, TokenType expected, char *message) {
 	Lexer *lexer = &compiler->vm->lexer;
-	Token token = consume(lexer);
+	Token token = lexer_consume(lexer);
 
 	// If the consumed token is of an unexpected type.
 	if (token.type != expected) {

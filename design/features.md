@@ -21,6 +21,13 @@ if a == 5 {
 
 }
 
+loop {
+	io.println("infinite!")
+	if a == 5 {
+		break
+	}
+}
+
 let i = 0
 while i < 10 {
 	io.println("hello")

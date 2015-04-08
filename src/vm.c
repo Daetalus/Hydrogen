@@ -8,11 +8,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 
-#include "vm.h"
-#include "operators.h"
-#include "bytecode.h"
+#include "lib/operator.h"
 #include "compiler.h"
-#include "debug.h"
+#include "vm.h"
 
 
 // Create a new virtual machine with the given source code.
@@ -20,7 +18,7 @@
 // anything.
 VirtualMachine vm_new(char *source) {
 	VirtualMachine vm;
-	lexer_new(&vm.lexer, source);
+	vm.lexer = lexer_new(source);
 	vm.source = source;
 	vm.function_count = 0;
 	vm.literal_count = 0;
@@ -32,7 +30,7 @@ VirtualMachine vm_new(char *source) {
 void vm_free(VirtualMachine *vm) {
 	// Free functions
 	for (int i = 0; i < vm->function_count; i++) {
-		free(&vm->functions[i].bytecode);
+		bytecode_free(&vm->functions[i].bytecode);
 	}
 
 	// Free string literals

@@ -5,13 +5,14 @@ To Do
 
 ## Refactoring
 
+Incomplete
+
 * Separate parser out from lexer
 * Hide struct interfaces in .c files
 * Write proper interface functions
 * Objectify compiler code
-* Group files into subfolders
 * Prefix functions with class name
-* Add static infront of functions used in single file
+* Add static in front of functions used in single file
 * Refactor #defines into C functions
 * Add operator table and parse expressions using it
 * Rename `string_duplicate` to `string_copy`
@@ -32,6 +33,11 @@ To Do
 * Typedef instruction as uint8_t
 * Typedef value as uint64_t
 * Remove useless comments
+* Reorder tokens
+
+Complete
+
+* Group files into subfolders
 
 
 ## To Do
@@ -41,3 +47,4 @@ To Do
 * At minimum 20 tests for all constructs
 * Write proper benchmark tester with averages over 30 trials
 * Complete TODOs in code
+* Write failing tests

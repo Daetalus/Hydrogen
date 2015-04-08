@@ -7,6 +7,8 @@
 #ifndef EXPRESSION_H
 #define EXPRESSION_H
 
+#include "compiler.h"
+
 
 // Generates bytecode for evaluating an expression, leaving the
 // resulting value on the top of the stack.

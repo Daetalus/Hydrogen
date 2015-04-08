@@ -7,17 +7,13 @@
 #ifndef LEXER_H
 #define LEXER_H
 
+#include <stdlib.h>
 #include <stdbool.h>
 
-#include "value.h"
+#include "parser.h"
 
 
-// The maximum number of tokens that the lexer can store in
-// its token cache.
-#define MAX_TOKEN_CACHE_SIZE 16
-
-
-// All token types produced by the lexer.
+// Token types emitted by the lexer.
 typedef enum {
 	// Mathematical Operators
 	TOKEN_ADDITION,
@@ -25,11 +21,6 @@ typedef enum {
 	TOKEN_MULTIPLICATION,
 	TOKEN_DIVISION,
 	TOKEN_MODULO,
-
-	// Not actually produced by the lexer (all `-` are returned
-	// as `TOKEN_SUBTRACTION`) but since the token type enum is
-	// also used to represent operators, we need to include this
-	// here.
 	TOKEN_NEGATION,
 
 	// Boolean Operators
@@ -49,7 +40,7 @@ typedef enum {
 	TOKEN_BITWISE_AND,
 	TOKEN_BITWISE_OR,
 	TOKEN_BITWISE_NOT,
-	TOKEN_BITWISE_XOR, // 20
+	TOKEN_BITWISE_XOR,
 
 	// Assignment
 	TOKEN_ASSIGNMENT,
@@ -59,17 +50,8 @@ typedef enum {
 	TOKEN_DIVISION_ASSIGNMENT,
 	TOKEN_MODULO_ASSIGNMENT,
 
-	// Constants
-	TOKEN_IDENTIFIER,
-	TOKEN_NUMBER,
-
-	// Used for string literals. The location and size of this
-	// token is for the string literal itself, and doesn't
-	// include the quotes enclosing the literal.
-	TOKEN_STRING,
-
 	// Syntax
-	TOKEN_OPEN_PARENTHESIS, // 30
+	TOKEN_OPEN_PARENTHESIS,
 	TOKEN_CLOSE_PARENTHESIS,
 	TOKEN_OPEN_BRACKET,
 	TOKEN_CLOSE_BRACKET,
@@ -81,40 +63,33 @@ typedef enum {
 	// Keywords
 	TOKEN_LET,
 	TOKEN_IF,
-	TOKEN_IN, // 40
 	TOKEN_ELSE,
 	TOKEN_ELSE_IF,
-	TOKEN_FOR,
 	TOKEN_WHILE,
 	TOKEN_LOOP,
+	TOKEN_FOR,
+	TOKEN_IN,
 	TOKEN_FUNCTION,
-	TOKEN_CLASS,
-
 	TOKEN_TRUE,
 	TOKEN_FALSE,
-	TOKEN_NIL, // 50
+	TOKEN_NIL,
 
 	// Other
+	TOKEN_IDENTIFIER,
+	TOKEN_NUMBER,
+	TOKEN_STRING,
 	TOKEN_LINE,
 	TOKEN_END_OF_FILE,
 	TOKEN_NONE,
 } TokenType;
 
 
-// Operator associativity.
-typedef enum {
-	ASSOCIATIVITY_LEFT,
-	ASSOCIATIVITY_RIGHT,
-} Associativity;
-
-
-// A token produced by the lexer.
+// A token emitted by the lexer.
 typedef struct {
 	// The type of the token.
 	TokenType type;
 
-	// A number used when the parsed token is a number.
-	// Undefined if the token isn't a number.
+	// The numerical value of a number token (`TOKEN_NUMBER`).
 	double number;
 
 	// A pointer into the source code specifying the start
@@ -122,76 +97,59 @@ typedef struct {
 	char *location;
 
 	// The length of the token in the source.
-	int length;
+	uint32_t length;
 } Token;
 
 
-// A parser.
-//
-// Stores a cursor position within a source string, allowing
-// navigation within the string.
+// The maximum number of tokens that the lexer can store in its
+// cache.
+#define MAX_TOKEN_CACHE_SIZE 16
+
+
+// Emits a sequence of tokens from a source string.
 typedef struct {
-	// The source string being navigated.
-	char *source;
-
-	// The length of the source string.
-	int length;
-
-	// The cursor position within the source string.
-	int cursor;
-} Parser;
-
-
-// The lexer.
-typedef struct {
-	// A parser providing cursor functionality within the source
-	// code.
+	// The source code parser. See `parser.h`.
 	Parser parser;
 
 	// The line number of the current token.
-	int line;
+	uint32_t line;
 
-	// A cache of tokens built up when using the peek function
-	// to look ahead.
+	// The lexer cannot arbitrarily pick out tokens to return,
+	// we must parse them sequentially. So if we want to look
+	// ahead (with peek), we need to cache the tokens before the
+	// one we're looking for.
 	Token cache[MAX_TOKEN_CACHE_SIZE];
 
 	// The number of items in the cache.
-	int cache_size;
+	uint32_t cache_size;
 
-	// Whether to ignore newlines.
-	// Defaults to true.
+	// Whether to emit newlines. Defaults to true.
 	bool emit_newlines;
 } Lexer;
 
 
-// Create a new lexer with the given source.
-void lexer_new(Lexer *lexer, char *source);
+// Create a new lexer with `source`.
+Lexer lexer_new(char *source);
 
-// Consumes a token, moving to the next one.
-Token consume(Lexer *lexer);
+// Consumes a token, returning it.
+Token lexer_consume(Lexer *lexer);
 
-// Peeks at a token further ahead in the source code, without
-// advancing the cursor.
-Token peek(Lexer *lexer, int amount);
+// Returns the token `amount` tokens in front of the current one.
+Token lexer_peek(Lexer *lexer, uint32_t amount);
 
-// Returns true if the lexer starts with the given token type.
-bool match(Lexer *lexer, TokenType token);
+// Returns the current token without consuming anything.
+Token lexer_current(Lexer *lexer);
 
-// Returns true if the lexer starts with the two given tokens.
-bool match_double(Lexer *lexer, TokenType one, TokenType two);
+// Returns true if the lexer starts with `token`.
+bool lexer_match(Lexer *lexer, TokenType token);
 
-// Extracts a string literal pointed to by the given token
-// from the source code, populating `string` (assumed to be
-// unallocated.
-// If the string contains an invalid escape sequence, returns
-// a pointer to the start of the escape sequence, else returns
-// NULL.
-char * extract_string_literal(Token *literal, String **string);
+// Returns true if the next two tokens are `one` and `two`.
+bool lexer_match_two(Lexer *lexer, TokenType one, TokenType two);
 
 // Tells the lexer to not emit any newline tokens.
-void enable_newlines(Lexer *lexer);
+void lexer_disable_newlines(Lexer *lexer);
 
 // Tells the lexer to emit newline tokens.
-void disable_newlines(Lexer *lexer);
+void lexer_enable_newlines(Lexer *lexer);
 
 #endif

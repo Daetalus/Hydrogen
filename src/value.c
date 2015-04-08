@@ -78,7 +78,7 @@ String * string_duplicate(String *original) {
 
 // Free a string.
 void string_free(String *string) {
-	free(string->contents);
+	free(string);
 }
 
 

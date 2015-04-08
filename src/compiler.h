@@ -8,9 +8,9 @@
 #define COMPILER_H
 
 #include "vm.h"
-#include "bytecode.h"
-#include "lexer.h"
 #include "value.h"
+#include "lexer.h"
+#include "bytecode.h"
 
 
 // The maximum number of local variables that can be

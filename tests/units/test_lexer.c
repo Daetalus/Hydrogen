@@ -11,8 +11,7 @@
 
 #define NEW_LEXER(source_string)    \
 	char *source = (source_string); \
-	Lexer lexer;                    \
-	lexer_new(&lexer, source);
+	Lexer lexer = lexer_new(source);
 
 
 #define TEST_TOKEN(token_type, src_location, src_length) \
@@ -22,7 +21,7 @@
 
 
 #define TEST_CONSUME_TOKEN(token_type, src_location, src_length) \
-	token = consume(&lexer);                                     \
+	token = lexer_consume(&lexer);                               \
 	TEST_TOKEN(token_type, src_location, src_length);
 
 
@@ -77,7 +76,7 @@ END()
 
 
 #define TEST_CONSUME_STRING(token_type, src_location, src_length, string) \
-	token = consume(&lexer);                                              \
+	token = lexer_consume(&lexer);                                        \
 	ASSERT_EQ(token.type, token_type);                                    \
 	ASSERT_EQ(token.location, src_location);                              \
 	ASSERT_EQ(token.length, src_length);                                  \
@@ -99,7 +98,7 @@ END()
 
 
 #define TEST_CONSUME_DOUBLE(token_type, src_location, src_length, value) \
-	token = consume(&lexer);                                             \
+	token = lexer_consume(&lexer);                                       \
 	ASSERT_EQ(token.type, token_type);                                   \
 	ASSERT_EQ(token.location, src_location);                             \
 	ASSERT_EQ(token.length, src_length);                                 \
@@ -138,26 +137,26 @@ END()
 START(peek) {
 	NEW_LEXER("+ - * / %");
 
-	Token token = peek(&lexer, 0);
+	Token token = lexer_peek(&lexer, 0);
 	TEST_TOKEN(TOKEN_ADDITION, source, 1);
-	token = peek(&lexer, 1);
+	token = lexer_peek(&lexer, 1);
 	TEST_TOKEN(TOKEN_SUBTRACTION, source + 2, 1);
-	token = peek(&lexer, 2);
+	token = lexer_peek(&lexer, 2);
 	TEST_TOKEN(TOKEN_MULTIPLICATION, source + 4, 1);
 
 	TEST_CONSUME_TOKEN(TOKEN_ADDITION, source, 1);
 
-	token = peek(&lexer, 0);
+	token = lexer_peek(&lexer, 0);
 	TEST_TOKEN(TOKEN_SUBTRACTION, source + 2, 1);
-	token = peek(&lexer, 1);
+	token = lexer_peek(&lexer, 1);
 	TEST_TOKEN(TOKEN_MULTIPLICATION, source + 4, 1);
 
 	TEST_CONSUME_TOKEN(TOKEN_SUBTRACTION, source + 2, 1);
 	TEST_CONSUME_TOKEN(TOKEN_MULTIPLICATION, source + 4, 1);
 
-	token = peek(&lexer, 0);
+	token = lexer_peek(&lexer, 0);
 	TEST_TOKEN(TOKEN_DIVISION, source + 6, 1);
-	token = peek(&lexer, 1);
+	token = lexer_peek(&lexer, 1);
 	TEST_TOKEN(TOKEN_MODULO, source + 8, 1);
 
 	TEST_CONSUME_TOKEN(TOKEN_DIVISION, source + 6, 1);
@@ -167,9 +166,9 @@ START(peek) {
 END()
 
 
-#define TEST_EXTRACT(expected)                        \
-	err = extract_string_literal(&token, &extracted); \
-	ASSERT_EQ(err, NULL);                             \
+#define TEST_EXTRACT(expected)                                              \
+	extracted = parser_extract_literal(token.location, token.length, &err); \
+	ASSERT_EQ(err, NULL);                                                   \
 	ASSERT_STR_EQ(extracted->contents, expected);
 
 

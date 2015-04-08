@@ -7,9 +7,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "debug.h"
 #include "lexer.h"
 #include "value.h"
+#include "debug.h"
 
 
 // Pretty prints out the contents of a bytecode array.

@@ -14,7 +14,7 @@
 #include "../../src/debug.h"
 #include "../../src/bytecode.h"
 #include "../../src/lexer.h"
-#include "../../src/operators.h"
+#include "../../src/lib/operator.h"
 
 
 // Color codes

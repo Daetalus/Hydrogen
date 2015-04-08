@@ -7,8 +7,15 @@
 #ifndef OPERATORS_H
 #define OPERATORS_H
 
-#include "lexer.h"
-#include "vm.h"
+#include "../lexer.h"
+#include "../vm.h"
+
+
+// Operator associativity.
+typedef enum {
+	ASSOCIATIVITY_LEFT,
+	ASSOCIATIVITY_RIGHT,
+} Associativity;
 
 
 // Returns true if the given token is a binary operator.

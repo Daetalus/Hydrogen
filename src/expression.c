@@ -6,11 +6,12 @@
 
 #include <stdio.h>
 
-#include "compiler.h"
+#include "lib/operator.h"
 #include "lexer.h"
 #include "value.h"
-#include "operators.h"
+#include "compiler.h"
 #include "bytecode.h"
+#include "expression.h"
 
 
 // Forward declarations.
@@ -40,7 +41,7 @@ void expression(Compiler *compiler, TokenType terminator) {
 
 // Peeks at the next token, assuming its a binary operator.
 Token peek_operator(Lexer *lexer, TokenType terminator) {
-	Token operator = peek(lexer, 0);
+	Token operator = lexer_current(lexer);
 	if (operator.type == TOKEN_END_OF_FILE ||
 			(terminator != TOKEN_LINE && operator.type == terminator)) {
 		// Stop the expression
@@ -48,9 +49,9 @@ Token peek_operator(Lexer *lexer, TokenType terminator) {
 		result.type = TOKEN_NONE;
 		return result;
 	} else if (operator.type == TOKEN_LINE) {
-		Token token = peek(lexer, 1);
+		Token token = lexer_peek(lexer, 1);
 		if (is_binary_operator(token.type)) {
-			consume(lexer);
+			lexer_consume(lexer);
 			operator = token;
 		} else {
 			// Terminate the expression here
@@ -84,7 +85,7 @@ void parse_precedence(Compiler *compiler, TokenType terminator,
 			precedence < operator_precedence(operator.type)) {
 		if (is_binary_operator(operator.type)) {
 			// Compile an infix operator.
-			consume(lexer);
+			lexer_consume(lexer);
 			infix(compiler, terminator, operator.type);
 			operator = peek_operator(lexer, terminator);
 		} else {
@@ -99,13 +100,13 @@ void parse_precedence(Compiler *compiler, TokenType terminator,
 
 // Matches across newlines.
 bool newline_match(Lexer *lexer, TokenType expected) {
-	Token operator = peek(lexer, 0);
+	Token operator = lexer_current(lexer);
 	if (operator.type == expected) {
 		return true;
 	} else if (operator.type == TOKEN_LINE) {
-		Token token = peek(lexer, 1);
+		Token token = lexer_peek(lexer, 1);
 		if (token.type == expected) {
-			consume(lexer);
+			lexer_consume(lexer);
 			return true;
 		}
 	}
@@ -137,29 +138,31 @@ void left(Compiler *compiler) {
 		prefix(compiler, TOKEN_BITWISE_NOT);
 	} else if (newline_match(lexer, TOKEN_TRUE)) {
 		// True
-		consume(lexer);
+		lexer_consume(lexer);
 		emit(bytecode, CODE_PUSH_TRUE);
 	} else if (newline_match(lexer, TOKEN_FALSE)) {
 		// False
-		consume(lexer);
+		lexer_consume(lexer);
 		emit(bytecode, CODE_PUSH_FALSE);
 	} else if (newline_match(lexer, TOKEN_NIL)) {
 		// Nil
-		consume(lexer);
+		lexer_consume(lexer);
 		emit(bytecode, CODE_PUSH_NIL);
 	} else if (newline_match(lexer, TOKEN_IDENTIFIER)) {
 		// Variable
-		Token variable = consume(lexer);
+		Token variable = lexer_consume(lexer);
 		push_local(compiler, variable.location, variable.length);
 	} else if (newline_match(lexer, TOKEN_NUMBER)) {
 		// Number literal
-		Token number = consume(lexer);
+		Token number = lexer_consume(lexer);
 		push_number(compiler, number.number);
 	} else if (newline_match(lexer, TOKEN_STRING)) {
 		// String literal
-		Token literal = consume(lexer);
+		Token literal = lexer_consume(lexer);
 		String **string = push_string(compiler);
-		char *sequence = extract_string_literal(&literal, string);
+		char *sequence = NULL;
+		*string = parser_extract_literal(literal.location, literal.length,
+			&sequence);
 
 		if (sequence != NULL) {
 			// Invalid escape sequence in string
@@ -167,13 +170,13 @@ void left(Compiler *compiler) {
 		}
 	} else if (newline_match(lexer, TOKEN_OPEN_PARENTHESIS)) {
 		// Sub-expression
-		consume(lexer);
+		lexer_consume(lexer);
 		parse_precedence(compiler, TOKEN_CLOSE_PARENTHESIS, 0);
 		expect(compiler, TOKEN_CLOSE_PARENTHESIS,
 			"Expected `)` to close opening parenthesis");
 	} else {
 		// Unrecognised operand, so trigger an error.
-		Token token = peek(lexer, 0);
+		Token token = lexer_current(lexer);
 		error(compiler, "Expected operand in expression, found `%.*s`",
 			token.length, token.location);
 	}
@@ -186,7 +189,7 @@ void prefix(Compiler *compiler, TokenType operator) {
 	Lexer *lexer = &compiler->vm->lexer;
 
 	// Consume the prefix operator token.
-	consume(lexer);
+	lexer_consume(lexer);
 
 	// Compile the argument to this operator, leaving it on the
 	// top of the stack.

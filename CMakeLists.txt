@@ -17,15 +17,17 @@ set(CMAKE_C_FLAGS_RELEASE "-O3 -Wall")
 
 add_library(
 	vm
+	src/hydrogen.c
 	src/bytecode.c
 	src/compiler.c
 	src/debug.c
 	src/expression.c
-	src/hydrogen.c
 	src/lexer.c
-	src/operators.c
+	src/parser.c
 	src/value.c
 	src/vm.c
+
+	src/lib/operator.c
 )
 
 
