@@ -286,12 +286,9 @@ instructions:
 
 	case CODE_RETURN:
 		if (call_stack_size == 1) {
-			goto end;
+			break;
 		}
 		POP_FRAME();
 		goto instructions;
 	}
-
-end:
-	return;
 }

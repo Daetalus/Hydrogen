@@ -90,12 +90,8 @@ int operator_precedence(TokenType operator) {
 
 // Returns the associativity of an operator.
 Associativity operator_associativity(TokenType operator) {
-	if (is_binary_operator(operator)) {
-		// No right associative operators at the moment.
-		return ASSOCIATIVITY_LEFT;
-	}
-
-	return -1;
+	// No right associative operators at the moment.
+	return ASSOCIATIVITY_LEFT;
 }
 
 
