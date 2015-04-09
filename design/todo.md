@@ -8,7 +8,6 @@ To Do
 Incomplete
 
 * Hide struct interfaces in .c files
-* Write proper interface functions
 * Objectify compiler code
 * Prefix functions with class name
 * Add static in front of functions used in single file
