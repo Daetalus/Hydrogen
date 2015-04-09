@@ -105,6 +105,7 @@ io.println(a.test() + 3)
 * Strings/numbers/booleans/nil
 * If statements
 * While loops
+* Break
 * For loops
 * Iterators
 * Function calls

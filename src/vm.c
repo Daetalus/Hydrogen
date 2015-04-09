@@ -11,6 +11,7 @@
 #include "lib/operator.h"
 #include "compiler.h"
 #include "vm.h"
+#include "debug.h"
 
 
 // Create a new virtual machine with the given source code.
@@ -178,15 +179,19 @@ void vm_run(VirtualMachine *vm) {
 
 	// Pushes a new call frame for `fn` onto the call frame stack.
 	// Updates `ip` and `stack_ptr` with the values for the new function.
-	#define PUSH_FRAME(fn) {                                         \
-		if (call_stack_size > 0) {                                   \
-			call_stack[call_stack_size - 1].instruction_ptr = ip;    \
-		}                                                            \
-		ip = (fn)->bytecode.instructions;                            \
-		stack_ptr = (&stack[stack_size - 1]) - (fn)->argument_count; \
-		call_stack[call_stack_size].stack_ptr = stack_ptr;           \
-		call_stack[call_stack_size].instruction_ptr = ip;            \
-		call_stack_size++;                                           \
+	#define PUSH_FRAME(fn) {                                           \
+		if (call_stack_size > 0) {                                     \
+			call_stack[call_stack_size - 1].instruction_ptr = ip;      \
+		}                                                              \
+		if (stack_size > 0) {                                          \
+			stack_ptr = &stack[stack_size - 1] - (fn)->argument_count; \
+		} else {                                                       \
+			stack_ptr = &stack[0];                                     \
+		}                                                              \
+		ip = (fn)->bytecode.instructions;                              \
+		call_stack[call_stack_size].stack_ptr = stack_ptr;             \
+		call_stack[call_stack_size].instruction_ptr = ip;              \
+		call_stack_size++;                                             \
 	}
 
 	// Returns from the executing function to the function that called it.

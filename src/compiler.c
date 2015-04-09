@@ -750,8 +750,9 @@ void pop_scope(Compiler *compiler) {
 		compiler->local_count--;
 		i--;
 
-		// Prevent invalid memory access before accessing the local
-		if (i > 0) {
+		// Prevent invalid memory access before accessing the
+		// local
+		if (i >= 0) {
 			local = &compiler->locals[i];
 		}
 	}

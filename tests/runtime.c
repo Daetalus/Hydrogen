@@ -42,6 +42,10 @@ char *files[] = {
 	"while/1.hy",
 	"while/2.hy",
 	"while/3.hy",
+	"while/4.hy",
+	"while/5.hy",
+	"while/6.hy",
+	"while/7.hy",
 };
 
 
@@ -72,12 +76,6 @@ int main(int argc, char *argv[]) {
 		fread(source, size, 1, f);
 		fclose(f);
 		source[size] = '\0';
-
-		// Redirect stdout to a string
-		// char contents[MAX_STDOUT];
-		// memset(&contents[0], 0, MAX_STDOUT * sizeof(char));
-		// freopen("/dev/null", "a", stdout);
-		// setbuf(stdout, contents);
 
 		// Execute the source code
 		hydrogen_run(source);
