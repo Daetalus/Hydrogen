@@ -205,13 +205,7 @@ void operator_addition(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
 		// Concatenate two strings
 		String *left_str = value_to_ptr(left);
 		String *right_str = value_to_ptr(right);
-		size_t size = left_str->length + right_str->length + 1;
-		String *result = string_new(size);
-
-		strcpy(result->contents, left_str->contents);
-		strcpy(&result->contents[left_str->length], right_str->contents);
-		result->length = left_str->length + right_str->length;
-
+		String *result = string_concat(left_str, right_str);
 		PUSH(ptr_to_value(result));
 	} else {
 		vm_crash(vm, "Expected string or number");

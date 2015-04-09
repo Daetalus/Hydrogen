@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "value.h"
+#include "lib/str.h"
 
 
 // Sequentially extracts parts of the source code to help the

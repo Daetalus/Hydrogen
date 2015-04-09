@@ -28,6 +28,7 @@ add_library(
 	src/vm.c
 
 	src/lib/operator.c
+	src/lib/str.c
 )
 
 

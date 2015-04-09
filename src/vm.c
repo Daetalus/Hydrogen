@@ -214,7 +214,7 @@ instructions:
 
 	case CODE_PUSH_STRING: {
 		uint16_t index = READ_2_BYTES();
-		String *copy = string_duplicate(vm->literals[index]);
+		String *copy = string_copy(vm->literals[index]);
 		PUSH(ptr_to_value(copy));
 		goto instructions;
 	}
