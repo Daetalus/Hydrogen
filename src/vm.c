@@ -49,7 +49,7 @@ void vm_compile(VirtualMachine *vm) {
 	fn->name = "main";
 	fn->length = 4;
 	fn->argument_count = 0;
-	bytecode_new(&fn->bytecode, DEFAULT_INSTRUCTION_CAPACITY);
+	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
 
 	// Compile the source code into the function's
 	// bytecode array.

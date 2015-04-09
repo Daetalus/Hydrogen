@@ -10,16 +10,18 @@
 #include "bytecode.h"
 
 
-// Create a new empty bytecode array with the given
-// initial capacity.
-void bytecode_new(Bytecode *bytecode, int initial_capacity) {
-	bytecode->instructions = malloc(initial_capacity * sizeof(uint8_t));
-	bytecode->count = 0;
-	bytecode->capacity = initial_capacity;
+// Returns a new bytecode object with an empty instruction
+// array, with the capacity `capacity`.
+Bytecode bytecode_new(size_t capacity) {
+	Bytecode bytecode;
+	bytecode.instructions = malloc(capacity * sizeof(uint8_t));
+	bytecode.count = 0;
+	bytecode.capacity = capacity;
+	return bytecode;
 }
 
 
-// Free a bytecode array.
+// Free any resources allocated by the bytecode array.
 void bytecode_free(Bytecode *bytecode) {
 	free(bytecode->instructions);
 }
@@ -27,23 +29,22 @@ void bytecode_free(Bytecode *bytecode) {
 
 
 //
-//  Emission
+//  Instruction Emission
 //
 
-// Increases the bytecode's instruction array size by the given
-// amount, potentially resizing the array and modifying the
-// capacity.
+// Increases the bytecode's instruction array size by `amount`,
+// potentially resizing the array and modifying the capacity.
 //
-// Returns the index in the instruction array where the new data
-// should be populated from.
-int resize(Bytecode *bytecode, int amount) {
+// Returns the index in the instructions array where new data
+// should be added at.
+uint32_t resize(Bytecode *bytecode, uint32_t amount) {
 	bytecode->count += amount;
 
 	if (bytecode->count > bytecode->capacity) {
 		// Reisze the array
-		bytecode->capacity *= 1.5;
+		bytecode->capacity *= 2;
 		if (bytecode->capacity < bytecode->count) {
-			bytecode->capacity = bytecode->count * 1.5;
+			bytecode->capacity = bytecode->count * 2;
 		}
 
 		size_t new_size = bytecode->capacity * sizeof(uint8_t);
@@ -54,25 +55,21 @@ int resize(Bytecode *bytecode, int amount) {
 }
 
 
-// Emit a bytecode instruction. Returns the index of the
-// bytecode instruction in the bytecode array.
-int emit(Bytecode *bytecode, uint8_t instruction) {
-	int index = resize(bytecode, 1);
+// Emit `instruction` by appending it to the bytecode's
+// instruction array.
+//
+// Returns the index of the instruction in the instruction
+// array.
+uint32_t emit(Bytecode *bytecode, uint8_t instruction) {
+	uint32_t index = resize(bytecode, 1);
 	bytecode->instructions[index] = instruction;
 	return index;
 }
 
 
-// Emit a 1 byte argument.
-void emit_arg_1(Bytecode *bytecode, uint8_t arg) {
-	int index = resize(bytecode, 1);
-	bytecode->instructions[index] = arg;
-}
-
-
 // Emit a 2 byte argument.
 void emit_arg_2(Bytecode *bytecode, uint16_t arg) {
-	int index = resize(bytecode, 2);
+	uint32_t index = resize(bytecode, 2);
 	bytecode->instructions[index] = arg & 0xff;
 	bytecode->instructions[index + 1] = (arg >> (1 << 3)) & 0xff;
 }
@@ -80,7 +77,7 @@ void emit_arg_2(Bytecode *bytecode, uint16_t arg) {
 
 // Emit a 4 byte argument.
 void emit_arg_4(Bytecode *bytecode, uint32_t arg) {
-	int index = resize(bytecode, 4);
+	uint32_t index = resize(bytecode, 4);
 	bytecode->instructions[index] = arg & 0xff;
 	bytecode->instructions[index + 1] = (arg >> (1 << 3)) & 0xff;
 	bytecode->instructions[index + 2] = (arg >> (2 << 3)) & 0xff;
@@ -90,7 +87,7 @@ void emit_arg_4(Bytecode *bytecode, uint32_t arg) {
 
 // Emit an 8 byte argument.
 void emit_arg_8(Bytecode *bytecode, uint64_t arg) {
-	int index = resize(bytecode, 8);
+	uint32_t index = resize(bytecode, 8);
 	bytecode->instructions[index] = arg & 0xff;
 	bytecode->instructions[index + 1] = (arg >> (1 << 3)) & 0xff;
 	bytecode->instructions[index + 2] = (arg >> (2 << 3)) & 0xff;
@@ -107,24 +104,34 @@ void emit_arg_8(Bytecode *bytecode, uint64_t arg) {
 //  Jumps
 //
 
-// Emit an incomplete jump instruction.
-int emit_jump(Bytecode *bytecode, uint8_t instruction) {
-	int index = emit(bytecode, instruction);
+// Emit an incomplete jump instruction, where the amount to jump
+// is given a dummy value of 0.
+uint32_t emit_jump(Bytecode *bytecode, uint8_t instruction) {
+	uint32_t index = emit(bytecode, instruction);
 	emit_arg_2(bytecode, 0);
 	return index;
 }
 
 
-// Patch a jump instruction at the given index. Will
-// jump to the instruction after the most recent
-// instruction emitted.
-// Assumes we are patching a forward jump.
-void patch_jump(Bytecode *bytecode, int index) {
+// Patch a forward jump instruction at the given index. Changes
+// the address the jump instruction at `index` jumps to, to the
+// most recently emitted bytecode instruction.
+void patch_forward_jump(Bytecode *bytecode, uint32_t index) {
 	// Subtract 3 to account for the jump statement itself.
 	uint16_t amount = bytecode->count - index - 3;
 
-	// Add one to the index initially to skip the actual
+	// Add one to the index initially to skip the actual jump
 	// instruction and start at the 2 byte argument.
 	bytecode->instructions[index + 1] = amount & 0xff;
 	bytecode->instructions[index + 2] = (amount >> (1 << 3)) & 0xff;
+}
+
+
+// Emits a backward jump that jumps to the instruction at
+// `index`.
+void emit_backward_jump(Bytecode *bytecode, uint32_t index) {
+	emit(bytecode, CODE_JUMP_BACK);
+
+	// Add 2 to account for the jump statement itself.
+	emit_arg_2(bytecode, bytecode->count - index + 2);
 }

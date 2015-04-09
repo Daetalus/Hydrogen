@@ -114,8 +114,8 @@
 	fn.name = "test";                         \
 	fn.length = 4;                            \
 	fn.argument_count = 0;                    \
+	fn.bytecode = bytecode_new(64);           \
 	Bytecode *bytecode = &fn.bytecode;        \
-	bytecode_new(bytecode, 10);               \
 	Compiler compiler;                        \
 	compiler.vm = &vm;                        \
 	compiler.fn = &fn;                        \
@@ -131,8 +131,8 @@
 	fn.name = "test";                                 \
 	fn.length = 4;                                    \
 	fn.argument_count = 0;                            \
+	fn.bytecode = bytecode_new(64);                   \
 	Bytecode *bytecode = &fn.bytecode;                \
-	bytecode_new(bytecode, 10);                       \
 	compile(&vm, &fn, TOKEN_END_OF_FILE);             \
 	uint8_t *ip = &bytecode->instructions[0];
 

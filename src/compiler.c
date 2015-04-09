@@ -358,7 +358,7 @@ void if_statement(Compiler *compiler) {
 		// Now that we've added the very last thing to the if
 		// statement's block, we can patch it's conditional to
 		// point here.
-		patch_jump(bytecode, previous_jump);
+		patch_forward_jump(bytecode, previous_jump);
 
 		// Consume the else if token.
 		lexer_consume(lexer);
@@ -382,7 +382,7 @@ void if_statement(Compiler *compiler) {
 		jump_count++;
 
 		// Patch the previous jump statement
-		patch_jump(bytecode, previous_jump);
+		patch_forward_jump(bytecode, previous_jump);
 
 		// Compile the else statement's block.
 		expect(compiler, TOKEN_OPEN_BRACE,
@@ -398,13 +398,13 @@ void if_statement(Compiler *compiler) {
 	if (!had_else && !had_else_if) {
 		// There were no else or else if statements, so the
 		// original if's conditional still hasn't been patched.
-		patch_jump(bytecode, previous_jump);
+		patch_forward_jump(bytecode, previous_jump);
 	}
 
 	// We've compiled the entire statement now, so patch all the
 	// unpatched jump statements to point here.
 	for (int i = 0; i < jump_count; i++) {
-		patch_jump(bytecode, unpatched_jumps[i]);
+		patch_forward_jump(bytecode, unpatched_jumps[i]);
 	}
 }
 
@@ -446,12 +446,11 @@ void while_loop(Compiler *compiler) {
 		"Expected `}` to close while loop block");
 
 	// Insert a jump statement to re-evaluate the condition
-	emit(bytecode, CODE_JUMP_BACK);
-	emit_arg_2(bytecode, bytecode->count - start_of_expression + 2);
+	emit_backward_jump(bytecode, start_of_expression);
 
 	// Patch the conditional jump to point to here (after
 	// the block)
-	patch_jump(bytecode, condition_jump);
+	patch_forward_jump(bytecode, condition_jump);
 }
 
 
@@ -639,7 +638,7 @@ void function_definition(Compiler *compiler) {
 	fn->length = name.length;
 
 	// Compile the function
-	bytecode_new(&fn->bytecode, DEFAULT_INSTRUCTION_CAPACITY);
+	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
 	compile(compiler->vm, fn, TOKEN_CLOSE_BRACE);
 
 	// Consume the closing brace.
