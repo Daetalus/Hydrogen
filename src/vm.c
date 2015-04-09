@@ -14,13 +14,27 @@
 #include "debug.h"
 
 
-// Create a new virtual machine with the given source code.
-// Initializes the VM with default values, and doesn't compile
-// anything.
+// A function call frame, storing information about the functions
+// currently executing.
+typedef struct {
+	// The function's stack pointer, indicating the start of
+	// the function's local variables on the stack.
+	uint64_t *stack_ptr;
+
+	// The saved instruction pointer, pointing into the
+	// function's bytecode instructions array.
+	uint8_t *instruction_ptr;
+} CallFrame;
+
+
+// Create a new virtual machine with `source` as the program's
+// source code.
+//
+// Nothing is compiled or run until `vm_compile` and `vm_run`
+// are called.
 VirtualMachine vm_new(char *source) {
 	VirtualMachine vm;
 	vm.lexer = lexer_new(source);
-	vm.source = source;
 	vm.function_count = 0;
 	vm.literal_count = 0;
 	return vm;
@@ -59,113 +73,33 @@ void vm_compile(VirtualMachine *vm) {
 
 
 //
-//  Function Definitions
-//
-
-// Defines a new function on the virtual machine, returning
-// a pointer to it.
-// Performs no allocation, so the bytecode array for the
-// returned function still needs to be allocated.
-Function * define_bytecode_function(VirtualMachine *vm) {
-	vm->function_count++;
-	return &vm->functions[vm->function_count - 1];
-}
-
-
-// Returns the index of a function with the given name and
-// name length.
-// Returns -1 if the function isn't found.
-int find_function(
-		VirtualMachine *vm,
-		char *name,
-		int length,
-		int argument_count) {
-	for (int i = 0; i < vm->function_count; i++) {
-		Function *fn = &vm->functions[i];
-
-		if (fn->length == length && fn->argument_count == argument_count &&
-				strncmp(fn->name, name, length) == 0) {
-			return i;
-		}
-	}
-
-	return -1;
-}
-
-
-// Returns a function pointer to a library function with the
-// given name and length.
-// Returns NULL if the function isn't found.
-NativeFunction find_native_function(
-		VirtualMachine *vm,
-		char *name,
-		int length,
-		int argument_count) {
-	if (strncmp(name, "print", length) == 0) {
-		if (argument_count == 1) {
-			return &native_print;
-		} else if (argument_count == 2) {
-			return &native_print_2;
-		}
-	} else if (strncmp(name, "assert", length) == 0) {
-		return &native_assert;
-	}
-
-	return NULL;
-}
-
-
-
-//
-//  Errors
-//
-
-// Trigger a runtime error on the virtual machine.
-void vm_crash(VirtualMachine *vm, char *fmt, ...) {
-	va_list args;
-	va_start(args, fmt);
-
-	fprintf(stderr, RED BOLD "error: " WHITE);
-	vfprintf(stderr, fmt, args);
-	fprintf(stderr, "\n" NORMAL);
-
-	va_end(args);
-
-	// Halt the program
-	exit(0);
-}
-
-
-
-//
 //  Execution
 //
 
-// The maximum value stack size.
+// The maximum size of the stack.
 #define MAX_STACK_SIZE 2048
 
-// The maximum call stack size.
+// The maximum size of the function call frame stack.
 #define MAX_CALL_STACK_SIZE 1024
 
 
 // Runs the compiled bytecode.
 void vm_run(VirtualMachine *vm) {
-	// The value stack which the program pushes to.
+	// The stack, where local variables and intermediate values
+	// for operations are stored.
 	uint64_t stack[MAX_STACK_SIZE];
 	int stack_size = 0;
 
-	// The function call frame stack, which maintains
-	// which functions are being executed.
+	// The function call frame stack, where the call stack is
+	// stored (all functions currently being executed).
 	CallFrame call_stack[MAX_CALL_STACK_SIZE];
 	int call_stack_size = 0;
 
-	// The currently executing instruction (ip stands for instruction
-	// pointer).
+	// The currently executing instruction.
 	uint8_t *ip = NULL;
 
-	// The stack pointer of the top most call frame, pointing
-	// to a place on the stack where the function's variables
-	// start.
+	// The stack pointer of the top most call frame, pointing to
+	// a place on the stack where the function's variables start.
 	uint64_t *stack_ptr = NULL;
 
 	// Push a value onto the top of the stack.
@@ -177,8 +111,9 @@ void vm_run(VirtualMachine *vm) {
 	// Evaluates to the value on the top of the stack.
 	#define TOP() stack[stack_size - 1]
 
-	// Pushes a new call frame for `fn` onto the call frame stack.
-	// Updates `ip` and `stack_ptr` with the values for the new function.
+	// Pushes a new call frame for `fn` onto the call frame
+	// stack. Updates `ip` and `stack_ptr` with the values for
+	// the new function.
 	#define PUSH_FRAME(fn) {                                           \
 		if (call_stack_size > 0) {                                     \
 			call_stack[call_stack_size - 1].instruction_ptr = ip;      \
@@ -201,8 +136,9 @@ void vm_run(VirtualMachine *vm) {
 		stack_ptr = call_stack[call_stack_size - 1].stack_ptr;
 
 
-	// Push the main function onto the call stack as the very first
-	// executing function.
+	// Push the main function onto the call stack. The main
+	// function is always the first function in the functions
+	// array.
 	PUSH_FRAME(&vm->functions[0]);
 
 	// Begin execution
@@ -267,7 +203,7 @@ instructions:
 			uint16_t amount = READ_2_BYTES();
 			ip += amount;
 		} else {
-			// Discard the two bytes
+			// Discard the two byte argument
 			READ_2_BYTES();
 		}
 
@@ -289,9 +225,85 @@ instructions:
 
 	case CODE_RETURN:
 		if (call_stack_size == 1) {
+			// Returning from the main function, so halt the
+			// program.
 			break;
 		}
 		POP_FRAME();
 		goto instructions;
 	}
+}
+
+
+
+//
+//  Function Definitions
+//
+
+// Defines a new function on the virtual machine, returning a
+// pointer to it.
+//
+// Performs no allocation, so the returned function's bytecode
+// array still needs to be allocated.
+Function * define_bytecode_function(VirtualMachine *vm) {
+	vm->function_count++;
+	return &vm->functions[vm->function_count - 1];
+}
+
+
+// Returns the index of a user-defined function named `name`.
+//
+// Returns -1 if no function with that name is found.
+int find_function(VirtualMachine *vm, char *name, int length,
+		int argument_count) {
+	for (int i = 0; i < vm->function_count; i++) {
+		Function *fn = &vm->functions[i];
+
+		if (fn->length == length && fn->argument_count == argument_count &&
+				strncmp(fn->name, name, length) == 0) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+
+// Returns a function pointer to a library function named `name`.
+//
+// Returns NULL no function with that name is found.
+NativeFunction find_native_function(VirtualMachine *vm, char *name, int length,
+		int argument_count) {
+	if (strncmp(name, "print", length) == 0) {
+		if (argument_count == 1) {
+			return &native_print;
+		} else if (argument_count == 2) {
+			return &native_print_2;
+		}
+	} else if (strncmp(name, "assert", length) == 0) {
+		return &native_assert;
+	}
+
+	return NULL;
+}
+
+
+
+//
+//  Errors
+//
+
+// Trigger a runtime error on the virtual machine.
+void vm_crash(VirtualMachine *vm, char *fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+
+	fprintf(stderr, RED BOLD "error: " WHITE);
+	vfprintf(stderr, fmt, args);
+	fprintf(stderr, "\n" NORMAL);
+
+	va_end(args);
+
+	// Halt the program
+	exit(0);
 }

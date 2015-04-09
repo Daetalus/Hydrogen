@@ -14,8 +14,6 @@ Incomplete
 * Add static in front of functions used in single file
 * Refactor #defines into C functions
 * Add operator table and parse expressions using it
-* Rename `string_duplicate` to `string_copy`
-* Move String into own library files
 * Add library function interface
 * Remove unnecessary defines
 * Refactor addition operator to remove duplicate code
@@ -38,6 +36,8 @@ Complete
 * Group files into subfolders
 * Separate parser out from lexer
 * Reorder tokens
+* Rename `string_duplicate` to `string_copy`
+* Move String into own library files
 
 
 ## To Do
