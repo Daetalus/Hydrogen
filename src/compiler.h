@@ -113,11 +113,6 @@ void push_number(Compiler *compiler, double number);
 // so the string that will be pushed can be modified.
 String ** push_string(Compiler *compiler);
 
-
-// Returns the function pointer for an operator.
-// Returns NULL if the token is not an operator.
-NativeFunction operator_ptr(TokenType operator);
-
 // Compiles a function call.
 void function_call(Compiler *compiler);
 

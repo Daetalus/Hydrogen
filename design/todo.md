@@ -5,8 +5,6 @@ To Do
 
 ## Refactoring
 
-Incomplete
-
 * Objectify compiler code
 * Prefix functions with class name
 * Add static in front of functions used in single file

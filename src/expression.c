@@ -125,25 +125,25 @@ typedef struct {
 
 
 // Compile a number.
-void number(Compiler *compiler);
+void operand_number(Compiler *compiler);
 
 // Compile an identifier.
-void identifier(Compiler *compiler);
+void operand_identifier(Compiler *compiler);
 
 // Compile a string literal.
-void string_literal(Compiler *compiler);
+void operand_string_literal(Compiler *compiler);
 
 // Compile a sub-expression (surrounded by parentheses).
 void sub_expression(Compiler *compiler);
 
 // Compile a true constant.
-void true_constant(Compiler *compiler);
+void operand_true(Compiler *compiler);
 
 // Compile a false constant.
-void false_constant(Compiler *compiler);
+void operand_false(Compiler *compiler);
 
 // Compile a nil constant.
-void nil_constant(Compiler *compiler);
+void operand_nil(Compiler *compiler);
 
 
 // Expression rules array. The entries in the array are in order
@@ -268,18 +268,18 @@ Rule rules[] = {
 	{RULE_UNUSED},
 
 	// True
-	{RULE_OPERAND, {.operand = {&true_constant}}},
+	{RULE_OPERAND, {.operand = {&operand_true}}},
 	// False
-	{RULE_OPERAND, {.operand = {&false_constant}}},
+	{RULE_OPERAND, {.operand = {&operand_false}}},
 	// Nil
-	{RULE_OPERAND, {.operand = {&nil_constant}}},
+	{RULE_OPERAND, {.operand = {&operand_nil}}},
 
 	// Identifier
-	{RULE_OPERAND, {.operand = {&identifier}}},
+	{RULE_OPERAND, {.operand = {&operand_identifier}}},
 	// Number
-	{RULE_OPERAND, {.operand = {&number}}},
+	{RULE_OPERAND, {.operand = {&operand_number}}},
 	// String
-	{RULE_OPERAND, {.operand = {&string_literal}}},
+	{RULE_OPERAND, {.operand = {&operand_string_literal}}},
 	// Line
 	{RULE_UNUSED},
 	// End of file
@@ -513,7 +513,7 @@ bool next_operator(Lexer *lexer, ExpressionTerminator terminator,
 //
 
 // Compile a number.
-void number(Compiler *compiler) {
+void operand_number(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 	Token number = lexer_consume(lexer);
 	push_number(compiler, number.number);
@@ -521,7 +521,7 @@ void number(Compiler *compiler) {
 
 
 // Compile an identifier.
-void identifier(Compiler *compiler) {
+void operand_identifier(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 	Token identifier = lexer_consume(lexer);
 	push_local(compiler, identifier.location, identifier.length);
@@ -529,7 +529,7 @@ void identifier(Compiler *compiler) {
 
 
 // Compile a string literal.
-void string_literal(Compiler *compiler) {
+void operand_string_literal(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 
 	Token literal = lexer_consume(lexer);
@@ -564,7 +564,7 @@ void sub_expression(Compiler *compiler) {
 
 
 // Compile a true constant.
-void true_constant(Compiler *compiler) {
+void operand_true(Compiler *compiler) {
 	Bytecode *bytecode = &compiler->fn->bytecode;
 	Lexer *lexer = &compiler->vm->lexer;
 	lexer_consume(lexer);
@@ -573,7 +573,7 @@ void true_constant(Compiler *compiler) {
 
 
 // Compile a false constant.
-void false_constant(Compiler *compiler) {
+void operand_false(Compiler *compiler) {
 	Bytecode *bytecode = &compiler->fn->bytecode;
 	Lexer *lexer = &compiler->vm->lexer;
 	lexer_consume(lexer);
@@ -582,7 +582,7 @@ void false_constant(Compiler *compiler) {
 
 
 // Compile a nil constant.
-void nil_constant(Compiler *compiler) {
+void operand_nil(Compiler *compiler) {
 	Bytecode *bytecode = &compiler->fn->bytecode;
 	Lexer *lexer = &compiler->vm->lexer;
 	lexer_consume(lexer);
