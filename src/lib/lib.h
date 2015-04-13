@@ -28,4 +28,8 @@
 // Pushes a number onto the top of the stack.
 #define PUSH_NUMBER(number) PUSH(number_to_value((number)))
 
+
+// Pushes a pointer onto the top of the stack.
+#define PUSH_PTR(ptr) PUSH(ptr_to_value((ptr)))
+
 #endif

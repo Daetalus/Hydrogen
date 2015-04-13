@@ -28,32 +28,36 @@ void operator_addition(uint64_t *stack, int *stack_size) {
 		// Concatenate a string and number
 		String *left_str = value_to_ptr(left);
 		double right_number = value_to_number(right);
-		size_t size = left_str->length + 50;
-		String *result = string_new(size);
+
+		// Add 50 to the size, as a number certainly won't be
+		// longer than 50 digits.
+		String *result = string_new(left_str->length + 50);
 
 		int length = sprintf(result->contents, "%s%.2f", left_str->contents,
 			right_number);
 		result->length = length;
 
-		PUSH(ptr_to_value(result));
+		PUSH_PTR(result);
 	} else if (IS_NUMBER(left) && IS_PTR(right)) {
 		// Concatenate a number and string
 		double left_number = value_to_number(left);
 		String *right_str = value_to_ptr(right);
-		size_t size = right_str->length + 50;
-		String *result = string_new(size);
+
+		// Add 50 to the size, as a number certainly won't be
+		// longer than 50 digits.
+		String *result = string_new(right_str->length + 50);
 
 		int length = sprintf(result->contents, "%.2f%s", left_number,
 			right_str->contents);
 		result->length = length;
 
-		PUSH(ptr_to_value(result));
+		PUSH_PTR(result);
 	} else if (IS_PTR(left) && IS_PTR(right)) {
 		// Concatenate two strings
 		String *left_str = value_to_ptr(left);
 		String *right_str = value_to_ptr(right);
 		String *result = string_concat(left_str, right_str);
-		PUSH(ptr_to_value(result));
+		PUSH_PTR(result);
 	} else {
 		error(-1, "Expected string or number");
 	}
