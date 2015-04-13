@@ -14,7 +14,6 @@ Incomplete
 * Add library function interface
 * Remove unnecessary defines
 * Refactor addition operator to remove duplicate code
-* Refactor while loops to use bytecode interface when emitting backwards jump
 * Completely re-write documentation
 * Remove need to cache conditional patch locations in multiple else if statements
 * Reduce coupling between parts of code. If only needs lexer, only takes lexer as argument
@@ -34,6 +33,7 @@ Complete
 * Refactor `patch_jump` to only accept conditional and forward jump, or to handle backwards jumps
 * Refactor `operator_ptr` to use a dictionary (array), indexed by token
 * Refactor errors into own module
+* Refactor while loops to use bytecode interface when emitting backwards jump
 
 
 ## To Do
