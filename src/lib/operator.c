@@ -8,97 +8,9 @@
 #include <string.h>
 #include <math.h>
 
+#include "../error.h"
 #include "operator.h"
 
-
-//
-//  Operator Functions
-//
-
-// Returns true if the given token is a binary operator.
-bool is_binary_operator(TokenType operator) {
-	return operator == TOKEN_ADDITION           ||
-		operator == TOKEN_SUBTRACTION           ||
-		operator == TOKEN_MULTIPLICATION        ||
-		operator == TOKEN_DIVISION              ||
-		operator == TOKEN_MODULO                ||
-
-		operator == TOKEN_BOOLEAN_AND           ||
-		operator == TOKEN_BOOLEAN_OR            ||
-		operator == TOKEN_EQUAL                 ||
-		operator == TOKEN_NOT_EQUAL             ||
-		operator == TOKEN_LESS_THAN             ||
-		operator == TOKEN_LESS_THAN_EQUAL_TO    ||
-		operator == TOKEN_GREATER_THAN          ||
-		operator == TOKEN_GREATER_THAN_EQUAL_TO ||
-
-		operator == TOKEN_LEFT_SHIFT            ||
-		operator == TOKEN_RIGHT_SHIFT           ||
-		operator == TOKEN_BITWISE_AND           ||
-		operator == TOKEN_BITWISE_OR            ||
-		operator == TOKEN_BITWISE_XOR;
-}
-
-
-// Returns the precedence of an operator.
-int operator_precedence(TokenType operator) {
-	switch(operator) {
-	case TOKEN_NEGATION:
-	case TOKEN_BITWISE_NOT:
-	case TOKEN_BOOLEAN_NOT:
-		return 11;
-
-	case TOKEN_MULTIPLICATION:
-	case TOKEN_DIVISION:
-	case TOKEN_MODULO:
-		return 10;
-
-	case TOKEN_ADDITION:
-	case TOKEN_SUBTRACTION:
-		return 9;
-
-	case TOKEN_LEFT_SHIFT:
-	case TOKEN_RIGHT_SHIFT:
-		return 8;
-
-	case TOKEN_LESS_THAN:
-	case TOKEN_LESS_THAN_EQUAL_TO:
-	case TOKEN_GREATER_THAN:
-	case TOKEN_GREATER_THAN_EQUAL_TO:
-		return 7;
-
-	case TOKEN_EQUAL:
-	case TOKEN_NOT_EQUAL:
-		return 6;
-
-	case TOKEN_BITWISE_AND:
-		return 5;
-	case TOKEN_BITWISE_XOR:
-		return 4;
-	case TOKEN_BITWISE_OR:
-		return 3;
-	case TOKEN_BOOLEAN_AND:
-		return 2;
-	case TOKEN_BOOLEAN_OR:
-		return 1;
-
-	default:
-		return -1;
-	}
-}
-
-
-// Returns the associativity of an operator.
-Associativity operator_associativity(TokenType operator) {
-	// No right associative operators at the moment.
-	return ASSOCIATIVITY_LEFT;
-}
-
-
-
-//
-//  Stack Modifiers
-//
 
 // Pops an argument from the stack.
 #define POP() ((*stack_size)--, stack[*stack_size])
@@ -110,11 +22,11 @@ Associativity operator_associativity(TokenType operator) {
 
 // Pops a numerical argument from the stack, triggering
 // a runtime error if it isn't a number.
-#define POP_NUMBER(name)                 \
-	uint64_t value_##name = POP();       \
-	if (!IS_NUMBER(value_##name)) {      \
-		vm_crash(vm, "Expected number"); \
-	}                                    \
+#define POP_NUMBER(name)              \
+	uint64_t value_##name = POP();    \
+	if (!IS_NUMBER(value_##name)) {   \
+		error(-1, "Expected number"); \
+	}                                 \
 	double name = value_to_number(value_##name);
 
 
@@ -142,7 +54,7 @@ void native_print(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
 	} else if (IS_NIL(arg)) {
 		printf("nil\n");
 	} else {
-		vm_crash(vm, "Unexpected argument to `print`");
+		error(-1, "Unexpected argument to `print`");
 	}
 }
 
@@ -159,8 +71,7 @@ void native_assert(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
 
 	if (IS_FALSE(arg) || IS_NIL(arg)) {
 		// Exit forcefully
-		fprintf(stderr, RED BOLD "assertion failed\n" NORMAL);
-		exit(1);
+		error(-1, "Assertion failed.");
 	}
 }
 
@@ -208,7 +119,7 @@ void operator_addition(VirtualMachine *vm, uint64_t *stack, int *stack_size) {
 		String *result = string_concat(left_str, right_str);
 		PUSH(ptr_to_value(result));
 	} else {
-		vm_crash(vm, "Expected string or number");
+		error(-1, "Expected string or number");
 	}
 }
 

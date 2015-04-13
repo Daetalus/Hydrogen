@@ -20,6 +20,7 @@ add_library(
 	src/hydrogen.c
 	src/bytecode.c
 	src/compiler.c
+	src/error.c
 	src/debug.c
 	src/expression.c
 	src/lexer.c

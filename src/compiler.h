@@ -118,21 +118,7 @@ String ** push_string(Compiler *compiler);
 // Returns NULL if the token is not an operator.
 NativeFunction operator_ptr(TokenType operator);
 
-// Emits a call to a native function.
-void emit_native(Compiler *compiler, NativeFunction fn);
-
 // Compiles a function call.
 void function_call(Compiler *compiler);
-
-
-// Triggers the given error on the compiler.
-void error(Compiler *compiler, char *fmt, ...);
-
-// Consumes the next token, triggering an error with the given
-// message if it isn't of the expected type.
-//
-// Returns the consumed token if successful, or NULL if the token
-// was of an unexpected type.
-Token expect(Compiler *compiler, TokenType expected, char *message);
 
 #endif

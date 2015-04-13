@@ -7,25 +7,7 @@
 #ifndef OPERATORS_H
 #define OPERATORS_H
 
-#include "../lexer.h"
 #include "../vm.h"
-
-
-// Operator associativity.
-typedef enum {
-	ASSOCIATIVITY_LEFT,
-	ASSOCIATIVITY_RIGHT,
-} Associativity;
-
-
-// Returns true if the given token is a binary operator.
-bool is_binary_operator(TokenType operator);
-
-// Returns the precedence of an operator.
-int operator_precedence(TokenType operator);
-
-// Returns the associativity of an operator.
-Associativity operator_associativity(TokenType operator);
 
 
 // Defines a native function.

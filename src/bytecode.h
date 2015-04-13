@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include "value.h"
+
 
 // The default size of the bytecode's instructions array.
 #define DEFAULT_INSTRUCTIONS_CAPACITY 512
@@ -184,6 +186,7 @@ Bytecode bytecode_new(size_t capacity);
 // Free any resources allocated by the bytecode array.
 void bytecode_free(Bytecode *bytecode);
 
+
 // Emit `instruction` by appending it to the bytecode's
 // instruction array.
 //
@@ -200,6 +203,7 @@ void emit_arg_4(Bytecode *bytecode, uint32_t arg);
 // Emit an 8 byte argument.
 void emit_arg_8(Bytecode *bytecode, uint64_t arg);
 
+
 // Emit an incomplete jump instruction, where the amount to jump
 // is given a dummy value of 0.
 uint32_t emit_jump(Bytecode *bytecode, uint8_t instruction);
@@ -212,5 +216,12 @@ void patch_forward_jump(Bytecode *bytecode, uint32_t index);
 // Emits a backward jump that jumps to the instruction at
 // `index`.
 void emit_backward_jump(Bytecode *bytecode, uint32_t index);
+
+
+// Emits a call to a native function.
+void emit_native(Bytecode *bytecode, void *fn);
+
+// Emits a call to a user function.
+void emit_bytecode_call(Bytecode *bytecode, uint16_t index);
 
 #endif

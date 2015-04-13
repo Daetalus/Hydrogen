@@ -10,6 +10,7 @@
 
 #include "../include/hydrogen.h"
 #include "../src/vm.h"
+#include "../src/error.h"
 
 
 // The maximum number of characters that can be outputted by

@@ -12,6 +12,7 @@
 #include "lib/operator.h"
 #include "expression.h"
 #include "compiler.h"
+#include "error.h"
 
 
 // The maximum number of else if statements that are allowed to
@@ -33,7 +34,6 @@ bool match_while_loop(Compiler *compiler);
 void while_loop(Compiler *compiler);
 
 bool match_function_call(Compiler *compiler);
-void emit_bytecode_call(Compiler *compiler, int index);
 
 bool match_function_definition(Compiler *compiler);
 void function_definition(Compiler *compiler);
@@ -113,10 +113,6 @@ void block(Compiler *compiler, TokenType terminator) {
 
 // Compile a single statement. A statement is effectively one
 // line of code.
-//
-// Possible statements include:
-// * Variable assignment
-// * If statements
 void statement(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 
@@ -134,9 +130,9 @@ void statement(Compiler *compiler) {
 	} else if (match_function_definition(compiler)) {
 		function_definition(compiler);
 	} else {
-		Token current = lexer_current(lexer);
-		error(compiler, "Unrecognized statement beginning with `%.*s`",
-			current.length, current.location);
+		Token token = lexer_current(lexer);
+		error(lexer->line, "Unrecognized statement beginning with `%.*s`",
+			token.length, token.location);
 	}
 }
 
@@ -184,7 +180,7 @@ void variable_assignment(Compiler *compiler) {
 	lexer_disable_newlines(lexer);
 
 	// Expect an identifier (the variable's name).
-	Token name = expect(compiler, TOKEN_IDENTIFIER,
+	Token name = expect(lexer, TOKEN_IDENTIFIER,
 		"Expected variable name");
 	if (name.type == TOKEN_NONE) {
 		return;
@@ -195,12 +191,12 @@ void variable_assignment(Compiler *compiler) {
 	if (is_new_var && index != -1) {
 		// We're trying to create a new variable using a variable
 		// name that's already taken.
-		error(compiler, "Variable name `%.*s` already taken in assignment",
+		error(lexer->line, "Variable name `%.*s` already taken in assignment",
 			name.length, name.location);
 	} else if (!is_new_var && index == -1) {
 		// We're trying to assign a new value to a variable that
 		// doesn't exist.
-		error(compiler, "Variable `%.*s` doesn't exist in assignment",
+		error(lexer->line, "Variable `%.*s` doesn't exist in assignment",
 			name.length, name.location);
 	}
 
@@ -219,13 +215,13 @@ void variable_assignment(Compiler *compiler) {
 	} else if (lexer_match(lexer, TOKEN_ASSIGNMENT)) {
 		// No modification needed
 	} else {
-		error(compiler, "Expected `=` after variable name in assignment");
+		error(lexer->line, "Expected `=` after variable name in assignment");
 	}
 	lexer_consume(lexer);
 
 	// Disallow modifier operators on new variables
 	if (is_new_var && fn != NULL) {
-		error(compiler, "Expected `=` after variable name in assignment");
+		error(lexer->line, "Expected `=` after variable name in assignment");
 	}
 
 	if (fn != NULL) {
@@ -237,11 +233,12 @@ void variable_assignment(Compiler *compiler) {
 	// that will leave the resulting expression on top of the
 	// stack.
 	lexer_enable_newlines(lexer);
-	expression(compiler, TOKEN_LINE);
+	expression(compiler, NULL);
 
 	if (fn != NULL) {
 		// Push the modifier function itself.
-		emit_native(compiler, fn);
+		Bytecode *bytecode = &compiler->fn->bytecode;
+		emit_native(bytecode, fn);
 	}
 
 	// Emit the bytecode to store the item that's on the top of
@@ -277,6 +274,13 @@ bool match_if_statement(Compiler *compiler) {
 }
 
 
+// Returns true when an if statement's or while loop's
+// conditional expression should be terminated.
+bool should_terminate_at_open_brace(Token token) {
+	return token.type == TOKEN_OPEN_BRACE;
+}
+
+
 // Compile the part of an if or else if statement where we have a
 // conditional expression followed by a block. Emits bytecode for
 // the expression, a conditional jump and code for the block.
@@ -288,13 +292,14 @@ bool match_if_statement(Compiler *compiler) {
 // patched after the final jump statement (after an if or else if
 // to jump to the end of entire statement).
 int if_condition_and_block(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
 	// Expect an expression, terminated by the opening brace of
 	// the block.
 	// Leaves the result of the conditional expression on the top
 	// of the stack.
-	expression(compiler, TOKEN_OPEN_BRACE);
+	expression(compiler, &should_terminate_at_open_brace);
 
 	// Emit a conditional jump instruction with a default
 	// argument.
@@ -304,7 +309,7 @@ int if_condition_and_block(Compiler *compiler) {
 
 	// Consume the opening brace of the if statement's block.
 	lexer_disable_newlines(&compiler->vm->lexer);
-	expect(compiler, TOKEN_OPEN_BRACE,
+	expect(lexer, TOKEN_OPEN_BRACE,
 		"Expected `{` after conditional expression in if statement");
 
 	// Compile the block.
@@ -312,7 +317,7 @@ int if_condition_and_block(Compiler *compiler) {
 	block(compiler, TOKEN_CLOSE_BRACE);
 
 	// Consume the closing brace.
-	expect(compiler, TOKEN_CLOSE_BRACE,
+	expect(lexer, TOKEN_CLOSE_BRACE,
 		"Expected `}` to close if statement block");
 
 	return jump;
@@ -385,11 +390,11 @@ void if_statement(Compiler *compiler) {
 		patch_forward_jump(bytecode, previous_jump);
 
 		// Compile the else statement's block.
-		expect(compiler, TOKEN_OPEN_BRACE,
+		expect(lexer, TOKEN_OPEN_BRACE,
 			"Expected `{` after `else`");
 		lexer_enable_newlines(lexer);
 		block(compiler, TOKEN_CLOSE_BRACE);
-		expect(compiler, TOKEN_CLOSE_BRACE,
+		expect(lexer, TOKEN_CLOSE_BRACE,
 			"Expected `}` to close else statement block");
 	} else {
 		lexer_enable_newlines(lexer);
@@ -431,18 +436,18 @@ void while_loop(Compiler *compiler) {
 
 	// Compile the expression
 	int start_of_expression = bytecode->count;
-	expression(compiler, TOKEN_OPEN_BRACE);
+	expression(compiler, &should_terminate_at_open_brace);
 	lexer_disable_newlines(lexer);
 
 	// Jump conditionally
 	int condition_jump = emit_jump(bytecode, CODE_JUMP_IF_NOT);
 
 	// Compile the block.
-	expect(compiler, TOKEN_OPEN_BRACE,
+	expect(lexer, TOKEN_OPEN_BRACE,
 		"Expected `{` after expression in while loop");
 	lexer_enable_newlines(lexer);
 	block(compiler, TOKEN_CLOSE_BRACE);
-	expect(compiler, TOKEN_CLOSE_BRACE,
+	expect(lexer, TOKEN_CLOSE_BRACE,
 		"Expected `}` to close while loop block");
 
 	// Insert a jump statement to re-evaluate the condition
@@ -474,13 +479,21 @@ bool match_function_call(Compiler *compiler) {
 }
 
 
+// Returns true if the token should terminate a function call
+// argument.
+bool should_terminate_function_call(Token token) {
+	return token.type == TOKEN_COMMA ||
+		token.type == TOKEN_CLOSE_PARENTHESIS;
+}
+
+
 // Compiles the arguments to a function call.
 int function_call_arguments(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 
 	// Consume the opening parenthesis
 	lexer_disable_newlines(lexer);
-	expect(compiler, TOKEN_OPEN_PARENTHESIS,
+	expect(lexer, TOKEN_OPEN_PARENTHESIS,
 		"Expected `(` to begin function call arguments");
 
 	// Consume expressions separated by commas.
@@ -488,7 +501,7 @@ int function_call_arguments(Compiler *compiler) {
 	if (!lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
 		while (1) {
 			lexer_enable_newlines(lexer);
-			expression(compiler, TOKEN_COMMA);
+			expression(compiler, &should_terminate_function_call);
 			lexer_disable_newlines(lexer);
 			count++;
 
@@ -502,7 +515,7 @@ int function_call_arguments(Compiler *compiler) {
 			} else {
 				// Unrecognised operator
 				Token token = lexer_current(lexer);
-				error(compiler,
+				error(lexer->line,
 					"Unexpected `%.*s` in arguments to function call.",
 					token.length, token.location);
 			}
@@ -531,7 +544,8 @@ void function_call(Compiler *compiler) {
 	int index = find_function(compiler->vm, name.location, name.length,
 		argument_count);
 	if (index != -1) {
-		emit_bytecode_call(compiler, index);
+		Bytecode *bytecode = &compiler->fn->bytecode;
+		emit_bytecode_call(bytecode, index);
 		return;
 	}
 
@@ -539,12 +553,14 @@ void function_call(Compiler *compiler) {
 	NativeFunction fn = find_native_function(compiler->vm,
 		name.location, name.length, argument_count);
 	if (fn != NULL) {
-		emit_native(compiler, fn);
+		Bytecode *bytecode = &compiler->fn->bytecode;
+		emit_native(bytecode, fn);
 		return;
 	}
 
 	// Undefined function if we reach here
-	error(compiler, "Undefined function `%.*s`", name.length, name.location);
+	error(lexer->line, "Undefined function `%.*s`",
+		name.length, name.location);
 }
 
 
@@ -569,11 +585,11 @@ void function_definition(Compiler *compiler) {
 
 	// Expect the function name identifier.
 	lexer_disable_newlines(lexer);
-	Token name = expect(compiler, TOKEN_IDENTIFIER,
+	Token name = expect(lexer, TOKEN_IDENTIFIER,
 		"Expected identifier after `fn` keyword");
 
 	// Expect the opening token to the arguments list
-	expect(compiler, TOKEN_OPEN_PARENTHESIS,
+	expect(lexer, TOKEN_OPEN_PARENTHESIS,
 		"Expected `(` after name in function definition.");
 
 	// Compile the arguments list
@@ -590,7 +606,7 @@ void function_definition(Compiler *compiler) {
 	if (!lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
 		while (1) {
 			// Expect an identifier, the function argument
-			Token name = expect(compiler, TOKEN_IDENTIFIER,
+			Token name = expect(lexer, TOKEN_IDENTIFIER,
 				"Expected argument name in function argument list");
 
 			int index = fn->argument_count;
@@ -606,7 +622,7 @@ void function_definition(Compiler *compiler) {
 				break;
 			} else {
 				Token token = lexer_peek(lexer, 1);
-				error(compiler,
+				error(lexer->line,
 					"Unexpected `%.*s` in arguments to function definition",
 					token.length, token.location);
 			}
@@ -617,20 +633,20 @@ void function_definition(Compiler *compiler) {
 	}
 
 	// Expect the opening brace to the function block.
-	expect(compiler, TOKEN_OPEN_BRACE, "Expected `{` to begin function block");
+	expect(lexer, TOKEN_OPEN_BRACE, "Expected `{` to begin function block");
 
 	// Check the function isn't already defined.
 	int index = find_function(compiler->vm, name.location, name.length,
 		fn->argument_count);
 	if (index != -1) {
-		error(compiler, "Function `%.*s` is already defined",
+		error(lexer->line, "Function `%.*s` is already defined",
 			name.length, name.location);
 	}
 
 	NativeFunction ptr = find_native_function(compiler->vm, name.location,
 		name.length, fn->argument_count);
 	if (ptr != NULL) {
-		error(compiler, "Function `%.*s` is already defined in a library",
+		error(lexer->line, "Function `%.*s` is already defined in a library",
 			name.length, name.location);
 	}
 
@@ -638,11 +654,12 @@ void function_definition(Compiler *compiler) {
 	fn->length = name.length;
 
 	// Compile the function
+	lexer_enable_newlines(lexer);
 	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
 	compile(compiler->vm, fn, TOKEN_CLOSE_BRACE);
 
 	// Consume the closing brace.
-	expect(compiler, TOKEN_CLOSE_BRACE,
+	expect(lexer, TOKEN_CLOSE_BRACE,
 		"Expected `}` to close function block.");
 }
 
@@ -651,68 +668,6 @@ void function_definition(Compiler *compiler) {
 //
 //  Function Call Emission
 //
-
-// Returns the function pointer for an operator.
-// Returns NULL if the token is not an operator.
-NativeFunction operator_ptr(TokenType operator) {
-	#define OPERATOR_CASE(token, function) \
-		case token:                        \
-			return &function;
-
-	switch(operator) {
-		// Mathematical Operators
-		OPERATOR_CASE(TOKEN_ADDITION, operator_addition)
-		OPERATOR_CASE(TOKEN_SUBTRACTION, operator_subtraction)
-		OPERATOR_CASE(TOKEN_MULTIPLICATION, operator_multiplication)
-		OPERATOR_CASE(TOKEN_DIVISION, operator_division)
-		OPERATOR_CASE(TOKEN_MODULO, operator_modulo)
-		OPERATOR_CASE(TOKEN_NEGATION, operator_negation)
-
-		// Boolean Operators
-		OPERATOR_CASE(TOKEN_BOOLEAN_AND, operator_boolean_and)
-		OPERATOR_CASE(TOKEN_BOOLEAN_OR, operator_boolean_or)
-		OPERATOR_CASE(TOKEN_BOOLEAN_NOT, operator_boolean_not)
-		OPERATOR_CASE(TOKEN_EQUAL, operator_equal)
-		OPERATOR_CASE(TOKEN_NOT_EQUAL, operator_not_equal)
-
-		OPERATOR_CASE(TOKEN_LESS_THAN,
-			operator_less_than)
-		OPERATOR_CASE(TOKEN_LESS_THAN_EQUAL_TO,
-			operator_less_than_equal_to)
-		OPERATOR_CASE(TOKEN_GREATER_THAN,
-			operator_greater_than)
-		OPERATOR_CASE(TOKEN_GREATER_THAN_EQUAL_TO,
-			operator_greater_than_equal_to)
-
-		// Bitwise Operators
-		OPERATOR_CASE(TOKEN_LEFT_SHIFT, operator_left_shift)
-		OPERATOR_CASE(TOKEN_RIGHT_SHIFT, operator_right_shift)
-		OPERATOR_CASE(TOKEN_BITWISE_AND, operator_bitwise_and)
-		OPERATOR_CASE(TOKEN_BITWISE_OR, operator_bitwise_or)
-		OPERATOR_CASE(TOKEN_BITWISE_NOT, operator_bitwise_not)
-		OPERATOR_CASE(TOKEN_BITWISE_XOR, operator_bitwise_xor)
-
-		// If we don't recognise the operator, just return.
-		default:
-			return NULL;
-	}
-}
-
-
-// Emits a call to a native function.
-void emit_native(Compiler *compiler, NativeFunction fn) {
-	Bytecode *bytecode = &compiler->fn->bytecode;
-	emit(bytecode, CODE_CALL_NATIVE);
-	emit_arg_8(bytecode, ptr_to_value(fn));
-}
-
-
-// Emits a call to a user function.
-void emit_bytecode_call(Compiler *compiler, int index) {
-	Bytecode *bytecode = &compiler->fn->bytecode;
-	emit(bytecode, CODE_CALL);
-	emit_arg_2(bytecode, index);
-}
 
 
 
@@ -790,9 +745,11 @@ int find_local(Compiler *compiler, char *name, int length) {
 uint16_t define_local(Compiler *compiler, char *name, int length) {
 	// Check for overflow
 	if (compiler->local_count + 1 > MAX_LOCALS) {
+		Lexer *lexer = &compiler->vm->lexer;
+
 		// We've used up as many locals as we're allowed, so
 		// trigger an error.
-		error(compiler, "Cannot have more than %d locals in scope",
+		error(lexer->line, "Cannot have more than %d locals in scope",
 			MAX_LOCALS);
 	}
 
@@ -822,7 +779,8 @@ void push_local(Compiler *compiler, char *name, int length) {
 
 	// Check for an undefined variable.
 	if (index == -1) {
-		error(compiler, "Undefined variable `%.*s`", length, name);
+		Lexer *lexer = &compiler->vm->lexer;
+		error(lexer->line, "Undefined variable `%.*s`", length, name);
 	}
 
 	push_local_at_index(compiler, index);
@@ -851,52 +809,4 @@ String ** push_string(Compiler *compiler) {
 	emit(bytecode, CODE_PUSH_STRING);
 	emit_arg_2(bytecode, index);
 	return &compiler->vm->literals[index];
-}
-
-
-
-//
-//  Error Handling
-//
-
-// Triggers the given error on the compiler.
-void error(Compiler *compiler, char *fmt, ...) {
-	// Print the error
-	va_list args;
-	va_start(args, fmt);
-
-	int line = compiler->vm->lexer.line;
-	fprintf(stderr, RED BOLD "error " WHITE "line %d: ", line);
-	vfprintf(stderr, fmt, args);
-	fprintf(stderr, NORMAL "\n");
-
-	va_end(args);
-
-	// Halt the program
-	exit(0);
-}
-
-
-// Consumes the next token, triggering an error with the given
-// message if it isn't of the expected type.
-//
-// Returns the consumed token if successful, or NULL if the token
-// was of an unexpected type.
-Token expect(Compiler *compiler, TokenType expected, char *message) {
-	Lexer *lexer = &compiler->vm->lexer;
-	Token token = lexer_consume(lexer);
-
-	// If the consumed token is of an unexpected type.
-	if (token.type != expected) {
-		// Trigger the error message.
-		error(compiler, message);
-
-		// Return a none token
-		Token token;
-		token.type = TOKEN_NONE;
-		return token;
-	} else {
-		// The token was what we expected, so return it.
-		return token;
-	}
 }

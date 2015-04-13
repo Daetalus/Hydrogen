@@ -12,18 +12,6 @@
 #include "value.h"
 
 
-// Color codes
-#define NORMAL  "\x1B[0m"
-#define BOLD    "\x1B[1m"
-#define RED     "\x1B[31m"
-#define GREEN   "\x1B[32m"
-#define YELLOW  "\x1B[33m"
-#define BLUE    "\x1B[34m"
-#define MAGENTA "\x1B[35m"
-#define CYAN    "\x1B[36m"
-#define WHITE   "\x1B[37m"
-
-
 // The maximum number of functions a program can define.
 #define MAX_FUNCTIONS 1024
 
@@ -133,11 +121,7 @@ int find_function(VirtualMachine *vm, char *name, int length,
 // Returns a function pointer to a library function named `name`.
 //
 // Returns NULL no function with that name is found.
-NativeFunction find_native_function(VirtualMachine *vm, char *name, int length,
-	int argument_count);
-
-
-// Triggers a runtime error on the virtual machine.
-void vm_crash(VirtualMachine *vm, char *fmt, ...);
+NativeFunction find_native_function(VirtualMachine *vm, char *name,
+	int length, int argument_count);
 
 #endif

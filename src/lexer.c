@@ -285,7 +285,7 @@ bool keyword_two(Parser *parser, Token *token,
 
 
 // Potentially consumes a number, returning true if one was.
-bool number(Parser *parser, Token *token) {
+bool parse_number(Parser *parser, Token *token) {
 	if (is_digit(parser_current(parser))) {
 		token->type = TOKEN_NUMBER;
 
@@ -307,7 +307,7 @@ bool number(Parser *parser, Token *token) {
 
 // Potentially consumes a string literal, returning true if one
 // was.
-bool string_literal(Parser *parser, Token *token) {
+bool parse_string_literal(Parser *parser, Token *token) {
 	if (is_quotation_mark(parser_current(parser))) {
 		token->type = TOKEN_STRING;
 		token->location = parser_consume_literal(parser, &token->length);
@@ -323,7 +323,7 @@ bool string_literal(Parser *parser, Token *token) {
 
 
 // Potentially consumes an identifier, returning true if one was.
-bool identifier(Parser *parser, Token *token) {
+bool parse_identifier(Parser *parser, Token *token) {
 	if (is_identifier_start(parser_current(parser))) {
 		token->type = TOKEN_IDENTIFIER;
 		token->location = parser_consume_identifier(parser, &token->length);
@@ -473,15 +473,15 @@ Token lexer_next(Lexer *lexer) {
 		KEYWORD_TWO("else", "if", TOKEN_ELSE_IF)
 		KEYWORD("else", TOKEN_ELSE)
 
-		if (number(parser, &result)) {
+		if (parse_number(parser, &result)) {
 			break;
 		}
 
-		if (string_literal(parser, &result)) {
+		if (parse_string_literal(parser, &result)) {
 			break;
 		}
 
-		if (identifier(parser, &result)) {
+		if (parse_identifier(parser, &result)) {
 			break;
 		}
 

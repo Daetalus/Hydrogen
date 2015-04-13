@@ -83,7 +83,7 @@ END()
 
 
 START(if_statement_one) {
-	COMPILER("if 1 + 2 > 3 {let testing = 3}");
+	COMPILER("if 1 + 2 > 3 {let testing = 3\n}");
 
 	ASSERT_NUMBER_PUSH(1.0);
 	ASSERT_NUMBER_PUSH(2.0);
@@ -160,7 +160,7 @@ END()
 
 
 START(while_loop_one) {
-	COMPILER("while 1 {let test = 3}");
+	COMPILER("while 1 {let test = 3\n}");
 
 	// Conditional
 	ASSERT_NUMBER_PUSH(1.0);
@@ -302,7 +302,7 @@ END()
 
 
 START(function_definition_four) {
-	VM("\nfn\n test(\n\rarg\n\r)\n\r {\n\rprint(arg)} test('hello')");
+	VM("\nfn\n test(\n\rarg\n\r)\n\r {\n\rprint(arg)\n} test('hello')");
 
 	// main
 	USE_FUNCTION(0);

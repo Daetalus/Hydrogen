@@ -286,24 +286,3 @@ NativeFunction find_native_function(VirtualMachine *vm, char *name, int length,
 
 	return NULL;
 }
-
-
-
-//
-//  Errors
-//
-
-// Trigger a runtime error on the virtual machine.
-void vm_crash(VirtualMachine *vm, char *fmt, ...) {
-	va_list args;
-	va_start(args, fmt);
-
-	fprintf(stderr, RED BOLD "error: " WHITE);
-	vfprintf(stderr, fmt, args);
-	fprintf(stderr, "\n" NORMAL);
-
-	va_end(args);
-
-	// Halt the program
-	exit(0);
-}

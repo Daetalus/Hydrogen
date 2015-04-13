@@ -108,20 +108,20 @@
 //
 
 
-#define EXPRESSION(content)                   \
-	VirtualMachine vm = vm_new((content));    \
-	Function fn;                              \
-	fn.name = "test";                         \
-	fn.length = 4;                            \
-	fn.argument_count = 0;                    \
-	fn.bytecode = bytecode_new(64);           \
-	Bytecode *bytecode = &fn.bytecode;        \
-	Compiler compiler;                        \
-	compiler.vm = &vm;                        \
-	compiler.fn = &fn;                        \
-	compiler.local_count = 0;                 \
-	compiler.scope_depth = 0;                 \
-	expression(&compiler, TOKEN_END_OF_FILE); \
+#define EXPRESSION(content)                \
+	VirtualMachine vm = vm_new((content)); \
+	Function fn;                           \
+	fn.name = "test";                      \
+	fn.length = 4;                         \
+	fn.argument_count = 0;                 \
+	fn.bytecode = bytecode_new(64);        \
+	Bytecode *bytecode = &fn.bytecode;     \
+	Compiler compiler;                     \
+	compiler.vm = &vm;                     \
+	compiler.fn = &fn;                     \
+	compiler.local_count = 0;              \
+	compiler.scope_depth = 0;              \
+	expression(&compiler, NULL);           \
 	uint8_t *ip = &bytecode->instructions[0];
 
 

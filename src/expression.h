@@ -7,22 +7,24 @@
 #ifndef EXPRESSION_H
 #define EXPRESSION_H
 
+#include <stdbool.h>
+
 #include "compiler.h"
 
 
-// Generates bytecode for evaluating an expression, leaving the
-// resulting value on the top of the stack.
+// The function definition for an expression terminator.
+typedef bool (*ExpressionTerminator)(Token token);
+
+
+// Generates bytecode to evaluate an expression parsed from the
+// compiler's lexer. Leaves the result of the expression on the
+// top of the stack.
 //
-// Uses a Pratt parser to compile the expression. Triggers an
-// error on the compiler if the expression fails to parse.
+// Stops parsing when `terminator` returns true. If `terminator`
+// is NULL, then terminates the expression at a newline.
 //
-// The expression stops parsing when it reaches the terminator
-// token. If the terminator is a new line token, and we could
-// continue successfully parsing the expression on the next line,
-// then parsing continues.
-//
-// The terminator token is not consumed.
-void expression(Compiler *compiler, TokenType terminator);
+// Triggers an error if the expression fails to parse.
+void expression(Compiler *compiler, ExpressionTerminator terminator);
 
 
 #endif

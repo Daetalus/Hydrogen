@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "value.h"
 #include "bytecode.h"
 
 
@@ -134,4 +135,23 @@ void emit_backward_jump(Bytecode *bytecode, uint32_t index) {
 
 	// Add 2 to account for the jump statement itself.
 	emit_arg_2(bytecode, bytecode->count - index + 2);
+}
+
+
+
+//
+//  Function Calls
+//
+
+// Emits a call to a native function.
+void emit_native(Bytecode *bytecode, void *fn) {
+	emit(bytecode, CODE_CALL_NATIVE);
+	emit_arg_8(bytecode, ptr_to_value(fn));
+}
+
+
+// Emits a call to a user function.
+void emit_bytecode_call(Bytecode *bytecode, uint16_t index) {
+	emit(bytecode, CODE_CALL);
+	emit_arg_2(bytecode, index);
 }
