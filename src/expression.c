@@ -516,7 +516,7 @@ bool next_operator(Lexer *lexer, ExpressionTerminator terminator,
 void operand_number(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 	Token number = lexer_consume(lexer);
-	push_number(compiler, number.number);
+	emit_push_number(&compiler->fn->bytecode, number.number);
 }
 
 

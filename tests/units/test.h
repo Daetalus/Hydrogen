@@ -164,8 +164,8 @@
 	ASSERT_STR_EQ(vm.literals[index]->contents, str);
 
 
-#define ASSERT_VARIABLE_PUSH(slot)              \
-	ASSERT_EQ(READ_BYTE(), CODE_PUSH_VARIABLE); \
+#define ASSERT_VARIABLE_PUSH(slot)           \
+	ASSERT_EQ(READ_BYTE(), CODE_PUSH_LOCAL); \
 	ASSERT_EQ(READ_2_BYTES(), slot);
 
 

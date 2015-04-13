@@ -94,7 +94,7 @@ typedef enum {
 	// Arguments:
 	// * 2 bytes - the index in the stack of the variable to
 	//   push.
-	CODE_PUSH_VARIABLE,
+	CODE_PUSH_LOCAL,
 
 	// Pops an item off the top of the stack.
 	//
@@ -171,17 +171,17 @@ typedef struct {
 	uint8_t *instructions;
 
 	// The number of instructions in the bytecode array.
-	size_t count;
+	int count;
 
 	// The capacity of the bytecode array (total amount of
 	// memory allocated for the array).
-	size_t capacity;
+	int capacity;
 } Bytecode;
 
 
 // Returns a new bytecode object with an empty instruction
 // array, with the capacity `capacity`.
-Bytecode bytecode_new(size_t capacity);
+Bytecode bytecode_new(int capacity);
 
 // Free any resources allocated by the bytecode array.
 void bytecode_free(Bytecode *bytecode);
@@ -192,7 +192,7 @@ void bytecode_free(Bytecode *bytecode);
 //
 // Returns the index of the instruction in the instruction
 // array.
-uint32_t emit(Bytecode *bytecode, uint8_t instruction);
+int emit(Bytecode *bytecode, uint8_t instruction);
 
 // Emit a 2 byte argument.
 void emit_arg_2(Bytecode *bytecode, uint16_t arg);
@@ -204,18 +204,26 @@ void emit_arg_4(Bytecode *bytecode, uint32_t arg);
 void emit_arg_8(Bytecode *bytecode, uint64_t arg);
 
 
+// Emits bytecode to push a number onto the top of the stack.
+void emit_push_number(Bytecode *bytecode, double number);
+
+// Emits bytecode to push a copy of a value somewhere in the
+// stack onto the top of the stack.
+void emit_push_local(Bytecode *bytecode, uint16_t index);
+
+
 // Emit an incomplete jump instruction, where the amount to jump
 // is given a dummy value of 0.
-uint32_t emit_jump(Bytecode *bytecode, uint8_t instruction);
+int emit_jump(Bytecode *bytecode, uint8_t instruction);
 
 // Patch a forward jump instruction at the given index. Changes
 // the address the jump instruction at `index` jumps to, to the
 // most recently emitted bytecode instruction.
-void patch_forward_jump(Bytecode *bytecode, uint32_t index);
+void patch_forward_jump(Bytecode *bytecode, int index);
 
 // Emits a backward jump that jumps to the instruction at
 // `index`.
-void emit_backward_jump(Bytecode *bytecode, uint32_t index);
+void emit_backward_jump(Bytecode *bytecode, int index);
 
 
 // Emits a call to a native function.

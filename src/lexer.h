@@ -96,7 +96,7 @@ typedef struct {
 	char *location;
 
 	// The length of the token in the source.
-	uint32_t length;
+	int length;
 } Token;
 
 
@@ -111,7 +111,7 @@ typedef struct {
 	Parser parser;
 
 	// The line number of the current token.
-	uint32_t line;
+	int line;
 
 	// The lexer cannot arbitrarily pick out tokens to return,
 	// we must parse them sequentially. So if we want to look
@@ -120,7 +120,7 @@ typedef struct {
 	Token cache[MAX_TOKEN_CACHE_SIZE];
 
 	// The number of items in the cache.
-	uint32_t cache_size;
+	int cache_size;
 
 	// Whether to emit newlines. Defaults to true.
 	bool emit_newlines;
@@ -134,7 +134,7 @@ Lexer lexer_new(char *source);
 Token lexer_consume(Lexer *lexer);
 
 // Returns the token `amount` tokens in front of the current one.
-Token lexer_peek(Lexer *lexer, uint32_t amount);
+Token lexer_peek(Lexer *lexer, int amount);
 
 // Returns the current token without consuming anything.
 Token lexer_current(Lexer *lexer);

@@ -42,7 +42,7 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 		break;
 	}
 
-	case CODE_PUSH_VARIABLE: {
+	case CODE_PUSH_LOCAL: {
 		uint16_t index = READ_2_BYTES();
 		printf("%lu: push variable %hu\n", position, index);
 		break;

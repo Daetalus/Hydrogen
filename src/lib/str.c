@@ -11,7 +11,7 @@
 
 
 // Heap allocate a new string with `capacity`.
-String * string_new(size_t capacity) {
+String * string_new(int capacity) {
 	String *string = malloc(sizeof(String) + capacity * sizeof(char));
 	string->length = 0;
 	string->capacity = capacity;
@@ -36,7 +36,7 @@ void string_free(String *string) {
 
 
 // Resize a string to fit a minimum of the given size.
-void string_resize(String **string, uint32_t length) {
+void string_resize(String **string, int length) {
 	if ((*string)->capacity < length) {
 		// Increase the capacity
 		(*string)->capacity *= 2;
@@ -45,7 +45,7 @@ void string_resize(String **string, uint32_t length) {
 		}
 
 		// Reallocate memory
-		size_t size = sizeof(String) + (*string)->capacity * sizeof(char);
+		int size = sizeof(String) + (*string)->capacity * sizeof(char);
 		*string = realloc(*string, size);
 	}
 }

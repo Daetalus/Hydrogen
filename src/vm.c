@@ -168,7 +168,7 @@ instructions:
 		PUSH(NIL_VALUE)
 		goto instructions;
 
-	case CODE_PUSH_VARIABLE: {
+	case CODE_PUSH_LOCAL: {
 		uint16_t index = READ_2_BYTES();
 		PUSH(stack_ptr[index]);
 		goto instructions;

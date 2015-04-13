@@ -119,7 +119,7 @@ void parser_consume(Parser *parser) {
 // the end of the source string.
 // Returns the first character in the source if the requested
 // character is before the start of the source string.
-char parser_peek(Parser *parser, uint32_t amount) {
+char parser_peek(Parser *parser, int amount) {
 	if (parser->cursor + amount >= parser->length) {
 		// Overflow
 		return '\0';
@@ -131,7 +131,7 @@ char parser_peek(Parser *parser, uint32_t amount) {
 
 
 // Moves the cursor to `position`.
-void parser_move_to(Parser *parser, uint32_t position) {
+void parser_move_to(Parser *parser, int position) {
 	if (position >= parser->length) {
 		// Overflow
 		position = parser->length - 1;
@@ -153,7 +153,7 @@ void parser_move(Parser *parser, int32_t amount) {
 
 
 // Returns true if the parser starts with `string`.
-bool parser_starts_with(Parser *parser, char *str, uint32_t length) {
+bool parser_starts_with(Parser *parser, char *str, int length) {
 	for (int i = 0; i < length && str[i] != '\0'; i++) {
 		if (str[i] != parser_peek(parser, i)) {
 			return false;
@@ -166,7 +166,7 @@ bool parser_starts_with(Parser *parser, char *str, uint32_t length) {
 
 // Returns true if the parser starts with `str` followed by a
 // non-identifier character.
-bool parser_starts_with_identifier(Parser *parser, char *str, uint32_t length) {
+bool parser_starts_with_identifier(Parser *parser, char *str, int length) {
 	return parser_starts_with(parser, str, length) &&
 		!is_identifier(parser_peek(parser, length));
 }
@@ -198,7 +198,7 @@ void parser_consume_spaces_tabs(Parser *parser) {
 // the identifier in the source code.
 // Returns the length of the identifier through the `length`
 // pointer.
-char * parser_consume_identifier(Parser *parser, uint32_t *length) {
+char * parser_consume_identifier(Parser *parser, int *length) {
 	*length = 0;
 
 	if (!is_identifier_start(parser_current(parser))) {
@@ -218,7 +218,7 @@ char * parser_consume_identifier(Parser *parser, uint32_t *length) {
 // Consumes a number, returning it.
 // The length of the number is returned through the `length`
 // argument.
-double parser_consume_number(Parser *parser, uint32_t *length) {
+double parser_consume_number(Parser *parser, int *length) {
 	double result = 0.0;
 
 	int base = 10;
@@ -263,7 +263,7 @@ double parser_consume_number(Parser *parser, uint32_t *length) {
 // source code. This will contain improper escape sequences,
 // eg. `\n` will exist as a `\` followed by an `n`. Extract the
 // actual string using `parser_extract_literal`.
-char * parser_consume_literal(Parser *parser, uint32_t *length) {
+char * parser_consume_literal(Parser *parser, int *length) {
 	*length = 0;
 
 	// Opening quote
@@ -313,7 +313,7 @@ char * parser_consume_literal(Parser *parser, uint32_t *length) {
 //
 // If the literal contains an invalid escape sequence, then its
 // position is returned through `invalid_escape_ptr`.
-String * parser_extract_literal(char *str, uint32_t length,
+String * parser_extract_literal(char *str, int length,
 		char **invalid_escape_ptr) {
 	// Allocate the literal's length as the capacity for the new
 	// string, as it can't get any longer.

@@ -15,30 +15,18 @@
 
 // The maximum number of local variables that can be
 // in scope at any point.
-//
-// The physical maximum value for this is 65535, which
-// is the maximum number an unsigned 16 bit integer can
-// hold. We set the maximum to less than this though to
-// save on space.
 #define MAX_LOCALS 256
 
 
 // A local variable.
-//
-// This is used only during compilation. When we encounter
-// a new local variable, it's pushed onto the compiler's
-// locals stack. When the scope depth decreases, we loop
-// over all the locals and discard the ones that are at
-// that scope depth or deeper.
 typedef struct {
-	// The name of this local. This is a pointer that
-	// points directly into the source string.
+	// The name of the variable.
 	char *name;
 
-	// The length of the name of this local variable.
+	// The length of the local's name.
 	int length;
 
-	// The scope depth this local was defined at.
+	// The scope depth the local was defined at.
 	int scope_depth;
 } Local;
 
@@ -47,27 +35,6 @@ typedef struct {
 //
 // Responsible for taking some Hydrogen source code and
 // producing compiled bytecode.
-//
-// The source code is given to the compiler in the form of
-// a lexer. The lexer produces a sequence of tokens from
-// some source code. We use this sequence of tokens as our
-// input.
-//
-// The compiler is invoked by the virtual machine when
-// the `vm_compile` function is called. Compiled bytecode
-// is given back to the virtual machine by generating a
-// function struct (see below), and calling the
-// `vm_define_bytecode_function` function on the virtual
-// machine.
-//
-// When another function definition is encountered by the
-// compiler, another compiler is created recursively, which
-// is used to compile the function into bytecode, which is
-// then given back to the same virtual machine.
-//
-// The top level of the file, when we're not in a function,
-// is treated as if it were a "main" function, and is the
-// first function defined by the virtual machine.
 typedef struct {
 	// A reference back to the invoking virtual machine.
 	VirtualMachine *vm;
@@ -76,7 +43,7 @@ typedef struct {
 	Function *fn;
 
 	// The local variables currently in scope at any point
-	// during the compilation.
+	// during compilation.
 	Local locals[MAX_LOCALS];
 
 	// The number of local variables in scope.
@@ -89,29 +56,27 @@ typedef struct {
 
 // Compile source code into bytecode.
 //
-// The compiler uses the lexer in the given virtual
-// machine as its input.
+// The compiler uses the lexer in the virtual machine `vm` as
+// its input.
 //
-// The compiler generates the bytecode output directly
-// into the given function's bytecode array.
+// Generates the bytecode directly into `fn`'s
+// bytecode array.
 //
-// It stops compiling when the given terminator token
-// is found, or end of file is reached.
-//
-// Constants are added to the constants list.
+// It stops compiling when `terminator is found, or end of file
+// is reached.
 void compile(VirtualMachine *vm, Function *fn, TokenType terminator);
 
-// Emits bytecode to push the local with the given name onto the
-// stack.
+
+// Emits bytecode to push the local with the name `name` onto
+// the stack.
 void push_local(Compiler *compiler, char *name, int length);
 
-// Emits bytecode to push a number onto the stack.
-void push_number(Compiler *compiler, double number);
-
-// Pushes a string onto the stack.
-// Returns a pointer to an unallocated string,
-// so the string that will be pushed can be modified.
+// Emits bytecode to push a string literal onto the stack.
+//
+// Returns a pointer to an unallocated string, so the string
+// that will be pushed can be modified.
 String ** push_string(Compiler *compiler);
+
 
 // Compiles a function call.
 void function_call(Compiler *compiler);

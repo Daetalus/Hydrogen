@@ -7,6 +7,8 @@
 #ifndef VM_H
 #define VM_H
 
+#include <stdlib.h>
+
 #include "lexer.h"
 #include "bytecode.h"
 #include "value.h"

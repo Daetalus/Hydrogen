@@ -13,10 +13,10 @@
 // A heap allocated string.
 typedef struct {
 	// The string's length.
-	size_t length;
+	int length;
 
 	// The allocated capacity for the string.
-	size_t capacity;
+	int capacity;
 
 	// The string's contents, stored using the C struct "hack".
 	// This is where we have an empty array at the end of the
@@ -29,7 +29,7 @@ typedef struct {
 
 
 // Heap allocate a new string with `capacity`.
-String * string_new(size_t capacity);
+String * string_new(int capacity);
 
 // Copy this string, allocating more memory for the new string.
 String * string_copy(String *original);

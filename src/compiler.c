@@ -41,9 +41,8 @@ void function_definition(Compiler *compiler);
 void push_scope(Compiler *compiler);
 void pop_scope(Compiler *compiler);
 
-void push_local_at_index(Compiler *compiler, int index);
 int find_local(Compiler *compiler, char *name, int length);
-uint16_t define_local(Compiler *compiler, char *name, int length);
+int define_local(Compiler *compiler, char *name, int length);
 
 
 // Compile source code into bytecode.
@@ -226,7 +225,7 @@ void variable_assignment(Compiler *compiler) {
 
 	if (fn != NULL) {
 		// Push the variable for the modifier function
-		push_local_at_index(compiler, index);
+		emit_push_local(&compiler->fn->bytecode, index);
 	}
 
 	// Compile the expression after this. This will push bytecode
@@ -742,7 +741,7 @@ int find_local(Compiler *compiler, char *name, int length) {
 
 // Creates a new local on the compiler. Returns the index of the
 // new local in the compiler's index list.
-uint16_t define_local(Compiler *compiler, char *name, int length) {
+int define_local(Compiler *compiler, char *name, int length) {
 	// Check for overflow
 	if (compiler->local_count + 1 > MAX_LOCALS) {
 		Lexer *lexer = &compiler->vm->lexer;
@@ -764,14 +763,6 @@ uint16_t define_local(Compiler *compiler, char *name, int length) {
 }
 
 
-// Emits bytecode to push a local at a given index onto the stack.
-void push_local_at_index(Compiler *compiler, int index) {
-	Bytecode *bytecode = &compiler->fn->bytecode;
-	emit(bytecode, CODE_PUSH_VARIABLE);
-	emit_arg_2(bytecode, index);
-}
-
-
 // Emits bytecode to push the local with the given name onto the
 // stack.
 void push_local(Compiler *compiler, char *name, int length) {
@@ -783,17 +774,7 @@ void push_local(Compiler *compiler, char *name, int length) {
 		error(lexer->line, "Undefined variable `%.*s`", length, name);
 	}
 
-	push_local_at_index(compiler, index);
-}
-
-
-// Emits bytecode to push a number onto the stack.
-void push_number(Compiler *compiler, double number) {
-	Bytecode *bytecode = &compiler->fn->bytecode;
-
-	uint64_t converted = number_to_value(number);
-	emit(bytecode, CODE_PUSH_NUMBER);
-	emit_arg_8(bytecode, converted);
+	emit_push_local(&compiler->fn->bytecode, index);
 }
 
 

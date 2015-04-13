@@ -238,7 +238,7 @@ START(consume_identifier) {
 	Parser parser = parser_new("hello test_ing _h3ll0 another t_e_s_t");
 
 	char *start;
-	uint32_t length;
+	int length;
 	TEST_CONSUME_IDENTIFIER("hello", 5);
 	parser_consume_whitespace(&parser);
 	TEST_CONSUME_IDENTIFIER("test_ing", 8);
@@ -263,7 +263,7 @@ START(consume_number) {
 	Parser parser = parser_new("123 32142 1 42.4 90.813 3.141592653");
 
 	double number;
-	uint32_t length;
+	int length;
 	TEST_CONSUME_NUMBER(123.0, 3);
 	parser_consume_whitespace(&parser);
 	TEST_CONSUME_NUMBER(32142.0, 5);
@@ -291,7 +291,7 @@ START(consume_string_literal) {
 		"'hello' 'another .123()}{.[];' '' '\\'' \"hello\" \"\" \"h\\\"e\"");
 
 	char *start;
-	uint32_t length;
+	int length;
 	TEST_STRING_LITERAL("hello", 5);
 	parser_consume_whitespace(&parser);
 	TEST_STRING_LITERAL("another .123()}{.[];", 20);

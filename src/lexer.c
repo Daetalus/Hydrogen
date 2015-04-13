@@ -66,7 +66,7 @@ Token lexer_consume(Lexer *lexer) {
 
 // Peek at a token `amount` ahead of the current token, ignoring
 // the lexer's `emit_newlines` flag.
-Token lexer_cache_peek(Lexer *lexer, uint32_t amount) {
+Token lexer_cache_peek(Lexer *lexer, int amount) {
 	// If we're past the maximum cache amount, then don't bother.
 	if (amount >= MAX_TOKEN_CACHE_SIZE) {
 		Token token;
@@ -100,7 +100,7 @@ Token lexer_cache_peek(Lexer *lexer, uint32_t amount) {
 
 
 // Returns the token `amount` tokens in front of the current one.
-Token lexer_peek(Lexer *lexer, uint32_t amount) {
+Token lexer_peek(Lexer *lexer, int amount) {
 	Token token = lexer_cache_peek(lexer, amount);
 
 	// If we're not emitting newlines, then just get the token
