@@ -24,6 +24,11 @@
 #define MAX_STRING_LITERALS 1024
 
 
+// The definition for a native function (a function that calls
+// into C from Hydrogen code).
+typedef void (*NativeFunction)(uint64_t *stack, int *stack_size);
+
+
 // A struct storing a string with an associated length, rather
 // than terminated with a NULL byte.
 typedef struct {
@@ -81,11 +86,6 @@ typedef struct {
 	// The number of string literals in the literals array.
 	int literal_count;
 } VirtualMachine;
-
-
-// The type of a native function's C function pointer.
-typedef void (*NativeFunction)(VirtualMachine *vm, uint64_t *stack,
-	int *stack_size);
 
 
 // Create a new virtual machine with `source` as the program's

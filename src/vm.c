@@ -9,6 +9,7 @@
 #include <stdarg.h>
 
 #include "lib/operator.h"
+#include "lib/io.h"
 #include "compiler.h"
 #include "vm.h"
 #include "debug.h"
@@ -219,7 +220,7 @@ instructions:
 
 	case CODE_CALL_NATIVE: {
 		NativeFunction fn = value_to_ptr(READ_8_BYTES());
-		fn(vm, stack, &stack_size);
+		fn(stack, &stack_size);
 		goto instructions;
 	}
 

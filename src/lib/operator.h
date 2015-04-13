@@ -7,44 +7,33 @@
 #ifndef OPERATORS_H
 #define OPERATORS_H
 
-#include "../vm.h"
-
-
-// Defines a native function.
-#define DEFINE_NATIVE_FUNCTION(name) \
-	void name(VirtualMachine *vm, uint64_t *stack, int *stack_size);
-
-
-// Testing print statements
-DEFINE_NATIVE_FUNCTION(native_print);
-DEFINE_NATIVE_FUNCTION(native_print_2);
-DEFINE_NATIVE_FUNCTION(native_assert);
+#include <stdlib.h>
 
 // Mathematical operators
-DEFINE_NATIVE_FUNCTION(operator_addition);
-DEFINE_NATIVE_FUNCTION(operator_subtraction);
-DEFINE_NATIVE_FUNCTION(operator_multiplication);
-DEFINE_NATIVE_FUNCTION(operator_division);
-DEFINE_NATIVE_FUNCTION(operator_modulo);
-DEFINE_NATIVE_FUNCTION(operator_negation);
+void operator_addition(uint64_t *stack, int *stack_size);
+void operator_subtraction(uint64_t *stack, int *stack_size);
+void operator_multiplication(uint64_t *stack, int *stack_size);
+void operator_division(uint64_t *stack, int *stack_size);
+void operator_modulo(uint64_t *stack, int *stack_size);
+void operator_negation(uint64_t *stack, int *stack_size);
 
 // Boolean operators
-DEFINE_NATIVE_FUNCTION(operator_boolean_and);
-DEFINE_NATIVE_FUNCTION(operator_boolean_or);
-DEFINE_NATIVE_FUNCTION(operator_boolean_not);
-DEFINE_NATIVE_FUNCTION(operator_equal);
-DEFINE_NATIVE_FUNCTION(operator_not_equal);
-DEFINE_NATIVE_FUNCTION(operator_less_than);
-DEFINE_NATIVE_FUNCTION(operator_less_than_equal_to);
-DEFINE_NATIVE_FUNCTION(operator_greater_than);
-DEFINE_NATIVE_FUNCTION(operator_greater_than_equal_to);
+void operator_boolean_and(uint64_t *stack, int *stack_size);
+void operator_boolean_or(uint64_t *stack, int *stack_size);
+void operator_boolean_not(uint64_t *stack, int *stack_size);
+void operator_equal(uint64_t *stack, int *stack_size);
+void operator_not_equal(uint64_t *stack, int *stack_size);
+void operator_less_than(uint64_t *stack, int *stack_size);
+void operator_less_than_equal_to(uint64_t *stack, int *stack_size);
+void operator_greater_than(uint64_t *stack, int *stack_size);
+void operator_greater_than_equal_to(uint64_t *stack, int *stack_size);
 
 // Bitwise operators
-DEFINE_NATIVE_FUNCTION(operator_left_shift);
-DEFINE_NATIVE_FUNCTION(operator_right_shift);
-DEFINE_NATIVE_FUNCTION(operator_bitwise_and);
-DEFINE_NATIVE_FUNCTION(operator_bitwise_or);
-DEFINE_NATIVE_FUNCTION(operator_bitwise_not);
-DEFINE_NATIVE_FUNCTION(operator_bitwise_xor);
+void operator_left_shift(uint64_t *stack, int *stack_size);
+void operator_right_shift(uint64_t *stack, int *stack_size);
+void operator_bitwise_and(uint64_t *stack, int *stack_size);
+void operator_bitwise_or(uint64_t *stack, int *stack_size);
+void operator_bitwise_not(uint64_t *stack, int *stack_size);
+void operator_bitwise_xor(uint64_t *stack, int *stack_size);
 
 #endif

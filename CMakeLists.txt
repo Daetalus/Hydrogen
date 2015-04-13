@@ -30,6 +30,7 @@ add_library(
 
 	src/lib/operator.c
 	src/lib/str.c
+	src/lib/io.c
 )
 
 

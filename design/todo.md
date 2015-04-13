@@ -19,7 +19,6 @@ Incomplete
 * Reduce coupling between parts of code. If only needs lexer, only takes lexer as argument
 * Remove compiler dependency on vm
 * Remove useless comments
-* Convert everything to use size_t
 * Move print statements in operator.c to lib/io.c
 
 Complete
