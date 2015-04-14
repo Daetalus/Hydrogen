@@ -13,7 +13,6 @@ To Do
 * Remove unnecessary defines
 * Completely re-write documentation
 * Reduce coupling between parts of code. If only needs lexer, only takes lexer as argument
-* Remove compiler dependency on vm
 * Remove useless comments
 
 

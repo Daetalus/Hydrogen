@@ -115,7 +115,7 @@ void vm_run(VirtualMachine *vm) {
 	// Pushes a new call frame for `fn` onto the call frame
 	// stack. Updates `ip` and `stack_ptr` with the values for
 	// the new function.
-	#define PUSH_FRAME(fn) {                                           \
+	#define PUSH_FRAME(fn)                                             \
 		if (call_stack_size > 0) {                                     \
 			call_stack[call_stack_size - 1].instruction_ptr = ip;      \
 		}                                                              \
@@ -127,8 +127,7 @@ void vm_run(VirtualMachine *vm) {
 		ip = (fn)->bytecode.instructions;                              \
 		call_stack[call_stack_size].stack_ptr = stack_ptr;             \
 		call_stack[call_stack_size].instruction_ptr = ip;              \
-		call_stack_size++;                                             \
-	}
+		call_stack_size++;
 
 	// Returns from the executing function to the function that called it.
 	#define POP_FRAME()                                       \

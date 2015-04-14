@@ -260,6 +260,8 @@ Rule rules[] = {
 	{RULE_UNUSED},
 	// Loop
 	{RULE_UNUSED},
+	// Break
+	{RULE_UNUSED},
 	// For
 	{RULE_UNUSED},
 	// In

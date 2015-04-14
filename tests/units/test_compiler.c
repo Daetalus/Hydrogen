@@ -199,6 +199,65 @@ START(while_loop_two) {
 END()
 
 
+START(while_loop_three) {
+	COMPILER("let i = 0\nwhile true {\nif i >= 3 {\nbreak\n}\n}");
+
+	// let i = 0
+	ASSERT_NUMBER_PUSH(0.0);
+	ASSERT_STORE(0);
+
+	// while true
+	ASSERT_INSTRUCTION(CODE_PUSH_TRUE);
+	ASSERT_CONDITIONAL_JUMP(30);
+
+	// if i >= 3
+	ASSERT_VARIABLE_PUSH(0);
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_NATIVE_CALL(operator_greater_than_equal_to);
+	ASSERT_CONDITIONAL_JUMP(3);
+
+	// break
+	ASSERT_JUMP(3);
+
+	// while loop
+	ASSERT_BACKWARDS_JUMP(34);
+
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_INSTRUCTION(CODE_RETURN);
+}
+END()
+
+
+START(while_loop_four) {
+	COMPILER("while true {let i = 3\nif i == 3 {break}}");
+
+	// while true
+	ASSERT_INSTRUCTION(CODE_PUSH_TRUE);
+	ASSERT_CONDITIONAL_JUMP(44);
+
+	// let i = 3
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_STORE(0);
+
+	// if i == 3
+	ASSERT_VARIABLE_PUSH(0);
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_NATIVE_CALL(operator_equal);
+	ASSERT_CONDITIONAL_JUMP(4);
+
+	// break
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_JUMP(4);
+
+	// while loop
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_BACKWARDS_JUMP(48);
+
+	ASSERT_INSTRUCTION(CODE_RETURN);
+}
+END()
+
+
 START(function_call_one) {
 	COMPILER("print('hello')");
 
@@ -379,6 +438,8 @@ MAIN(compiler) {
 	RUN(if_else_statement_two)
 	RUN(while_loop_one)
 	RUN(while_loop_two)
+	RUN(while_loop_three)
+	RUN(while_loop_four)
 	RUN(function_call_one)
 	RUN(function_call_two)
 	RUN(function_call_three)

@@ -457,21 +457,22 @@ Token lexer_next(Lexer *lexer) {
 
 	default:
 		// Keywords
-		KEYWORD("let", TOKEN_LET)
-		KEYWORD("fn", TOKEN_FUNCTION)
+		KEYWORD("let", TOKEN_LET);
+		KEYWORD("fn", TOKEN_FUNCTION);
 
-		KEYWORD("for", TOKEN_FOR)
-		KEYWORD("in", TOKEN_IN)
-		KEYWORD("while", TOKEN_WHILE)
-		KEYWORD("loop", TOKEN_LOOP)
+		KEYWORD("for", TOKEN_FOR);
+		KEYWORD("in", TOKEN_IN);
+		KEYWORD("while", TOKEN_WHILE);
+		KEYWORD("loop", TOKEN_LOOP);
+		KEYWORD("break", TOKEN_BREAK);
 
-		KEYWORD("true", TOKEN_TRUE)
-		KEYWORD("false", TOKEN_FALSE)
-		KEYWORD("nil", TOKEN_NIL)
+		KEYWORD("true", TOKEN_TRUE);
+		KEYWORD("false", TOKEN_FALSE);
+		KEYWORD("nil", TOKEN_NIL);
 
-		KEYWORD("if", TOKEN_IF)
-		KEYWORD_TWO("else", "if", TOKEN_ELSE_IF)
-		KEYWORD("else", TOKEN_ELSE)
+		KEYWORD("if", TOKEN_IF);
+		KEYWORD_TWO("else", "if", TOKEN_ELSE_IF);
+		KEYWORD("else", TOKEN_ELSE);
 
 		if (parse_number(parser, &result)) {
 			break;

@@ -24,18 +24,13 @@
 void block(Compiler *compiler, TokenType terminator);
 void statement(Compiler *compiler);
 
-bool match_variable_assignment(Compiler *compiler);
+bool match_variable_assignment(Lexer *lexer);
+bool match_function_call(Lexer *lexer);
+
 void variable_assignment(Compiler *compiler);
-
-bool match_if_statement(Compiler *compiler);
 void if_statement(Compiler *compiler);
-
-bool match_while_loop(Compiler *compiler);
 void while_loop(Compiler *compiler);
-
-bool match_function_call(Compiler *compiler);
-
-bool match_function_definition(Compiler *compiler);
+void break_statement(Compiler *compiler);
 void function_definition(Compiler *compiler);
 
 void push_scope(Compiler *compiler);
@@ -45,18 +40,12 @@ int find_local(Compiler *compiler, char *name, int length);
 int define_local(Compiler *compiler, char *name, int length);
 
 
-// Compile source code into bytecode.
+// Compile source code into bytecode, using the lexer in the
+// virtual machine `vm` as input. Outputs bytecode directly into
+// `fn`'s bytecode array.
 //
-// The compiler uses the lexer in the given virtual machine as
-// its input.
-//
-// The compiler generates the bytecode output directly into the
-// given function's bytecode array.
-//
-// It stops compiling when the given terminator token is found,
-// or end of file is reached.
-//
-// Constants are added to the constants list.
+// Stops compiling when `terminator is found, or end of file is
+// reached.
 void compile(VirtualMachine *vm, Function *fn, TokenType terminator) {
 	// Create a compiler for this function.
 	Compiler compiler;
@@ -64,6 +53,7 @@ void compile(VirtualMachine *vm, Function *fn, TokenType terminator) {
 	compiler.fn = fn;
 	compiler.local_count = 0;
 	compiler.scope_depth = -1;
+	compiler.loop_count = 0;
 
 	// Push the function's arguments as locals
 	for (int i = 0; i < fn->argument_count; i++) {
@@ -118,16 +108,18 @@ void statement(Compiler *compiler) {
 	if (lexer_match(lexer, TOKEN_LINE)) {
 		// Ignore empty lines
 		lexer_consume(lexer);
-	} else if (match_variable_assignment(compiler)) {
+	} else if (match_variable_assignment(lexer)) {
 		variable_assignment(compiler);
-	} else if (match_if_statement(compiler)) {
+	} else if (lexer_match(lexer, TOKEN_IF)) {
 		if_statement(compiler);
-	} else if (match_while_loop(compiler)) {
+	} else if (lexer_match(lexer, TOKEN_WHILE)) {
 		while_loop(compiler);
-	} else if (match_function_call(compiler)) {
+	} else if (match_function_call(lexer)) {
 		function_call(compiler);
-	} else if (match_function_definition(compiler)) {
+	} else if (lexer_match(lexer, TOKEN_FUNCTION)) {
 		function_definition(compiler);
+	} else if (lexer_match(lexer, TOKEN_BREAK)) {
+		break_statement(compiler);
 	} else {
 		Token token = lexer_current(lexer);
 		error(lexer->line, "Unrecognized statement beginning with `%.*s`",
@@ -143,9 +135,7 @@ void statement(Compiler *compiler) {
 
 // Returns true if the current sequence of tokens represent a
 // variable assignment.
-bool match_variable_assignment(Compiler *compiler) {
-	Lexer *lexer = &compiler->vm->lexer;
-
+bool match_variable_assignment(Lexer *lexer) {
 	// Recognise either a let token (for new variables) or
 	// an identifier followed by an assignment token.
 	return lexer_match(lexer, TOKEN_LET) ||
@@ -262,16 +252,6 @@ void variable_assignment(Compiler *compiler) {
 //
 //  If Statement
 //
-
-// Returns true if the current sequence of tokens represents an
-// if statement.
-bool match_if_statement(Compiler *compiler) {
-	Lexer *lexer = &compiler->vm->lexer;
-
-	// An if statement starts with the if token.
-	return lexer_match(lexer, TOKEN_IF);
-}
-
 
 // Returns true when an if statement's or while loop's
 // conditional expression should be terminated.
@@ -418,19 +398,18 @@ void if_statement(Compiler *compiler) {
 //  While Loops
 //
 
-// Returns true if the lexer matches a while loop.
-bool match_while_loop(Compiler *compiler) {
-	Lexer *lexer = &compiler->vm->lexer;
-	return lexer_match(lexer, TOKEN_WHILE);
-}
-
-
 // Compiles a while loop.
 void while_loop(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
-	// Consume the while keyword.
+	if (compiler->loop_count >= MAX_LOOP_DEPTH) {
+		// Too many nested loops
+		error(compiler->vm->lexer.line,
+			"Reached maximum nested loop limit (%d)", MAX_LOOP_DEPTH);
+	}
+
+	// Consume the while keyword
 	lexer_consume(lexer);
 
 	// Compile the expression
@@ -440,6 +419,12 @@ void while_loop(Compiler *compiler) {
 
 	// Jump conditionally
 	int condition_jump = emit_jump(bytecode, CODE_JUMP_IF_NOT);
+
+	// Append a loop to the compiler.
+	Loop loop;
+	loop.break_statement_count = 0;
+	loop.scope_depth = compiler->scope_depth;
+	compiler->loops[compiler->loop_count++] = &loop;
 
 	// Compile the block.
 	expect(lexer, TOKEN_OPEN_BRACE,
@@ -455,6 +440,59 @@ void while_loop(Compiler *compiler) {
 	// Patch the conditional jump to point to here (after
 	// the block)
 	patch_forward_jump(bytecode, condition_jump);
+
+	// Patch all break statements to this point.
+	for (int i = 0; i < loop.break_statement_count; i++) {
+		patch_forward_jump(bytecode, loop.break_statements[i]);
+	}
+
+	// Pop the loop from the loop stack.
+	compiler->loop_count--;
+}
+
+
+// Compiles a break statement.
+void break_statement(Compiler *compiler) {
+	if (compiler->loop_count == 0) {
+		// Not inside a loop
+		error(compiler->vm->lexer.line,
+			"Break statement not within loop");
+	}
+
+	Lexer *lexer = &compiler->vm->lexer;
+	Loop *loop = compiler->loops[compiler->loop_count - 1];
+	Bytecode *bytecode = &compiler->fn->bytecode;
+
+	if (loop->break_statement_count >= MAX_BREAK_STATEMENTS) {
+		// Too many break statements in a loop
+		error(compiler->vm->lexer.line,
+			"Reached maximum break statement limit in loop (%d)",
+			MAX_BREAK_STATEMENTS);
+	}
+
+	// Consume the break keyword
+	lexer_consume(lexer);
+
+	// Emit pop statements for each variable up to the scope of
+	// the loop.
+	for (int i = compiler->local_count - 1; i >= 0; i--) {
+		Local *local = &compiler->locals[i];
+
+		if (local->scope_depth > loop->scope_depth) {
+			emit(bytecode, CODE_POP);
+		} else {
+			// Since the locals are kept in order of scope depth,
+			// once we reach a point where the local's scope is
+			// less than the scope we're looking for, it's safe
+			// to break.
+			break;
+		}
+	}
+
+	// Emit a jump instruction and add it to the loop's break
+	// list for patching later
+	int jump = emit_jump(bytecode, CODE_JUMP_FORWARD);
+	loop->break_statements[loop->break_statement_count++] = jump;
 }
 
 
@@ -464,9 +502,7 @@ void while_loop(Compiler *compiler) {
 //
 
 // Returns true if the lexer matches a function call.
-bool match_function_call(Compiler *compiler) {
-	Lexer *lexer = &compiler->vm->lexer;
-
+bool match_function_call(Lexer *lexer) {
 	// Allow newlines between the identifier and open parenthesis,
 	// so disable newlines when checking.
 	lexer_disable_newlines(lexer);
@@ -567,13 +603,6 @@ void function_call(Compiler *compiler) {
 //
 //  Function Definitions
 //
-
-// Returns true if the lexer matches a function definition.
-bool match_function_definition(Compiler *compiler) {
-	Lexer *lexer = &compiler->vm->lexer;
-	return lexer_match(lexer, TOKEN_FUNCTION);
-}
-
 
 // Compiles a function definition.
 void function_definition(Compiler *compiler) {
@@ -683,7 +712,6 @@ void push_scope(Compiler *compiler) {
 // Decrement the compiler's scope depth, and pop off any local
 // variables from the stack that are no longer in scope.
 void pop_scope(Compiler *compiler) {
-	// TODO: Check for underflow
 	compiler->scope_depth--;
 
 	int i = compiler->local_count - 1;

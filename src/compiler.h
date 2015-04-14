@@ -13,9 +13,16 @@
 #include "bytecode.h"
 
 
-// The maximum number of local variables that can be
-// in scope at any point.
+// The maximum number of local variables that can be in scope at
+// any point.
 #define MAX_LOCALS 256
+
+// The maximum number of loops that can exist inside each other
+// at any point in the code.
+#define MAX_LOOP_DEPTH 256
+
+// The maximum number of break statements inside one loop.
+#define MAX_BREAK_STATEMENTS 256
 
 
 // A local variable.
@@ -29,6 +36,25 @@ typedef struct {
 	// The scope depth the local was defined at.
 	int scope_depth;
 } Local;
+
+
+// A loop.
+typedef struct {
+	// A list of jump statements that need to be patched to the
+	// ending position of this loop. Each time a break statement
+	// is encountered, an incomplete jump instruction is emitted
+	// and added to this list for patching once the ending
+	// position of the loop is known.
+	int break_statements[MAX_BREAK_STATEMENTS];
+
+	// The number of break statements.
+	int break_statement_count;
+
+	// The scope depth this loop was created at, for emitting
+	// pop instructions up to this depth upon encountering a
+	// break statement.
+	int scope_depth;
+} Loop;
 
 
 // The compiler.
@@ -51,19 +77,28 @@ typedef struct {
 
 	// The current scope depth of the compiler.
 	int scope_depth;
+
+	// A stack representing the number of encasing loops at any
+	// point during the code. Used to return from break
+	// statements.
+	//
+	// Since we're using a recursive algorithm, loops can be
+	// created on the stack (rather than the heap). We use
+	// pointers to these loops on the stack, instead of copying
+	// then by value.
+	Loop *loops[MAX_LOOP_DEPTH];
+
+	// The number of loops in the loop stack.
+	int loop_count;
 } Compiler;
 
 
-// Compile source code into bytecode.
+// Compile source code into bytecode, using the lexer in the
+// virtual machine `vm` as input. Outputs bytecode directly into
+// `fn`'s bytecode array.
 //
-// The compiler uses the lexer in the virtual machine `vm` as
-// its input.
-//
-// Generates the bytecode directly into `fn`'s
-// bytecode array.
-//
-// It stops compiling when `terminator is found, or end of file
-// is reached.
+// Stops compiling when `terminator is found, or end of file is
+// reached.
 void compile(VirtualMachine *vm, Function *fn, TokenType terminator);
 
 
