@@ -132,8 +132,9 @@ For example, compiling a while loop involves consuming the while keyword, then c
 
 ### Return Statements
 
-* When returning, functions push onto the stack the number of arguments they are returning, followed by that many values, representing the value of those arguments.
+* Functions return by pushing their return value (or nil if the function doesn't have a return value) onto the stack
+* When the virtual machine encounters a return instruction, it pops the
 
-###
+### Closures
 
 ## Execution

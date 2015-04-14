@@ -21,3 +21,4 @@ To Do
 * Write failing tests
 * Compose writeup on internal workings
 * Add unicode support
+* Add \U unicode escape in string literals (specify a unicode character with hex)

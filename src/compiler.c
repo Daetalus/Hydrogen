@@ -32,15 +32,15 @@ void statement(Compiler *compiler);
 
 // Match statements against the lexer.
 bool match_variable_assignment(Lexer *lexer);
-bool match_function_call(Lexer *lexer);
 
 // Compile statements.
 void variable_assignment(Compiler *compiler);
 void if_statement(Compiler *compiler);
 void while_loop(Compiler *compiler);
 void break_statement(Compiler *compiler);
-void function_call(Compiler *compiler);
+void function_call_statement(Compiler *compiler);
 void function_definition(Compiler *compiler);
+void return_statement(Compiler *compiler);
 
 // Increment the compiler's scope depth.
 void push_scope(Compiler *compiler);
@@ -75,7 +75,7 @@ void compile(VirtualMachine *vm, Function *fn, TokenType terminator) {
 	compiler.vm = vm;
 	compiler.fn = fn;
 	compiler.local_count = 0;
-	compiler.scope_depth = -1;
+	compiler.scope_depth = 0;
 	compiler.loop_count = 0;
 
 	// Push the function's arguments as locals
@@ -83,15 +83,21 @@ void compile(VirtualMachine *vm, Function *fn, TokenType terminator) {
 		Local *local = &compiler.locals[compiler.local_count++];
 		local->name = fn->arguments[i].location;
 		local->length = fn->arguments[i].length;
-		local->scope_depth = 0;
+		local->scope_depth = compiler.scope_depth;
 	}
 
-	// Treat the source code as a top level block, stopping when
-	// we reach the terminator character.
-	block(&compiler, terminator);
+	// Treat the source code as a top level block without a
+	// scope, stopping when we reach the terminator character.
+	Lexer *lexer = &compiler.vm->lexer;
+	while (!lexer_match(lexer, terminator)) {
+		statement(&compiler);
+	}
 
-	// Insert a final return instruction
-	emit(&compiler.fn->bytecode, CODE_RETURN);
+	// Insert a final return instruction, pushing nil as the
+	// return value.
+	Bytecode *bytecode = &compiler.fn->bytecode;
+	emit(bytecode, CODE_PUSH_NIL);
+	emit(bytecode, CODE_RETURN);
 }
 
 
@@ -134,12 +140,14 @@ void statement(Compiler *compiler) {
 		if_statement(compiler);
 	} else if (lexer_match(lexer, TOKEN_WHILE)) {
 		while_loop(compiler);
-	} else if (match_function_call(lexer)) {
-		function_call(compiler);
-	} else if (lexer_match(lexer, TOKEN_FUNCTION)) {
-		function_definition(compiler);
 	} else if (lexer_match(lexer, TOKEN_BREAK)) {
 		break_statement(compiler);
+	} else if (match_function_call(lexer)) {
+		function_call_statement(compiler);
+	} else if (lexer_match(lexer, TOKEN_FUNCTION)) {
+		function_definition(compiler);
+	} else if (lexer_match(lexer, TOKEN_RETURN)) {
+		return_statement(compiler);
 	} else {
 		Token token = lexer_current(lexer);
 		error(lexer->line, "Unrecognized statement beginning with `%.*s`",
@@ -533,8 +541,9 @@ void break_statement(Compiler *compiler) {
 
 // Returns true if the lexer matches a function call.
 bool match_function_call(Lexer *lexer) {
-	// Allow newlines between the identifier and open parenthesis,
-	// so disable newlines when checking.
+	// Allow newlines between the identifier and open
+	// parenthesis, so disable newlines when checking for a
+	// match.
 	lexer_disable_newlines(lexer);
 	bool result = lexer_match_two(lexer, TOKEN_IDENTIFIER,
 		TOKEN_OPEN_PARENTHESIS);
@@ -595,17 +604,18 @@ int function_call_arguments(Compiler *compiler) {
 }
 
 
-// Compiles a function call.
+// Compiles a function call, leaving the return value of the
+// function on the top of the stack.
 void function_call(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 
-	// Consume the function's name.
+	// Consume the function's name
 	Token name = lexer_consume(lexer);
 
-	// Compile the function's arguments.
+	// Compile the function's arguments
 	int argument_count = function_call_arguments(compiler);
 
-	// Check the function exists.
+	// Check the function exists as a user defined function
 	int index = find_function(compiler->vm, name.location, name.length,
 		argument_count);
 	if (index != -1) {
@@ -614,18 +624,28 @@ void function_call(Compiler *compiler) {
 		return;
 	}
 
-	// Not a user function, so check for native functions.
+	// Not a user defined function, so check the standard library
 	NativeFunction fn = find_native_function(compiler->vm,
 		name.location, name.length, argument_count);
-	if (fn != NULL) {
-		Bytecode *bytecode = &compiler->fn->bytecode;
-		emit_native(bytecode, fn);
-		return;
+	if (fn == NULL) {
+		// Undefined function
+		error(lexer->line, "Undefined function `%.*s`",
+			name.length, name.location);
 	}
 
-	// Undefined function if we reach here
-	error(lexer->line, "Undefined function `%.*s`",
-		name.length, name.location);
+	// Emit bytecode to call the function
+	Bytecode *bytecode = &compiler->fn->bytecode;
+	emit_native(bytecode, fn);
+}
+
+
+// Compiles a function call, but popping the function's return
+// value off the stack, as we assume it's of no use.
+void function_call_statement(Compiler *compiler) {
+	Bytecode *bytecode = &compiler->fn->bytecode;
+
+	function_call(compiler);
+	emit(bytecode, CODE_POP);
 }
 
 
@@ -719,6 +739,45 @@ void function_definition(Compiler *compiler) {
 	// Consume the closing brace
 	expect(lexer, TOKEN_CLOSE_BRACE,
 		"Expected `}` to close function block");
+}
+
+
+
+//
+//  Return Statements
+//
+
+// Compile a return statement.
+//
+// Functions return by pushing the return value onto the top of
+// the stack (or nil if the function doesn't return a value),
+// and emitting a return statement.
+void return_statement(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+	Bytecode *bytecode = &compiler->fn->bytecode;
+
+	// Consume the return keyword
+	lexer_consume(lexer);
+
+	// Check for an expression to return
+	if (lexer_match(lexer, TOKEN_LINE)) {
+		// Implicitly returning nil
+		emit(bytecode, CODE_PUSH_NIL);
+	} else {
+		if (compiler->fn->name == NULL) {
+			// We're trying to return an expression from within
+			// the "main" function. The main function is the top
+			// code outside any explicit function definition.
+			// Trigger an error.
+			error(lexer->line,
+				"Attempting to return value from outside function definition");
+		}
+
+		// Return an expression terminated by a newline
+		expression(compiler, NULL);
+	}
+
+	emit(bytecode, CODE_RETURN);
 }
 
 

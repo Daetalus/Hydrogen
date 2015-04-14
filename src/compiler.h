@@ -102,6 +102,14 @@ typedef struct {
 void compile(VirtualMachine *vm, Function *fn, TokenType terminator);
 
 
+// Returns true if the lexer matches a function call.
+bool match_function_call(Lexer *lexer);
+
+// Compiles a function call, leaving the return value of the
+// function on the top of the stack.
+void function_call(Compiler *compiler);
+
+
 // Emits bytecode to push the local with the name `name` onto
 // the stack.
 void push_local(Compiler *compiler, char *name, int length);

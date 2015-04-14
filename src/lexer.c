@@ -459,6 +459,7 @@ Token lexer_next(Lexer *lexer) {
 		// Keywords
 		KEYWORD("let", TOKEN_LET);
 		KEYWORD("fn", TOKEN_FUNCTION);
+		KEYWORD("return", TOKEN_RETURN);
 
 		KEYWORD("for", TOKEN_FOR);
 		KEYWORD("in", TOKEN_IN);

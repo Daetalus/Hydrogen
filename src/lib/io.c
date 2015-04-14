@@ -30,6 +30,8 @@ void native_print(uint64_t *stack, int *stack_size) {
 	} else {
 		error(-1, "Unexpected argument to `print`");
 	}
+
+	PUSH(NIL_VALUE);
 }
 
 
@@ -37,6 +39,7 @@ void native_print_2(uint64_t *stack, int *stack_size) {
 	// Pop our 2 arguments
 	POP();
 	POP();
+	PUSH(NIL_VALUE);
 }
 
 
@@ -47,4 +50,6 @@ void native_assert(uint64_t *stack, int *stack_size) {
 		// Exit forcefully
 		error(-1, "Assertion failed.");
 	}
+
+	PUSH(NIL_VALUE);
 }

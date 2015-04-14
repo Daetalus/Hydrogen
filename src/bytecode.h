@@ -156,8 +156,14 @@ typedef enum {
 	// * 8 bytes - the C function pointer to call.
 	CODE_CALL_NATIVE,
 
-	// Returns from a function, popping any local variables off
-	// the top of the stack.
+	// Returns from a function. Pops the return argument off the
+	// top of the stack and saves it, then discards all local
+	// variables, then pushes the return argument for the
+	// location that called the function.
+	//
+	// If a function doesn't explicitly return anything in the
+	// code, nil should be pushed before emitting a return
+	// instruction.
 	//
 	// Arguments:
 	// None

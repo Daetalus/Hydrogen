@@ -19,12 +19,12 @@
 
 
 char *files[] = {
-	"variables/1.hy",
-	"variables/2.hy",
-	"variables/3.hy",
-	"variables/4.hy",
-	"variables/5.hy",
-	"variables/6.hy",
+	"assignment/1.hy",
+	"assignment/2.hy",
+	"assignment/3.hy",
+	"assignment/4.hy",
+	"assignment/5.hy",
+	"assignment/6.hy",
 
 	"if/1.hy",
 	"if/2.hy",
@@ -50,6 +50,19 @@ char *files[] = {
 	"while/8.hy",
 	"while/9.hy",
 	"while/10.hy",
+
+	"fn/1.hy",
+	"fn/2.hy",
+	"fn/3.hy",
+	"fn/4.hy",
+	"fn/5.hy",
+	"fn/6.hy",
+	"fn/7.hy",
+	"fn/8.hy",
+	"fn/9.hy",
+	"fn/10.hy",
+	"fn/11.hy",
+	"fn/12.hy",
 };
 
 
@@ -87,5 +100,6 @@ int main(int argc, char *argv[]) {
 		printf(GREEN BOLD "Test succeeded!\n" NORMAL);
 	}
 
+	printf(GREEN BOLD "\n\nAll tests passed!\n" NORMAL);
 	return 0;
 }

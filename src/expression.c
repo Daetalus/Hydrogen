@@ -268,6 +268,8 @@ Rule rules[] = {
 	{RULE_UNUSED},
 	// Function
 	{RULE_UNUSED},
+	// Return
+	{RULE_UNUSED},
 
 	// True
 	{RULE_OPERAND, {.operand = {&operand_true}}},
@@ -525,8 +527,14 @@ void operand_number(Compiler *compiler) {
 // Compile an identifier.
 void operand_identifier(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
-	Token identifier = lexer_consume(lexer);
-	push_local(compiler, identifier.location, identifier.length);
+	if (match_function_call(lexer)) {
+		// The operand is a function call instead of a variable
+		function_call(compiler);
+	} else {
+		// The operand is a variable
+		Token identifier = lexer_consume(lexer);
+		push_local(compiler, identifier.location, identifier.length);
+	}
 }
 
 
