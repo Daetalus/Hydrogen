@@ -116,8 +116,24 @@ To compile a block, we just keep compiling statements until we find the block's 
 
 To compile a statement, we determine what sort of statement it is (eg. is it a for loop, if statement, etc.), then handle each case separately.
 
-To compile an expression, we use a Pratt parser, explained well by Bob Nystrom in his post [here](http://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/). I won't bother explaining it - you can just read that article.
+To compile an expression, we use a Pratt parser, explained well by Bob Nystrom in his post [here](http://journal.stuffwithstuff.com/2011/03/19/pratt-parsers-expression-parsing-made-easy/). I won't bother explaining it - you can just read the article.
 
 For example, compiling a while loop involves consuming the while keyword, then compiling an expression terminated by an open brace, then consuming the open brace, compiling a block terminated by a close brace, and then consuming the close brace.
+
+### Variable Assignment
+
+### If Statements
+
+### While Loops
+
+### Break Statements
+
+### Function Definitions
+
+### Return Statements
+
+* When returning, functions push onto the stack the number of arguments they are returning, followed by that many values, representing the value of those arguments.
+
+###
 
 ## Execution

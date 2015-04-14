@@ -20,25 +20,48 @@
 #define MAX_ELSE_IF_STATEMENTS 256
 
 
-// Forward definitions.
+// Compile a block. Assumes the opening token for the block has
+// been consumed. Stops when the terminating token is found.
+//
+// Does not consume the terminating token.
 void block(Compiler *compiler, TokenType terminator);
+
+// Compile a single statement. A statement is one construct in
+// the language, like an if statement or variable assignment.
 void statement(Compiler *compiler);
 
+// Match statements against the lexer.
 bool match_variable_assignment(Lexer *lexer);
 bool match_function_call(Lexer *lexer);
 
+// Compile statements.
 void variable_assignment(Compiler *compiler);
 void if_statement(Compiler *compiler);
 void while_loop(Compiler *compiler);
 void break_statement(Compiler *compiler);
+void function_call(Compiler *compiler);
 void function_definition(Compiler *compiler);
 
+// Increment the compiler's scope depth.
 void push_scope(Compiler *compiler);
+
+// Decrement the compiler's scope depth, and pop off any local
+// variables from the stack that are no longer in scope.
 void pop_scope(Compiler *compiler);
 
+// Returns the index of a variable in the locals list, or -1
+// if the variable doesn't exist.
 int find_local(Compiler *compiler, char *name, int length);
+
+// Creates a new local on the compiler. Returns the index of the
+// new local in the compiler's index list.
 int define_local(Compiler *compiler, char *name, int length);
 
+
+
+//
+//  Compilation
+//
 
 // Compile source code into bytecode, using the lexer in the
 // virtual machine `vm` as input. Outputs bytecode directly into

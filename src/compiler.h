@@ -112,8 +112,4 @@ void push_local(Compiler *compiler, char *name, int length);
 // that will be pushed can be modified.
 String ** push_string(Compiler *compiler);
 
-
-// Compiles a function call.
-void function_call(Compiler *compiler);
-
 #endif
