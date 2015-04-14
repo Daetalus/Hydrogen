@@ -37,6 +37,7 @@ bool match_variable_assignment(Lexer *lexer);
 void variable_assignment(Compiler *compiler);
 void if_statement(Compiler *compiler);
 void while_loop(Compiler *compiler);
+void infinite_loop(Compiler *compiler);
 void break_statement(Compiler *compiler);
 void function_call_statement(Compiler *compiler);
 void function_definition(Compiler *compiler);
@@ -140,6 +141,8 @@ void statement(Compiler *compiler) {
 		if_statement(compiler);
 	} else if (lexer_match(lexer, TOKEN_WHILE)) {
 		while_loop(compiler);
+	} else if (lexer_match(lexer, TOKEN_LOOP)) {
+		infinite_loop(compiler);
 	} else if (lexer_match(lexer, TOKEN_BREAK)) {
 		break_statement(compiler);
 	} else if (match_function_call(lexer)) {
@@ -432,6 +435,29 @@ void if_statement(Compiler *compiler) {
 //  While Loops
 //
 
+// Create a new loop and push it onto the compiler's loop stack.
+void push_new_loop(Compiler *compiler, Loop *loop) {
+	loop->break_statement_count = 0;
+	loop->scope_depth = compiler->scope_depth;
+	compiler->loops[compiler->loop_count++] = loop;
+}
+
+
+// Patch all break statements for a loop.
+void patch_break_statements(Bytecode *bytecode, Loop *loop) {
+	for (int i = 0; i < loop->break_statement_count; i++) {
+		patch_forward_jump(bytecode, loop->break_statements[i]);
+	}
+}
+
+
+// Pop the top most loop off the compiler's loop stack.
+void pop_loop(Compiler *compiler) {
+	// Pop the loop from the loop stack.
+	compiler->loop_count--;
+}
+
+
 // Compiles a while loop.
 //
 // Consist of a conditional expression evaluation, followed by
@@ -460,9 +486,7 @@ void while_loop(Compiler *compiler) {
 
 	// Append a loop to the compiler.
 	Loop loop;
-	loop.break_statement_count = 0;
-	loop.scope_depth = compiler->scope_depth;
-	compiler->loops[compiler->loop_count++] = &loop;
+	push_new_loop(compiler, &loop);
 
 	// Compile the block.
 	expect(lexer, TOKEN_OPEN_BRACE,
@@ -479,13 +503,10 @@ void while_loop(Compiler *compiler) {
 	// the block)
 	patch_forward_jump(bytecode, condition_jump);
 
-	// Patch all break statements to this point.
-	for (int i = 0; i < loop.break_statement_count; i++) {
-		patch_forward_jump(bytecode, loop.break_statements[i]);
-	}
-
-	// Pop the loop from the loop stack.
-	compiler->loop_count--;
+	// Patch break statements and pop the loop from the
+	// compiler's loop stack
+	patch_break_statements(bytecode, &loop);
+	pop_loop(compiler);
 }
 
 
@@ -531,6 +552,40 @@ void break_statement(Compiler *compiler) {
 	// list for patching later
 	int jump = emit_jump(bytecode, CODE_JUMP_FORWARD);
 	loop->break_statements[loop->break_statement_count++] = jump;
+}
+
+
+
+//
+//  Infinite Loops
+//
+
+// Compile an infinite loop.
+void infinite_loop(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+	Bytecode *bytecode = &compiler->fn->bytecode;
+
+	// Consume the loop token
+	lexer_consume(lexer);
+
+	// Append a loop to the compiler.
+	Loop loop;
+	push_new_loop(compiler, &loop);
+
+	// Save the starting location to jump back to
+	int start = bytecode->count;
+
+	// Compile the block
+	expect(lexer, TOKEN_OPEN_BRACE, "Expected `{` after `loop` keyword");
+	block(compiler, TOKEN_CLOSE_BRACE);
+	expect(lexer, TOKEN_CLOSE_BRACE, "Expected `}` to close `{` for loop");
+
+	// Insert a jump statement back to the start of the loop
+	emit_backward_jump(bytecode, start);
+
+	// Patch break statements and pop the loop
+	patch_break_statements(bytecode, &loop);
+	pop_loop(compiler);
 }
 
 

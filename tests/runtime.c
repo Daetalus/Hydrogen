@@ -51,6 +51,10 @@ char *files[] = {
 	"while/9.hy",
 	"while/10.hy",
 
+	"loop/1.hy",
+	"loop/2.hy",
+	"loop/3.hy",
+
 	"fn/1.hy",
 	"fn/2.hy",
 	"fn/3.hy",
