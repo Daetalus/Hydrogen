@@ -57,9 +57,7 @@ void compile(VirtualMachine *vm, Function *fn, TokenType terminator) {
 
 	// Push the function's arguments as locals
 	for (int i = 0; i < fn->argument_count; i++) {
-		Local *local = &compiler.locals[compiler.local_count];
-		compiler.local_count++;
-
+		Local *local = &compiler.locals[compiler.local_count++];
 		local->name = fn->arguments[i].location;
 		local->length = fn->arguments[i].length;
 		local->scope_depth = 0;
@@ -69,7 +67,7 @@ void compile(VirtualMachine *vm, Function *fn, TokenType terminator) {
 	// we reach the terminator character.
 	block(&compiler, terminator);
 
-	// Insert an ending instruction
+	// Insert a final return instruction
 	emit(&compiler.fn->bytecode, CODE_RETURN);
 }
 
@@ -90,9 +88,8 @@ void block(Compiler *compiler, TokenType terminator) {
 	// parsing this block, and pop it when we're finished.
 	push_scope(compiler);
 
-	// Blocks consist of a sequence of statements, so continually
-	// compile statements.
 	while (!lexer_match(lexer, terminator)) {
+		// Blocks consist of a sequence of statements.
 		statement(compiler);
 	}
 
@@ -100,8 +97,8 @@ void block(Compiler *compiler, TokenType terminator) {
 }
 
 
-// Compile a single statement. A statement is effectively one
-// line of code.
+// Compile a single statement. A statement is one construct in
+// the language, like an if statement or variable assignment.
 void statement(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 
@@ -133,8 +130,8 @@ void statement(Compiler *compiler) {
 //  Variable Assignment
 //
 
-// Returns true if the current sequence of tokens represent a
-// variable assignment.
+// Returns true if the sequence of tokens at the lexer's current
+// cursor position represent a variable assignment.
 bool match_variable_assignment(Lexer *lexer) {
 	// Recognise either a let token (for new variables) or
 	// an identifier followed by an assignment token.
@@ -178,14 +175,15 @@ void variable_assignment(Compiler *compiler) {
 	// Check to see if the variable already exists.
 	int index = find_local(compiler, name.location, name.length);
 	if (is_new_var && index != -1) {
-		// We're trying to create a new variable using a variable
-		// name that's already taken.
-		error(lexer->line, "Variable name `%.*s` already taken in assignment",
+		// We're trying to create a new variable using a
+		// variable name that's already taken.
+		error(lexer->line, "Variable name `%.*s` already in use",
 			name.length, name.location);
 	} else if (!is_new_var && index == -1) {
 		// We're trying to assign a new value to a variable that
 		// doesn't exist.
-		error(lexer->line, "Variable `%.*s` doesn't exist in assignment",
+		error(lexer->line,
+			"Variable `%.*s` doesn't exist. Use `let` to define a new variable",
 			name.length, name.location);
 	}
 
@@ -202,15 +200,19 @@ void variable_assignment(Compiler *compiler) {
 	} else if (lexer_match(lexer, TOKEN_MODULO_ASSIGNMENT)) {
 		fn = &operator_modulo;
 	} else if (lexer_match(lexer, TOKEN_ASSIGNMENT)) {
-		// No modification needed
+		// No modification needed, but don't want it to trigger
+		// an error
 	} else {
-		error(lexer->line, "Expected `=` after variable name in assignment");
+		error(lexer->line, "Expected `=` after `%.*s` in assignment",
+			name.length, name.location);
 	}
 	lexer_consume(lexer);
 
 	// Disallow modifier operators on new variables
 	if (is_new_var && fn != NULL) {
-		error(lexer->line, "Expected `=` after variable name in assignment");
+		error(lexer->line,
+			"Expected `=` after `%.*s` in assignment of new variable",
+			name.length, name.location);
 	}
 
 	if (fn != NULL) {
@@ -225,7 +227,7 @@ void variable_assignment(Compiler *compiler) {
 	expression(compiler, NULL);
 
 	if (fn != NULL) {
-		// Push the modifier function itself.
+		// Push a call to the modifier function.
 		Bytecode *bytecode = &compiler->fn->bytecode;
 		emit_native(bytecode, fn);
 	}
@@ -267,9 +269,9 @@ bool should_terminate_at_open_brace(Token token) {
 // Expects the lexer to start on the first token of the
 // expression.
 //
-// Returns the index of the conditional jump emitted, which can be
-// patched after the final jump statement (after an if or else if
-// to jump to the end of entire statement).
+// Returns the index of the conditional jump emitted, which can
+// be patched after the final jump statement (after an if or else
+// if to jump to the end of entire statement).
 int if_condition_and_block(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 	Bytecode *bytecode = &compiler->fn->bytecode;
@@ -325,6 +327,7 @@ void if_statement(Compiler *compiler) {
 	bool had_else = false;
 	bool had_else_if = false;
 	lexer_disable_newlines(lexer);
+
 	while (lexer_match(lexer, TOKEN_ELSE_IF)) {
 		had_else_if = true;
 
@@ -399,6 +402,10 @@ void if_statement(Compiler *compiler) {
 //
 
 // Compiles a while loop.
+//
+// Consist of a conditional expression evaluation, followed by
+// a conditional jump to after the loop, followed by a block,
+// followed by a jump back to the conditional expression.
 void while_loop(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 	Bytecode *bytecode = &compiler->fn->bytecode;
@@ -551,7 +558,7 @@ int function_call_arguments(Compiler *compiler) {
 				// Unrecognised operator
 				Token token = lexer_current(lexer);
 				error(lexer->line,
-					"Unexpected `%.*s` in arguments to function call.",
+					"Unexpected `%.*s` in arguments to function call",
 					token.length, token.location);
 			}
 		}
@@ -618,7 +625,7 @@ void function_definition(Compiler *compiler) {
 
 	// Expect the opening token to the arguments list
 	expect(lexer, TOKEN_OPEN_PARENTHESIS,
-		"Expected `(` after name in function definition.");
+		"Expected `(` after name in function definition");
 
 	// Compile the arguments list
 	Function *fn = define_bytecode_function(compiler->vm);
@@ -660,10 +667,10 @@ void function_definition(Compiler *compiler) {
 		lexer_consume(lexer);
 	}
 
-	// Expect the opening brace to the function block.
+	// Expect the opening brace to the function block
 	expect(lexer, TOKEN_OPEN_BRACE, "Expected `{` to begin function block");
 
-	// Check the function isn't already defined.
+	// Check the function isn't already defined
 	int index = find_function(compiler->vm, name.location, name.length,
 		fn->argument_count);
 	if (index != -1) {
@@ -686,16 +693,10 @@ void function_definition(Compiler *compiler) {
 	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
 	compile(compiler->vm, fn, TOKEN_CLOSE_BRACE);
 
-	// Consume the closing brace.
+	// Consume the closing brace
 	expect(lexer, TOKEN_CLOSE_BRACE,
-		"Expected `}` to close function block.");
+		"Expected `}` to close function block");
 }
-
-
-
-//
-//  Function Call Emission
-//
 
 
 

@@ -8,12 +8,7 @@ To Do
 * Objectify compiler code
 * Prefix functions with class name
 * Add static in front of functions used in single file
-* Refactor #defines into C functions
 * Add library function interface
-* Remove unnecessary defines
-* Completely re-write documentation
-* Reduce coupling between parts of code. If only needs lexer, only takes lexer as argument
-* Remove useless comments
 
 
 ## To Do

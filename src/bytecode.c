@@ -42,7 +42,6 @@ int resize(Bytecode *bytecode, int amount) {
 	bytecode->count += amount;
 
 	if (bytecode->count > bytecode->capacity) {
-		// Reisze the array
 		bytecode->capacity *= 2;
 		if (bytecode->capacity < bytecode->count) {
 			bytecode->capacity = bytecode->count * 2;
