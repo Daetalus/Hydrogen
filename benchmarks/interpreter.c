@@ -6,26 +6,33 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
+#include <stdlib.h>
 
 #include "../include/hydrogen.h"
+
+// Color codes
+#define NORMAL  "\x1B[0m"
+#define BOLD    "\x1B[1m"
+#define RED     "\x1B[31m"
+#define GREEN   "\x1B[32m"
+#define YELLOW  "\x1B[33m"
+#define BLUE    "\x1B[34m"
+#define MAGENTA "\x1B[35m"
+#define CYAN    "\x1B[36m"
+#define WHITE   "\x1B[37m"
 
 
 int main(int argc, char *argv[]) {
 	if (argc != 2) {
-		printf("Usage: run <benchmark file path>\n");
-		return 0;
+		printf("Usage: interpreter <path>\n");
+		return 1;
 	}
 
-	// Get the full path of the file
-	size_t path_length = (strlen(argv[1]) + 15) * sizeof(char);
-	char path[path_length];
-	strcpy(path, "../benchmarks/");
-	strcpy(&path[14], argv[1]);
-
 	// Open the source code file
-	FILE *f = fopen(path, "r");
+	FILE *f = fopen(argv[1], "r");
 	if (f == NULL) {
-		fprintf(stderr, "Failed to open file!\n");
+		printf("Failed to open file!\n");
 		return 1;
 	}
 

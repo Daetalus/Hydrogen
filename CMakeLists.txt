@@ -66,8 +66,8 @@ test(runtime)
 # Benchmarks
 # --
 
-add_executable(benchmark benchmarks/run.c)
-target_link_libraries(benchmark vm)
+add_executable(interpreter benchmarks/interpreter.c)
+target_link_libraries(interpreter vm)
 
 
 

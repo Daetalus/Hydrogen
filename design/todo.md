@@ -16,7 +16,6 @@ To Do
 * More descriptive error messages, including source code snippets
 * Associate line numbers with bytecode instructions for error handling
 * At minimum 20 tests for all constructs
-* Write proper benchmark tester with averages over 30 trials
 * Complete TODOs in code
 * Write failing tests
 * Compose writeup on internal workings
