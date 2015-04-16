@@ -158,7 +158,7 @@ void emit_backward_jump(Bytecode *bytecode, int index) {
 //
 
 // Emits a call to a native function.
-void emit_native(Bytecode *bytecode, void *fn) {
+void emit_native_call(Bytecode *bytecode, void *fn) {
 	emit(bytecode, CODE_CALL_NATIVE);
 	emit_arg_8(bytecode, ptr_to_value(fn));
 }

@@ -269,7 +269,7 @@ void variable_assignment(Compiler *compiler) {
 	if (fn != NULL) {
 		// Push a call to the modifier function.
 		Bytecode *bytecode = &compiler->fn->bytecode;
-		emit_native(bytecode, fn);
+		emit_native_call(bytecode, fn);
 	}
 
 	// Emit the bytecode to store the item that's on the top of
@@ -667,35 +667,41 @@ int function_call_arguments(Compiler *compiler) {
 // Compiles a function call, leaving the return value of the
 // function on the top of the stack.
 void function_call(Compiler *compiler) {
+	Bytecode *bytecode = &compiler->fn->bytecode;
 	Lexer *lexer = &compiler->vm->lexer;
 
 	// Consume the function's name
 	Token name = lexer_consume(lexer);
 
 	// Compile the function's arguments
-	int argument_count = function_call_arguments(compiler);
+	int arity = function_call_arguments(compiler);
 
 	// Check the function exists as a user defined function
-	int index = find_function(compiler->vm, name.location, name.length,
-		argument_count);
-	if (index != -1) {
-		Bytecode *bytecode = &compiler->fn->bytecode;
-		emit_bytecode_call(bytecode, index);
+	int fn_index = vm_find_function(compiler->vm, name.location, name.length,
+		arity);
+	if (fn_index != -1) {
+		emit_bytecode_call(bytecode, fn_index);
 		return;
 	}
 
 	// Not a user defined function, so check the standard library
-	NativeFunction fn = find_native_function(compiler->vm,
-		name.location, name.length, argument_count);
-	if (fn == NULL) {
-		// Undefined function
-		error(lexer->line, "Undefined function `%.*s`",
-			name.length, name.location);
+	NativeFunction native_fn = vm_find_native_function(compiler->vm,
+		name.location, name.length, arity);
+	if (native_fn != NULL) {
+		emit_native_call(bytecode, native_fn);
+		return;
 	}
 
-	// Emit bytecode to call the function
-	Bytecode *bytecode = &compiler->fn->bytecode;
-	emit_native(bytecode, fn);
+	// Finally, push a local variable with the same name in hope
+	// that the local is a closure.
+	if (push_local(compiler, name.location, name.length)) {
+		emit(bytecode, CODE_CALL_STACK);
+		return;
+	}
+
+	// Undefined function
+	error(lexer->line, "Undefined function `%.*s`",
+		name.length, name.location);
 }
 
 
@@ -790,14 +796,14 @@ void function_definition(Compiler *compiler) {
 	lexer_disable_newlines(lexer);
 
 	// Check the function isn't already defined
-	int index = find_function(compiler->vm, name.location, name.length,
+	int index = vm_find_function(compiler->vm, name.location, name.length,
 		fn->arity);
 	if (index != -1) {
 		error(lexer->line, "Function `%.*s` is already defined",
 			name.length, name.location);
 	}
 
-	NativeFunction ptr = find_native_function(compiler->vm, name.location,
+	NativeFunction ptr = vm_find_native_function(compiler->vm, name.location,
 		name.length, fn->arity);
 	if (ptr != NULL) {
 		error(lexer->line, "Function `%.*s` is already defined in a library",
@@ -953,16 +959,19 @@ int define_local(Compiler *compiler, char *name, int length) {
 
 // Emits bytecode to push the local with the given name onto the
 // stack.
-void push_local(Compiler *compiler, char *name, int length) {
+//
+// Returns true if the local was successfully pushed, and false
+// if it couldn't be found.
+bool push_local(Compiler *compiler, char *name, int length) {
 	int index = find_local(compiler, name, length);
 
 	// Check for an undefined variable.
 	if (index == -1) {
-		Lexer *lexer = &compiler->vm->lexer;
-		error(lexer->line, "Undefined variable `%.*s`", length, name);
+		return false;
 	}
 
 	emit_push_local(&compiler->fn->bytecode, index);
+	return true;
 }
 
 

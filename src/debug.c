@@ -42,12 +42,6 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 		break;
 	}
 
-	case CODE_PUSH_LOCAL: {
-		uint16_t index = READ_2_BYTES();
-		printf("%lu: push variable %hu\n", position, index);
-		break;
-	}
-
 	case CODE_PUSH_TRUE:
 		printf("%lu: push true\n", position);
 		break;
@@ -60,6 +54,24 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 		printf("%lu: push nil\n", position);
 		break;
 
+	case CODE_PUSH_LOCAL: {
+		uint16_t index = READ_2_BYTES();
+		printf("%lu: push variable %hu\n", position, index);
+		break;
+	}
+
+	case CODE_PUSH_CLOSURE: {
+		uint16_t index = READ_2_BYTES();
+		printf("%lu: push closure %hu\n", position, index);
+		break;
+	}
+
+	case CODE_PUSH_UPVALUE: {
+		uint16_t index = READ_2_BYTES();
+		printf("%lu: push upvalue %hu\n", position, index);
+		break;
+	}
+
 	case CODE_POP: {
 		printf("%lu: pop\n", position);
 		break;
@@ -68,6 +80,12 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 	case CODE_STORE: {
 		uint16_t index = READ_2_BYTES();
 		printf("%lu: store %hu\n", position, index);
+		break;
+	}
+
+	case CODE_STORE_UPVALUE: {
+		uint16_t index = READ_2_BYTES();
+		printf("%lu: store upvalue %hu\n", position, index);
 		break;
 	}
 
@@ -92,6 +110,11 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 	case CODE_CALL: {
 		uint16_t index = READ_2_BYTES();
 		printf("%lu: call %hu\n", position, index);
+		break;
+	}
+
+	case CODE_CALL_STACK: {
+		printf("%lu: call stack\n", position);
 		break;
 	}
 

@@ -67,7 +67,7 @@ START(modifier_assignment_operators) {
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_STORE(0);
 
-	ASSERT_VARIABLE_PUSH(0);
+	ASSERT_LOCAL_PUSH(0);
 	ASSERT_NUMBER_PUSH(1.0);
 	ASSERT_NATIVE_CALL(operator_addition);
 	ASSERT_STORE(0);
@@ -208,7 +208,7 @@ START(while_loop_three) {
 	ASSERT_CONDITIONAL_JUMP(30);
 
 	// if i >= 3
-	ASSERT_VARIABLE_PUSH(0);
+	ASSERT_LOCAL_PUSH(0);
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NATIVE_CALL(operator_greater_than_equal_to);
 	ASSERT_CONDITIONAL_JUMP(3);
@@ -236,7 +236,7 @@ START(while_loop_four) {
 	ASSERT_STORE(0);
 
 	// if i == 3
-	ASSERT_VARIABLE_PUSH(0);
+	ASSERT_LOCAL_PUSH(0);
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NATIVE_CALL(operator_equal);
 	ASSERT_CONDITIONAL_JUMP(4);
@@ -317,7 +317,7 @@ START(function_definition_one) {
 	USE_FUNCTION(1);
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_STORE(0);
-	ASSERT_VARIABLE_PUSH(0);
+	ASSERT_LOCAL_PUSH(0);
 	ASSERT_NATIVE_CALL(native_print);
 	ASSERT_INSTRUCTION(CODE_POP);
 	ASSERT_RETURN_NIL();
@@ -338,7 +338,7 @@ START(function_definition_two) {
 	USE_FUNCTION(1);
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_STORE(0);
-	ASSERT_VARIABLE_PUSH(0);
+	ASSERT_LOCAL_PUSH(0);
 	ASSERT_NATIVE_CALL(native_print);
 	ASSERT_INSTRUCTION(CODE_POP);
 	ASSERT_RETURN_NIL();
@@ -360,10 +360,10 @@ START(function_definition_three) {
 	USE_FUNCTION(1);
 	ASSERT_NUMBER_PUSH(4.0);
 	ASSERT_STORE(1);
-	ASSERT_VARIABLE_PUSH(0);
+	ASSERT_LOCAL_PUSH(0);
 	ASSERT_NATIVE_CALL(native_print);
 	ASSERT_INSTRUCTION(CODE_POP);
-	ASSERT_VARIABLE_PUSH(1);
+	ASSERT_LOCAL_PUSH(1);
 	ASSERT_NATIVE_CALL(native_print);
 	ASSERT_INSTRUCTION(CODE_POP);
 	ASSERT_RETURN_NIL();
@@ -383,7 +383,7 @@ START(function_definition_four) {
 
 	// test
 	USE_FUNCTION(1);
-	ASSERT_VARIABLE_PUSH(0);
+	ASSERT_LOCAL_PUSH(0);
 	ASSERT_NATIVE_CALL(native_print);
 	ASSERT_INSTRUCTION(CODE_POP);
 	ASSERT_RETURN_NIL();
@@ -404,10 +404,10 @@ START(function_definition_five) {
 
 	// test
 	USE_FUNCTION(1);
-	ASSERT_VARIABLE_PUSH(0);
+	ASSERT_LOCAL_PUSH(0);
 	ASSERT_NATIVE_CALL(native_print);
 	ASSERT_INSTRUCTION(CODE_POP);
-	ASSERT_VARIABLE_PUSH(1);
+	ASSERT_LOCAL_PUSH(1);
 	ASSERT_NATIVE_CALL(native_print);
 	ASSERT_INSTRUCTION(CODE_POP);
 	ASSERT_RETURN_NIL();
@@ -429,10 +429,73 @@ START(function_definition_six) {
 
 	// test
 	USE_FUNCTION(1);
-	ASSERT_VARIABLE_PUSH(0);
+	ASSERT_LOCAL_PUSH(0);
 	ASSERT_NATIVE_CALL(native_print);
 	ASSERT_INSTRUCTION(CODE_POP);
-	ASSERT_VARIABLE_PUSH(1);
+	ASSERT_LOCAL_PUSH(1);
+	ASSERT_NATIVE_CALL(native_print);
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_RETURN_NIL();
+}
+END()
+
+
+START(anonymous_function_one) {
+	VM("let a = fn() { print(3) }");
+
+	// main
+	USE_FUNCTION(0);
+	ASSERT_CLOSURE_PUSH(1);
+	ASSERT_STORE(0);
+	ASSERT_RETURN_NIL();
+
+	// anonymous function
+	USE_FUNCTION(1);
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_NATIVE_CALL(native_print);
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_RETURN_NIL();
+}
+END()
+
+
+START(anonymous_function_two) {
+	VM("let a = fn() {print(3)}\na()");
+
+	// main
+	USE_FUNCTION(0);
+	ASSERT_CLOSURE_PUSH(1);
+	ASSERT_STORE(0);
+	ASSERT_LOCAL_PUSH(0);
+	ASSERT_INSTRUCTION(CODE_CALL_STACK);
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_RETURN_NIL();
+
+	// anonymous function
+	USE_FUNCTION(1);
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_NATIVE_CALL(native_print);
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_RETURN_NIL();
+}
+END()
+
+
+START(anonymous_function_three) {
+	VM("let a\n = \nfn\n(\n)\n\r {\nprint(3)\n}\n\r\na\n(\n)\n");
+
+	// main
+	USE_FUNCTION(0);
+	ASSERT_CLOSURE_PUSH(1);
+	ASSERT_STORE(0);
+	ASSERT_LOCAL_PUSH(0);
+	ASSERT_INSTRUCTION(CODE_CALL_STACK);
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_RETURN_NIL();
+
+	// anonymous function
+	USE_FUNCTION(1);
+	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NATIVE_CALL(native_print);
 	ASSERT_INSTRUCTION(CODE_POP);
 	ASSERT_RETURN_NIL();
@@ -464,5 +527,8 @@ MAIN(compiler) {
 	RUN(function_definition_four)
 	RUN(function_definition_five)
 	RUN(function_definition_six)
+	RUN(anonymous_function_one)
+	RUN(anonymous_function_two)
+	RUN(anonymous_function_three)
 }
 MAIN_END()

@@ -191,6 +191,21 @@ instructions:
 		goto instructions;
 	}
 
+	// Push a closure index onto the top of the stack.
+	case CODE_PUSH_CLOSURE: {
+		uint16_t index = READ_2_BYTES();
+		PUSH(CLOSURE_TO_VALUE(index));
+		goto instructions;
+	}
+
+	// Push an upvalue onto the top of the stack. If the upvalue
+	// is open, pushes another value in the stack. If the
+	// upvalue is closed, then pushes the `value` field of the
+	// upvalue.
+	case CODE_PUSH_UPVALUE:
+		// Unimplemented
+		goto instructions;
+
 	// Pop an item from the top of the stack.
 	case CODE_POP:
 		POP();
@@ -206,6 +221,16 @@ instructions:
 		}
 		goto instructions;
 	}
+
+	// Pop the top of the stack and store it into an upvalue.
+	case CODE_STORE_UPVALUE:
+		goto instructions;
+
+	// Hoist the upvalue's value out of the stack and into the
+	// `value` field of the upvalue, allowing it to persist
+	// in memory even if the function's frame is destroyed.
+	case CODE_CLOSE_UPVALUE:
+		goto instructions;
 
 	// Jump the instruction pointer forwards.
 	case CODE_JUMP_FORWARD: {
@@ -240,6 +265,20 @@ instructions:
 	// executing it.
 	case CODE_CALL: {
 		uint16_t index = READ_2_BYTES();
+		PUSH_FRAME(&vm->functions[index]);
+		goto instructions;
+	}
+
+	// Pop the top of the stack and convert it to a function
+	// index, calling it.
+	case CODE_CALL_STACK: {
+		uint64_t value = TOP();
+		if (!IS_CLOSURE(value)) {
+			error(-1, "Attempting to call non-closure variable");
+		}
+
+		POP();
+		uint16_t index = VALUE_TO_CLOSURE(value);
 		PUSH_FRAME(&vm->functions[index]);
 		goto instructions;
 	}
@@ -312,13 +351,14 @@ int vm_find_function(VirtualMachine *vm, char *name, int length, int arity) {
 // Returns NULL no function with that name is found.
 NativeFunction vm_find_native_function(VirtualMachine *vm, char *name,
 		int length, int arity) {
-	if (strncmp(name, "print", length) == 0) {
+	if (length == 5 && strncmp(name, "print", length) == 0) {
 		if (arity == 1) {
 			return &native_print;
 		} else if (arity == 2) {
 			return &native_print_2;
 		}
-	} else if (strncmp(name, "assert", length) == 0) {
+	} else if (arity == 1 && length == 6 &&
+			strncmp(name, "assert", length) == 0) {
 		return &native_assert;
 	}
 

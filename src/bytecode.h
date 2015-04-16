@@ -96,6 +96,14 @@ typedef enum {
 	//   push.
 	CODE_PUSH_LOCAL,
 
+	// Pushes the index of a closure in the virtual machine's
+	// function list onto the top of the stack.
+	//
+	// Arguments:
+	// * 2 bytes - the index of the closure in the VM's function
+	//   list.
+	CODE_PUSH_CLOSURE,
+
 	// Push the value in the upvalue onto the top of the stack.
 	// If the upvalue is open, the VM indexes the stack with the
 	// upvalue's absolute stack position to find the value to
@@ -272,7 +280,7 @@ void emit_backward_jump(Bytecode *bytecode, int index);
 
 
 // Emits a call to a native function.
-void emit_native(Bytecode *bytecode, void *fn);
+void emit_native_call(Bytecode *bytecode, void *fn);
 
 // Emits a call to a user function.
 void emit_bytecode_call(Bytecode *bytecode, uint16_t index);

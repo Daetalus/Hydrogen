@@ -437,7 +437,7 @@ void prefix(Compiler *compiler, ExpressionTerminator terminator,
 	parse_precedence(compiler, terminator, 0);
 
 	// Emit the native call
-	emit_native(bytecode, fn);
+	emit_native_call(bytecode, fn);
 }
 
 
@@ -465,7 +465,7 @@ void infix(Compiler *compiler, ExpressionTerminator terminator,
 	parse_precedence(compiler, terminator, precedence);
 
 	// Emit the native call for this operator.
-	emit_native(bytecode, operator.fn);
+	emit_native_call(bytecode, operator.fn);
 }
 
 
@@ -536,7 +536,10 @@ void operand_identifier(Compiler *compiler) {
 	} else {
 		// The operand is a variable
 		Token identifier = lexer_consume(lexer);
-		push_local(compiler, identifier.location, identifier.length);
+		if (!push_local(compiler, identifier.location, identifier.length)) {
+			error(lexer->line, "Undefined variable `%.*s`",
+				identifier.length, identifier.location);
+		}
 	}
 }
 
@@ -606,13 +609,37 @@ void operand_nil(Compiler *compiler) {
 // Compile a function operand.
 void operand_function(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
+	Bytecode *bytecode = &compiler->fn->bytecode;
 
 	// Consume the function keyword
 	lexer_consume(lexer);
 
 	// Define a function
 	Function *fn;
+	int index = vm_new_function(compiler->vm, &fn);
+	fn->is_main = false;
 	fn->name = NULL;
-	fn->
-	vm_new_function(compiler->vm, &fn);
+	fn->length = 0;
+	fn->arity = 0;
+
+	// Consume the function's arguments list
+	function_definition_arguments(compiler, fn);
+
+	// Expect an opening brace for the function's block
+	lexer_disable_newlines(lexer);
+	expect(lexer, TOKEN_OPEN_BRACE,
+		"Expected `{` after arguments list in anonymous function");
+
+	// Compile the function's block
+	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
+	lexer_enable_newlines(lexer);
+	compile(compiler->vm, fn, TOKEN_CLOSE_BRACE);
+
+	// Expect a closing brace after the function's block
+	expect(lexer, TOKEN_CLOSE_BRACE,
+		"Expected `}` to close anonymous function block");
+
+	// Push the function index
+	emit(bytecode, CODE_PUSH_CLOSURE);
+	emit_arg_2(bytecode, index);
 }

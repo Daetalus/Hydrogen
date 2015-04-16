@@ -109,10 +109,18 @@ bool match_function_call(Lexer *lexer);
 // function on the top of the stack.
 void function_call(Compiler *compiler);
 
+// Parses the arguments list for `fn`. Expects the lexer's cursor
+// to be on the opening parenthesis of the arguments list.
+// Consumes the final closing parenthesis of the arguments.
+void function_definition_arguments(Compiler *compiler, Function *fn);
+
 
 // Emits bytecode to push the local with the name `name` onto
 // the stack.
-void push_local(Compiler *compiler, char *name, int length);
+//
+// Returns true if the local was successfully pushed, and false
+// if it couldn't be found.
+bool push_local(Compiler *compiler, char *name, int length);
 
 // Emits bytecode to push a string literal onto the stack.
 //

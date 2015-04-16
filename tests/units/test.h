@@ -164,8 +164,18 @@
 	ASSERT_STR_EQ(vm.literals[index]->contents, str);
 
 
-#define ASSERT_VARIABLE_PUSH(slot)           \
+#define ASSERT_LOCAL_PUSH(slot)              \
 	ASSERT_EQ(READ_BYTE(), CODE_PUSH_LOCAL); \
+	ASSERT_EQ(READ_2_BYTES(), slot);
+
+
+#define ASSERT_CLOSURE_PUSH(index)             \
+	ASSERT_EQ(READ_BYTE(), CODE_PUSH_CLOSURE); \
+	ASSERT_EQ(READ_2_BYTES(), index);
+
+
+#define ASSERT_STORE(slot)              \
+	ASSERT_EQ(READ_BYTE(), CODE_STORE); \
 	ASSERT_EQ(READ_2_BYTES(), slot);
 
 
@@ -176,11 +186,6 @@
 
 #define ASSERT_CALL(slot)              \
 	ASSERT_EQ(READ_BYTE(), CODE_CALL); \
-	ASSERT_EQ(READ_2_BYTES(), slot);
-
-
-#define ASSERT_STORE(slot)              \
-	ASSERT_EQ(READ_BYTE(), CODE_STORE); \
 	ASSERT_EQ(READ_2_BYTES(), slot);
 
 
@@ -197,6 +202,7 @@
 #define ASSERT_BACKWARDS_JUMP(amount)       \
 	ASSERT_EQ(READ_BYTE(), CODE_JUMP_BACK); \
 	ASSERT_EQ(READ_2_BYTES(), amount);
+
 
 #define ASSERT_RETURN_NIL()            \
 	ASSERT_INSTRUCTION(CODE_PUSH_NIL); \

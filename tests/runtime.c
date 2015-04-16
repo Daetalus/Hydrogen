@@ -67,6 +67,10 @@ char *files[] = {
 	"fn/10.hy",
 	"fn/11.hy",
 	"fn/12.hy",
+
+	"closure/1.hy",
+	"closure/2.hy",
+	"closure/3.hy",
 };
 
 
