@@ -1,10 +1,6 @@
 
-let a = 3
-
-fn test() {
-	a = 4
+let a = fn() {
+	return 3
 }
 
-assert(a == 3)
-test()
-assert(a == 4)
+assert(a() == 3)

@@ -145,6 +145,9 @@ void operand_false(Compiler *compiler);
 // Compile a nil constant.
 void operand_nil(Compiler *compiler);
 
+// Compile a function operand.
+void operand_function(Compiler *compiler);
+
 
 // Expression rules array. The entries in the array are in order
 // of the tokens as defined in the lexer, so we can simply
@@ -267,7 +270,7 @@ Rule rules[] = {
 	// In
 	{RULE_UNUSED},
 	// Function
-	{RULE_UNUSED},
+	{RULE_OPERAND, {.operand = {&operand_function}}},
 	// Return
 	{RULE_UNUSED},
 
@@ -597,4 +600,19 @@ void operand_nil(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 	lexer_consume(lexer);
 	emit(bytecode, CODE_PUSH_NIL);
+}
+
+
+// Compile a function operand.
+void operand_function(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+
+	// Consume the function keyword
+	lexer_consume(lexer);
+
+	// Define a function
+	Function *fn;
+	fn->name = NULL;
+	fn->
+	vm_new_function(compiler->vm, &fn);
 }

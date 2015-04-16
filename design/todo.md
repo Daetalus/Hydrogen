@@ -21,3 +21,5 @@ To Do
 * Compose writeup on internal workings
 * Add unicode support
 * Add \U unicode escape in string literals (specify a unicode character with hex)
+* Try pointer casting instead of union conversion for numbers <-> values
+	* Ie. `uint64_t value = *((uint64_t *) &(number))`, where `number` is a double.

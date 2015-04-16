@@ -96,6 +96,18 @@ typedef enum {
 	//   push.
 	CODE_PUSH_LOCAL,
 
+	// Push the value in the upvalue onto the top of the stack.
+	// If the upvalue is open, the VM indexes the stack with the
+	// upvalue's absolute stack position to find the value to
+	// push.
+	// If the upvalue is closed, it pushes the value stored in
+	// the upvalue's `value` field.
+	//
+	// Arguments:
+	// * 2 bytes - the index of the upvalue in the VM's upvalue
+	//   list.
+	CODE_PUSH_UPVALUE,
+
 	// Pops an item off the top of the stack.
 	//
 	// Arguments:
@@ -109,9 +121,27 @@ typedef enum {
 	// pointer.
 	//
 	// Arguments:
-	// * 2 bytes -  the index in the value stack
-	// to transfer the top of the stack into.
+	// * 2 bytes - the index in the value stack to transfer the
+	//   top of the stack into.
 	CODE_STORE,
+
+	// Pops an item off the top of the stack and stores it in
+	// the upvalue at the index `arg` in the virtual machine's
+	// upvalue list.
+	//
+	// Arguments:
+	// * 2 bytes - the index in the VM's upvalues list to store
+	//   the top of the stack to.
+	CODE_STORE_UPVALUE,
+
+	// Closes an upvalue by copying its value off the stack
+	// (found at its absolute stack location) into the upvalue's
+	// `value` field.
+	//
+	// Arguments:
+	// * 2 bytes - the index of the upvalue to close in the VM's
+	//   upvalues list.
+	CODE_CLOSE_UPVALUE,
 
 	// Unconditionally jumps the instruction pointer forward.
 	//
@@ -147,6 +177,15 @@ typedef enum {
 	// * 2 bytes - the index of the function to call in the
 	//   virtual machine's functions list.
 	CODE_CALL,
+
+	// Pops a value off the top of the stack and converts it to
+	// an index in the VM's functions list, then calls the
+	// function at that index. Used when calling closures
+	// assigned to variables.
+	//
+	// Arguments:
+	// None
+	CODE_CALL_STACK,
 
 	// Calls a native C function by converting an 8 byte argument
 	// into a C function pointer, then calling this function

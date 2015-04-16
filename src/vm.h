@@ -47,10 +47,19 @@ typedef struct {
 typedef struct {
 	// A pointer to the start of the function's name in the
 	// source code.
+	//
+	// NULL if the function is anonymous.
 	char *name;
 
 	// The length of the function's name in the source code.
+	//
+	// 0 if the function is anonymous.
 	int length;
+
+	// True if the function is the main function (ie. is top
+	// level code, and isn't actually contained in a function
+	// definition).
+	bool is_main;
 
 	// The function's compiled bytecode.
 	Bytecode bytecode;
@@ -62,7 +71,7 @@ typedef struct {
 	SourceString arguments[MAX_ARGUMENTS];
 
 	// The number of arguments passed to the function.
-	int argument_count;
+	int arity;
 } Function;
 
 
@@ -108,22 +117,22 @@ void vm_run(VirtualMachine *vm);
 
 
 // Defines a new function on the virtual machine, returning a
-// pointer to it.
+// pointer to it and its index in the virtual machine's function
+// list.
 //
 // Performs no allocation, so the returned function's bytecode
 // array still needs to be allocated.
-Function * define_bytecode_function(VirtualMachine *vm);
+int vm_new_function(VirtualMachine *vm, Function **fn);
 
 // Returns the index of a user-defined function named `name`.
 //
 // Returns -1 if no function with that name is found.
-int find_function(VirtualMachine *vm, char *name, int length,
-	int argument_count);
+int vm_find_function(VirtualMachine *vm, char *name, int length, int arity);
 
 // Returns a function pointer to a library function named `name`.
 //
 // Returns NULL no function with that name is found.
-NativeFunction find_native_function(VirtualMachine *vm, char *name,
-	int length, int argument_count);
+NativeFunction vm_find_native_function(VirtualMachine *vm, char *name,
+	int length, int arity);
 
 #endif

@@ -137,4 +137,69 @@ For example, compiling a while loop involves consuming the while keyword, then c
 
 ### Closures
 
+* An upvalue is a value in the stack of an enclosing function used in a sub-function (usually an anonymous function)
+	* The upvalue must be kept in scope even when the enclosing function's stack frame is popped
+* Closures are functions which capture upvalues
+* Closures are represented as a type of variable
+	* Stored as an index into the VM's closure list
+
+
+struct Upvalue {
+	// True when we've closed the upvalue
+	bool closed;
+
+	// The absolute position of the upvalue in the VM's stack when the upvalue is open
+	int stack_position;
+
+	// The upvalue's value when it is closed, hoisted out of the stack and copied into here
+	uint64_t value;
+
+	// The name of the upvalue we're closing over. Used when we encounter an identifier and need to check if an upvalue has already been created for it. To avoid collisions with different upvalues named the same thing, this is NULLed when the original local goes out of scope.
+	char *name;
+
+	// The length of the name. Set to 0 when the original local goes out of scope.
+	int length;
+}
+
+* Creating closures (in expressions)
+	* Defined like any ordinary function, returning index and `Function` struct pointer
+	* Compile function block like any other function with a compiler
+	* Convert index into value and push onto stack
+* Calling closures (separately in function calls or in expressions) in VM
+	* Pop variable to call
+	* Check if closure in VM
+		* Trigger runtime error if not closure
+	* Call bytecode by pushing function frame, like ordinary function
+* Using (pushing or storing) variables from an outer function's stack (capturing an upvalue)
+	* When encountering an identifier:
+	* Check current compiler's local list
+		* Not an upvalue, so just push the local
+	* Iterate over all the VM's upvalues
+		* Compare the name of the upvalue to the identifier (ENSURE WE CHECK FOR THE CASE WHERE THE NAME IS NULL)
+		* If we get a match, then emit a push upvalue instruction with the upvalue's index
+	* Else, we need to create a new upvalue
+		* Recursively iterate over parent compiler's locals lists until we have a pointer to the original local
+		* Create a new upvalue in the VM's list
+		* Mark the local as an upvalue
+		* Set the upvalue to open
+		* Calculate and set the absolute stack position of the upvalue
+* Persisting captured variables after function's stack is popped (closing an upvalue)
+	* On scope pop, check if local is upvalue (via marked attribute)
+	* If it is, push close upvalue instruction with index of upvalue in function's upvalues list
+	* Close instructions must come before pop instructions
+	* On function return, where locals aren't popped, emit close upvalue instructions before calculating the return expression
+	* When closing upvalue, set the upvalue's name char pointer to NULL and its length to 0, to avoid collisions with future upvalues that are potentially named the same
+
+	* Closing an upvalue during execution in the VM:
+		* Shallow copy of value in stack into the value in the upvalue
+		* Set closed to true
+* Instead of `PUSH_LOCAL`, use `PUSH_UPVALUE`
+	* If upvalue is open, push item at absolute stack location
+	* If upvalue is closed, push value of upvalue
+* Instead of `STORE_LOCAL` instruction, use `STORE_UPVALUE` instruction
+	* If upvalue is open, modify value at absolute stack position
+	* If upvalue is closed, modify value stored in upvalue itself
+
+## Garbage Collection
+
 ## Execution

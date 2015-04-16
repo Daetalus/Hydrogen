@@ -113,7 +113,7 @@
 	Function fn;                           \
 	fn.name = "test";                      \
 	fn.length = 4;                         \
-	fn.argument_count = 0;                 \
+	fn.arity = 0;                          \
 	fn.bytecode = bytecode_new(64);        \
 	Bytecode *bytecode = &fn.bytecode;     \
 	Compiler compiler;                     \
@@ -125,15 +125,15 @@
 	uint8_t *ip = &bytecode->instructions[0];
 
 
-#define COMPILER(code)                                \
-	VirtualMachine vm = vm_new((code));               \
-	Function fn;                                      \
-	fn.name = "test";                                 \
-	fn.length = 4;                                    \
-	fn.argument_count = 0;                            \
-	fn.bytecode = bytecode_new(64);                   \
-	Bytecode *bytecode = &fn.bytecode;                \
-	compile(&vm, &fn, TOKEN_END_OF_FILE);             \
+#define COMPILER(code)                    \
+	VirtualMachine vm = vm_new((code));   \
+	Function fn;                          \
+	fn.name = "test";                     \
+	fn.length = 4;                        \
+	fn.arity = 0;                         \
+	fn.bytecode = bytecode_new(64);       \
+	Bytecode *bytecode = &fn.bytecode;    \
+	compile(&vm, &fn, TOKEN_END_OF_FILE); \
 	uint8_t *ip = &bytecode->instructions[0];
 
 
@@ -194,7 +194,7 @@
 	ASSERT_EQ(READ_2_BYTES(), amount);
 
 
-#define ASSERT_BACKWARDS_JUMP(amount)           \
+#define ASSERT_BACKWARDS_JUMP(amount)       \
 	ASSERT_EQ(READ_BYTE(), CODE_JUMP_BACK); \
 	ASSERT_EQ(READ_2_BYTES(), amount);
 

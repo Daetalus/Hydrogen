@@ -61,10 +61,12 @@ void vm_free(VirtualMachine *vm) {
 void vm_compile(VirtualMachine *vm) {
 	// Create the main function, whose bytecode we'll populate.
 	// The main function is identified by the NULL name value.
-	Function *fn = define_bytecode_function(vm);
+	Function *fn;
+	vm_new_function(vm, &fn);
+	fn->is_main = true;
 	fn->name = NULL;
 	fn->length = 0;
-	fn->argument_count = 0;
+	fn->arity = 0;
 	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
 
 	// Compile the source code into the function's
@@ -127,7 +129,7 @@ void vm_run(VirtualMachine *vm) {
 			call_stack[call_stack_size - 1].instruction_ptr = ip; \
 		}                                                         \
 		if (stack_size > 0) {                                     \
-			stack_start = stack_size - (fn)->argument_count;      \
+			stack_start = stack_size - (fn)->arity;               \
 		} else {                                                  \
 			stack_start = 0;                                      \
 		}                                                         \
@@ -277,23 +279,26 @@ instructions:
 //
 
 // Defines a new function on the virtual machine, returning a
-// pointer to it.
+// pointer to it and its index in the virtual machine's function
+// list.
 //
-// The returned function's bytecode array is not allocated.
-Function * define_bytecode_function(VirtualMachine *vm) {
+// Performs no allocation, so the returned function's bytecode
+// array still needs to be allocated.
+int vm_new_function(VirtualMachine *vm, Function **fn) {
+	int index = vm->function_count;
 	vm->function_count++;
-	return &vm->functions[vm->function_count - 1];
+	*fn = &vm->functions[index];
+	return index;
 }
 
 
 // Returns the index of a user-defined function named `name`.
 // Returns -1 if no function with that name is found.
-int find_function(VirtualMachine *vm, char *name, int length,
-		int argument_count) {
+int vm_find_function(VirtualMachine *vm, char *name, int length, int arity) {
 	for (int i = 0; i < vm->function_count; i++) {
 		Function *fn = &vm->functions[i];
 
-		if (fn->length == length && fn->argument_count == argument_count &&
+		if (fn->length == length && fn->arity == arity &&
 				strncmp(fn->name, name, length) == 0) {
 			return i;
 		}
@@ -305,12 +310,12 @@ int find_function(VirtualMachine *vm, char *name, int length,
 
 // Returns a function pointer to a library function named `name`.
 // Returns NULL no function with that name is found.
-NativeFunction find_native_function(VirtualMachine *vm, char *name,
-		int length, int argument_count) {
+NativeFunction vm_find_native_function(VirtualMachine *vm, char *name,
+		int length, int arity) {
 	if (strncmp(name, "print", length) == 0) {
-		if (argument_count == 1) {
+		if (arity == 1) {
 			return &native_print;
-		} else if (argument_count == 2) {
+		} else if (arity == 2) {
 			return &native_print_2;
 		}
 	} else if (strncmp(name, "assert", length) == 0) {

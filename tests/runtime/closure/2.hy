@@ -1,11 +1,9 @@
 
-fn iter() {
-	let a = 3
+fn test() {
 	return fn() {
-		return a + 1
+		return 10
 	}
 }
 
-let the_fn = iter()
-assert(the_fn() == 4)
-assert(the_fn() == 4)
+let func = test()
+assert(func() == 10)

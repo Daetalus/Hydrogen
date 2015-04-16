@@ -16,6 +16,12 @@
 // Bits that, when set, indicate a quiet NaN value.
 #define QUIET_NAN ((uint64_t) 0x7ffc000000000000)
 
+// The mask set on a value to indicate whether it's a closure.
+//
+// Closures are represented by a 2 byte unsigned integer, so set
+// the bit just above where the index will be.
+#define CLOSURE_MASK (QUIET_NAN | 0x10000)
+
 // Static values.
 #define TRUE_VALUE  (QUIET_NAN | 0x1)
 #define FALSE_VALUE (QUIET_NAN | 0x2)
@@ -29,10 +35,20 @@
 // quiet NaN bits and the sign bit are set.
 #define IS_PTR(value) (((value) & (QUIET_NAN | SIGN)) == (QUIET_NAN | SIGN))
 
+// Evaluates to true if `value` is an index in the VM's functions
+// list (ie. a closure stored in a variable).
+#define IS_CLOSURE(value) (((value) & CLOSURE_MASK) == CLOSURE_MASK)
+
 // Compares the value against static constant values.
 #define IS_TRUE(value)  ((value) == TRUE_VALUE)
 #define IS_FALSE(value) ((value) == FALSE_VALUE)
 #define IS_NIL(value)   ((value) == NIL_VALUE)
+
+// Converts a closure index (uint16_t) into a value.
+#define CLOSURE_TO_VALUE(index) ((index) | CLOSURE_MASK)
+
+// Converts a value back into a closure index.
+#define VALUE_TO_CLOSURE(value) ((value) ^ CLOSURE_MASK)
 
 
 // Converts a value into a number.

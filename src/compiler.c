@@ -80,7 +80,7 @@ void compile(VirtualMachine *vm, Function *fn, TokenType terminator) {
 	compiler.loop_count = 0;
 
 	// Push the function's arguments as locals
-	for (int i = 0; i < fn->argument_count; i++) {
+	for (int i = 0; i < fn->arity; i++) {
 		Local *local = &compiler.locals[compiler.local_count++];
 		local->name = fn->arguments[i].location;
 		local->length = fn->arguments[i].length;
@@ -191,7 +191,7 @@ void variable_assignment(Compiler *compiler) {
 
 	// Indicates whether the variable we're assigning to has been
 	// defined before, or whether we're defining it for the first
-	// time here.
+	// time.
 	bool is_new_var = false;
 
 	// Check for the let keyword.
@@ -295,8 +295,8 @@ void variable_assignment(Compiler *compiler) {
 //  If Statement
 //
 
-// Returns true when an if statement's or while loop's
-// conditional expression should be terminated.
+// Returns true if an if statement's or while loop's conditional
+// expression should be terminated at `token`.
 bool should_terminate_at_open_brace(Token token) {
 	return token.type == TOKEN_OPEN_BRACE;
 }
@@ -505,8 +505,7 @@ void while_loop(Compiler *compiler) {
 	// Insert a jump statement to re-evaluate the condition
 	emit_backward_jump(bytecode, start_of_expression);
 
-	// Patch the conditional jump to point to here (after
-	// the block)
+	// Patch the conditional jump to point here (after the block)
 	patch_forward_jump(bytecode, condition_jump);
 
 	// Patch break statements and pop the loop from the
@@ -715,48 +714,36 @@ void function_call_statement(Compiler *compiler) {
 //  Function Definitions
 //
 
-// Compiles a function definition.
-void function_definition(Compiler *compiler) {
+// Parses the arguments list for `fn`. Expects the lexer's cursor
+// to be on the opening parenthesis of the arguments list.
+// Consumes the final closing parenthesis of the arguments.
+void function_definition_arguments(Compiler *compiler, Function *fn) {
 	Lexer *lexer = &compiler->vm->lexer;
-
-	// Consume the function keyword.
-	lexer_consume(lexer);
-
-	// Expect the function name identifier.
 	lexer_disable_newlines(lexer);
-	Token name = expect(lexer, TOKEN_IDENTIFIER,
-		"Expected identifier after `fn` keyword");
+
+	// Reset the argument count
+	fn->arity = 0;
 
 	// Expect the opening token to the arguments list
 	expect(lexer, TOKEN_OPEN_PARENTHESIS,
 		"Expected `(` after name in function definition");
 
-	// Compile the arguments list
-	Function *fn = define_bytecode_function(compiler->vm);
-	fn->argument_count = 0;
-
-	// Set the name and length after we've checked that the
-	// function isn't already defined, because if we set them
-	// here, then we've defined the function already and we'll
-	// trigger a compilation error.
-	fn->name = NULL;
-	fn->length = 0;
-
 	if (!lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
 		while (1) {
 			// Expect an identifier, the function argument
-			Token name = expect(lexer, TOKEN_IDENTIFIER,
+			Token argument = expect(lexer, TOKEN_IDENTIFIER,
 				"Expected argument name in function argument list");
 
-			int index = fn->argument_count;
-			fn->argument_count++;
-			fn->arguments[index].location = name.location;
-			fn->arguments[index].length = name.length;
+			int index = fn->arity;
+			fn->arity++;
+			fn->arguments[index].location = argument.location;
+			fn->arguments[index].length = argument.length;
 
 			// Expect a comma or closing parenthesis
 			if (lexer_match(lexer, TOKEN_COMMA)) {
 				lexer_consume(lexer);
 			} else if (lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
+				// End of the arguments list
 				lexer_consume(lexer);
 				break;
 			} else {
@@ -771,19 +758,47 @@ void function_definition(Compiler *compiler) {
 		lexer_consume(lexer);
 	}
 
-	// Expect the opening brace to the function block
-	expect(lexer, TOKEN_OPEN_BRACE, "Expected `{` to begin function block");
+	lexer_enable_newlines(lexer);
+}
+
+
+// Compiles a function definition.
+void function_definition(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+
+	// Consume the function keyword.
+	lexer_consume(lexer);
+
+	// Expect the function name identifier.
+	lexer_disable_newlines(lexer);
+	Token name = expect(lexer, TOKEN_IDENTIFIER,
+		"Expected identifier after `fn` keyword");
+
+	// Compile the arguments list.
+	//
+	// Set the name and length after we've checked that the
+	// function isn't already defined, because if we set them
+	// here, then we've defined the function already and we'll
+	// trigger a compilation error.
+	Function *fn;
+	vm_new_function(compiler->vm, &fn);
+	fn->is_main = false;
+	fn->name = NULL;
+	fn->length = 0;
+	lexer_enable_newlines(lexer);
+	function_definition_arguments(compiler, fn);
+	lexer_disable_newlines(lexer);
 
 	// Check the function isn't already defined
 	int index = find_function(compiler->vm, name.location, name.length,
-		fn->argument_count);
+		fn->arity);
 	if (index != -1) {
 		error(lexer->line, "Function `%.*s` is already defined",
 			name.length, name.location);
 	}
 
 	NativeFunction ptr = find_native_function(compiler->vm, name.location,
-		name.length, fn->argument_count);
+		name.length, fn->arity);
 	if (ptr != NULL) {
 		error(lexer->line, "Function `%.*s` is already defined in a library",
 			name.length, name.location);
@@ -792,14 +807,16 @@ void function_definition(Compiler *compiler) {
 	fn->name = name.location;
 	fn->length = name.length;
 
+	// Expect an opening brace, to open the function's block
+	expect(lexer, TOKEN_OPEN_BRACE, "Expected `{` to begin function block");
+
 	// Compile the function
-	lexer_enable_newlines(lexer);
 	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
+	lexer_enable_newlines(lexer);
 	compile(compiler->vm, fn, TOKEN_CLOSE_BRACE);
 
-	// Consume the closing brace
-	expect(lexer, TOKEN_CLOSE_BRACE,
-		"Expected `}` to close function block");
+	// Expect a closing brace to close the function's block
+	expect(lexer, TOKEN_CLOSE_BRACE, "Expected `}` to close function block");
 }
 
 
@@ -825,7 +842,7 @@ void return_statement(Compiler *compiler) {
 		// Implicitly returning nil
 		emit(bytecode, CODE_PUSH_NIL);
 	} else {
-		if (compiler->fn->name == NULL) {
+		if (compiler->fn->is_main) {
 			// We're trying to return an expression from within
 			// the "main" function. This isn't allowed, so
 			// trigger an error.
