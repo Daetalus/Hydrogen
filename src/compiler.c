@@ -68,7 +68,7 @@ int define_local(Compiler *compiler, char *name, int length);
 // virtual machine `vm` as input. Outputs bytecode directly into
 // `fn`'s bytecode array.
 //
-// Stops compiling when `terminator is found, or end of file is
+// Stops compiling when `terminator` is found, or end of file is
 // reached.
 void compile(VirtualMachine *vm, Function *fn, TokenType terminator) {
 	// Create a compiler for this function.
@@ -170,12 +170,18 @@ bool match_variable_assignment(Lexer *lexer) {
 	// Recognise either a let token (for new variables) or
 	// an identifier followed by an assignment token.
 	return lexer_match(lexer, TOKEN_LET) ||
-		lexer_match_two(lexer, TOKEN_IDENTIFIER, TOKEN_ASSIGNMENT) ||
-		lexer_match_two(lexer, TOKEN_IDENTIFIER, TOKEN_ADDITION_ASSIGNMENT) ||
-		lexer_match_two(lexer, TOKEN_IDENTIFIER, TOKEN_SUBTRACTION_ASSIGNMENT) ||
-		lexer_match_two(lexer, TOKEN_IDENTIFIER, TOKEN_DIVISION_ASSIGNMENT) ||
-		lexer_match_two(lexer, TOKEN_IDENTIFIER, TOKEN_MODULO_ASSIGNMENT) ||
-		lexer_match_two(lexer, TOKEN_IDENTIFIER, TOKEN_MULTIPLICATION_ASSIGNMENT);
+		lexer_match_two(lexer, TOKEN_IDENTIFIER,
+			TOKEN_ASSIGNMENT) ||
+		lexer_match_two(lexer, TOKEN_IDENTIFIER,
+			TOKEN_ADDITION_ASSIGNMENT) ||
+		lexer_match_two(lexer, TOKEN_IDENTIFIER,
+			TOKEN_SUBTRACTION_ASSIGNMENT) ||
+		lexer_match_two(lexer, TOKEN_IDENTIFIER,
+			TOKEN_DIVISION_ASSIGNMENT) ||
+		lexer_match_two(lexer, TOKEN_IDENTIFIER,
+			TOKEN_MODULO_ASSIGNMENT) ||
+		lexer_match_two(lexer, TOKEN_IDENTIFIER,
+			TOKEN_MULTIPLICATION_ASSIGNMENT);
 }
 
 
@@ -217,7 +223,7 @@ void variable_assignment(Compiler *compiler) {
 		// We're trying to assign a new value to a variable that
 		// doesn't exist.
 		error(lexer->line,
-			"Variable `%.*s` doesn't exist. Use `let` to define a new variable",
+			"Undefined variable `%.*s`. Use `let` to define a new variable",
 			name.length, name.location);
 	}
 
@@ -821,9 +827,8 @@ void return_statement(Compiler *compiler) {
 	} else {
 		if (compiler->fn->name == NULL) {
 			// We're trying to return an expression from within
-			// the "main" function. The main function is the top
-			// code outside any explicit function definition.
-			// Trigger an error.
+			// the "main" function. This isn't allowed, so
+			// trigger an error.
 			error(lexer->line,
 				"Attempting to return value from outside function definition");
 		}
@@ -890,7 +895,7 @@ int find_local(Compiler *compiler, char *name, int length) {
 	// (hopefully) faster, as people are more likely to use
 	// variables they've defined recently.
 	//
-	// This isn't based on any scientific fact! It's just
+	// This isn't based on any scientific fact, it's just
 	// speculation.
 	for (int i = compiler->local_count - 1; i >= 0; i--) {
 		Local *local = &compiler->locals[i];

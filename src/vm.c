@@ -141,7 +141,7 @@ void vm_run(VirtualMachine *vm) {
 	#define POP_FRAME()                                       \
 		call_stack_size--;                                    \
 		ip = call_stack[call_stack_size - 1].instruction_ptr; \
-		stack_size -= stack_size - stack_start;               \
+		stack_size = stack_start;                             \
 		stack_start = call_stack[call_stack_size - 1].stack_start;
 
 	// Push the main function onto the call stack. The main

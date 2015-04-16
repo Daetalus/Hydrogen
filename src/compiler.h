@@ -97,7 +97,7 @@ typedef struct {
 // virtual machine `vm` as input. Outputs bytecode directly into
 // `fn`'s bytecode array.
 //
-// Stops compiling when `terminator is found, or end of file is
+// Stops compiling when `terminator` is found, or end of file is
 // reached.
 void compile(VirtualMachine *vm, Function *fn, TokenType terminator);
 
