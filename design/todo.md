@@ -23,3 +23,5 @@ To Do
 * Add \U unicode escape in string literals (specify a unicode character with hex)
 * Try pointer casting instead of union conversion for numbers <-> values
 	* Ie. `uint64_t value = *((uint64_t *) &(number))`, where `number` is a double.
+* Computed gotos
+* Ensure we don't overflow any arrays

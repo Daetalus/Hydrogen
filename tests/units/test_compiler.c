@@ -10,7 +10,8 @@
 
 
 START(variable_assignment_one) {
-	COMPILER("let a = 3");
+	char source[] = "let a = 3";
+	COMPILER(&source[0]);
 
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_STORE(0);
@@ -503,6 +504,28 @@ START(anonymous_function_three) {
 END()
 
 
+START(closure_one) {
+	VM("let a = 3\nfn test() {\nreturn a\n}\nprint(test())");
+
+	// main
+	USE_FUNCTION(0);
+	print_bytecode(bytecode);
+	ASSERT_NUMBER_PUSH(3.0);
+	ASSERT_STORE(0);
+	ASSERT_CALL(1);
+	ASSERT_NATIVE_CALL(native_print);
+	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_RETURN_NIL();
+
+	// closure
+	USE_FUNCTION(1);
+	ASSERT_UPVALUE_PUSH(0);
+	ASSERT_UPVALUE(0, 1, 0);
+	ASSERT_INSTRUCTION(CODE_RETURN);
+}
+END()
+
+
 MAIN(compiler) {
 	RUN(variable_assignment_one)
 	RUN(variable_assignment_two)
@@ -530,5 +553,6 @@ MAIN(compiler) {
 	RUN(anonymous_function_one)
 	RUN(anonymous_function_two)
 	RUN(anonymous_function_three)
+	RUN(closure_one)
 }
 MAIN_END()

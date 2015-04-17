@@ -200,6 +200,12 @@ struct Upvalue {
 	* If upvalue is open, modify value at absolute stack position
 	* If upvalue is closed, modify value stored in upvalue itself
 
+
+* Places to change:
+	* Variables as operands in expressions
+	* Calling closures in function calls
+	* Storing in variable assignment
+
 ## Garbage Collection
 
 ## Execution

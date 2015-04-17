@@ -106,14 +106,6 @@ void emit_push_number(Bytecode *bytecode, double number) {
 }
 
 
-// Emits bytecode to push a copy of a value somewhere in the
-// stack onto the top of the stack.
-void emit_push_local(Bytecode *bytecode, uint16_t index) {
-	emit(bytecode, CODE_PUSH_LOCAL);
-	emit_arg_2(bytecode, index);
-}
-
-
 
 //
 //  Jumps

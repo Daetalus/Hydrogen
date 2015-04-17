@@ -35,10 +35,17 @@ typedef struct {
 // Nothing is compiled or run until `vm_compile` and `vm_run`
 // are called.
 VirtualMachine vm_new(char *source) {
+	printf("hello0\n");
 	VirtualMachine vm;
+	printf("hello\n");
 	vm.lexer = lexer_new(source);
+	printf("hello2\n");
 	vm.function_count = 0;
+	printf("hello3\n");
 	vm.literal_count = 0;
+	printf("hello4\n");
+	vm.upvalue_count = 0;
+	printf("hello5\n");
 	return vm;
 }
 
@@ -64,14 +71,11 @@ void vm_compile(VirtualMachine *vm) {
 	Function *fn;
 	vm_new_function(vm, &fn);
 	fn->is_main = true;
-	fn->name = NULL;
-	fn->length = 0;
-	fn->arity = 0;
 	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
 
 	// Compile the source code into the function's
 	// bytecode array.
-	compile(vm, fn, TOKEN_END_OF_FILE);
+	compile(vm, NULL, fn, TOKEN_END_OF_FILE);
 }
 
 
@@ -138,14 +142,6 @@ void vm_run(VirtualMachine *vm) {
 		call_stack[call_stack_size].instruction_ptr = ip;         \
 		call_stack_size++;
 
-	// Returns from the executing function to the function that
-	// called it.
-	#define POP_FRAME()                                       \
-		call_stack_size--;                                    \
-		ip = call_stack[call_stack_size - 1].instruction_ptr; \
-		stack_size = stack_start;                             \
-		stack_start = call_stack[call_stack_size - 1].stack_start;
-
 	// Push the main function onto the call stack. The main
 	// function is always the first function in the functions
 	// array.
@@ -202,9 +198,19 @@ instructions:
 	// is open, pushes another value in the stack. If the
 	// upvalue is closed, then pushes the `value` field of the
 	// upvalue.
-	case CODE_PUSH_UPVALUE:
-		// Unimplemented
+	case CODE_PUSH_UPVALUE: {
+		uint16_t index = READ_2_BYTES();
+		Upvalue *upvalue = &vm->upvalues[index];
+		if (upvalue->closed) {
+			// Push the value stored in the upvalue
+			PUSH(upvalue->value);
+		} else {
+			// Push the value stored in the stack
+			PUSH(stack[upvalue->stack_position]);
+		}
+
 		goto instructions;
+	}
 
 	// Pop an item from the top of the stack.
 	case CODE_POP:
@@ -213,7 +219,7 @@ instructions:
 
 	// Pop the item off the top of the stack and write it to
 	// another location in the stack.
-	case CODE_STORE: {
+	case CODE_STORE_LOCAL: {
 		uint16_t index = READ_2_BYTES();
 		stack[stack_start + index] = TOP();
 		if (stack_size - 1 > index) {
@@ -223,14 +229,35 @@ instructions:
 	}
 
 	// Pop the top of the stack and store it into an upvalue.
-	case CODE_STORE_UPVALUE:
+	case CODE_STORE_UPVALUE: {
+		uint16_t index = READ_2_BYTES();
+		Upvalue *upvalue = &vm->upvalues[index];
+		if (upvalue->closed) {
+			// Store the value directly into the upvalue
+			upvalue->value = TOP();
+			POP();
+		} else {
+			stack[upvalue->stack_position] = TOP();
+
+			// Pop the item off the stack only if the upvalue
+			// isn't storing into the top stack position
+			if (stack_start - 1 > upvalue->stack_position) {
+				POP();
+			}
+		}
 		goto instructions;
+	}
 
 	// Hoist the upvalue's value out of the stack and into the
 	// `value` field of the upvalue, allowing it to persist
 	// in memory even if the function's frame is destroyed.
-	case CODE_CLOSE_UPVALUE:
+	case CODE_CLOSE_UPVALUE: {
+		uint16_t index = READ_2_BYTES();
+		Upvalue *upvalue = &vm->upvalues[index];
+		upvalue->value = stack[upvalue->stack_position];
+		upvalue->closed = true;
 		goto instructions;
+	}
 
 	// Jump the instruction pointer forwards.
 	case CODE_JUMP_FORWARD: {
@@ -298,11 +325,14 @@ instructions:
 			break;
 		}
 
-		// Pop the return value
+		// Store the return value
 		uint64_t return_value = TOP();
 
 		// Reset the stack and instruction pointers
-		POP_FRAME();
+		call_stack_size--;
+		ip = call_stack[call_stack_size - 1].instruction_ptr;
+		stack_size = stack_start;
+		stack_start = call_stack[call_stack_size - 1].stack_start;
 
 		// Push the return value
 		PUSH(return_value);
@@ -327,6 +357,11 @@ int vm_new_function(VirtualMachine *vm, Function **fn) {
 	int index = vm->function_count;
 	vm->function_count++;
 	*fn = &vm->functions[index];
+	(*fn)->is_main = false;
+	(*fn)->upvalue_count = 0;
+	(*fn)->arity = 0;
+	(*fn)->name = NULL;
+	(*fn)->length = 0;
 	return index;
 }
 
@@ -363,4 +398,22 @@ NativeFunction vm_find_native_function(VirtualMachine *vm, char *name,
 	}
 
 	return NULL;
+}
+
+
+
+//
+//  Upvalues
+//
+
+// Create a new upvalue, returning a pointer to it and its index
+// in the upvalues list.
+int vm_new_upvalue(VirtualMachine *vm, Upvalue **upvalue) {
+	*upvalue = &vm->upvalues[vm->upvalue_count++];
+	(*upvalue)->closed = false;
+	(*upvalue)->reference_count = 0;
+	(*upvalue)->stack_position = 0;
+	(*upvalue)->name = NULL;
+	(*upvalue)->length = 0;
+	return vm->upvalue_count - 1;
 }

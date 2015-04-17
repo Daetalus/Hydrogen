@@ -77,7 +77,7 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 		break;
 	}
 
-	case CODE_STORE: {
+	case CODE_STORE_LOCAL: {
 		uint16_t index = READ_2_BYTES();
 		printf("%lu: store %hu\n", position, index);
 		break;

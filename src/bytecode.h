@@ -131,7 +131,7 @@ typedef enum {
 	// Arguments:
 	// * 2 bytes - the index in the value stack to transfer the
 	//   top of the stack into.
-	CODE_STORE,
+	CODE_STORE_LOCAL,
 
 	// Pops an item off the top of the stack and stores it in
 	// the upvalue at the index `arg` in the virtual machine's
@@ -259,10 +259,6 @@ void emit_arg_8(Bytecode *bytecode, uint64_t arg);
 
 // Emits bytecode to push a number onto the top of the stack.
 void emit_push_number(Bytecode *bytecode, double number);
-
-// Emits bytecode to push a copy of a value somewhere in the
-// stack onto the top of the stack.
-void emit_push_local(Bytecode *bytecode, uint16_t index);
 
 
 // Emit an incomplete jump instruction, where the amount to jump

@@ -111,9 +111,11 @@
 #define EXPRESSION(content)                \
 	VirtualMachine vm = vm_new((content)); \
 	Function fn;                           \
+	fn.is_main = false;                    \
 	fn.name = "test";                      \
 	fn.length = 4;                         \
 	fn.arity = 0;                          \
+	fn.upvalue_count = 0;                  \
 	fn.bytecode = bytecode_new(64);        \
 	Bytecode *bytecode = &fn.bytecode;     \
 	Compiler compiler;                     \
@@ -121,19 +123,23 @@
 	compiler.fn = &fn;                     \
 	compiler.local_count = 0;              \
 	compiler.scope_depth = 0;              \
+	compiler.stack_start = 0;              \
 	expression(&compiler, NULL);           \
 	uint8_t *ip = &bytecode->instructions[0];
 
 
-#define COMPILER(code)                    \
-	VirtualMachine vm = vm_new((code));   \
-	Function fn;                          \
-	fn.name = "test";                     \
-	fn.length = 4;                        \
-	fn.arity = 0;                         \
-	fn.bytecode = bytecode_new(64);       \
-	Bytecode *bytecode = &fn.bytecode;    \
-	compile(&vm, &fn, TOKEN_END_OF_FILE); \
+#define COMPILER(code)                          \
+	printf("hello-1 %s, %s, %p\n", #code, code, &vm_new);\
+	VirtualMachine vm = vm_new((code));         \
+	printf("hai\n");\
+	Function fn;                                \
+	fn.name = "test";                           \
+	fn.length = 4;                              \
+	fn.arity = 0;                               \
+	fn.upvalue_count = 0;                       \
+	fn.bytecode = bytecode_new(64);             \
+	Bytecode *bytecode = &fn.bytecode;          \
+	compile(&vm, NULL, &fn, TOKEN_END_OF_FILE); \
 	uint8_t *ip = &bytecode->instructions[0];
 
 
@@ -174,8 +180,18 @@
 	ASSERT_EQ(READ_2_BYTES(), index);
 
 
-#define ASSERT_STORE(slot)              \
-	ASSERT_EQ(READ_BYTE(), CODE_STORE); \
+#define ASSERT_UPVALUE_PUSH(index)             \
+	ASSERT_EQ(READ_BYTE(), CODE_PUSH_UPVALUE); \
+	ASSERT_EQ(READ_2_BYTES(), index);
+
+
+#define ASSERT_UPVALUE(index, references, stack_pos)           \
+	ASSERT_EQ(vm.upvalues[index].reference_count, references); \
+	ASSERT_EQ(vm.upvalues[index].stack_position, stack_pos);
+
+
+#define ASSERT_STORE(slot)                    \
+	ASSERT_EQ(READ_BYTE(), CODE_STORE_LOCAL); \
 	ASSERT_EQ(READ_2_BYTES(), slot);
 
 

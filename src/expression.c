@@ -529,17 +529,25 @@ void operand_number(Compiler *compiler) {
 
 // Compile an identifier.
 void operand_identifier(Compiler *compiler) {
+	Bytecode *bytecode = &compiler->fn->bytecode;
 	Lexer *lexer = &compiler->vm->lexer;
+
 	if (match_function_call(lexer)) {
 		// The operand is a function call instead of a variable
 		function_call(compiler);
 	} else {
 		// The operand is a variable
 		Token identifier = lexer_consume(lexer);
-		if (!push_local(compiler, identifier.location, identifier.length)) {
-			error(lexer->line, "Undefined variable `%.*s`",
-				identifier.length, identifier.location);
+		Variable variable = capture_variable(compiler, identifier.location,
+			identifier.length);
+
+		if (variable.type == VARIABLE_UNDEFINED) {
+			// The variable is undefined
+			error(lexer->line, "Undefined variable `%.*s`", identifier.length,
+				identifier.location);
 		}
+
+		emit_push_variable(bytecode, &variable);
 	}
 }
 
@@ -617,10 +625,6 @@ void operand_function(Compiler *compiler) {
 	// Define a function
 	Function *fn;
 	int index = vm_new_function(compiler->vm, &fn);
-	fn->is_main = false;
-	fn->name = NULL;
-	fn->length = 0;
-	fn->arity = 0;
 
 	// Consume the function's arguments list
 	function_definition_arguments(compiler, fn);
@@ -633,7 +637,7 @@ void operand_function(Compiler *compiler) {
 	// Compile the function's block
 	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
 	lexer_enable_newlines(lexer);
-	compile(compiler->vm, fn, TOKEN_CLOSE_BRACE);
+	compile(compiler->vm, compiler, fn, TOKEN_CLOSE_BRACE);
 
 	// Expect a closing brace after the function's block
 	expect(lexer, TOKEN_CLOSE_BRACE,
