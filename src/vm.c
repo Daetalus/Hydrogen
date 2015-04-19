@@ -35,17 +35,11 @@ typedef struct {
 // Nothing is compiled or run until `vm_compile` and `vm_run`
 // are called.
 VirtualMachine vm_new(char *source) {
-	printf("hello0\n");
 	VirtualMachine vm;
-	printf("hello\n");
 	vm.lexer = lexer_new(source);
-	printf("hello2\n");
 	vm.function_count = 0;
-	printf("hello3\n");
 	vm.literal_count = 0;
-	printf("hello4\n");
 	vm.upvalue_count = 0;
-	printf("hello5\n");
 	return vm;
 }
 
@@ -125,21 +119,24 @@ void vm_run(VirtualMachine *vm) {
 	// Pushes a new call frame for `fn` onto the call frame
 	// stack. Updates `ip` and `stack_start` with the values for
 	// the new function.
-	#define PUSH_FRAME(fn)                                        \
-		if (call_stack_size + 1 > MAX_CALL_STACK_SIZE) {          \
-			error(-1, "Stack overflow");                          \
-		}                                                         \
-		if (call_stack_size > 0) {                                \
-			call_stack[call_stack_size - 1].instruction_ptr = ip; \
-		}                                                         \
-		if (stack_size > 0) {                                     \
-			stack_start = stack_size - (fn)->arity;               \
-		} else {                                                  \
-			stack_start = 0;                                      \
-		}                                                         \
-		ip = (fn)->bytecode.instructions;                         \
-		call_stack[call_stack_size].stack_start = stack_start;    \
-		call_stack[call_stack_size].instruction_ptr = ip;         \
+	#define PUSH_FRAME(fn)                                           \
+		if (call_stack_size + 1 > MAX_CALL_STACK_SIZE) {             \
+			error(-1, "Stack overflow");                             \
+		}                                                            \
+		if (call_stack_size > 0) {                                   \
+			call_stack[call_stack_size - 1].instruction_ptr = ip;    \
+		}                                                            \
+		if (stack_size > 0) {                                        \
+			stack_start = stack_size - (fn)->arity;                  \
+		} else {                                                     \
+			stack_start = 0;                                         \
+		}                                                            \
+		for (int i = 0; i < (fn)->defined_upvalue_count; i++) {      \
+			(fn)->defined_upvalues[i]->function_index = stack_start; \
+		}                                                            \
+		ip = (fn)->bytecode.instructions;                            \
+		call_stack[call_stack_size].stack_start = stack_start;       \
+		call_stack[call_stack_size].instruction_ptr = ip;            \
 		call_stack_size++;
 
 	// Push the main function onto the call stack. The main
@@ -206,7 +203,7 @@ instructions:
 			PUSH(upvalue->value);
 		} else {
 			// Push the value stored in the stack
-			PUSH(stack[upvalue->stack_position]);
+			PUSH(stack[upvalue->function_index + upvalue->local_index]);
 		}
 
 		goto instructions;
@@ -221,8 +218,9 @@ instructions:
 	// another location in the stack.
 	case CODE_STORE_LOCAL: {
 		uint16_t index = READ_2_BYTES();
-		stack[stack_start + index] = TOP();
-		if (stack_size - 1 > index) {
+		int stack_index = stack_start + index;
+		stack[stack_index] = TOP();
+		if (stack_size - 1 > stack_index) {
 			POP();
 		}
 		goto instructions;
@@ -237,11 +235,12 @@ instructions:
 			upvalue->value = TOP();
 			POP();
 		} else {
-			stack[upvalue->stack_position] = TOP();
+			int stack_index = upvalue->function_index + upvalue->local_index;
+			stack[stack_index] = TOP();
 
 			// Pop the item off the stack only if the upvalue
 			// isn't storing into the top stack position
-			if (stack_start - 1 > upvalue->stack_position) {
+			if (stack_start - 1 > stack_index) {
 				POP();
 			}
 		}
@@ -254,7 +253,7 @@ instructions:
 	case CODE_CLOSE_UPVALUE: {
 		uint16_t index = READ_2_BYTES();
 		Upvalue *upvalue = &vm->upvalues[index];
-		upvalue->value = stack[upvalue->stack_position];
+		upvalue->value = stack[upvalue->function_index + upvalue->local_index];
 		upvalue->closed = true;
 		goto instructions;
 	}
@@ -358,10 +357,11 @@ int vm_new_function(VirtualMachine *vm, Function **fn) {
 	vm->function_count++;
 	*fn = &vm->functions[index];
 	(*fn)->is_main = false;
-	(*fn)->upvalue_count = 0;
-	(*fn)->arity = 0;
 	(*fn)->name = NULL;
 	(*fn)->length = 0;
+	(*fn)->arity = 0;
+	(*fn)->captured_upvalue_count = 0;
+	(*fn)->defined_upvalue_count = 0;
 	return index;
 }
 
@@ -411,9 +411,10 @@ NativeFunction vm_find_native_function(VirtualMachine *vm, char *name,
 int vm_new_upvalue(VirtualMachine *vm, Upvalue **upvalue) {
 	*upvalue = &vm->upvalues[vm->upvalue_count++];
 	(*upvalue)->closed = false;
-	(*upvalue)->reference_count = 0;
-	(*upvalue)->stack_position = 0;
+	(*upvalue)->local_index = 0;
+	(*upvalue)->function_index = 0;
 	(*upvalue)->name = NULL;
 	(*upvalue)->length = 0;
+	(*upvalue)->defining_function = NULL;
 	return vm->upvalue_count - 1;
 }

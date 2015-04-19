@@ -120,17 +120,7 @@ typedef struct compiler {
 	// The local variables currently in scope at any point
 	// during compilation.
 	Local locals[MAX_LOCALS];
-
-	// The number of local variables in scope.
 	int local_count;
-
-	// The starting index of this compiler's locals on the
-	// stack. For the top-most compiler, this is 0 (as its
-	// locals start at the bottom of the stack).
-	//
-	// This is calculated by summing the number of locals in all
-	// parent compilers.
-	int stack_start;
 
 	// The current scope depth of the compiler.
 	int scope_depth;
@@ -144,9 +134,12 @@ typedef struct compiler {
 	// pointers to these loops on the stack, instead of copying
 	// then by value.
 	Loop *loops[MAX_LOOP_DEPTH];
-
-	// The number of loops in the loop stack.
 	int loop_count;
+
+	// True if the function being compiled uses an explicit
+	// return statement, and we don't need to add an implicit
+	// one.
+	bool explicit_return_statement;
 } Compiler;
 
 

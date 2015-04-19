@@ -43,6 +43,9 @@ void function_call_statement(Compiler *compiler);
 void function_definition(Compiler *compiler);
 void return_statement(Compiler *compiler);
 
+// Iterate over the compiler's locals and close any upvalues.
+void close_upvalue_locals(Compiler *compiler);
+
 // Increment the compiler's scope depth.
 void push_scope(Compiler *compiler);
 
@@ -76,14 +79,7 @@ void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
 	compiler.local_count = 0;
 	compiler.scope_depth = 0;
 	compiler.loop_count = 0;
-
-	if (parent == NULL) {
-		// Root compiler, so its locals start at the bottom of
-		// the stack
-		compiler.stack_start = 0;
-	} else {
-		compiler.stack_start = parent->stack_start + parent->local_count;
-	}
+	compiler.explicit_return_statement = false;
 
 	// Push the function's arguments as locals
 	for (int i = 0; i < fn->arity; i++) {
@@ -91,6 +87,7 @@ void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
 		local->name = fn->arguments[i].location;
 		local->length = fn->arguments[i].length;
 		local->scope_depth = compiler.scope_depth;
+		local->upvalue_index = -1;
 	}
 
 	// Treat the source code as a top level block without a
@@ -102,9 +99,12 @@ void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
 
 	// Insert a final return instruction, pushing nil as the
 	// return value.
-	Bytecode *bytecode = &compiler.fn->bytecode;
-	emit(bytecode, CODE_PUSH_NIL);
-	emit(bytecode, CODE_RETURN);
+	if (!compiler.explicit_return_statement) {
+		close_upvalue_locals(&compiler);
+		Bytecode *bytecode = &compiler.fn->bytecode;
+		emit(bytecode, CODE_PUSH_NIL);
+		emit(bytecode, CODE_RETURN);
+	}
 }
 
 
@@ -839,6 +839,31 @@ void function_definition(Compiler *compiler) {
 //  Return Statements
 //
 
+// Emits bytecode to close an upvalue.
+void emit_close_upvalue(Compiler *compiler, int index) {
+	Bytecode *bytecode = &compiler->fn->bytecode;
+
+	emit(bytecode, CODE_CLOSE_UPVALUE);
+	emit_arg_2(bytecode, index);
+
+	Upvalue *upvalue = &compiler->vm->upvalues[index];
+	upvalue->name = NULL;
+	upvalue->length = 0;
+}
+
+
+// Iterate over the compiler's locals and close any upvalues.
+void close_upvalue_locals(Compiler *compiler) {
+	// Iterate over locals and close any upvalues.
+	for (int i = 0; i < compiler->local_count; i++) {
+		Local *local = &compiler->locals[i];
+
+		if (local->upvalue_index != -1) {
+			emit_close_upvalue(compiler, local->upvalue_index);
+		}
+	}
+}
+
 // Compile a return statement.
 //
 // Functions return by pushing the return value onto the top of
@@ -850,16 +875,6 @@ void return_statement(Compiler *compiler) {
 
 	// Consume the return keyword
 	lexer_consume(lexer);
-
-	// Iterate over locals and close any upvalues.
-	for (int i = 0; i < compiler->local_count; i++) {
-		Local *local = &compiler->locals[i];
-
-		if (local->upvalue_index != -1) {
-			emit(bytecode, CODE_CLOSE_UPVALUE);
-			emit_arg_2(bytecode, local->upvalue_index);
-		}
-	}
 
 	// Check for an expression to return
 	if (lexer_match(lexer, TOKEN_LINE)) {
@@ -878,7 +893,11 @@ void return_statement(Compiler *compiler) {
 		expression(compiler, NULL);
 	}
 
+	// Close any upvalues
+	close_upvalue_locals(compiler);
+
 	emit(bytecode, CODE_RETURN);
+	compiler->explicit_return_statement = true;
 }
 
 
@@ -909,9 +928,7 @@ void pop_scope(Compiler *compiler) {
 	// a variable that's in scope.
 	while (i >= 0 && local->scope_depth > compiler->scope_depth) {
 		if (local->upvalue_index != -1) {
-			// Emit a close upvalue instruction
-			emit(bytecode, CODE_CLOSE_UPVALUE);
-			emit_arg_2(bytecode, local->upvalue_index);
+			emit_close_upvalue(compiler, local->upvalue_index);
 		}
 
 		// Emit a pop instruction.
@@ -977,9 +994,12 @@ bool find_upvalue(Compiler *compiler, Variable *result, char *name,
 
 
 // Performs a recursive search through parent compilers to find
-// a pointer to a local and its absolute stack position.
-int find_local_in_all_scopes(Compiler *compiler, Local **local, char *name,
-		int length) {
+// a pointer to a local and stack position relative to its
+// enclosing function.
+//
+// Sets `fn` to the function that defines the local.
+int find_local_in_all_scopes(Compiler *compiler, Local **local, Function **fn,
+		char *name, int length) {
 	if (compiler == NULL) {
 		// Scanned through all compilers, and couldn't find the
 		// local, hence it's undefined.
@@ -990,10 +1010,12 @@ int find_local_in_all_scopes(Compiler *compiler, Local **local, char *name,
 	if (find_local(compiler, &result, name, length)) {
 		// Found the local
 		*local = result.local;
-		return compiler->stack_start + result.index;
+		*fn = compiler->fn;
+		return result.index;
 	} else {
 		// Search the parent compiler
-		return find_local_in_all_scopes(compiler->parent, local, name, length);
+		return find_local_in_all_scopes(compiler->parent, local, fn,
+			name, length);
 	}
 }
 
@@ -1001,8 +1023,8 @@ int find_local_in_all_scopes(Compiler *compiler, Local **local, char *name,
 // Adds `upvalue` to the list of all upvalues closed over by the
 // compiler if it doesn't yet exist in the upvalue's list.
 void add_upvalue(Compiler *compiler, Upvalue *upvalue) {
-	for (int i = 0; i < compiler->fn->upvalue_count; i++) {
-		if (compiler->fn->upvalues[i] == upvalue) {
+	for (int i = 0; i < compiler->fn->captured_upvalue_count; i++) {
+		if (compiler->fn->captured_upvalues[i] == upvalue) {
 			// The upvalue already exists in the list of all
 			// upvalues closed over by the function, so don't
 			// bother adding it again
@@ -1012,10 +1034,11 @@ void add_upvalue(Compiler *compiler, Upvalue *upvalue) {
 
 	// We haven't seen this upvalue before, so add it to the
 	// upvalues list
-	compiler->fn->upvalues[compiler->fn->upvalue_count++] = upvalue;
+	Function *fn = compiler->fn;
+	fn->captured_upvalues[fn->captured_upvalue_count++] = upvalue;
 
-	// Update the number of closures this upvalue is being used by
-	upvalue->reference_count++;
+	fn = upvalue->defining_function;
+	fn->defined_upvalues[fn->defined_upvalue_count++] = upvalue;
 }
 
 
@@ -1038,33 +1061,38 @@ Variable capture_variable(Compiler *compiler, char *name, int length) {
 		// Add the upvalue to all the upvalues this function
 		// closes over
 		add_upvalue(compiler, result.upvalue);
-
 		return result;
 	}
 
 	// Search parent compiler locals for a new upvalue. Start
 	// the search in the parent compiler because we've already
 	// searched through this compiler's locals.
+	Function *defining_function;
 	Local *local;
-	int index = find_local_in_all_scopes(compiler->parent, &local, name,
-		length);
-	if (index == -1) {
+	int local_index = find_local_in_all_scopes(compiler->parent, &local,
+		&defining_function, name, length);
+	if (local_index == -1) {
 		// Undefined variable
 		result.type = VARIABLE_UNDEFINED;
 		return result;
 	}
 
-	// Mark the local as an upvalue
-	local->upvalue_index = index;
-
-	// Create an upvalue
+	// Create the upvalue
 	Upvalue *upvalue;
+	int upvalue_index = vm_new_upvalue(compiler->vm, &upvalue);
+	upvalue->name = local->name;
+	upvalue->length = local->length;
+	upvalue->local_index = local_index;
+	upvalue->defining_function = defining_function;
+
 	result.type = VARIABLE_UPVALUE;
-	result.index = vm_new_upvalue(compiler->vm, &upvalue);
+	result.index = upvalue_index;
 	result.upvalue = upvalue;
 
-	// Update the number of closures using this upvalue
-	upvalue->reference_count++;
+	add_upvalue(compiler, upvalue);
+
+	// Mark the local as an upvalue
+	local->upvalue_index = upvalue_index;
 
 	return result;
 }

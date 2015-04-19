@@ -10,8 +10,7 @@
 
 
 START(variable_assignment_one) {
-	char source[] = "let a = 3";
-	COMPILER(&source[0]);
+	COMPILER("let a = 3");
 
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_STORE(0);
@@ -134,7 +133,8 @@ END()
 
 
 START(if_else_statement_two) {
-	COMPILER("if \n1\n\r \n{\nlet test = 3\n}\n\r \nelse\n\r \n{\nlet meh = 4\n}\n");
+	COMPILER("if \n1\n\r \n{\nlet test = 3\n}\n\r \nelse\n\r \n{\n"
+		"let meh = 4\n}\n");
 
 	// If conditional
 	ASSERT_NUMBER_PUSH(1.0);
@@ -327,7 +327,8 @@ END()
 
 
 START(function_definition_two) {
-	VM("\n\rfn\n test\n(\n)\n \n{\nlet a = 3\nprint(a)\n\n\n}\n \ntest\n(\n)\n");
+	VM("\n\rfn\n test\n(\n)\n \n{\nlet a = 3\nprint(a)\n\n\n}\n "
+		"\ntest\n(\n)\n");
 
 	// main
 	USE_FUNCTION(0);
@@ -348,7 +349,8 @@ END()
 
 
 START(function_definition_three) {
-	VM("fn test1(arg)\n{\n\tlet a = 4\n\tprint(arg)\n\tprint(a)\n}\ntest1('hello')\n");
+	VM("fn test1(arg)\n{\n\tlet a = 4\n\tprint(arg)\n\tprint(a)\n}\n"
+		"test1('hello')\n");
 
 	// main
 	USE_FUNCTION(0);
@@ -509,18 +511,17 @@ START(closure_one) {
 
 	// main
 	USE_FUNCTION(0);
-	print_bytecode(bytecode);
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_STORE(0);
 	ASSERT_CALL(1);
 	ASSERT_NATIVE_CALL(native_print);
 	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_UPVALUE_CLOSE(0);
 	ASSERT_RETURN_NIL();
 
 	// closure
 	USE_FUNCTION(1);
 	ASSERT_UPVALUE_PUSH(0);
-	ASSERT_UPVALUE(0, 1, 0);
 	ASSERT_INSTRUCTION(CODE_RETURN);
 }
 END()

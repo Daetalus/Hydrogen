@@ -28,6 +28,7 @@ void native_print(uint64_t *stack, int *stack_size) {
 	} else if (IS_NIL(arg)) {
 		printf("nil\n");
 	} else {
+		printf("unexpected: %llx\n", arg);
 		error(-1, "Unexpected argument to `print`");
 	}
 

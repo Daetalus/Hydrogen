@@ -13,11 +13,6 @@
 #include "../src/error.h"
 
 
-// The maximum number of characters that can be outputted by
-// the standard output stream on any of the tests.
-#define MAX_STDOUT 1024
-
-
 char *files[] = {
 	"assignment/1.hy",
 	"assignment/2.hy",
@@ -71,6 +66,15 @@ char *files[] = {
 	"closure/1.hy",
 	"closure/2.hy",
 	"closure/3.hy",
+	"closure/4.hy",
+	"closure/5.hy",
+	"closure/6.hy",
+	"closure/7.hy",
+	"closure/8.hy",
+	"closure/9.hy",
+	"closure/10.hy",
+	"closure/11.hy",
+	"closure/12.hy",
 };
 
 

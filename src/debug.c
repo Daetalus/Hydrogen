@@ -56,7 +56,7 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 
 	case CODE_PUSH_LOCAL: {
 		uint16_t index = READ_2_BYTES();
-		printf("%lu: push variable %hu\n", position, index);
+		printf("%lu: push local %hu\n", position, index);
 		break;
 	}
 
@@ -79,13 +79,19 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 
 	case CODE_STORE_LOCAL: {
 		uint16_t index = READ_2_BYTES();
-		printf("%lu: store %hu\n", position, index);
+		printf("%lu: store local %hu\n", position, index);
 		break;
 	}
 
 	case CODE_STORE_UPVALUE: {
 		uint16_t index = READ_2_BYTES();
 		printf("%lu: store upvalue %hu\n", position, index);
+		break;
+	}
+
+	case CODE_CLOSE_UPVALUE: {
+		uint16_t index = READ_2_BYTES();
+		printf("%lu: close upvalue %hu\n", position, index);
 		break;
 	}
 
@@ -130,7 +136,7 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 	}
 
 	default:
-		printf("Unrecognised instruction %d\n", instruction);
+		printf("Unrecognised instruction %d\n", (int) instruction);
 		break;
 	}
 
@@ -142,9 +148,22 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 void print_stack(uint64_t *stack, int stack_size) {
 	printf("---------- Stack:\n");
 	for (int i = 0; i < stack_size; i++) {
-		printf("%d: %llu, %.2f, is true: %d, is false: %d, is nil: %d\n",
+		printf("%d: %llx, %.2f, is true: %d, is false: %d, is nil: %d\n",
 			i, stack[i], value_to_number(stack[i]),
 			IS_TRUE(stack[i]), IS_FALSE(stack[i]), IS_NIL(stack[i]));
 	}
 	printf("----------\n");
+}
+
+
+// Pretty prints out the virtual machine's upvalues.
+void print_upvalues(VirtualMachine *vm) {
+	printf("Upvalues:\n");
+	for (int i = 0; i < vm->upvalue_count; i++) {
+		Upvalue *upvalue = &vm->upvalues[i];
+		printf("  %d: closed: %d, value: %llx, stack pos: %d\n", i,
+			upvalue->closed,
+			upvalue->value,
+			upvalue->local_index + upvalue->function_index);
+	}
 }

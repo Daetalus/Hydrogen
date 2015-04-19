@@ -201,6 +201,13 @@ struct Upvalue {
 	* If upvalue is closed, modify value stored in upvalue itself
 
 
+* Upvalues have a relative stack index inside their defining function, and a root stack index of their defining function
+* Store pointers to all variable definitions in a function that are later used as upvalues
+* When a function frame is pushed, iterate over all defined upvalues and set the stack index of their defining function to be the stack_start of the function
+* When indexing/modifying/closing open upvalues, index the stack using `defining_function_stack_index` + `relative_stack_index`
+* Remove `absolute_stack_position` stuff
+
+
 * Places to change:
 	* Variables as operands in expressions
 	* Calling closures in function calls

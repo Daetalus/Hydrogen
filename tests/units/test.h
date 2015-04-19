@@ -28,8 +28,9 @@
 #define CYAN    "\x1B[36m"
 #define WHITE   "\x1B[37m"
 
-#define LINE \
-	"--------------------------------------------------------------------------------"
+#define LINE                                   \
+	"----------------------------------------" \
+	"----------------------------------------"
 
 
 #define START(name)                    \
@@ -60,21 +61,22 @@
 
 #define MAIN_END()                                                            \
 		if (failed == 0) {                                                    \
-			printf(GREEN BOLD "\nAll tests passed.\n");                       \
+			printf(GREEN BOLD "All tests passed.\n");                         \
 			printf(GREEN BOLD "You are awesome!\n" NORMAL LINE "\n");         \
 			return 0;                                                         \
 		} else if (failed == 1) {                                             \
-			printf(RED BOLD "\n1 test failed.\n" NORMAL LINE "\n");           \
+			printf(RED BOLD "1 test failed.\n" NORMAL LINE "\n");             \
 			return 1;                                                         \
 		} else {                                                              \
-			printf(RED BOLD "\n%d tests failed.\n" NORMAL LINE "\n", failed); \
+			printf(RED BOLD "%d tests failed.\n" NORMAL LINE "\n", failed);   \
 			return 1;                                                         \
 		}                                                                     \
 	}
 
 
-#define PRINT_ASSERTION_FAILED()                                                      \
-	fprintf(stderr, BOLD RED "Assertion failed " NORMAL "in test `%s` on line %d:\n", \
+#define PRINT_ASSERTION_FAILED()                        \
+	fprintf(stderr, BOLD RED "Assertion failed " NORMAL \
+		"in test `%s` on line %d:\n",                   \
 		test_name, __LINE__);
 
 
@@ -115,7 +117,8 @@
 	fn.name = "test";                      \
 	fn.length = 4;                         \
 	fn.arity = 0;                          \
-	fn.upvalue_count = 0;                  \
+	fn.captured_upvalue_count = 0;         \
+	fn.defined_upvalue_count = 0;          \
 	fn.bytecode = bytecode_new(64);        \
 	Bytecode *bytecode = &fn.bytecode;     \
 	Compiler compiler;                     \
@@ -123,20 +126,18 @@
 	compiler.fn = &fn;                     \
 	compiler.local_count = 0;              \
 	compiler.scope_depth = 0;              \
-	compiler.stack_start = 0;              \
 	expression(&compiler, NULL);           \
 	uint8_t *ip = &bytecode->instructions[0];
 
 
 #define COMPILER(code)                          \
-	printf("hello-1 %s, %s, %p\n", #code, code, &vm_new);\
 	VirtualMachine vm = vm_new((code));         \
-	printf("hai\n");\
 	Function fn;                                \
 	fn.name = "test";                           \
 	fn.length = 4;                              \
 	fn.arity = 0;                               \
-	fn.upvalue_count = 0;                       \
+	fn.captured_upvalue_count = 0;              \
+	fn.defined_upvalue_count = 0;               \
 	fn.bytecode = bytecode_new(64);             \
 	Bytecode *bytecode = &fn.bytecode;          \
 	compile(&vm, NULL, &fn, TOKEN_END_OF_FILE); \
@@ -185,9 +186,9 @@
 	ASSERT_EQ(READ_2_BYTES(), index);
 
 
-#define ASSERT_UPVALUE(index, references, stack_pos)           \
-	ASSERT_EQ(vm.upvalues[index].reference_count, references); \
-	ASSERT_EQ(vm.upvalues[index].stack_position, stack_pos);
+#define ASSERT_UPVALUE_CLOSE(index)             \
+	ASSERT_EQ(READ_BYTE(), CODE_CLOSE_UPVALUE); \
+	ASSERT_EQ(READ_2_BYTES(), index);
 
 
 #define ASSERT_STORE(slot)                    \
