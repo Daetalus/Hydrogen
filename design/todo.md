@@ -5,7 +5,6 @@ To Do
 
 ## Refactoring
 
-* Objectify compiler code
 * Prefix functions with class name
 * Add static in front of functions used in single file
 * Add library function interface
@@ -25,3 +24,7 @@ To Do
 	* Ie. `uint64_t value = *((uint64_t *) &(number))`, where `number` is a double.
 * Computed gotos
 * Ensure we don't overflow any arrays
+* Use a binary search instead of linear searches in places (eg. searching for a method on a class)
+* Impose hard restrictions on length limits (ie. limits on variable name length, number of functions, etc.)
+* Heap allocate functions list (remove potential for stack overflow and remove maximum limit on number of functions)
+* Heap allocate runtime call stack to raise stack overflow limit

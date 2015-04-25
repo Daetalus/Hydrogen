@@ -68,55 +68,104 @@ closure()
 io.println(global)
 
 let array = [1, 2, 3, 4]
-for item in array {
+for item in array.iter() {
 	io.println(item)
 }
 
 io.println(array[0])
 
-let dict = {"hello": 123, "hai": "testing", 4: "meh"}
-for key in dict {
+let dict = {"hello": 123, "hai": "testing", "4": "meh"}
+for key in dict.iter() {
 	io.println(key)
 }
 
 io.println(dict["hello"])
 
+(fn(a, b) {
+	io.println(a, b)
+})(1, 2)
+
 class Thing {
-	fn new() {
-		self.thing = 1
-	}
-
-	fn print() {
-		io.println(self.thing)
-	}
-
-	fn thing() {
-		return self.thing
-	}
+	name,
+	birth,
 }
 
-let a = new Thing()
-io.println(a.test() + 3)
+fn (Thing) new(name) {
+	self.name = name
+}
+
+fn (Thing) print() {
+	io.println(self.name)
+}
+
+fn (Thing) print_birth() {
+	io.println(self.birth)
+}
+
+let a = new Thing("Nothing")
+a.print()
+a.print_birth()
+
+
+
+
+
+
+
+
+
+fn test(test) {
+	println(test)
+}
+
+let test = 3
+test(3)
+
+-------
+
+class Thingy {
+	name,
+	date,
+}
+
+fn (Thingy) test() {
+	println("hai")
+}
+
+let test = new Thingy()
+test.test()
+
+----
+
+(fn(a, b) {
+	println(a, b)
+})(1, 2)
+
 ```
 
-* Comments
-* Variable assignments
-	* Mathematical assignments
-* Strings/numbers/booleans/nil
-* If statements
-* While loops
-* Break
-* For loops
-* Iterators
-* Function calls
-* Function definitions
-* Return values
-* Closures
-* Classes
-	* Constructors
-	* Properties
-	* Methods
-* Arrays
-* Dictionaries
-* Variable function arguments
-* Standard library
+[] Comments
+[x] Variable assignments
+[x] Mathematical assignments
+[x] Strings/numbers/booleans/nil
+[x] If statements
+[x] While loops
+[x] Break
+[] For loops
+[x] Iterators
+[x] Function calls
+[x] Function definitions
+[x] Return values
+[x] Closures
+[] Classes
+[] Constructors
+[] Properties
+[] Methods
+[] Superclasses
+[] Modules
+[] Module variables
+[] Arrays
+[] Dictionaries
+[] Variable function arguments
+[] Standard library
+[] Calling results of expressions
+[] Multiple levels of indirection with . operator

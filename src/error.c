@@ -23,7 +23,8 @@ void print_error(int line, char *fmt, va_list args) {
 
 // Triggers a fatal error.
 //
-// `line` can be -1, in order to not print a line number.
+// `line` can be -1, in order to prevent the line number from
+// being printed.
 void error(int line, char *fmt, ...) {
 	// Print the error
 	va_list args;
@@ -38,7 +39,8 @@ void error(int line, char *fmt, ...) {
 
 // Prints a warning message.
 //
-// Provide -1 as the line number to not print a line.
+// `line` can be -1, in order to prevent the line number from
+// being printed.
 void warning(int line, char *fmt, ...) {
 	// Print the warning
 	va_list args;

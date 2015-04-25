@@ -143,7 +143,7 @@ For example, compiling a while loop involves consuming the while keyword, then c
 * Closures are represented as a type of variable
 	* Stored as an index into the VM's closure list
 
-
+```
 struct Upvalue {
 	// True when we've closed the upvalue
 	bool closed;
@@ -160,6 +160,7 @@ struct Upvalue {
 	// The length of the name. Set to 0 when the original local goes out of scope.
 	int length;
 }
+```
 
 * Creating closures (in expressions)
 	* Defined like any ordinary function, returning index and `Function` struct pointer
@@ -212,6 +213,147 @@ struct Upvalue {
 	* Variables as operands in expressions
 	* Calling closures in function calls
 	* Storing in variable assignment
+
+### Classes
+
+```
+struct Field {
+	char *name;
+	int length;
+}
+
+struct ClassDefinition {
+	char *name;
+	int length;
+
+	Field fields[MAX_FIELDS];
+	int field_count;
+
+	// A list of indices in the VM's function list of all the
+	// class' constructor functions.
+	int constructors[MAX_CONSTRUCTORS];
+	int constructor_count;
+
+	// List of indices in the VM's function list of the class'
+	// defined methods.
+	int methods[MAX_METHODS];
+	int method_count;
+}
+
+struct Class {
+	// Pointer to the class' definition.
+	ClassDefinition *definition;
+
+	// Values of each of the class's fields
+	uint64_t fields[0];
+}
+```
+
+**Cases**
+
+* Define class (compilation only)
+* Define method (compilation only)
+* Construct class (compilation/execution)
+* Call method (compilation/execution)
+	* Must be able to call result of an expression, ie. `(fn() {io.println(3)})()`
+* Push field (compilation/execution)
+	* Must be an operator (ie. `thing.transform.position.x`)
+* Store field (compilation/execution)
+
+
+**Steps**
+
+* Treat functions as locals
+	* 4 types of function variables: native function, function, closure, method
+	* When encounter an identifier in an expression
+		* Check locals
+		* Check native functions
+* Treat `(arg1, arg2, ...)` as a postfix operator in an expression
+	* Emits bytecode to push the arguments
+	* Emits bytecode to call the preceding expression with the arguments
+		* Arguments to call instruction include number of arguments, so we can check at runtime whether the variable we're calling is a native/function/closure/method and takes the provided number of arguments
+* Treat `.identifier` as a postfix operator
+	* Emits bytecode to push the field named `identifier` of the expression before the operator onto the stack
+	* No runtime tests yet, but unit tests for compiler
+* Compile class definitions with fields
+	* Optional braces defining field names
+	* Trigger compile error if class already exists
+* Compile class field access/storing
+* Compile method definitions
+	* Add methods to class definition
+* Compile constructors
+
+**Instructions**
+
+* `CALL`
+	* Only call instruction (remove all others)
+	* Parses the number of arguments provided as an argument in the bytecode
+	* Pops a variable off the stack
+	* Triggers runtime error if not a native/function/closure/method
+	* Triggers runtime error if number of arguments provided in bytecode does not match number of arguments required by method
+	* Calls the function
+	* Return value is left on the stack
+* `PUSH_FIELD`
+	* Pops a variable off the stack
+	* Triggers runtime error if not a class
+	* Converts class value into a pointer
+	* Gets pointer to class definition in VM (from the pointer)
+	* Gets the index of the requested field in the class definition's fields list
+	* Triggers runtime error if field doesn't exist
+	* Indexes the class' fields list with the retrieved index, pushing the value onto the stack
+* `STORE_FIELD`
+	* Fetches name of field to store to as 8 byte bytecode pointer and 2 byte length argument
+	* Pops result of expression off the stack
+	* Pops the variable's receiver off the stack
+		* Ie. stack contains: ..., receiver, expression result
+
+
+
+
+* Store list of class definitions in VM
+* Encounter class definition
+	* Create new class definition in VM
+	* Populate fields list
+* Encounter method definition
+	* Compile method as a new function (telling the compiler that its a method so it knows to add the receiver as a variable on the stack)
+	* Add to VM's function list
+	* Add to class' method definitions list (or constructor list)
+* Encounter new class in expression (during compilation)
+	* Emit `NEW_CLASS` instruction with index in VM's class definitions list
+	* Emit call to class's constructor
+		* Assert the number of arguments are equal
+		* Push receiver
+		* Push constructor arguments
+		* Emit normal function call
+* Encounter method call (during compilation)
+	* Push receiver (may or may not be an object with the requested method, doesn't matter - trigger an error at runtime rather than compile time)
+	* Push arguments
+	* Emit call function instruction (no special function call)
+	* Compile function block, telling the sub-compiler that the function is a method (so it knows to push the receiver as a local) on a class (so it knows what class to check for defined fields)
+* Encounter field access (ie. self.field or object.field)
+	* Push receiver
+	* Emit `PUSH_FIELD` instruction with field index in class
+
+
+* Encounter `NEW_CLASS` instruction (during execution)
+	* Create a new class on the heap, allocating enough space for all its fields as values
+		* Add it to the list of all objects for garbage collection
+	* !!!!!!!!!! Set new class' fields to `nil` !!!!!!!!!! **IMPORTANT**
+* Encounter `PUSH_FIELD` instruction (during execution)
+	* Get index of
+	* Pop off top of stack (the receiver)
+	*
+
+* Method call and dot operator need to be recursive (to handle levels of indirection, ie. thing.position.x, and (fn(a, b) {io.println(a, b)})(1, 2))
+
+* New instructions:
+	* `NEW_CLASS`, 1 arg - index in VM's class definitions list as the prototype of the class to define
+	* `PUSH_FIELD`, 1 arg - index in class' fields list
+		* Pops the receiver off the stack (as the receiver)
+		* Index's receiver's fields list, and pushes field at index onto the stack
+
+* New expression operators:
+	* `(` acts as an operand and as a operator
 
 ## Garbage Collection
 
