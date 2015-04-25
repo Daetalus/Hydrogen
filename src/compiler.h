@@ -160,8 +160,10 @@ bool match_function_call(Lexer *lexer);
 // function on the top of the stack.
 void function_call(Compiler *compiler);
 
-// Parses the arguments list for `fn`. Expects the lexer's cursor
-// to be on the opening parenthesis of the arguments list.
+// Parses the arguments list for `fn`. Expects the lexer's
+// cursor to be on the opening parenthesis of the arguments
+// list.
+//
 // Consumes the final closing parenthesis of the arguments.
 void function_definition_arguments(Compiler *compiler, Function *fn);
 

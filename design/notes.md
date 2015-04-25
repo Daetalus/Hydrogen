@@ -261,6 +261,15 @@ struct Class {
 * Store field (compilation/execution)
 
 
+**Variable Types**
+
+* Number
+* Pointer (object or native function, depending on context)
+* Function
+* Closure
+* Method
+
+
 **Steps**
 
 * Treat functions as locals

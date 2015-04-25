@@ -200,9 +200,9 @@ void variable_assignment(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
-	// Indicates whether the variable we're assigning to has been
-	// defined before, or whether we're defining it for the first
-	// time.
+	// Indicates whether the variable we're assigning to has
+	// been defined before, or whether we're defining it for the
+	// first time.
 	bool is_new_var = false;
 
 	// Check for the let keyword.
@@ -315,24 +315,25 @@ bool should_terminate_at_open_brace(Token token) {
 }
 
 
-// Compile the part of an if or else if statement where we have a
-// conditional expression followed by a block. Emits bytecode for
-// the expression, a conditional jump and code for the block.
+// Compile the part of an if or else if statement where we have
+// a conditional expression followed by a block. Emits bytecode
+// for the expression, a conditional jump and code for the
+// block.
 //
 // Expects the lexer to start on the first token of the
 // expression.
 //
 // Returns the index of the conditional jump emitted, which can
-// be patched after the final jump statement (after an if or else
-// if to jump to the end of entire statement).
+// be patched after the final jump statement (after an if or
+// else if to jump to the end of entire statement).
 int if_condition_and_block(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
 	// Expect an expression, terminated by the opening brace of
 	// the block.
-	// Leaves the result of the conditional expression on the top
-	// of the stack.
+	// Leaves the result of the conditional expression on the
+	// top of the stack.
 	expression(compiler, &should_terminate_at_open_brace);
 
 	// Emit a conditional jump instruction with a default
@@ -389,9 +390,9 @@ void if_statement(Compiler *compiler) {
 		// from the end of that block to after the entire
 		// if/elseif/else statement.
 		//
-		// Because we need to compile all of the else if and else
-		// blocks before we can patch these jump instructions,
-		// store them in an array.
+		// Because we need to compile all of the else if and
+		// else blocks before we can patch these jump
+		// instructions, store them in an array.
 		unpatched_jumps[jump_count] = emit_jump(bytecode, CODE_JUMP_FORWARD);
 		jump_count++;
 
@@ -518,7 +519,8 @@ void while_loop(Compiler *compiler) {
 	// Insert a jump statement to re-evaluate the condition
 	emit_backward_jump(bytecode, start_of_expression);
 
-	// Patch the conditional jump to point here (after the block)
+	// Patch the conditional jump to point here (after the
+	// block)
 	patch_forward_jump(bytecode, condition_jump);
 
 	// Patch break statements and pop the loop from the
@@ -558,10 +560,10 @@ void break_statement(Compiler *compiler) {
 		if (local->scope_depth > loop->scope_depth) {
 			emit(bytecode, CODE_POP);
 		} else {
-			// Since the locals are kept in order of scope depth,
-			// once we reach a point where the local's scope is
-			// less than the scope we're looking for, it's safe
-			// to break.
+			// Since the locals are kept in order of scope
+			// depth, once we reach a point where the local's
+			// scope is less than the scope we're looking for,
+			// it's safe stop looking.
 			break;
 		}
 	}
@@ -586,7 +588,7 @@ void infinite_loop(Compiler *compiler) {
 	// Consume the loop token
 	lexer_consume(lexer);
 
-	// Append a loop to the compiler.
+	// Append a loop to the compiler
 	Loop loop;
 	push_new_loop(compiler, &loop);
 
@@ -643,15 +645,18 @@ int function_call_arguments(Compiler *compiler) {
 	expect(lexer, TOKEN_OPEN_PARENTHESIS,
 		"Expected `(` to begin function call arguments");
 
-	// Consume expressions separated by commas.
+	// Consume expressions separated by commas
 	int count = 0;
 	if (!lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
 		while (1) {
+			// Compile an expression
 			lexer_enable_newlines(lexer);
 			expression(compiler, &should_terminate_function_call);
 			lexer_disable_newlines(lexer);
 			count++;
 
+			// Consume either a comma, indicating another
+			// expression, or a terminating closing parenthesis
 			if (lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
 				// Finish expression
 				lexer_consume(lexer);
@@ -697,7 +702,8 @@ void function_call(Compiler *compiler) {
 		return;
 	}
 
-	// Not a user defined function, so check the standard library
+	// Not a user defined function, so check the standard
+	// library
 	NativeFunction native_fn = vm_find_native_function(compiler->vm,
 		name.location, name.length, arity);
 	if (native_fn != NULL) {
@@ -735,8 +741,10 @@ void function_call_statement(Compiler *compiler) {
 //  Function Definitions
 //
 
-// Parses the arguments list for `fn`. Expects the lexer's cursor
-// to be on the opening parenthesis of the arguments list.
+// Parses the arguments list for `fn`. Expects the lexer's
+// cursor  to be on the opening parenthesis of the arguments
+// list.
+//
 // Consumes the final closing parenthesis of the arguments.
 void function_definition_arguments(Compiler *compiler, Function *fn) {
 	Lexer *lexer = &compiler->vm->lexer;
@@ -787,10 +795,10 @@ void function_definition_arguments(Compiler *compiler, Function *fn) {
 void function_definition(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 
-	// Consume the function keyword.
+	// Consume the function keyword
 	lexer_consume(lexer);
 
-	// Expect the function name identifier.
+	// Expect the function name identifier
 	lexer_disable_newlines(lexer);
 	Token name = expect(lexer, TOKEN_IDENTIFIER,
 		"Expected identifier after `fn` keyword");
@@ -858,7 +866,7 @@ void emit_close_upvalue(Compiler *compiler, int index) {
 
 // Iterate over the compiler's locals and close any upvalues.
 void close_upvalue_locals(Compiler *compiler) {
-	// Iterate over locals and close any upvalues.
+	// Iterate over locals and close any upvalues
 	for (int i = 0; i < compiler->local_count; i++) {
 		Local *local = &compiler->locals[i];
 
@@ -935,7 +943,7 @@ void pop_scope(Compiler *compiler) {
 			emit_close_upvalue(compiler, local->upvalue_index);
 		}
 
-		// Emit a pop instruction.
+		// Emit a pop instruction
 		emit(bytecode, CODE_POP);
 
 		// Decrement counters

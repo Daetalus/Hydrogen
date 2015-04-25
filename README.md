@@ -14,7 +14,7 @@ Hydrogen is intended as more of a learning project for me about writing a byteco
 Make sure you have [CMake](http://www.cmake.org/download/) and GNU Make installed, and build the project like any other CMake project:
 
 ```
-cd hydrogen
+cd Hydrogen
 mkdir build
 cd build
 cmake ..
@@ -39,7 +39,7 @@ fn fib(n) {
 	}
 }
 
-io.println(fib(5)0
+io.println(fib(5))
 ```
 
 Iterators:

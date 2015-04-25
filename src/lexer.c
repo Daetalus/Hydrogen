@@ -16,8 +16,8 @@
 //  Lexer
 //
 
-// Returns the next token, ignoring the cache and `emit_newlines`
-// flag.
+// Returns the next token, ignoring the cache and
+// `emit_newlines` flag.
 Token lexer_next(Lexer *lexer);
 
 
@@ -67,7 +67,8 @@ Token lexer_consume(Lexer *lexer) {
 // Peek at a token `amount` ahead of the current token, ignoring
 // the lexer's `emit_newlines` flag.
 Token lexer_cache_peek(Lexer *lexer, int amount) {
-	// If we're past the maximum cache amount, then don't bother.
+	// If we're past the maximum cache amount, then don't
+	// bother.
 	if (amount >= MAX_TOKEN_CACHE_SIZE) {
 		Token token;
 		token.type = TOKEN_NONE;
@@ -99,7 +100,8 @@ Token lexer_cache_peek(Lexer *lexer, int amount) {
 }
 
 
-// Returns the token `amount` tokens in front of the current one.
+// Returns the token `amount` tokens in front of the current
+// one.
 Token lexer_peek(Lexer *lexer, int amount) {
 	Token token = lexer_cache_peek(lexer, amount);
 
@@ -322,7 +324,8 @@ bool parse_string_literal(Parser *parser, Token *token) {
 }
 
 
-// Potentially consumes an identifier, returning true if one was.
+// Potentially consumes an identifier, returning true if one
+// was.
 bool parse_identifier(Parser *parser, Token *token) {
 	if (is_identifier_start(parser_current(parser))) {
 		token->type = TOKEN_IDENTIFIER;

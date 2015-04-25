@@ -135,7 +135,8 @@ Lexer lexer_new(char *source);
 // Consumes a token, returning it.
 Token lexer_consume(Lexer *lexer);
 
-// Returns the token `amount` tokens in front of the current one.
+// Returns the token `amount` tokens in front of the current
+// one.
 Token lexer_peek(Lexer *lexer, int amount);
 
 // Returns the current token without consuming anything.

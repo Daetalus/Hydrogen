@@ -341,7 +341,8 @@ String * parser_extract_literal(char *str, int length,
 			} else if (ch == '\\') {
 				string_append_char(result, '\\');
 			} else {
-				// No escape sequence was found, so return an error.
+				// No escape sequence was found, so return an
+				// error.
 				*invalid_escape_ptr = &str[i - 1];
 				return NULL;
 			}

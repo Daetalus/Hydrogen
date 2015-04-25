@@ -50,7 +50,7 @@ typedef enum {
 typedef enum {
 	// Left associative, like addition and multiplication.
 	//
-	// This means that the expression:
+	// This means the expression:
 	// 3 + 4 + 5
 	// Becomes:
 	// ((3 + 4) + 5)
@@ -58,7 +58,7 @@ typedef enum {
 
 	// Right associative, like exponentiation.
 	//
-	// This means that the expression:
+	// This means the expression:
 	// 3 ^ 4 ^ 5
 	// Becomes:
 	// (3 ^ (4 ^ 5))
@@ -410,9 +410,10 @@ void left(Compiler *compiler, ExpressionTerminator terminator) {
 		// A prefix operator, like negation or bitwise not
 		prefix(compiler, terminator, rule.prefix.precedence, rule.prefix.fn);
 	} else if (rule.type == RULE_BOTH) {
-		// A prefix operator, but with for a token that also acts
-		// as an infix operator.
-		// Handle it the same way a prefix operator is.
+		// A prefix operator, but with for a token that also
+		// acts as an infix operator.
+		//
+		// Handle it like a prefix operator.
 		prefix(compiler, terminator, rule.both.prefix.precedence,
 			rule.both.prefix.fn);
 	} else {
@@ -570,8 +571,8 @@ void operand_string_literal(Compiler *compiler) {
 }
 
 
-// Returns true when a sub-expression should be terminated (at
-// a close parenthesis).
+// Returns true when a sub-expression should be terminated (at a
+// close parenthesis).
 bool should_terminate_sub_expression(Token token) {
 	return token.type == TOKEN_CLOSE_PARENTHESIS;
 }

@@ -59,10 +59,10 @@ typedef struct function Function;
 //
 // Upvalues have 2 states, open and closed. Open upvalues are
 // where the original local they close over is still in scope,
-// and modification should modify that local. Upvalues are closed
-// when their original variable is destroyed. When this happens,
-// the virtual machine copies out the value and puts it into
-// the `value` field to allow it to persist.
+// and modification should modify that local. Upvalues are
+// closed when their original variable is destroyed. When this
+// happens, the virtual machine copies out the value and puts it
+// into the `value` field to allow it to persist.
 typedef struct {
 	// True if the upvalue is closed.
 	bool closed;
@@ -126,8 +126,8 @@ struct function {
 
 	// The names of the arguments passed to the function, used
 	// when loading the arguments as locals during compilation
-	// so we don't trigger undefined variable errors when they're
-	// used.
+	// so we don't trigger undefined variable errors when
+	// they're used.
 	SourceString arguments[MAX_ARGUMENTS];
 	int arity;
 
@@ -160,7 +160,7 @@ typedef struct {
 	String *literals[MAX_STRING_LITERALS];
 	int literal_count;
 
-	// An array of all upvalues in use by all closures.
+	// An array of upvalues in use by all closures.
 	Upvalue upvalues[MAX_UPVALUES];
 	int upvalue_count;
 } VirtualMachine;
@@ -196,7 +196,8 @@ int vm_new_function(VirtualMachine *vm, Function **fn);
 // Returns -1 if no function with that name is found.
 int vm_find_function(VirtualMachine *vm, char *name, int length, int arity);
 
-// Returns a function pointer to a library function named `name`.
+// Returns a function pointer to a library function named
+// `name`.
 //
 // Returns NULL no function with that name is found.
 NativeFunction vm_find_native_function(VirtualMachine *vm, char *name,

@@ -16,8 +16,8 @@
 #include "debug.h"
 
 
-// A function call frame, storing information about the functions
-// currently executing.
+// A function call frame, storing information about the
+// functions currently executing.
 typedef struct {
 	// The function's stack pointer, indicating the start of
 	// the function's local variables on the stack.
@@ -101,7 +101,8 @@ void vm_run(VirtualMachine *vm) {
 	uint8_t *ip = NULL;
 
 	// The stack pointer of the top most call frame, pointing to
-	// a place on the stack where the function's variables start.
+	// a place on the stack where the function's variables
+	// start.
 	int stack_start = 0;
 
 	// Push a value onto the top of the stack.
@@ -382,7 +383,9 @@ int vm_find_function(VirtualMachine *vm, char *name, int length, int arity) {
 }
 
 
-// Returns a function pointer to a library function named `name`.
+// Returns a function pointer to a library function named
+// `name`.
+//
 // Returns NULL no function with that name is found.
 NativeFunction vm_find_native_function(VirtualMachine *vm, char *name,
 		int length, int arity) {

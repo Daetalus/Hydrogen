@@ -52,8 +52,8 @@
 // All instructions that can be emitted as valid bytecode.
 typedef enum {
 	// Pushes a number onto the stack, passed in as a 64 bit
-	// unsigned integer (through the `number_to_value` conversion
-	// function in `value.h`).
+	// unsigned integer (through the `number_to_value`
+	// conversion function in `value.h`).
 	//
 	// Arguments:
 	// * 8 bytes - the value to push.
@@ -161,21 +161,21 @@ typedef enum {
 	// Unconditionally jumps the instruction pointer backwards.
 	//
 	// The distinction between jumping forward and backward is
-	// done because the 2 byte argument given to each instruction
-	// is unsigned, meaning we can't represent negative numbers
-	// easily.
+	// done because the 2 byte argument given to each
+	// instruction is unsigned, meaning we can't represent
+	// negative numbers easily.
 	//
 	// Arguments:
 	// * 2 bytes - the number of instructions to jump back by.
 	CODE_JUMP_BACK,
 
-	// Pops the top item from the stack and, if it's false, jumps
-	// the instruction pointer forward. If the popped item is
-	// true, then the program continues execution normally.
+	// Pops the top item from the stack and, if it's false,
+	// jumps the instruction pointer forward. If the popped item
+	// is true, then the program continues execution normally.
 	//
 	// Arguments:
-	// * 2 bytes - the number of instructions to jump forward by,
-	//   if the value is false.
+	// * 2 bytes - the number of instructions to jump forward
+	//   by, if the value is false.
 	CODE_JUMP_IF_NOT,
 
 	// Calls a user defined function by pushing a new function
@@ -195,9 +195,9 @@ typedef enum {
 	// None
 	CODE_CALL_STACK,
 
-	// Calls a native C function by converting an 8 byte argument
-	// into a C function pointer, then calling this function
-	// pointer.
+	// Calls a native C function by converting an 8 byte
+	// argument into a C function pointer, then calling this
+	// function pointer.
 	//
 	// Arguments:
 	// * 8 bytes - the C function pointer to call.
@@ -239,7 +239,6 @@ Bytecode bytecode_new(int capacity);
 // Free any resources allocated by the bytecode array.
 void bytecode_free(Bytecode *bytecode);
 
-
 // Emit `instruction` by appending it to the bytecode's
 // instruction array.
 //
@@ -256,10 +255,8 @@ void emit_arg_4(Bytecode *bytecode, uint32_t arg);
 // Emit an 8 byte argument.
 void emit_arg_8(Bytecode *bytecode, uint64_t arg);
 
-
 // Emits bytecode to push a number onto the top of the stack.
 void emit_push_number(Bytecode *bytecode, double number);
-
 
 // Emit an incomplete jump instruction, where the amount to jump
 // is given a dummy value of 0.
@@ -273,7 +270,6 @@ void patch_forward_jump(Bytecode *bytecode, int index);
 // Emits a backward jump that jumps to the instruction at
 // `index`.
 void emit_backward_jump(Bytecode *bytecode, int index);
-
 
 // Emits a call to a native function.
 void emit_native_call(Bytecode *bytecode, void *fn);
