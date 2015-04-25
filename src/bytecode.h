@@ -96,6 +96,20 @@ typedef enum {
 	//   push.
 	CODE_PUSH_LOCAL,
 
+	// Pushes the function pointer for a native C function onto
+	// the stack.
+	//
+	// Arguments:
+	// * 8 bytes - the pointer to a native C function.
+	CODE_PUSH_NATIVE,
+
+	// Pushes a user defined function onto the stack.
+	//
+	// Arguments:
+	// * 2 bytes - the index in the VM's functions list of the
+	//   function to push.
+	CODE_PUSH_FUNCTION,
+
 	// Pushes the index of a closure in the virtual machine's
 	// function list onto the top of the stack.
 	//
@@ -178,39 +192,22 @@ typedef enum {
 	//   by, if the value is false.
 	CODE_JUMP_IF_NOT,
 
-	// Calls a user defined function by pushing a new function
-	// call frame onto the call frame stack.
-	//
-	// Arguments:
-	// * 2 bytes - the index of the function to call in the
-	//   virtual machine's functions list.
-	CODE_CALL,
-
-	// Pops a value off the top of the stack and converts it to
-	// an index in the VM's functions list, then calls the
-	// function at that index. Used when calling closures
-	// assigned to variables.
+	// Pops a value off the top of the stack and attempts to
+	// call it as a function, triggering a runtime error if it
+	// is not a function of some sort (function, closure, or
+	// native).
 	//
 	// Arguments:
 	// None
-	CODE_CALL_STACK,
-
-	// Calls a native C function by converting an 8 byte
-	// argument into a C function pointer, then calling this
-	// function pointer.
-	//
-	// Arguments:
-	// * 8 bytes - the C function pointer to call.
-	CODE_CALL_NATIVE,
+	CODE_CALL,
 
 	// Returns from a function. Pops the return argument off the
 	// top of the stack and saves it, then discards all local
 	// variables, then pushes the return argument for the
 	// location that called the function.
 	//
-	// If a function doesn't explicitly return anything in the
-	// code, nil should be pushed before emitting a return
-	// instruction.
+	// If a function doesn't explicitly return anything, nil
+	// should be pushed before emitting the return instruction.
 	//
 	// Arguments:
 	// None

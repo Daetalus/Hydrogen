@@ -265,6 +265,9 @@ struct Class {
 
 * Number
 * Pointer (object or native function, depending on context)
+* True
+* False
+* Nil
 * Function
 * Closure
 * Method
