@@ -40,8 +40,8 @@ START(type) {
 END()
 
 
-MAIN(value) {
+START_MAIN(value) {
 	RUN(conversion)
 	RUN(type)
 }
-MAIN_END()
+END_MAIN()

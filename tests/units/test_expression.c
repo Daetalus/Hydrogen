@@ -265,7 +265,7 @@ START(strings) {
 END()
 
 
-MAIN(expression) {
+START_MAIN(expression) {
 	RUN(single_operand_one)
 	RUN(single_operand_two)
 	RUN(single_precedence_one)
@@ -288,4 +288,4 @@ MAIN(expression) {
 	RUN(newlines_three)
 	RUN(strings)
 }
-MAIN_END()
+END_MAIN()

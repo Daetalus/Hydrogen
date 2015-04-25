@@ -192,7 +192,7 @@ START(extract_string_literal) {
 END()
 
 
-MAIN(lexer) {
+START_MAIN(lexer) {
 	RUN(operators)
 	RUN(syntax)
 	RUN(keywords)
@@ -202,4 +202,4 @@ MAIN(lexer) {
 	RUN(peek)
 	RUN(extract_string_literal)
 }
-MAIN_END()
+END_MAIN()

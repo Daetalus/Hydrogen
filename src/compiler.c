@@ -175,7 +175,8 @@ void statement(Compiler *compiler) {
 bool match_variable_assignment(Lexer *lexer) {
 	// Recognise either a let token (for new variables) or
 	// an identifier followed by an assignment token.
-	return lexer_match(lexer, TOKEN_LET) ||
+	lexer_disable_newlines(lexer);
+	bool result = lexer_match(lexer, TOKEN_LET) ||
 		lexer_match_two(lexer, TOKEN_IDENTIFIER,
 			TOKEN_ASSIGNMENT) ||
 		lexer_match_two(lexer, TOKEN_IDENTIFIER,
@@ -188,6 +189,9 @@ bool match_variable_assignment(Lexer *lexer) {
 			TOKEN_MODULO_ASSIGNMENT) ||
 		lexer_match_two(lexer, TOKEN_IDENTIFIER,
 			TOKEN_MULTIPLICATION_ASSIGNMENT);
+	lexer_enable_newlines(lexer);
+
+	return result;
 }
 
 

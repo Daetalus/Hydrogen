@@ -22,6 +22,7 @@ To Do
 * Add \U unicode escape in string literals (specify a unicode character with hex)
 * Try pointer casting instead of union conversion for numbers <-> values
 	* Ie. `uint64_t value = *((uint64_t *) &(number))`, where `number` is a double.
+	* Test performance for each
 * Computed gotos
 * Ensure we don't overflow any arrays
 * Use a binary search instead of linear searches in places (eg. searching for a method on a class)

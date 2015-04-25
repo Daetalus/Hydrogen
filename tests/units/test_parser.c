@@ -309,7 +309,7 @@ START(consume_string_literal) {
 END()
 
 
-MAIN(parser) {
+START_MAIN(parser) {
 	RUN(consuming)
 	RUN(end_of_file)
 	RUN(current)
@@ -324,4 +324,4 @@ MAIN(parser) {
 	RUN(consume_number)
 	RUN(consume_string_literal)
 }
-MAIN_END()
+END_MAIN()

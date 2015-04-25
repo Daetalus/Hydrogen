@@ -15,6 +15,7 @@
 #include "../../src/bytecode.h"
 #include "../../src/lexer.h"
 #include "../../src/lib/operator.h"
+#include "../../src/lib/io.h"
 
 
 // Color codes
@@ -52,14 +53,14 @@
 	}
 
 
-#define MAIN(name)                                                     \
+#define START_MAIN(name)                                               \
 	int main(int argc, char *argv[]) {                                 \
 		int failed = 0;                                                \
 		printf(LINE "\n" BLUE BOLD "Testing %s...\n\n" NORMAL, #name); \
 		if (1)
 
 
-#define MAIN_END()                                                            \
+#define END_MAIN()                                                            \
 		if (failed == 0) {                                                    \
 			printf(GREEN BOLD "All tests passed.\n");                         \
 			printf(GREEN BOLD "You are awesome!\n" NORMAL LINE "\n");         \

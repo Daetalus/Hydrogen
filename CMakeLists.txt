@@ -41,11 +41,13 @@ add_library(
 
 enable_testing()
 
+
 macro(unit_test name)
 	add_executable(test_${name} tests/units/test_${name}.c)
 	target_link_libraries(test_${name} vm)
 	add_test(test_${name} test_${name})
 endmacro()
+
 
 macro(test name)
 	add_executable(test_${name} tests/${name}.c)
@@ -53,11 +55,18 @@ macro(test name)
 	add_test(test_${name} test_${name})
 endmacro()
 
+
 unit_test(value)
 unit_test(parser)
 unit_test(lexer)
 unit_test(expression)
-unit_test(compiler)
+unit_test(assignment)
+unit_test(if)
+unit_test(while)
+unit_test(function_calls)
+unit_test(function_definitions)
+unit_test(anonymous_functions)
+unit_test(closures)
 test(runtime)
 
 
@@ -68,18 +77,3 @@ test(runtime)
 
 add_executable(interpreter benchmarks/interpreter.c)
 target_link_libraries(interpreter vm)
-
-
-
-# --
-# Command Line Interpreter
-# --
-
-# add_executable(
-	# hydrogen
-	# src/main.c
-# )
-#
-# target_link_libraries(hydrogen vm)
-#
-# install(TARGETS hydrogen DESTINATION bin)
