@@ -37,9 +37,23 @@ typedef struct {
 VirtualMachine vm_new(char *source) {
 	VirtualMachine vm;
 	vm.lexer = lexer_new(source);
+
 	vm.function_count = 0;
+	vm.function_capacity = 128;
+	vm.functions = malloc(vm.function_capacity * sizeof(Function));
+
+	vm.native_count = 0;
+	vm.native_capacity = 64;
+	vm.natives = malloc(vm.native_capacity * sizeof(Native));
+
 	vm.literal_count = 0;
+	vm.literal_capacity = 128;
+	vm.literals = malloc(vm.literal_capacity * sizeof(String *));
+
 	vm.upvalue_count = 0;
+	vm.upvalue_capacity = 128;
+	vm.upvalues = malloc(vm.upvalue_capacity * sizeof(Upvalue));
+
 	return vm;
 }
 
@@ -55,6 +69,11 @@ void vm_free(VirtualMachine *vm) {
 	for (int i = 0; i < vm->literal_count; i++) {
 		string_free(vm->literals[i]);
 	}
+
+	free(vm->functions);
+	free(vm->natives);
+	free(vm->literals);
+	free(vm->upvalues);
 }
 
 
@@ -64,12 +83,184 @@ void vm_compile(VirtualMachine *vm) {
 	// The main function is identified by the NULL name value.
 	Function *fn;
 	vm_new_function(vm, &fn);
-	fn->is_main = true;
 	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
 
 	// Compile the source code into the function's
 	// bytecode array.
 	compile(vm, NULL, fn, TOKEN_END_OF_FILE);
+}
+
+
+
+//
+//  Standard Library
+//
+
+// Attach the whole standard library to the virtual machine.
+void vm_attach_standard_library(VirtualMachine *vm) {
+	vm_attach_io(vm);
+}
+
+
+// Attach the IO module in the standard library to the virtual
+// machine.
+void vm_attach_io(VirtualMachine *vm) {
+	vm_attach_native(vm, "print", 1, &native_print);
+	vm_attach_native(vm, "print2", 2, &native_print_2);
+	vm_attach_native(vm, "assert", 1, &native_assert);
+}
+
+
+// Attach a native function to the virtual machine, which acts
+// as a library function when running the Hydrogen source.
+void vm_attach_native(VirtualMachine *vm, char *name, int arity,
+		NativeFunction fn) {
+	Native *native;
+	vm_new_native(vm, &native);
+	native->name = name;
+	native->arity = arity;
+	native->fn = fn;
+}
+
+
+
+//
+//  User Defined Functions
+//
+
+// Defines a new function, returning a pointer to it and its
+// index in the VM's function list.
+//
+// Performs no allocation, so the returned function's bytecode
+// object still needs to be allocated.
+int vm_new_function(VirtualMachine *vm, Function **fn) {
+	int index = vm->function_count;
+	vm->function_count++;
+
+	// Check that we haven't exceeded the hard limit on the
+	// number of functions we can define.
+	if (vm->function_count > MAX_FUNCTIONS) {
+		error(-1, "Cannot define more than %d functions", MAX_FUNCTIONS);
+	}
+
+	// We've overstepped the limit on the number of functions we
+	// can allocate, so increase the array's allocated capacity.
+	if (vm->function_count > vm->function_capacity) {
+		vm->function_capacity *= 2;
+
+		size_t new_size = vm->function_capacity * sizeof(Function);
+		vm->functions = realloc(vm->functions, new_size);
+	}
+
+	*fn = &vm->functions[index];
+	(*fn)->arity = 0;
+	(*fn)->captured_upvalue_count = 0;
+	(*fn)->defined_upvalue_count = 0;
+
+	return index;
+}
+
+
+
+//
+//  Native Functions
+//
+
+// Defines a new native function, returning a pointer to it and
+// its index in the VM's native function list.
+int vm_new_native(VirtualMachine *vm, Native **native) {
+	int index = vm->native_count;
+	vm->native_count++;
+
+	// Check we haven't exceeded the hard limit on the number of
+	// native functions we're allowed to allocate.
+	if (vm->native_count > MAX_NATIVES) {
+		error(-1, "Cannot define more than %d native functions", MAX_NATIVES);
+	}
+
+	// Reallocate the natives array if the number of elements
+	// exceeds the capacity.
+	if (vm->native_count > vm->native_capacity) {
+		vm->native_capacity *= 2;
+
+		size_t new_size = vm->native_capacity * sizeof(Native);
+		vm->natives = realloc(vm->natives, new_size);
+	}
+
+	*native = &vm->natives[index];
+	(*native)->name = NULL;
+	(*native)->fn = NULL;
+
+	return index;
+}
+
+
+// Returns the index of the native function named `name`, or -1
+// if no function is found.
+int vm_find_native(VirtualMachine *vm, char *name, int length) {
+	for (int i = 0; i < vm->native_count; i++) {
+		Native *native = &vm->natives[i];
+		if (strncmp(native->name, name, length) == 0) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+
+
+//
+//  String Literals
+//
+
+// Create a new string literal, returning a pointer to it and
+// its index in the literals list.
+int vm_new_string_literal(VirtualMachine *vm, String ***literal) {
+	int index = vm->literal_count;
+	vm->literal_count++;
+
+	// Check we haven't exceeded the hard limit on the number of
+	// string literals we're allowed to allocate.
+	if (vm->literal_count > MAX_STRING_LITERALS) {
+		error(-1, "Cannot allocate more than %d string literals",
+			MAX_STRING_LITERALS);
+	}
+
+	// Reallocate the literals array if the number of elements
+	// in it is greater than its capacity.
+	if (vm->literal_count > vm->literal_capacity) {
+		vm->literal_capacity *= 2;
+
+		size_t new_size = vm->literal_capacity * sizeof(String *);
+		vm->literals = realloc(vm->literals, new_size);
+	}
+
+	*literal = &vm->literals[index];
+	return index;
+}
+
+
+
+//
+//  Upvalues
+//
+
+// Create a new upvalue, returning a pointer to it and its index
+// in the upvalues list.
+int vm_new_upvalue(VirtualMachine *vm, Upvalue **upvalue) {
+	int index = vm->upvalue_count;
+	vm->upvalue_count++;
+
+	*upvalue = &vm->upvalues[index];
+	(*upvalue)->closed = false;
+	(*upvalue)->local_index = 0;
+	(*upvalue)->function_index = 0;
+	(*upvalue)->name = NULL;
+	(*upvalue)->length = 0;
+	(*upvalue)->defining_function = NULL;
+
+	return index;
 }
 
 
@@ -185,10 +376,16 @@ instructions:
 		goto instructions;
 	}
 
-	// Push a closure index onto the top of the stack.
-	case CODE_PUSH_CLOSURE: {
+	case CODE_PUSH_NATIVE: {
 		uint16_t index = READ_2_BYTES();
-		PUSH(CLOSURE_TO_VALUE(index));
+		PUSH(NATIVE_TO_VALUE(index));
+		goto instructions;
+	}
+
+	// Push a closure index onto the top of the stack.
+	case CODE_PUSH_FUNCTION: {
+		uint16_t index = READ_2_BYTES();
+		PUSH(FUNCTION_TO_VALUE(index));
 		goto instructions;
 	}
 
@@ -288,25 +485,39 @@ instructions:
 		POP();
 		goto instructions;
 
-	// Push a new function onto the call stack and start
-	// executing it.
+	// Pop the top off the stack and call it.
 	case CODE_CALL: {
-		uint16_t index = READ_2_BYTES();
-		PUSH_FRAME(&vm->functions[index]);
-		goto instructions;
-	}
-
-	// Pop the top of the stack and convert it to a function
-	// index, calling it.
-	case CODE_CALL_STACK: {
+		uint16_t arity = READ_2_BYTES();
 		uint64_t value = TOP();
-		if (!IS_CLOSURE(value)) {
-			error(-1, "Attempting to call non-closure variable");
+		POP();
+
+		if (IS_FUNCTION(value)) {
+			uint16_t index = VALUE_TO_FUNCTION(value);
+			Function *fn = &vm->functions[index];
+
+			if (fn->arity != arity) {
+				// Incorrect number of arguments
+				error(-1, "Attempting to call function with incorrect number"
+					"of arguments (have %d, expected %d)", arity, fn->arity);
+			}
+
+			PUSH_FRAME(fn);
+		} else if (IS_NATIVE(value)) {
+			uint16_t index = VALUE_TO_NATIVE(value);
+			Native *native = &vm->natives[index];
+
+			if (native->arity != arity) {
+				// Incorrect number of arguments
+				error(-1, "Attempting to call function `%s` with incorrect "
+					"number of arguments (have %d, expected %d)", native->name,
+					arity, native->arity);
+			}
+
+			native->fn(stack, &stack_size);
+		} else {
+			error(-1, "Attempting to call non-function variable");
 		}
 
-		POP();
-		uint16_t index = VALUE_TO_CLOSURE(value);
-		PUSH_FRAME(&vm->functions[index]);
 		goto instructions;
 	}
 
@@ -339,85 +550,4 @@ instructions:
 
 		goto instructions;
 	}
-}
-
-
-
-//
-//  Function Definitions
-//
-
-// Defines a new function on the virtual machine, returning a
-// pointer to it and its index in the virtual machine's function
-// list.
-//
-// Performs no allocation, so the returned function's bytecode
-// array still needs to be allocated.
-int vm_new_function(VirtualMachine *vm, Function **fn) {
-	int index = vm->function_count;
-	vm->function_count++;
-	*fn = &vm->functions[index];
-	(*fn)->is_main = false;
-	(*fn)->name = NULL;
-	(*fn)->length = 0;
-	(*fn)->arity = 0;
-	(*fn)->captured_upvalue_count = 0;
-	(*fn)->defined_upvalue_count = 0;
-	return index;
-}
-
-
-// Returns the index of a user-defined function named `name`.
-// Returns -1 if no function with that name is found.
-int vm_find_function(VirtualMachine *vm, char *name, int length, int arity) {
-	for (int i = 0; i < vm->function_count; i++) {
-		Function *fn = &vm->functions[i];
-
-		if (fn->length == length && fn->arity == arity &&
-				strncmp(fn->name, name, length) == 0) {
-			return i;
-		}
-	}
-
-	return -1;
-}
-
-
-// Returns a function pointer to a library function named
-// `name`.
-//
-// Returns NULL no function with that name is found.
-NativeFunction vm_find_native_function(VirtualMachine *vm, char *name,
-		int length, int arity) {
-	if (length == 5 && strncmp(name, "print", length) == 0) {
-		if (arity == 1) {
-			return &native_print;
-		} else if (arity == 2) {
-			return &native_print_2;
-		}
-	} else if (arity == 1 && length == 6 &&
-			strncmp(name, "assert", length) == 0) {
-		return &native_assert;
-	}
-
-	return NULL;
-}
-
-
-
-//
-//  Upvalues
-//
-
-// Create a new upvalue, returning a pointer to it and its index
-// in the upvalues list.
-int vm_new_upvalue(VirtualMachine *vm, Upvalue **upvalue) {
-	*upvalue = &vm->upvalues[vm->upvalue_count++];
-	(*upvalue)->closed = false;
-	(*upvalue)->local_index = 0;
-	(*upvalue)->function_index = 0;
-	(*upvalue)->name = NULL;
-	(*upvalue)->length = 0;
-	(*upvalue)->defining_function = NULL;
-	return vm->upvalue_count - 1;
 }

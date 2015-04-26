@@ -110,14 +110,6 @@ typedef enum {
 	//   function to push.
 	CODE_PUSH_FUNCTION,
 
-	// Pushes the index of a closure in the virtual machine's
-	// function list onto the top of the stack.
-	//
-	// Arguments:
-	// * 2 bytes - the index of the closure in the VM's function
-	//   list.
-	CODE_PUSH_CLOSURE,
-
 	// Push the value in the upvalue onto the top of the stack.
 	// If the upvalue is open, the VM indexes the stack with the
 	// upvalue's absolute stack position to find the value to
@@ -194,12 +186,19 @@ typedef enum {
 
 	// Pops a value off the top of the stack and attempts to
 	// call it as a function, triggering a runtime error if it
-	// is not a function of some sort (function, closure, or
-	// native).
+	// is not a function (function, closure, or native).
 	//
 	// Arguments:
-	// None
+	// * 2 bytes - the number of arguments provided to the
+	//   function.
 	CODE_CALL,
+
+	// Calls a native function without having it pushed onto the
+	// stack first, for use in calling binary operators.
+	//
+	// Arguments:
+	// * 8 bytes - the C function pointer to call.
+	CODE_CALL_NATIVE,
 
 	// Returns from a function. Pops the return argument off the
 	// top of the stack and saves it, then discards all local
@@ -252,9 +251,6 @@ void emit_arg_4(Bytecode *bytecode, uint32_t arg);
 // Emit an 8 byte argument.
 void emit_arg_8(Bytecode *bytecode, uint64_t arg);
 
-// Emits bytecode to push a number onto the top of the stack.
-void emit_push_number(Bytecode *bytecode, double number);
-
 // Emit an incomplete jump instruction, where the amount to jump
 // is given a dummy value of 0.
 int emit_jump(Bytecode *bytecode, uint8_t instruction);
@@ -268,10 +264,19 @@ void patch_forward_jump(Bytecode *bytecode, int index);
 // `index`.
 void emit_backward_jump(Bytecode *bytecode, int index);
 
-// Emits a call to a native function.
-void emit_native_call(Bytecode *bytecode, void *fn);
+// Emits bytecode to push a number onto the top of the stack.
+void emit_push_number(Bytecode *bytecode, double number);
 
-// Emits a call to a user function.
-void emit_bytecode_call(Bytecode *bytecode, uint16_t index);
+// Emits bytecode to push a native function onto the stack.
+void emit_push_native(Bytecode *bytecode, int index);
+
+// Emits bytecode to push a user function onto the stack.
+void emit_push_function(Bytecode *bytecode, uint16_t index);
+
+// Emits a call to a function.
+void emit_call(Bytecode *bytecode, int arity);
+
+// Emits a call to a native function.
+void emit_call_native(Bytecode *bytecode, void *fn);
 
 #endif

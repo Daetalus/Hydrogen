@@ -60,9 +60,15 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 		break;
 	}
 
-	case CODE_PUSH_CLOSURE: {
+	case CODE_PUSH_NATIVE: {
 		uint16_t index = READ_2_BYTES();
-		printf("%lu: push closure %hu\n", position, index);
+		printf("%lu: push native %hu\n", position, index);
+		break;
+	}
+
+	case CODE_PUSH_FUNCTION: {
+		uint16_t index = READ_2_BYTES();
+		printf("%lu: push function %hu\n", position, index);
 		break;
 	}
 
@@ -114,19 +120,14 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 	}
 
 	case CODE_CALL: {
-		uint16_t index = READ_2_BYTES();
-		printf("%lu: call %hu\n", position, index);
-		break;
-	}
-
-	case CODE_CALL_STACK: {
-		printf("%lu: call stack\n", position);
+		uint16_t arity = READ_2_BYTES();
+		printf("%lu: call with arity %hu\n", position, arity);
 		break;
 	}
 
 	case CODE_CALL_NATIVE: {
-		uint64_t pointer = READ_8_BYTES();
-		printf("%lu: call native %p\n", position, (void *) pointer);
+		uint16_t ptr = READ_2_BYTES();
+		printf("%lu: call native %p\n", position, value_to_ptr(ptr));
 		break;
 	}
 

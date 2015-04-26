@@ -153,9 +153,6 @@ void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
 	TokenType terminator);
 
 
-// Returns true if the lexer matches a function call.
-bool match_function_call(Lexer *lexer);
-
 // Compiles a function call, leaving the return value of the
 // function on the top of the stack.
 void function_call(Compiler *compiler);
@@ -165,6 +162,9 @@ void function_call(Compiler *compiler);
 // list.
 //
 // Consumes the final closing parenthesis of the arguments.
+//
+// Exported by the compiler for use in anonymous functions by
+// the expression system.
 void function_definition_arguments(Compiler *compiler, Function *fn);
 
 
@@ -176,19 +176,8 @@ void function_definition_arguments(Compiler *compiler, Function *fn);
 // * Parent compilers' locals
 Variable capture_variable(Compiler *compiler, char *name, int length);
 
-// Emits bytecode to push a string literal onto the stack.
-//
-// Returns a pointer to an unallocated string, so the string
-// that will be pushed can be modified.
-String ** push_string(Compiler *compiler);
-
-
 // Emits bytecode to push a variable onto the stack, handling
 // possible cases when the variable could be a local or upvalue.
 void emit_push_variable(Bytecode *bytecode, Variable *variable);
-
-// Returns the appropriate instruction for storing a variable
-// of type `type`.
-Instruction storage_instruction(VariableType type);
 
 #endif

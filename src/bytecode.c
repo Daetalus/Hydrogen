@@ -99,13 +99,6 @@ void emit_arg_8(Bytecode *bytecode, uint64_t arg) {
 }
 
 
-// Emits bytecode to push a number onto the top of the stack.
-void emit_push_number(Bytecode *bytecode, double number) {
-	emit(bytecode, CODE_PUSH_NUMBER);
-	emit_arg_8(bytecode, number_to_value(number));
-}
-
-
 
 //
 //  Jumps
@@ -146,18 +139,39 @@ void emit_backward_jump(Bytecode *bytecode, int index) {
 
 
 //
-//  Function Calls
+//  Pushing
 //
 
-// Emits a call to a native function.
-void emit_native_call(Bytecode *bytecode, void *fn) {
-	emit(bytecode, CODE_CALL_NATIVE);
-	emit_arg_8(bytecode, ptr_to_value(fn));
+// Emits bytecode to push a number onto the top of the stack.
+void emit_push_number(Bytecode *bytecode, double number) {
+	emit(bytecode, CODE_PUSH_NUMBER);
+	emit_arg_8(bytecode, number_to_value(number));
 }
 
 
-// Emits a call to a user function.
-void emit_bytecode_call(Bytecode *bytecode, uint16_t index) {
-	emit(bytecode, CODE_CALL);
+// Emits bytecode to push a native function onto the stack.
+void emit_push_native(Bytecode *bytecode, int index) {
+	emit(bytecode, CODE_PUSH_NATIVE);
+	emit_arg_2(bytecode, NATIVE_TO_VALUE(index));
+}
+
+
+// Emits bytecode to push a user function onto the stack.
+void emit_push_function(Bytecode *bytecode, uint16_t index) {
+	emit(bytecode, CODE_PUSH_FUNCTION);
 	emit_arg_2(bytecode, index);
+}
+
+
+// Emits a call to a function.
+void emit_call(Bytecode *bytecode, int arity) {
+	emit(bytecode, CODE_CALL);
+	emit_arg_2(bytecode, arity);
+}
+
+
+// Emits a call to a native function.
+void emit_call_native(Bytecode *bytecode, void *fn) {
+	emit(bytecode, CODE_CALL_NATIVE);
+	emit_arg_8(bytecode, ptr_to_value(fn));
 }

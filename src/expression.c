@@ -438,7 +438,7 @@ void prefix(Compiler *compiler, ExpressionTerminator terminator,
 	parse_precedence(compiler, terminator, 0);
 
 	// Emit the native call
-	emit_native_call(bytecode, fn);
+	emit_call_native(bytecode, fn);
 }
 
 
@@ -466,7 +466,7 @@ void infix(Compiler *compiler, ExpressionTerminator terminator,
 	parse_precedence(compiler, terminator, precedence);
 
 	// Emit the native call for this operator.
-	emit_native_call(bytecode, operator.fn);
+	emit_call_native(bytecode, operator.fn);
 }
 
 
@@ -530,25 +530,34 @@ void operand_number(Compiler *compiler) {
 
 // Compile an identifier.
 void operand_identifier(Compiler *compiler) {
+	VirtualMachine *vm = compiler->vm;
 	Bytecode *bytecode = &compiler->fn->bytecode;
 	Lexer *lexer = &compiler->vm->lexer;
 
-	if (match_function_call(lexer)) {
-		// The operand is a function call instead of a variable
+	Token determine = lexer_peek(lexer, 1);
+	if (determine.type == TOKEN_OPEN_PARENTHESIS) {
+		// A function call instead of a variable
 		function_call(compiler);
 	} else {
-		// The operand is a variable
-		Token identifier = lexer_consume(lexer);
-		Variable variable = capture_variable(compiler, identifier.location,
-			identifier.length);
+		Token name = lexer_consume(lexer);
 
-		if (variable.type == VARIABLE_UNDEFINED) {
-			// The variable is undefined
-			error(lexer->line, "Undefined variable `%.*s`", identifier.length,
-				identifier.location);
+		// Check for a local variable
+		Variable var = capture_variable(compiler, name.location, name.length);
+		if (var.type != VARIABLE_UNDEFINED) {
+			emit_push_variable(bytecode, &var);
+			return;
 		}
 
-		emit_push_variable(bytecode, &variable);
+		// Check for a native function with the same name
+		int native = vm_find_native(vm, name.location, name.length);
+		if (native != -1) {
+			emit_push_native(bytecode, native);
+			return;
+		}
+
+		// The variable is undefined
+		error(lexer->line, "Undefined variable `%.*s`", name.length,
+			name.location);
 	}
 }
 
@@ -556,17 +565,22 @@ void operand_identifier(Compiler *compiler) {
 // Compile a string literal.
 void operand_string_literal(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
+	Bytecode *bytecode = &compiler->fn->bytecode;
 
 	Token literal = lexer_consume(lexer);
-	String **string = push_string(compiler);
-	char *sequence = NULL;
+	String **string;
+	char *invalid_sequence;
+	int index = vm_new_string_literal(compiler->vm, &string);
 	*string = parser_extract_literal(literal.location, literal.length,
-		&sequence);
+		&invalid_sequence);
 
-	if (sequence != NULL) {
+	if (invalid_sequence != NULL) {
 		// Invalid escape sequence in string
-		error(lexer->line, "Invalid escape sequence `%.*s` in string",
-			2, sequence);
+		error(compiler->vm->lexer.line,
+			"Invalid escape sequence `%.*s` in string", 2, invalid_sequence);
+	} else {
+		emit(bytecode, CODE_PUSH_STRING);
+		emit_arg_2(bytecode, index);
 	}
 }
 
@@ -583,6 +597,7 @@ void sub_expression(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 	lexer_consume(lexer);
 	parse_precedence(compiler, &should_terminate_sub_expression, PREC_NONE);
+
 	expect(lexer, TOKEN_CLOSE_PARENTHESIS,
 		"Expected `)` to close `(` in expression");
 }
@@ -645,6 +660,6 @@ void operand_function(Compiler *compiler) {
 		"Expected `}` to close anonymous function block");
 
 	// Push the function index
-	emit(bytecode, CODE_PUSH_CLOSURE);
+	emit(bytecode, CODE_PUSH_FUNCTION);
 	emit_arg_2(bytecode, index);
 }

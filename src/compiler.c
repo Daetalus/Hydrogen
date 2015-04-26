@@ -30,10 +30,11 @@ void block(Compiler *compiler, TokenType terminator);
 // the language, like an if statement or variable assignment.
 void statement(Compiler *compiler);
 
-// Match statements against the lexer.
-bool match_variable_assignment(Lexer *lexer);
+// Returns true if a variable with the name `name` exists.
+bool variable_exists(Compiler *compiler, char *name, int length);
 
-// Compile statements.
+// Compilation functions for each type of statement.
+bool identifier(Compiler *compiler);
 void variable_assignment(Compiler *compiler);
 void if_statement(Compiler *compiler);
 void while_loop(Compiler *compiler);
@@ -44,7 +45,7 @@ void function_definition(Compiler *compiler);
 void return_statement(Compiler *compiler);
 
 // Iterate over the compiler's locals and close any upvalues.
-void close_upvalue_locals(Compiler *compiler);
+void close_captured_locals(Compiler *compiler);
 
 // Increment the compiler's scope depth.
 void push_scope(Compiler *compiler);
@@ -56,6 +57,13 @@ void pop_scope(Compiler *compiler);
 // Creates a new local on the compiler. Returns the index of the
 // new local in the compiler's index list.
 int define_local(Compiler *compiler, char *name, int length);
+
+// Returns the appropriate instruction for storing a variable
+// of type `type`.
+void emit_store_variable(Bytecode *bytecode, Variable *variable);
+
+// Stores a function onto the stack.
+void emit_store_function(Bytecode *bytecode, int fn_index, int local_index);
 
 
 
@@ -100,7 +108,7 @@ void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
 	// Insert a final return instruction, pushing nil as the
 	// return value.
 	if (!compiler.explicit_return_statement) {
-		close_upvalue_locals(&compiler);
+		close_captured_locals(&compiler);
 		Bytecode *bytecode = &compiler.fn->bytecode;
 		emit(bytecode, CODE_PUSH_NIL);
 		emit(bytecode, CODE_RETURN);
@@ -141,7 +149,7 @@ void statement(Compiler *compiler) {
 	if (lexer_match(lexer, TOKEN_LINE)) {
 		// Ignore empty lines
 		lexer_consume(lexer);
-	} else if (match_variable_assignment(lexer)) {
+	} else if (lexer_match(lexer, TOKEN_LET)) {
 		variable_assignment(compiler);
 	} else if (lexer_match(lexer, TOKEN_IF)) {
 		if_statement(compiler);
@@ -151,12 +159,12 @@ void statement(Compiler *compiler) {
 		infinite_loop(compiler);
 	} else if (lexer_match(lexer, TOKEN_BREAK)) {
 		break_statement(compiler);
-	} else if (match_function_call(lexer)) {
-		function_call_statement(compiler);
 	} else if (lexer_match(lexer, TOKEN_FUNCTION)) {
 		function_definition(compiler);
 	} else if (lexer_match(lexer, TOKEN_RETURN)) {
 		return_statement(compiler);
+	} else if (lexer_match(lexer, TOKEN_IDENTIFIER) && identifier(compiler)) {
+		// Don't trigger an error
 	} else {
 		Token token = lexer_current(lexer);
 		error(lexer->line, "Unrecognized statement beginning with `%.*s`",
@@ -165,35 +173,47 @@ void statement(Compiler *compiler) {
 }
 
 
+// Returns true if the token is an assignment operator.
+bool is_assignment_operator(TokenType token) {
+	return token == TOKEN_ASSIGNMENT ||
+		token == TOKEN_ADDITION_ASSIGNMENT ||
+		token == TOKEN_SUBTRACTION_ASSIGNMENT ||
+		token == TOKEN_DIVISION_ASSIGNMENT ||
+		token == TOKEN_MODULO_ASSIGNMENT ||
+		token == TOKEN_MULTIPLICATION_ASSIGNMENT;
+}
+
+
+// Determine if the identifier leads to an assignment or
+// function call, and compile the appropriate statement.
+bool identifier(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+	lexer_disable_newlines(lexer);
+	Token token = lexer_peek(lexer, 1);
+	lexer_enable_newlines(lexer);
+
+	// Could either be a variable assignment to an already
+	// existing variable (if an assignment operator exists after
+	// the identifier), or a function call (if an open
+	// parenthesis exists after the identifier).
+	if (is_assignment_operator(token.type)) {
+		variable_assignment(compiler);
+		return true;
+	}
+
+	if (token.type == TOKEN_OPEN_PARENTHESIS) {
+		function_call_statement(compiler);
+		return true;
+	}
+
+	return false;
+}
+
+
 
 //
 //  Variable Assignment
 //
-
-// Returns true if the sequence of tokens at the lexer's current
-// cursor position represent a variable assignment.
-bool match_variable_assignment(Lexer *lexer) {
-	// Recognise either a let token (for new variables) or
-	// an identifier followed by an assignment token.
-	lexer_disable_newlines(lexer);
-	bool result = lexer_match(lexer, TOKEN_LET) ||
-		lexer_match_two(lexer, TOKEN_IDENTIFIER,
-			TOKEN_ASSIGNMENT) ||
-		lexer_match_two(lexer, TOKEN_IDENTIFIER,
-			TOKEN_ADDITION_ASSIGNMENT) ||
-		lexer_match_two(lexer, TOKEN_IDENTIFIER,
-			TOKEN_SUBTRACTION_ASSIGNMENT) ||
-		lexer_match_two(lexer, TOKEN_IDENTIFIER,
-			TOKEN_DIVISION_ASSIGNMENT) ||
-		lexer_match_two(lexer, TOKEN_IDENTIFIER,
-			TOKEN_MODULO_ASSIGNMENT) ||
-		lexer_match_two(lexer, TOKEN_IDENTIFIER,
-			TOKEN_MULTIPLICATION_ASSIGNMENT);
-	lexer_enable_newlines(lexer);
-
-	return result;
-}
-
 
 // Compile a variable assignment.
 void variable_assignment(Compiler *compiler) {
@@ -256,8 +276,8 @@ void variable_assignment(Compiler *compiler) {
 	} else if (lexer_match(lexer, TOKEN_MODULO_ASSIGNMENT)) {
 		modifier_fn = &operator_modulo;
 	} else if (lexer_match(lexer, TOKEN_ASSIGNMENT)) {
-		// No modification needed, but we don't want it to
-		// trigger an expected `=` sign error.
+		// No modification needed, but we don't want to trigger
+		// an error.
 	} else {
 		// Missing an assignment operator
 		error(lexer->line, "Expected `=` after `%.*s` in assignment",
@@ -286,20 +306,17 @@ void variable_assignment(Compiler *compiler) {
 
 	if (modifier_fn != NULL) {
 		// Push a call to the modifier function.
-		emit_native_call(bytecode, modifier_fn);
+		emit_call_native(bytecode, modifier_fn);
 	}
 
-	// Emit the bytecode to store the expression result.
-	emit(bytecode, storage_instruction(variable.type));
-
-	int index = variable.index;
 	if (is_new_var) {
 		// We're assigning to a new variable, so we need a new
 		// local index for it.
-		index = define_local(compiler, name.location, name.length);
+		variable.index = define_local(compiler, name.location, name.length);
+		variable.type = VARIABLE_LOCAL;
 	}
 
-	emit_arg_2(bytecode, index);
+	emit_store_variable(bytecode, &variable);
 }
 
 
@@ -614,20 +631,6 @@ void infinite_loop(Compiler *compiler) {
 //  Function Calls
 //
 
-// Returns true if the lexer matches a function call.
-bool match_function_call(Lexer *lexer) {
-	// Allow newlines between the identifier and open
-	// parenthesis, so disable newlines when checking for a
-	// match.
-	lexer_disable_newlines(lexer);
-	bool result = lexer_match_two(lexer, TOKEN_IDENTIFIER,
-		TOKEN_OPEN_PARENTHESIS);
-	lexer_enable_newlines(lexer);
-
-	return result;
-}
-
-
 // Returns true if the token should terminate a function call
 // argument.
 bool should_terminate_function_call(Token token) {
@@ -685,6 +688,7 @@ int function_call_arguments(Compiler *compiler) {
 // Compiles a function call, leaving the return value of the
 // function on the top of the stack.
 void function_call(Compiler *compiler) {
+	VirtualMachine *vm = compiler->vm;
 	Bytecode *bytecode = &compiler->fn->bytecode;
 	Lexer *lexer = &compiler->vm->lexer;
 
@@ -694,40 +698,32 @@ void function_call(Compiler *compiler) {
 	// Compile the function's arguments
 	int arity = function_call_arguments(compiler);
 
-	// Check the function exists as a user defined function
-	int fn_index = vm_find_function(compiler->vm, name.location, name.length,
-		arity);
-	if (fn_index != -1) {
-		emit_bytecode_call(bytecode, fn_index);
+	// Capture a local with the function's name
+	Variable fn = capture_variable(compiler, name.location, name.length);
+	if (fn.type != VARIABLE_UNDEFINED) {
+		emit_push_variable(bytecode, &fn);
+		emit_call(bytecode, arity);
 		return;
 	}
 
 	// Not a user defined function, so check the standard
 	// library
-	NativeFunction native_fn = vm_find_native_function(compiler->vm,
-		name.location, name.length, arity);
-	if (native_fn != NULL) {
-		emit_native_call(bytecode, native_fn);
+	int native = vm_find_native(vm, name.location, name.length);
+	if (native != -1) {
+		emit_push_native(bytecode, native);
+		emit_call(bytecode, arity);
 		return;
 	}
 
-	// Finally, push a local variable with the same name in hope
-	// that the local is a closure.
-	Variable variable = capture_variable(compiler, name.location, name.length);
-	if (variable.type != VARIABLE_UNDEFINED) {
-		emit_push_variable(bytecode, &variable);
-		emit(bytecode, CODE_CALL_STACK);
-		return;
-	}
-
-	// Undefined function
-	error(lexer->line, "Undefined function `%.*s`",
-		name.length, name.location);
+	// If we reach here, the function is undefined
+	error(lexer->line, "Undefined function `%.*s`", name.length,
+		name.location);
 }
 
 
-// Compiles a function call, but popping the function's return
-// value off the stack, as we assume it's of no use.
+// Compiles a function call, but pops the function's return
+// value off the stack since the function isn't used in an
+// expression.
 void function_call_statement(Compiler *compiler) {
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
@@ -742,7 +738,7 @@ void function_call_statement(Compiler *compiler) {
 //
 
 // Parses the arguments list for `fn`. Expects the lexer's
-// cursor  to be on the opening parenthesis of the arguments
+// cursor to be on the opening parenthesis of the arguments
 // list.
 //
 // Consumes the final closing parenthesis of the arguments.
@@ -759,7 +755,7 @@ void function_definition_arguments(Compiler *compiler, Function *fn) {
 
 	if (!lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
 		while (1) {
-			// Expect an identifier, the function argument
+			// Expect the name of the function's argument
 			Token argument = expect(lexer, TOKEN_IDENTIFIER,
 				"Expected argument name in function argument list");
 
@@ -778,7 +774,7 @@ void function_definition_arguments(Compiler *compiler, Function *fn) {
 			} else {
 				Token token = lexer_peek(lexer, 1);
 				error(lexer->line,
-					"Unexpected `%.*s` in arguments to function definition",
+					"Unexpected token `%.*s` in function definition",
 					token.length, token.location);
 			}
 		}
@@ -793,6 +789,7 @@ void function_definition_arguments(Compiler *compiler, Function *fn) {
 
 // Compiles a function definition.
 void function_definition(Compiler *compiler) {
+	VirtualMachine *vm = compiler->vm;
 	Lexer *lexer = &compiler->vm->lexer;
 
 	// Consume the function keyword
@@ -803,37 +800,37 @@ void function_definition(Compiler *compiler) {
 	Token name = expect(lexer, TOKEN_IDENTIFIER,
 		"Expected identifier after `fn` keyword");
 
-	// Compile the arguments list.
-	//
-	// Set the name and length after we've checked that the
-	// function isn't already defined, because if we set them
-	// here, then we've defined the function already and we'll
-	// trigger a compilation error.
+	// Define the function on the virtual machine
 	Function *fn;
-	vm_new_function(compiler->vm, &fn);
+	int fn_index = vm_new_function(compiler->vm, &fn);
+
+	// Compile the function's arguments list
 	lexer_enable_newlines(lexer);
 	function_definition_arguments(compiler, fn);
 	lexer_disable_newlines(lexer);
 
 	// Check the function isn't already defined
-	int index = vm_find_function(compiler->vm, name.location, name.length,
-		fn->arity);
-	if (index != -1) {
-		error(lexer->line, "Function `%.*s` is already defined",
+	if (variable_exists(compiler, name.location, name.length)) {
+		error(lexer->line, "Function name `%.*s` is already in use",
 			name.length, name.location);
 	}
 
-	NativeFunction ptr = vm_find_native_function(compiler->vm, name.location,
-		name.length, fn->arity);
-	if (ptr != NULL) {
+	// Check library functions
+	int native = vm_find_native(vm, name.location, name.length);
+	if (native != -1) {
 		error(lexer->line, "Function `%.*s` is already defined in a library",
 			name.length, name.location);
 	}
 
-	fn->name = name.location;
-	fn->length = name.length;
+	// Add the function as a local
+	int local_index = define_local(compiler, name.location, name.length);
 
-	// Expect an opening brace, to open the function's block
+	// Save the function onto the stack since it's now a local
+	// variable
+	Bytecode *bytecode = &compiler->fn->bytecode;
+	emit_store_function(bytecode, fn_index, local_index);
+
+	// Expect an opening brace to open the function's block
 	expect(lexer, TOKEN_OPEN_BRACE, "Expected `{` to begin function block");
 
 	// Compile the function
@@ -865,7 +862,7 @@ void emit_close_upvalue(Compiler *compiler, int index) {
 
 
 // Iterate over the compiler's locals and close any upvalues.
-void close_upvalue_locals(Compiler *compiler) {
+void close_captured_locals(Compiler *compiler) {
 	// Iterate over locals and close any upvalues
 	for (int i = 0; i < compiler->local_count; i++) {
 		Local *local = &compiler->locals[i];
@@ -893,20 +890,12 @@ void return_statement(Compiler *compiler) {
 		// Implicitly returning nil
 		emit(bytecode, CODE_PUSH_NIL);
 	} else {
-		if (compiler->fn->is_main) {
-			// We're trying to return an expression from within
-			// the "main" function. This isn't allowed, so
-			// trigger an error.
-			error(lexer->line,
-				"Attempting to return value from outside function definition");
-		}
-
 		// Return an expression terminated by a newline
 		expression(compiler, NULL);
 	}
 
 	// Close any upvalues
-	close_upvalue_locals(compiler);
+	close_captured_locals(compiler);
 
 	emit(bytecode, CODE_RETURN);
 	compiler->explicit_return_statement = true;
@@ -973,9 +962,11 @@ bool find_local(Compiler *compiler, Variable *result, char *name, int length) {
 
 		if (local->length == length &&
 				strncmp(name, local->name, length) == 0) {
-			result->type = VARIABLE_LOCAL;
-			result->index = i;
-			result->local = local;
+			if (result != NULL) {
+				result->type = VARIABLE_LOCAL;
+				result->index = i;
+				result->local = local;
+			}
 			return true;
 		}
 	}
@@ -994,9 +985,11 @@ bool find_upvalue(Compiler *compiler, Variable *result, char *name,
 
 		if (upvalue->name != NULL && upvalue->length == length &&
 				strncmp(name, upvalue->name, length) == 0) {
-			result->type = VARIABLE_UPVALUE;
-			result->index = i;
-			result->upvalue = upvalue;
+			if (result != NULL) {
+				result->type = VARIABLE_UPVALUE;
+				result->index = i;
+				result->upvalue = upvalue;
+			}
 			return true;
 		}
 	}
@@ -1021,13 +1014,19 @@ int find_local_in_all_scopes(Compiler *compiler, Local **local, Function **fn,
 	Variable result;
 	if (find_local(compiler, &result, name, length)) {
 		// Found the local
-		*local = result.local;
-		*fn = compiler->fn;
+		if (local != NULL) {
+			*local = result.local;
+		}
+
+		if (fn != NULL) {
+			*fn = compiler->fn;
+		}
+
 		return result.index;
 	} else {
 		// Search the parent compiler
-		return find_local_in_all_scopes(compiler->parent, local, fn,
-			name, length);
+		return find_local_in_all_scopes(compiler->parent, local, fn, name,
+			length);
 	}
 }
 
@@ -1049,6 +1048,10 @@ void add_upvalue(Compiler *compiler, Upvalue *upvalue) {
 	Function *fn = compiler->fn;
 	fn->captured_upvalues[fn->captured_upvalue_count++] = upvalue;
 
+	// We need to add the upvalue to the list of upvalues the
+	// upvalue's definition function closes over here, because
+	// at the time we create the local, we don't know if it'll
+	// be used later as an upvalue.
 	fn = upvalue->defining_function;
 	fn->defined_upvalues[fn->defined_upvalue_count++] = upvalue;
 }
@@ -1110,6 +1113,25 @@ Variable capture_variable(Compiler *compiler, char *name, int length) {
 }
 
 
+// Returns true if a variable with the name `name` exists.
+bool variable_exists(Compiler *compiler, char *name, int length) {
+	if (find_local(compiler, NULL, name, length)) {
+		return true;
+	}
+
+	if (find_upvalue(compiler, NULL, name, length)) {
+		return true;
+	}
+
+	if (find_local_in_all_scopes(compiler->parent, NULL, NULL, name,
+			length) != -1) {
+		return true;
+	}
+
+	return false;
+}
+
+
 // Creates a new local on the compiler. Returns the index of the
 // new local in the compiler's index list.
 int define_local(Compiler *compiler, char *name, int length) {
@@ -1135,21 +1157,6 @@ int define_local(Compiler *compiler, char *name, int length) {
 }
 
 
-// Pushes a string onto the stack.
-// Returns a pointer to an unallocated string,
-// so the string that will be pushed can be modified.
-String ** push_string(Compiler *compiler) {
-	Bytecode *bytecode = &compiler->fn->bytecode;
-
-	int index = compiler->vm->literal_count;
-	compiler->vm->literal_count++;
-
-	emit(bytecode, CODE_PUSH_STRING);
-	emit_arg_2(bytecode, index);
-	return &compiler->vm->literals[index];
-}
-
-
 // Emits bytecode to push a variable onto the stack, handling
 // possible cases when the variable could be a local or upvalue.
 void emit_push_variable(Bytecode *bytecode, Variable *variable) {
@@ -1165,9 +1172,22 @@ void emit_push_variable(Bytecode *bytecode, Variable *variable) {
 
 // Returns the appropriate instruction for storing a variable
 // of type `type`.
-Instruction storage_instruction(VariableType type) {
-	if (type == VARIABLE_UPVALUE) {
-		return CODE_STORE_UPVALUE;
+void emit_store_variable(Bytecode *bytecode, Variable *variable) {
+	if (variable->type == VARIABLE_UPVALUE) {
+		emit(bytecode, CODE_STORE_UPVALUE);
+	} else if (variable->type == VARIABLE_LOCAL) {
+		emit(bytecode, CODE_STORE_LOCAL);
+	} else {
+		error(-1, "This shouldn't happen...");
 	}
-	return CODE_STORE_LOCAL;
+
+	emit_arg_2(bytecode, variable->index);
+}
+
+
+// Stores a function onto the stack.
+void emit_store_function(Bytecode *bytecode, int fn_index, int local_index) {
+	emit_push_function(bytecode, fn_index);
+	emit(bytecode, CODE_STORE_LOCAL);
+	emit_arg_2(bytecode, local_index);
 }

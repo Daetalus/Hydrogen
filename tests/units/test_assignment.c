@@ -9,6 +9,7 @@
 
 START(one) {
 	COMPILER("let a = 3");
+	print_bytecode(bytecode);
 
 	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_STORE(0);

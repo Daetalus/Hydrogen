@@ -111,42 +111,37 @@
 //
 
 
-#define EXPRESSION(content)                \
-	VirtualMachine vm = vm_new((content)); \
-	Function fn;                           \
-	fn.is_main = false;                    \
-	fn.name = "test";                      \
-	fn.length = 4;                         \
-	fn.arity = 0;                          \
-	fn.captured_upvalue_count = 0;         \
-	fn.defined_upvalue_count = 0;          \
-	fn.bytecode = bytecode_new(64);        \
-	Bytecode *bytecode = &fn.bytecode;     \
-	Compiler compiler;                     \
-	compiler.vm = &vm;                     \
-	compiler.fn = &fn;                     \
-	compiler.local_count = 0;              \
-	compiler.scope_depth = 0;              \
-	expression(&compiler, NULL);           \
-	uint8_t *ip = &bytecode->instructions[0];
-
-
-#define COMPILER(code)                          \
-	VirtualMachine vm = vm_new((code));         \
+#define EXPRESSION(content)                     \
+	VirtualMachine vm = vm_new((content));      \
 	Function fn;                                \
-	fn.name = "test";                           \
-	fn.length = 4;                              \
 	fn.arity = 0;                               \
 	fn.captured_upvalue_count = 0;              \
 	fn.defined_upvalue_count = 0;               \
 	fn.bytecode = bytecode_new(64);             \
 	Bytecode *bytecode = &fn.bytecode;          \
-	compile(&vm, NULL, &fn, TOKEN_END_OF_FILE); \
+	Compiler compiler;                          \
+	compiler.vm = &vm;                          \
+	compiler.parent = NULL;                     \
+	compiler.fn = &fn;                          \
+	compiler.local_count = 0;                   \
+	compiler.scope_depth = 0;                   \
+	compiler.loop_count = 0;                    \
+	compiler.explicit_return_statement = false; \
+	expression(&compiler, NULL);                \
+	uint8_t *ip = &bytecode->instructions[0];
+
+
+#define COMPILER(code)                              \
+	VirtualMachine vm = vm_new((code));             \
+	vm_attach_standard_library(&vm);                \
+	vm_compile(&vm);                                \
+	Bytecode *bytecode = &vm.functions[0].bytecode; \
 	uint8_t *ip = &bytecode->instructions[0];
 
 
 #define VM(code)                        \
 	VirtualMachine vm = vm_new((code)); \
+	vm_attach_standard_library(&vm);    \
 	vm_compile(&vm);                    \
 	Bytecode *bytecode;                 \
 	uint8_t *ip;
@@ -177,8 +172,13 @@
 	ASSERT_EQ(READ_2_BYTES(), slot);
 
 
-#define ASSERT_CLOSURE_PUSH(index)             \
-	ASSERT_EQ(READ_BYTE(), CODE_PUSH_CLOSURE); \
+#define ASSERT_NATIVE_PUSH(index)             \
+	ASSERT_EQ(READ_BYTE(), CODE_PUSH_NATIVE); \
+	ASSERT_EQ(READ_2_BYTES(), index);
+
+
+#define ASSERT_FUNCTION_PUSH(index)             \
+	ASSERT_EQ(READ_BYTE(), CODE_PUSH_FUNCTION); \
 	ASSERT_EQ(READ_2_BYTES(), index);
 
 
@@ -197,14 +197,14 @@
 	ASSERT_EQ(READ_2_BYTES(), slot);
 
 
-#define ASSERT_NATIVE_CALL(fn)                \
-	ASSERT_EQ(READ_BYTE(), CODE_CALL_NATIVE); \
-	ASSERT_EQ(value_to_ptr(READ_8_BYTES()), &(fn));
-
-
-#define ASSERT_CALL(slot)              \
+#define ASSERT_CALL(arity)             \
 	ASSERT_EQ(READ_BYTE(), CODE_CALL); \
-	ASSERT_EQ(READ_2_BYTES(), slot);
+	ASSERT_EQ(READ_2_BYTES(), arity);
+
+
+#define ASSERT_NATIVE_CALL(ptr)               \
+	ASSERT_EQ(READ_BYTE(), CODE_CALL_NATIVE); \
+	ASSERT_EQ(value_to_ptr(READ_8_BYTES()), ptr);
 
 
 #define ASSERT_CONDITIONAL_JUMP(amount)       \

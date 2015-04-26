@@ -26,16 +26,10 @@
 // Bitwise masks for values representing different types of
 // functions.
 //
-// Functions, closures, and methods are stored as an index into
-// the VM's functions list, closure list, or class' methods list
-// respectively. Each index is a 2 byte unsigned integer.
-//
-// Native functions are stored as pointers, hence the
-// `value_to_ptr` and `ptr_to_value` functions are used instead
-// of masks.
+// Functions and natives are stored as a 2 byte index in the
+// VM's functions list or natives list respectively.
 #define FUNCTION_MASK (QUIET_NAN | 0x10000)
-#define CLOSURE_MASK  (QUIET_NAN | 0x20000)
-#define METHOD_MASK   (QUIET_NAN | 0x30000)
+#define NATIVE_MASK   (QUIET_NAN | 0x20000)
 
 // Bitwise representation for constant language values.
 #define TRUE_VALUE  (QUIET_NAN | 0x1)
@@ -56,12 +50,12 @@
 // quiet NaN bits and the sign bit are set.
 #define IS_PTR(value) (((value) & POINTER_MASK) == POINTER_MASK)
 
-// Evaluate to true if `value` is of a particular type.
+// Evaluates to true if `value` is of a particular function
+// type.
 #define IS_FUNCTION(value) (((value) & FUNCTION_MASK) == FUNCTION_MASK)
-#define IS_CLOSURE(value)  (((value) & CLOSURE_MASK) == CLOSURE_MASK)
-#define IS_METHOD(value)   (((value) & METHOD_MASK) == METHOD_MASK)
+#define IS_NATIVE(value)   (((value) & NATIVE_MASK) == NATIVE_MASK)
 
-// Compares the value against static constant values.
+// Compare `value` against static constants.
 #define IS_TRUE(value)  ((value) == TRUE_VALUE)
 #define IS_FALSE(value) ((value) == FALSE_VALUE)
 #define IS_NIL(value)   ((value) == NIL_VALUE)
@@ -74,11 +68,9 @@
 
 // Convert different types of functions to values and back.
 #define FUNCTION_TO_VALUE(index) ((index) | FUNCTION_MASK)
-#define CLOSURE_TO_VALUE(index)  ((index) | CLOSURE_MASK)
-#define METHOD_TO_VALUE(index)   ((index) | METHOD_MASK)
+#define NATIVE_TO_VALUE(index)   ((index) | NATIVE_MASK)
 #define VALUE_TO_FUNCTION(value) ((value) ^ FUNCTION_MASK)
-#define VALUE_TO_CLOSURE(value)  ((value) ^ CLOSURE_MASK)
-#define VALUE_TO_METHOD(value)   ((value) ^ METHOD_MASK)
+#define VALUE_TO_NATIVE(value)   ((value) ^ NATIVE_MASK)
 
 // Converts a value into a number.
 double value_to_number(uint64_t value);

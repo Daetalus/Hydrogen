@@ -29,3 +29,4 @@ To Do
 * Impose hard restrictions on length limits (ie. limits on variable name length, number of functions, etc.)
 * Heap allocate functions list (remove potential for stack overflow and remove maximum limit on number of functions)
 * Heap allocate runtime call stack to raise stack overflow limit
+* Short circuiting boolean operators
