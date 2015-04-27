@@ -15,11 +15,6 @@
 #include "error.h"
 
 
-// The maximum number of else if statements that are allowed to
-// follow an if statement.
-#define MAX_ELSE_IF_STATEMENTS 256
-
-
 // Compile a block. Assumes the opening token for the block has
 // been consumed. Stops when the terminating token is found.
 //
@@ -429,25 +424,32 @@ void if_statement(Compiler *compiler) {
 		unpatched_jumps[jump_count] = emit_jump(bytecode, CODE_JUMP_FORWARD);
 		jump_count++;
 
+		// Check we haven't gone over the else if limit
+		if (jump_count > MAX_ELSE_IF_STATEMENTS) {
+			error(lexer->line,
+				"Cannot have more than %d else if statements after an if",
+				MAX_ELSE_IF_STATEMENTS);
+		}
+
 		// Now that we've added the very last thing to the if
 		// statement's block, we can patch it's conditional to
 		// point here.
 		patch_forward_jump(bytecode, previous_jump);
 
-		// Consume the else if token.
+		// Consume the else if token
 		lexer_consume(lexer);
 
-		// Compile the conditional expression and block.
+		// Compile the conditional expression and block
 		lexer_enable_newlines(lexer);
 		previous_jump = if_condition_and_block(compiler);
 		lexer_disable_newlines(lexer);
 	}
 
-	// If there's an else block to follow.
+	// If there's an else block to follow
 	if (lexer_match(lexer, TOKEN_ELSE)) {
 		had_else = true;
 
-		// Consume the else token.
+		// Consume the else token
 		lexer_consume(lexer);
 
 		// Emit an unpatched jump instruction for the if/elseif
@@ -455,10 +457,17 @@ void if_statement(Compiler *compiler) {
 		unpatched_jumps[jump_count] = emit_jump(bytecode, CODE_JUMP_FORWARD);
 		jump_count++;
 
+		// Check we haven't gone over the else if limit
+		if (jump_count > MAX_ELSE_IF_STATEMENTS) {
+			error(lexer->line,
+				"Exceeded maximum number (%d) of else/else ifs after if",
+				MAX_ELSE_IF_STATEMENTS);
+		}
+
 		// Patch the previous jump statement
 		patch_forward_jump(bytecode, previous_jump);
 
-		// Compile the else statement's block.
+		// Compile the else statement's block
 		expect(lexer, TOKEN_OPEN_BRACE,
 			"Expected `{` after `else`");
 		lexer_enable_newlines(lexer);
@@ -1151,14 +1160,11 @@ bool variable_exists(Compiler *compiler, char *name, int length) {
 // Creates a new local on the compiler. Returns the index of the
 // new local in the compiler's index list.
 int define_local(Compiler *compiler, char *name, int length) {
-	// Check for overflow
+	// Check we haven't exceeded the maximum number of local
+	// variables we're allowed to define.
 	if (compiler->local_count + 1 > MAX_LOCALS) {
-		Lexer *lexer = &compiler->vm->lexer;
-
-		// We've used up as many locals as we're allowed, so
-		// trigger an error.
-		error(lexer->line, "Cannot have more than %d locals in scope",
-			MAX_LOCALS);
+		error(compiler->vm->lexer.line,
+			"Cannot have more than %d locals in scope", MAX_LOCALS);
 	}
 
 	// Create the local
@@ -1193,8 +1199,6 @@ void emit_store_variable(Bytecode *bytecode, Variable *variable) {
 		emit(bytecode, CODE_STORE_UPVALUE);
 	} else if (variable->type == VARIABLE_LOCAL) {
 		emit(bytecode, CODE_STORE_LOCAL);
-	} else {
-		error(-1, "This shouldn't happen...");
 	}
 
 	emit_arg_2(bytecode, variable->index);

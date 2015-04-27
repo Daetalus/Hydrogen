@@ -23,6 +23,10 @@
 // The maximum number of break statements inside one loop.
 #define MAX_BREAK_STATEMENTS 256
 
+// The maximum number of else if statements that are allowed to
+// follow an if statement.
+#define MAX_ELSE_IF_STATEMENTS 256
+
 
 // A local variable.
 typedef struct {
