@@ -44,6 +44,11 @@ void function_call_statement(Compiler *compiler);
 void function_definition(Compiler *compiler);
 void return_statement(Compiler *compiler);
 
+// Returns true if the lexer matches a variable assignment.
+// Matches an identifier, followed by an assignment operator, or
+// a let keyword.
+bool match_variable_assignment(Lexer *lexer);
+
 // Iterate over the compiler's locals and close any upvalues.
 void close_captured_locals(Compiler *compiler);
 
@@ -149,7 +154,7 @@ void statement(Compiler *compiler) {
 	if (lexer_match(lexer, TOKEN_LINE)) {
 		// Ignore empty lines
 		lexer_consume(lexer);
-	} else if (lexer_match(lexer, TOKEN_LET)) {
+	} else if (match_variable_assignment(lexer)) {
 		variable_assignment(compiler);
 	} else if (lexer_match(lexer, TOKEN_IF)) {
 		if_statement(compiler);
@@ -163,8 +168,8 @@ void statement(Compiler *compiler) {
 		function_definition(compiler);
 	} else if (lexer_match(lexer, TOKEN_RETURN)) {
 		return_statement(compiler);
-	} else if (lexer_match(lexer, TOKEN_IDENTIFIER) && identifier(compiler)) {
-		// Don't trigger an error
+	} else if (match_function_call(lexer)) {
+		function_call_statement(compiler);
 	} else {
 		Token token = lexer_current(lexer);
 		error(lexer->line, "Unrecognized statement beginning with `%.*s`",
@@ -184,29 +189,40 @@ bool is_assignment_operator(TokenType token) {
 }
 
 
-// Determine if the identifier leads to an assignment or
-// function call, and compile the appropriate statement.
-bool identifier(Compiler *compiler) {
-	Lexer *lexer = &compiler->vm->lexer;
-	lexer_disable_newlines(lexer);
-	Token token = lexer_peek(lexer, 1);
-	lexer_enable_newlines(lexer);
-
-	// Could either be a variable assignment to an already
-	// existing variable (if an assignment operator exists after
-	// the identifier), or a function call (if an open
-	// parenthesis exists after the identifier).
-	if (is_assignment_operator(token.type)) {
-		variable_assignment(compiler);
+// Returns true if the lexer matches a variable assignment.
+// Matches an identifier, followed by an assignment operator, or
+// a let keyword.
+bool match_variable_assignment(Lexer *lexer) {
+	// Check for a let keyword, which automatically means we're
+	// assigning a variable.
+	if (lexer_match(lexer, TOKEN_LET)) {
 		return true;
 	}
 
-	if (token.type == TOKEN_OPEN_PARENTHESIS) {
-		function_call_statement(compiler);
-		return true;
+	// Check for an identifier, followed by an assignment
+	// operator.
+	if (lexer_match(lexer, TOKEN_IDENTIFIER)) {
+		lexer_disable_newlines(lexer);
+		Token token = lexer_peek(lexer, 1);
+		lexer_enable_newlines(lexer);
+		if (is_assignment_operator(token.type)) {
+			return true;
+		}
 	}
 
 	return false;
+}
+
+
+// Returns true if the lexer matches a function call. Matches an
+// identifier followed by an open parethesis.
+bool match_function_call(Lexer *lexer) {
+	lexer_disable_newlines(lexer);
+	bool result = lexer_match_two(lexer, TOKEN_IDENTIFIER,
+		TOKEN_OPEN_PARENTHESIS);
+	lexer_enable_newlines(lexer);
+
+	return result;
 }
 
 

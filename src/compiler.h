@@ -153,6 +153,10 @@ void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
 	TokenType terminator);
 
 
+// Returns true if the lexer matches a function call. Matches an
+// identifier followed by an open parethesis.
+bool match_function_call(Lexer *lexer);
+
 // Compiles a function call, leaving the return value of the
 // function on the top of the stack.
 void function_call(Compiler *compiler);

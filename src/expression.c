@@ -66,6 +66,11 @@ typedef enum {
 } Associativity;
 
 
+// The callback function to compile an operand or postfix
+// operator.
+typedef void (*ExpressionCallback)(Compiler *compiler);
+
+
 // Information about a prefix operator.
 typedef struct {
 	Precedence precedence;
@@ -81,16 +86,15 @@ typedef struct {
 } InfixOperator;
 
 
-// The callback function to compile an operand.
-// The lexer's current token will be the start of the operand,
-// so the function should consume the tokens it requires to
-// parse the operand, and emit the corresponding bytecode.
-typedef void (*OperandFunction)(Compiler *compiler);
+// Information about a postfix operator.
+typedef struct {
+	ExpressionCallback fn;
+} PostfixOperator;
 
 
 // Information about an operand.
 typedef struct {
-	OperandFunction fn;
+	ExpressionCallback fn;
 } Operand;
 
 
@@ -98,9 +102,11 @@ typedef struct {
 typedef enum {
 	RULE_PREFIX,
 	RULE_INFIX,
-	RULE_BOTH,
+	RULE_POSTFIX,
 	RULE_OPERAND,
 	RULE_UNUSED,
+	RULE_PREFIX_INFIX,
+	RULE_POSTFIX_OPERAND,
 } RuleType;
 
 
@@ -112,6 +118,7 @@ typedef struct {
 	union {
 		PrefixOperator prefix;
 		InfixOperator infix;
+		PostfixOperator postfix;
 		Operand operand;
 
 		// An operator that uses the same token for both prefix
@@ -119,7 +126,14 @@ typedef struct {
 		struct {
 			PrefixOperator prefix;
 			InfixOperator infix;
-		} both;
+		} prefix_infix;
+
+		// A symbol that acts as both an operand and postfix
+		// operator.
+		struct {
+			Operand operand;
+			PostfixOperator postfix;
+		} operand_postfix;
 	};
 } Rule;
 
@@ -148,6 +162,9 @@ void operand_nil(Compiler *compiler);
 // Compile a function operand.
 void operand_function(Compiler *compiler);
 
+// Compile a postfix function call.
+void postfix_function_call(Compiler *compiler);
+
 
 // Expression rules array. The entries in the array are in order
 // of the tokens as defined in the lexer, so we can simply
@@ -160,7 +177,7 @@ Rule rules[] = {
 	{RULE_INFIX,
 	{.infix = {PREC_ADDITION, ASSOC_LEFT, &operator_addition}}},
 	// Subtraction and negation
-	{RULE_BOTH, {.both = {
+	{RULE_PREFIX_INFIX, {.prefix_infix = {
 		{PREC_NOT, &operator_negation},
 		{PREC_ADDITION, ASSOC_LEFT, &operator_subtraction}
 	}}},
@@ -235,7 +252,10 @@ Rule rules[] = {
 	{RULE_UNUSED},
 
 	// Open parenthesis
-	{RULE_OPERAND, {.operand = {&sub_expression}}},
+	{RULE_OPERAND, {.operand_postfix = {
+		{&sub_expression},
+		{&postfix_function_call},
+	}}},
 	// Close parenthesis
 	{RULE_UNUSED},
 	// Open bracket
@@ -409,13 +429,13 @@ void left(Compiler *compiler, ExpressionTerminator terminator) {
 	} else if (rule.type == RULE_PREFIX) {
 		// A prefix operator, like negation or bitwise not
 		prefix(compiler, terminator, rule.prefix.precedence, rule.prefix.fn);
-	} else if (rule.type == RULE_BOTH) {
+	} else if (rule.type == RULE_PREFIX_INFIX) {
 		// A prefix operator, but with for a token that also
 		// acts as an infix operator.
 		//
 		// Handle it like a prefix operator.
-		prefix(compiler, terminator, rule.both.prefix.precedence,
-			rule.both.prefix.fn);
+		prefix(compiler, terminator, rule.prefix_infix.prefix.precedence,
+			rule.prefix_infix.prefix.fn);
 	} else {
 		// Unrecognised left hand expression.
 		error(lexer->line, "Expected operand in expression, found `%.*s`",
@@ -487,7 +507,7 @@ bool next_operator(Lexer *lexer, ExpressionTerminator terminator,
 		token = lexer_peek(lexer, 1);
 		rule = rules[token.type];
 
-		if (rule.type != RULE_INFIX && rule.type != RULE_BOTH) {
+		if (rule.type != RULE_INFIX && rule.type != RULE_PREFIX_INFIX) {
 			// We reached a new line token and there was no
 			// continuation of the expression over the line.
 			return false;
@@ -502,8 +522,8 @@ bool next_operator(Lexer *lexer, ExpressionTerminator terminator,
 
 	if (rule.type == RULE_INFIX) {
 		*infix = rule.infix;
-	} else if (rule.type == RULE_BOTH) {
-		*infix = rule.both.infix;
+	} else if (rule.type == RULE_PREFIX_INFIX) {
+		*infix = rule.prefix_infix.infix;
 	} else {
 		// Not an infix operator.
 		error(lexer->line, "Expected binary operator, found `%.*s`",
@@ -534,8 +554,7 @@ void operand_identifier(Compiler *compiler) {
 	Bytecode *bytecode = &compiler->fn->bytecode;
 	Lexer *lexer = &compiler->vm->lexer;
 
-	Token determine = lexer_peek(lexer, 1);
-	if (determine.type == TOKEN_OPEN_PARENTHESIS) {
+	if (match_function_call(lexer)) {
 		// A function call instead of a variable
 		function_call(compiler);
 	} else {
@@ -662,4 +681,10 @@ void operand_function(Compiler *compiler) {
 	// Push the function index
 	emit(bytecode, CODE_PUSH_FUNCTION);
 	emit_arg_2(bytecode, index);
+}
+
+
+// Compile a postfix function call.
+void postfix_function_call(Compiler *compiler) {
+
 }
