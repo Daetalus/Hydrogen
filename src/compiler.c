@@ -674,39 +674,30 @@ int function_call_arguments(Compiler *compiler) {
 		"Expected `(` to begin function call arguments");
 
 	// Consume expressions separated by commas
-	int count = 0;
-	if (!lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
-		while (1) {
-			// Compile an expression
-			lexer_enable_newlines(lexer);
-			expression(compiler, &should_terminate_function_call);
-			lexer_disable_newlines(lexer);
-			count++;
+	int arity = 0;
+	while (!lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
+		// Compile an expression
+		lexer_enable_newlines(lexer);
+		expression(compiler, &should_terminate_function_call);
+		lexer_disable_newlines(lexer);
+		arity++;
 
-			// Consume either a comma, indicating another
-			// expression, or a terminating closing parenthesis
-			if (lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
-				// Finish expression
-				lexer_consume(lexer);
-				break;
-			} else if (lexer_match(lexer, TOKEN_COMMA)) {
-				// Another argument
-				lexer_consume(lexer);
-			} else {
-				// Unrecognised operator
-				Token token = lexer_current(lexer);
-				error(lexer->line,
-					"Unexpected `%.*s` in arguments to function call",
-					token.length, token.location);
-			}
+		if (lexer_match(lexer, TOKEN_COMMA)) {
+			// Another argument
+			lexer_consume(lexer);
+		} else if (!lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
+			// Unrecognised operator
+			Token token = lexer_current(lexer);
+			error(lexer->line,
+				"Unexpected `%.*s` in arguments to function call",
+				token.length, token.location);
 		}
-	} else {
-		// No arguments, consume the closing parenthesis
-		lexer_consume(lexer);
 	}
 
+	// Consume the close parenthesis and return
+	lexer_consume(lexer);
 	lexer_enable_newlines(lexer);
-	return count;
+	return arity;
 }
 
 
