@@ -35,8 +35,8 @@ void if_statement(Compiler *compiler);
 void while_loop(Compiler *compiler);
 void infinite_loop(Compiler *compiler);
 void break_statement(Compiler *compiler);
-void function_call_statement(Compiler *compiler);
 void function_definition(Compiler *compiler);
+void expression_statement(Compiler *compiler);
 void return_statement(Compiler *compiler);
 
 // Returns true if the lexer matches a variable assignment.
@@ -163,12 +163,8 @@ void statement(Compiler *compiler) {
 		function_definition(compiler);
 	} else if (lexer_match(lexer, TOKEN_RETURN)) {
 		return_statement(compiler);
-	} else if (match_function_call(lexer)) {
-		function_call_statement(compiler);
 	} else {
-		Token token = lexer_current(lexer);
-		error(lexer->line, "Unrecognized statement beginning with `%.*s`",
-			token.length, token.location);
+		expression_statement(compiler);
 	}
 }
 
@@ -313,7 +309,8 @@ void variable_assignment(Compiler *compiler) {
 
 	// Compile the expression that follows the assignment sign
 	lexer_enable_newlines(lexer);
-	expression(compiler, NULL);
+	Expression expression = expression_new(compiler, NULL);
+	expression_compile(&expression);
 
 	if (modifier_fn != NULL) {
 		// Push a call to the modifier function.
@@ -362,7 +359,9 @@ int if_condition_and_block(Compiler *compiler) {
 	// the block.
 	// Leaves the result of the conditional expression on the
 	// top of the stack.
-	expression(compiler, &should_terminate_at_open_brace);
+	Expression expression = expression_new(compiler,
+		&should_terminate_at_open_brace);
+	expression_compile(&expression);
 
 	// Emit a conditional jump instruction with a default
 	// argument.
@@ -388,6 +387,7 @@ int if_condition_and_block(Compiler *compiler) {
 
 
 // Compile an if statement.
+// TODO: Split into multiple functions
 void if_statement(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 	Bytecode *bytecode = &compiler->fn->bytecode;
@@ -540,7 +540,9 @@ void while_loop(Compiler *compiler) {
 
 	// Compile the expression
 	int start_of_expression = bytecode->count;
-	expression(compiler, &should_terminate_at_open_brace);
+	Expression expression = expression_new(compiler,
+		&should_terminate_at_open_brace);
+	expression_compile(&expression);
 	lexer_disable_newlines(lexer);
 
 	// Jump conditionally
@@ -659,12 +661,18 @@ void infinite_loop(Compiler *compiler) {
 // Returns true if the token should terminate a function call
 // argument.
 bool should_terminate_function_call(Token token) {
-	return token.type == TOKEN_COMMA ||
-		token.type == TOKEN_CLOSE_PARENTHESIS;
+	return token.type == TOKEN_COMMA || token.type == TOKEN_CLOSE_PARENTHESIS;
 }
 
 
-// Compiles the arguments to a function call.
+// TODO Move to expression.c
+//
+// Compiles a set of function call arguments as expressions
+// separated by commas. Expects the compiler to start on an
+// opening parenthesis, and consumes a closing parenthesis after
+// the arguments list.
+//
+// Returns the number of arguments compiled.
 int function_call_arguments(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 
@@ -678,7 +686,9 @@ int function_call_arguments(Compiler *compiler) {
 	while (!lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
 		// Compile an expression
 		lexer_enable_newlines(lexer);
-		expression(compiler, &should_terminate_function_call);
+		Expression expression = expression_new(compiler,
+			&should_terminate_function_call);
+		expression_compile(&expression);
 		lexer_disable_newlines(lexer);
 		arity++;
 
@@ -698,53 +708,6 @@ int function_call_arguments(Compiler *compiler) {
 	lexer_consume(lexer);
 	lexer_enable_newlines(lexer);
 	return arity;
-}
-
-
-// Compiles a function call, leaving the return value of the
-// function on the top of the stack.
-void function_call(Compiler *compiler) {
-	VirtualMachine *vm = compiler->vm;
-	Bytecode *bytecode = &compiler->fn->bytecode;
-	Lexer *lexer = &compiler->vm->lexer;
-
-	// Consume the function's name
-	Token name = lexer_consume(lexer);
-
-	// Compile the function's arguments
-	int arity = function_call_arguments(compiler);
-
-	// Capture a local with the function's name
-	Variable fn = capture_variable(compiler, name.location, name.length);
-	if (fn.type != VARIABLE_UNDEFINED) {
-		emit_push_variable(bytecode, &fn);
-		emit_call(bytecode, arity);
-		return;
-	}
-
-	// Not a user defined function, so check the standard
-	// library
-	int native = vm_find_native(vm, name.location, name.length);
-	if (native != -1) {
-		emit_push_native(bytecode, native);
-		emit_call(bytecode, arity);
-		return;
-	}
-
-	// If we reach here, the function is undefined
-	error(lexer->line, "Undefined function `%.*s`", name.length,
-		name.location);
-}
-
-
-// Compiles a function call, but pops the function's return
-// value off the stack since the function isn't used in an
-// expression.
-void function_call_statement(Compiler *compiler) {
-	Bytecode *bytecode = &compiler->fn->bytecode;
-
-	function_call(compiler);
-	emit(bytecode, CODE_POP);
 }
 
 
@@ -861,6 +824,32 @@ void function_definition(Compiler *compiler) {
 
 
 //
+//  Expression Statements
+//
+
+// Compile an expression that exists as a statement.
+void expression_statement(Compiler *compiler) {
+	// Start an expression here
+	Expression expression = expression_new(compiler, NULL);
+	expression_compile(&expression);
+
+	if (!expression.is_only_function_call) {
+		// We have something other than a single function call
+		// on this line, so trigger an error
+		Lexer *lexer = &compiler->vm->lexer;
+		Token token = lexer_current(lexer);
+		error(lexer->line, "Unexpected expression at `%.*s`",
+			token.length, token.location);
+	}
+
+	// Pop the result of the expression
+	Bytecode *bytecode = &compiler->fn->bytecode;
+	emit(bytecode, CODE_POP);
+}
+
+
+
+//
 //  Return Statements
 //
 
@@ -907,7 +896,8 @@ void return_statement(Compiler *compiler) {
 		emit(bytecode, CODE_PUSH_NIL);
 	} else {
 		// Return an expression terminated by a newline
-		expression(compiler, NULL);
+		Expression expression = expression_new(compiler, NULL);
+		expression_compile(&expression);
 	}
 
 	// Close any upvalues

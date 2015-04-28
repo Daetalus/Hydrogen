@@ -8,7 +8,7 @@
 
 
 START(one) {
-	VM("let a = fn() { print(3) }");
+	VM("let a = fn() { print(3)\n }");
 
 	// main
 	USE_FUNCTION(0);
@@ -18,8 +18,8 @@ START(one) {
 
 	// anonymous function
 	USE_FUNCTION(1);
-	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NATIVE_PUSH(0);
+	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_CALL(1);
 	ASSERT_INSTRUCTION(CODE_POP);
 	ASSERT_RETURN_NIL();
@@ -28,7 +28,7 @@ END()
 
 
 START(two) {
-	VM("let a = fn() {print(3)}\na()");
+	VM("let a = fn() {print(3)\n}\na()");
 
 	// main
 	USE_FUNCTION(0);
@@ -41,8 +41,8 @@ START(two) {
 
 	// anonymous function
 	USE_FUNCTION(1);
-	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NATIVE_PUSH(0);
+	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_CALL(1);
 	ASSERT_INSTRUCTION(CODE_POP);
 	ASSERT_RETURN_NIL();
@@ -51,7 +51,7 @@ END()
 
 
 START(three) {
-	VM("let a\n = \nfn\n(\n)\n\r {\nprint(3)\n}\n\r\na\n(\n)\n");
+	VM("let a\n = \nfn\n(\n)\n\r {\nprint(3)\n}\n\r\na(\n)\n");
 
 	// main
 	USE_FUNCTION(0);
@@ -64,8 +64,8 @@ START(three) {
 
 	// anonymous function
 	USE_FUNCTION(1);
-	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_NATIVE_PUSH(0);
+	ASSERT_NUMBER_PUSH(3.0);
 	ASSERT_CALL(1);
 	ASSERT_INSTRUCTION(CODE_POP);
 	ASSERT_RETURN_NIL();

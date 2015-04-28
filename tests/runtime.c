@@ -75,6 +75,10 @@ char *files[] = {
 	"closure/10.hy",
 	"closure/11.hy",
 	"closure/12.hy",
+
+	"function_expressions/1.hy",
+	"function_expressions/2.hy",
+	"function_expressions/3.hy",
 };
 
 

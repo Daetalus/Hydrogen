@@ -68,7 +68,7 @@ typedef enum {
 
 // The callback function to compile an operand or postfix
 // operator.
-typedef void (*ExpressionCallback)(Compiler *compiler);
+typedef void (*Callback)(Expression *expression);
 
 
 // Information about a prefix operator.
@@ -88,13 +88,13 @@ typedef struct {
 
 // Information about a postfix operator.
 typedef struct {
-	ExpressionCallback fn;
+	Callback fn;
 } PostfixOperator;
 
 
 // Information about an operand.
 typedef struct {
-	ExpressionCallback fn;
+	Callback fn;
 } Operand;
 
 
@@ -106,7 +106,7 @@ typedef enum {
 	RULE_OPERAND,
 	RULE_UNUSED,
 	RULE_PREFIX_INFIX,
-	RULE_POSTFIX_OPERAND,
+	RULE_OPERAND_POSTFIX,
 } RuleType;
 
 
@@ -139,31 +139,31 @@ typedef struct {
 
 
 // Compile a number.
-void operand_number(Compiler *compiler);
+void operand_number(Expression *expression);
 
 // Compile an identifier.
-void operand_identifier(Compiler *compiler);
+void operand_identifier(Expression *expression);
 
 // Compile a string literal.
-void operand_string_literal(Compiler *compiler);
+void operand_string_literal(Expression *expression);
 
 // Compile a sub-expression (surrounded by parentheses).
-void sub_expression(Compiler *compiler);
+void sub_expression(Expression *expression);
 
 // Compile a true constant.
-void operand_true(Compiler *compiler);
+void operand_true(Expression *expression);
 
 // Compile a false constant.
-void operand_false(Compiler *compiler);
+void operand_false(Expression *expression);
 
 // Compile a nil constant.
-void operand_nil(Compiler *compiler);
+void operand_nil(Expression *expression);
 
 // Compile a function operand.
-void operand_function(Compiler *compiler);
+void operand_function(Expression *expression);
 
 // Compile a postfix function call.
-void postfix_function_call(Compiler *compiler);
+void postfix_function_call(Expression *expression);
 
 
 // Expression rules array. The entries in the array are in order
@@ -252,7 +252,7 @@ Rule rules[] = {
 	{RULE_UNUSED},
 
 	// Open parenthesis
-	{RULE_OPERAND, {.operand_postfix = {
+	{RULE_OPERAND_POSTFIX, {.operand_postfix = {
 		{&sub_expression},
 		{&postfix_function_call},
 	}}},
@@ -318,8 +318,7 @@ Rule rules[] = {
 
 // Compiles an expression, stopping once we reach an operator
 // with a higher precedence than the given precedence level.
-void parse_precedence(Compiler *compiler, ExpressionTerminator terminator,
-	Precedence precedence);
+void parse_precedence(Expression *expression, Precedence precedence);
 
 
 // Compile the left hand side of an infix operator. This could
@@ -327,13 +326,12 @@ void parse_precedence(Compiler *compiler, ExpressionTerminator terminator,
 // negation).
 //
 // Leaves the result on the top of the stack.
-void left(Compiler *compiler, ExpressionTerminator terminator);
+void left(Expression *expression);
 
 
 // Compiles a prefix operator, leaving the result on the top of
 // the stack.
-void prefix(Compiler *compiler, ExpressionTerminator terminator,
-	Precedence precedence, NativeFunction fn);
+void prefix(Expression *expression, Precedence precedence, NativeFunction fn);
 
 
 // Compiles an infix operator, leaving the result on the top
@@ -341,16 +339,25 @@ void prefix(Compiler *compiler, ExpressionTerminator terminator,
 //
 // Assumes the left side of the operator is already on the
 // top of the stack.
-void infix(Compiler *compiler, ExpressionTerminator terminator,
-	InfixOperator operator);
+void infix(Expression *expression, InfixOperator operator);
 
 
 // Peeks at the next token, assuming its a binary operator.
 //
 // Returns true if the next token is an operator, populating the
 // infix operator argument.
-bool next_operator(Lexer *lexer, ExpressionTerminator terminator,
-	InfixOperator *infix);
+bool next_operator(Expression *expression, InfixOperator *infix);
+
+
+// Create a new expression.
+Expression expression_new(Compiler *compiler,
+		ExpressionTerminator terminator) {
+	Expression expression;
+	expression.compiler = compiler;
+	expression.terminator = terminator;
+	expression.is_only_function_call = false;
+	return expression;
+}
 
 
 // Generates bytecode to evaluate an expression parsed from the
@@ -362,37 +369,57 @@ bool next_operator(Lexer *lexer, ExpressionTerminator terminator,
 // parse.
 //
 // The terminator token is not consumed.
-void expression(Compiler *compiler, ExpressionTerminator terminator) {
-	parse_precedence(compiler, terminator, PREC_NONE);
+void expression_compile(Expression *expression) {
+	parse_precedence(expression, PREC_NONE);
 }
 
 
 // Compiles an expression, stopping once we reach an operator
-// with a higher precedence than the given precedence level.
-void parse_precedence(Compiler *compiler, ExpressionTerminator terminator,
-		Precedence precedence) {
-	Lexer *lexer = &compiler->vm->lexer;
+// with a higher precedence than `precedence`.
+void parse_precedence(Expression *expression, Precedence precedence) {
+	Lexer *lexer = &expression->compiler->vm->lexer;
 	InfixOperator operator;
 
-	// Compile the left hand side of an infix operator.
-	left(compiler, terminator);
+	// Compile the left hand side of an infix operator
+	left(expression);
 
-	// Get the infix operator after the left argument.
-	if (!next_operator(lexer, terminator, &operator)) {
+	// Get the infix operator after the left argument
+	if (!next_operator(expression, &operator)) {
 		return;
 	}
+
+	expression->is_only_function_call = false;
 
 	// Keep compiling operators until we reach the end of the
 	// expression, or an operator of higher precedence than the
 	// one we're allowed.
 	while (precedence < operator.precedence) {
-		// Compile an infix operator.
-		infix(compiler, terminator, operator);
+		// Compile an infix operator
+		infix(expression, operator);
+		expression->is_only_function_call = false;
 
 		// Fetch the next operator
-		if (!next_operator(lexer, terminator, &operator)) {
-			return;
+		if (!next_operator(expression, &operator)) {
+			break;
 		}
+	}
+}
+
+
+// Checks for a postfix operator, compiling it if one exists.
+void postfix(Expression *expression) {
+	Compiler *compiler = expression->compiler;
+	Lexer *lexer = &compiler->vm->lexer;
+
+	// Fetch the postfix operand we're attempting to compile
+	Token token = lexer_current(lexer);
+	Rule rule = rules[token.type];
+
+	// Compile the postfix operand if it exists
+	if (rule.type == RULE_POSTFIX) {
+		rule.postfix.fn(expression);
+	} else if (rule.type == RULE_OPERAND_POSTFIX) {
+		rule.operand_postfix.postfix.fn(expression);
 	}
 }
 
@@ -402,42 +429,48 @@ void parse_precedence(Compiler *compiler, ExpressionTerminator terminator,
 // negation).
 //
 // Leaves the result on the top of the stack.
-void left(Compiler *compiler, ExpressionTerminator terminator) {
+void left(Expression *expression) {
+	Compiler *compiler = expression->compiler;
 	Lexer *lexer = &compiler->vm->lexer;
 
 	// Fetch the token we're using as the operand or prefix
-	// operator.
+	// operator
 	Token token = lexer_current(lexer);
 	if (token.type == TOKEN_LINE) {
 		// There might be a continuation of the expression on
-		// next line.
+		// next line
 		Token after = lexer_peek(lexer, 1);
 		RuleType type = rules[after.type].type;
 		if (type == RULE_OPERAND || type == RULE_PREFIX) {
-			// The expression is continued onto the next line.
+			// The expression is continued onto the next line
 			lexer_consume(lexer);
 			token = after;
 		}
 	}
 
-	// Fetch the rule for the token.
+	// Fetch the rule for the token
 	Rule rule = rules[token.type];
 
-	if (rule.type == RULE_OPERAND) {
-		// An operand, like a number or string literal
-		rule.operand.fn(compiler);
+	if (rule.type == RULE_OPERAND || rule.type == RULE_OPERAND_POSTFIX) {
+		// An operand
+		if (rule.type == RULE_OPERAND) {
+			rule.operand.fn(expression);
+		} else {
+			rule.operand_postfix.operand.fn(expression);
+		}
+
+		// Look for a potential postfix operator
+		postfix(expression);
 	} else if (rule.type == RULE_PREFIX) {
-		// A prefix operator, like negation or bitwise not
-		prefix(compiler, terminator, rule.prefix.precedence, rule.prefix.fn);
+		// A prefix operator
+		prefix(expression, rule.prefix.precedence, rule.prefix.fn);
 	} else if (rule.type == RULE_PREFIX_INFIX) {
 		// A prefix operator, but with for a token that also
 		// acts as an infix operator.
-		//
-		// Handle it like a prefix operator.
-		prefix(compiler, terminator, rule.prefix_infix.prefix.precedence,
+		prefix(expression, rule.prefix_infix.prefix.precedence,
 			rule.prefix_infix.prefix.fn);
 	} else {
-		// Unrecognised left hand expression.
+		// Unrecognised left hand expression
 		error(lexer->line, "Expected operand in expression, found `%.*s`",
 			token.length, token.location);
 	}
@@ -446,16 +479,15 @@ void left(Compiler *compiler, ExpressionTerminator terminator) {
 
 // Compiles a prefix operator, leaving the result on the top of
 // the stack.
-void prefix(Compiler *compiler, ExpressionTerminator terminator,
-		Precedence precedence, NativeFunction fn) {
-	Lexer *lexer = &compiler->vm->lexer;
-	Bytecode *bytecode = &compiler->fn->bytecode;
+void prefix(Expression *expression, Precedence precedence, NativeFunction fn) {
+	Lexer *lexer = &expression->compiler->vm->lexer;
+	Bytecode *bytecode = &expression->compiler->fn->bytecode;
 
-	// Consume the prefix operator token.
+	// Consume the prefix operator token
 	lexer_consume(lexer);
 
-	// Compile the argument to the prefix operator.
-	parse_precedence(compiler, terminator, 0);
+	// Compile the argument to the prefix operator
+	parse_precedence(expression, 0);
 
 	// Emit the native call
 	emit_call_native(bytecode, fn);
@@ -467,25 +499,24 @@ void prefix(Compiler *compiler, ExpressionTerminator terminator,
 //
 // Assumes the left side of the operator is already on the
 // top of the stack.
-void infix(Compiler *compiler, ExpressionTerminator terminator,
-		InfixOperator operator) {
-	Lexer *lexer = &compiler->vm->lexer;
-	Bytecode *bytecode = &compiler->fn->bytecode;
+void infix(Expression *expression, InfixOperator operator) {
+	Lexer *lexer = &expression->compiler->vm->lexer;
+	Bytecode *bytecode = &expression->compiler->fn->bytecode;
 
-	// Determine precedence level.
+	// Determine precedence level
 	Precedence precedence = operator.precedence;
 	if (operator.associativity == ASSOC_RIGHT) {
 		precedence--;
 	}
 
-	// Consume the operator token.
+	// Consume the operator token
 	lexer_consume(lexer);
 
 	// Evaluate the right hand side of the expression, leaving
-	// the result on the top of the stack.
-	parse_precedence(compiler, terminator, precedence);
+	// the result on the top of the stack
+	parse_precedence(expression, precedence);
 
-	// Emit the native call for this operator.
+	// Emit the native call for this operator
 	emit_call_native(bytecode, operator.fn);
 }
 
@@ -494,14 +525,14 @@ void infix(Compiler *compiler, ExpressionTerminator terminator,
 //
 // Returns true if the next token is an operator, populating the
 // infix operator argument.
-bool next_operator(Lexer *lexer, ExpressionTerminator terminator,
-		InfixOperator *infix) {
+bool next_operator(Expression *expression, InfixOperator *infix) {
+	Lexer *lexer = &expression->compiler->vm->lexer;
 	Token token = lexer_current(lexer);
 	Rule rule;
 
-	if (token.type == TOKEN_END_OF_FILE ||
-			(terminator != NULL && terminator(token))) {
-		// Reached the terminating token.
+	if (token.type == TOKEN_END_OF_FILE || (expression->terminator != NULL &&
+			expression->terminator(token))) {
+		// Reached the terminating token
 		return false;
 	} else if (token.type == TOKEN_LINE) {
 		token = lexer_peek(lexer, 1);
@@ -509,14 +540,14 @@ bool next_operator(Lexer *lexer, ExpressionTerminator terminator,
 
 		if (rule.type != RULE_INFIX && rule.type != RULE_PREFIX_INFIX) {
 			// We reached a new line token and there was no
-			// continuation of the expression over the line.
+			// continuation of the expression over the line
 			return false;
 		}
 
 		// Consume the newline token
 		lexer_consume(lexer);
 	} else {
-		// Plain token, so set the rule.
+		// Plain token, so set the rule
 		rule = rules[token.type];
 	}
 
@@ -525,7 +556,7 @@ bool next_operator(Lexer *lexer, ExpressionTerminator terminator,
 	} else if (rule.type == RULE_PREFIX_INFIX) {
 		*infix = rule.prefix_infix.infix;
 	} else {
-		// Not an infix operator.
+		// Not an infix operator
 		error(lexer->line, "Expected binary operator, found `%.*s`",
 			token.length, token.location);
 		return false;
@@ -541,61 +572,59 @@ bool next_operator(Lexer *lexer, ExpressionTerminator terminator,
 //
 
 // Compile a number.
-void operand_number(Compiler *compiler) {
-	Lexer *lexer = &compiler->vm->lexer;
+void operand_number(Expression *expression) {
+	Lexer *lexer = &expression->compiler->vm->lexer;
+	Bytecode *bytecode = &expression->compiler->fn->bytecode;
+
 	Token number = lexer_consume(lexer);
-	emit_push_number(&compiler->fn->bytecode, number.number);
+	emit_push_number(bytecode, number.number);
 }
 
 
 // Compile an identifier.
-void operand_identifier(Compiler *compiler) {
-	VirtualMachine *vm = compiler->vm;
-	Bytecode *bytecode = &compiler->fn->bytecode;
-	Lexer *lexer = &compiler->vm->lexer;
+void operand_identifier(Expression *expression) {
+	VirtualMachine *vm = expression->compiler->vm;
+	Bytecode *bytecode = &expression->compiler->fn->bytecode;
+	Lexer *lexer = &expression->compiler->vm->lexer;
 
-	if (match_function_call(lexer)) {
-		// A function call instead of a variable
-		function_call(compiler);
-	} else {
-		Token name = lexer_consume(lexer);
+	Token name = lexer_consume(lexer);
 
-		// Check for a local variable
-		Variable var = capture_variable(compiler, name.location, name.length);
-		if (var.type != VARIABLE_UNDEFINED) {
-			emit_push_variable(bytecode, &var);
-			return;
-		}
-
-		// Check for a native function with the same name
-		int native = vm_find_native(vm, name.location, name.length);
-		if (native != -1) {
-			emit_push_native(bytecode, native);
-			return;
-		}
-
-		// The variable is undefined
-		error(lexer->line, "Undefined variable `%.*s`", name.length,
-			name.location);
+	// Check for a local variable
+	Variable var = capture_variable(expression->compiler, name.location,
+		name.length);
+	if (var.type != VARIABLE_UNDEFINED) {
+		emit_push_variable(bytecode, &var);
+		return;
 	}
+
+	// Check for a native function with the same name
+	int native = vm_find_native(vm, name.location, name.length);
+	if (native != -1) {
+		emit_push_native(bytecode, native);
+		return;
+	}
+
+	// The variable is undefined
+	error(lexer->line, "Undefined variable `%.*s`", name.length,
+		name.location);
 }
 
 
 // Compile a string literal.
-void operand_string_literal(Compiler *compiler) {
-	Lexer *lexer = &compiler->vm->lexer;
-	Bytecode *bytecode = &compiler->fn->bytecode;
+void operand_string_literal(Expression *expression) {
+	Lexer *lexer = &expression->compiler->vm->lexer;
+	Bytecode *bytecode = &expression->compiler->fn->bytecode;
 
 	Token literal = lexer_consume(lexer);
 	String **string;
 	char *invalid_sequence;
-	int index = vm_new_string_literal(compiler->vm, &string);
+	int index = vm_new_string_literal(expression->compiler->vm, &string);
 	*string = parser_extract_literal(literal.location, literal.length,
 		&invalid_sequence);
 
 	if (invalid_sequence != NULL) {
 		// Invalid escape sequence in string
-		error(compiler->vm->lexer.line,
+		error(lexer->line,
 			"Invalid escape sequence `%.*s` in string", 2, invalid_sequence);
 	} else {
 		emit(bytecode, CODE_PUSH_STRING);
@@ -612,10 +641,13 @@ bool should_terminate_sub_expression(Token token) {
 
 
 // Compile a sub-expression (surrounded by parentheses).
-void sub_expression(Compiler *compiler) {
-	Lexer *lexer = &compiler->vm->lexer;
+void sub_expression(Expression *expression) {
+	Lexer *lexer = &expression->compiler->vm->lexer;
 	lexer_consume(lexer);
-	parse_precedence(compiler, &should_terminate_sub_expression, PREC_NONE);
+
+	Expression sub_expression = expression_new(expression->compiler,
+		&should_terminate_sub_expression);
+	expression_compile(&sub_expression);
 
 	expect(lexer, TOKEN_CLOSE_PARENTHESIS,
 		"Expected `)` to close `(` in expression");
@@ -623,46 +655,47 @@ void sub_expression(Compiler *compiler) {
 
 
 // Compile a true constant.
-void operand_true(Compiler *compiler) {
-	Bytecode *bytecode = &compiler->fn->bytecode;
-	Lexer *lexer = &compiler->vm->lexer;
+void operand_true(Expression *expression) {
+	Bytecode *bytecode = &expression->compiler->fn->bytecode;
+	Lexer *lexer = &expression->compiler->vm->lexer;
 	lexer_consume(lexer);
 	emit(bytecode, CODE_PUSH_TRUE);
 }
 
 
 // Compile a false constant.
-void operand_false(Compiler *compiler) {
-	Bytecode *bytecode = &compiler->fn->bytecode;
-	Lexer *lexer = &compiler->vm->lexer;
+void operand_false(Expression *expression) {
+	Bytecode *bytecode = &expression->compiler->fn->bytecode;
+	Lexer *lexer = &expression->compiler->vm->lexer;
 	lexer_consume(lexer);
 	emit(bytecode, CODE_PUSH_FALSE);
 }
 
 
 // Compile a nil constant.
-void operand_nil(Compiler *compiler) {
-	Bytecode *bytecode = &compiler->fn->bytecode;
-	Lexer *lexer = &compiler->vm->lexer;
+void operand_nil(Expression *expression) {
+	Bytecode *bytecode = &expression->compiler->fn->bytecode;
+	Lexer *lexer = &expression->compiler->vm->lexer;
 	lexer_consume(lexer);
 	emit(bytecode, CODE_PUSH_NIL);
 }
 
 
 // Compile a function operand.
-void operand_function(Compiler *compiler) {
-	Lexer *lexer = &compiler->vm->lexer;
-	Bytecode *bytecode = &compiler->fn->bytecode;
+void operand_function(Expression *expression) {
+	VirtualMachine *vm = expression->compiler->vm;
+	Lexer *lexer = &expression->compiler->vm->lexer;
+	Bytecode *bytecode = &expression->compiler->fn->bytecode;
 
 	// Consume the function keyword
 	lexer_consume(lexer);
 
 	// Define a function
 	Function *fn;
-	int index = vm_new_function(compiler->vm, &fn);
+	int index = vm_new_function(vm, &fn);
 
 	// Consume the function's arguments list
-	function_definition_arguments(compiler, fn);
+	function_definition_arguments(expression->compiler, fn);
 
 	// Expect an opening brace for the function's block
 	lexer_disable_newlines(lexer);
@@ -672,7 +705,8 @@ void operand_function(Compiler *compiler) {
 	// Compile the function's block
 	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
 	lexer_enable_newlines(lexer);
-	compile(compiler->vm, compiler, fn, TOKEN_CLOSE_BRACE);
+	printf("compiling anonymous function\n");
+	compile(vm, expression->compiler, fn, TOKEN_CLOSE_BRACE);
 
 	// Expect a closing brace after the function's block
 	expect(lexer, TOKEN_CLOSE_BRACE,
@@ -685,6 +719,13 @@ void operand_function(Compiler *compiler) {
 
 
 // Compile a postfix function call.
-void postfix_function_call(Compiler *compiler) {
+void postfix_function_call(Expression *expression) {
+	// Push the function call arguments onto the stack
+	int arity = function_call_arguments(expression->compiler);
 
+	// Push a call to the function
+	Bytecode *bytecode = &expression->compiler->fn->bytecode;
+	emit_call(bytecode, arity);
+
+	expression->is_only_function_call = true;
 }

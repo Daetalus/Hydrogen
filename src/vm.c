@@ -488,8 +488,11 @@ instructions:
 	// Pop the top off the stack and call it.
 	case CODE_CALL: {
 		uint16_t arity = READ_2_BYTES();
-		uint64_t value = TOP();
-		POP();
+
+		// The function we're trying to call is placed
+		// underneath the arguments we're passing to it, so we
+		// can't just access the top element in the stack.
+		uint64_t value = stack[stack_size - arity - 1];
 
 		if (IS_FUNCTION(value)) {
 			uint16_t index = VALUE_TO_FUNCTION(value);
@@ -514,6 +517,22 @@ instructions:
 			}
 
 			native->fn(stack, &stack_size);
+
+			// Save the return value from native function and
+			// pop it, because we need to pop the function we're
+			// calling from beneath it
+			uint16_t return_value = TOP();
+			POP();
+
+			// The function we're calling was pushed before the
+			// arguments passed to it, so once we've finished
+			// calling the function, we need to pop the function
+			// itself.
+			POP();
+
+			// Since we popped the return value earlier, we need
+			// to push it again.
+			PUSH(return_value);
 		} else {
 			error(-1, "Attempting to call non-function variable");
 		}
@@ -544,6 +563,11 @@ instructions:
 		ip = call_stack[call_stack_size - 1].instruction_ptr;
 		stack_size = stack_start;
 		stack_start = call_stack[call_stack_size - 1].stack_start;
+
+		// The original function value we called with the
+		// `CODE_CALL` instruction (which we need to pop) lies
+		// beneath the return value, so pop it.
+		POP();
 
 		// Push the return value
 		PUSH(return_value);

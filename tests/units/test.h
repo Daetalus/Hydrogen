@@ -111,23 +111,24 @@
 //
 
 
-#define EXPRESSION(content)                     \
-	VirtualMachine vm = vm_new((content));      \
-	Function fn;                                \
-	fn.arity = 0;                               \
-	fn.captured_upvalue_count = 0;              \
-	fn.defined_upvalue_count = 0;               \
-	fn.bytecode = bytecode_new(64);             \
-	Bytecode *bytecode = &fn.bytecode;          \
-	Compiler compiler;                          \
-	compiler.vm = &vm;                          \
-	compiler.parent = NULL;                     \
-	compiler.fn = &fn;                          \
-	compiler.local_count = 0;                   \
-	compiler.scope_depth = 0;                   \
-	compiler.loop_count = 0;                    \
-	compiler.explicit_return_statement = false; \
-	expression(&compiler, NULL);                \
+#define EXPRESSION(content)                                  \
+	VirtualMachine vm = vm_new((content));                   \
+	Function fn;                                             \
+	fn.arity = 0;                                            \
+	fn.captured_upvalue_count = 0;                           \
+	fn.defined_upvalue_count = 0;                            \
+	fn.bytecode = bytecode_new(64);                          \
+	Bytecode *bytecode = &fn.bytecode;                       \
+	Compiler compiler;                                       \
+	compiler.vm = &vm;                                       \
+	compiler.parent = NULL;                                  \
+	compiler.fn = &fn;                                       \
+	compiler.local_count = 0;                                \
+	compiler.scope_depth = 0;                                \
+	compiler.loop_count = 0;                                 \
+	compiler.explicit_return_statement = false;              \
+	Expression expression = expression_new(&compiler, NULL); \
+	expression_compile(&expression);                         \
 	uint8_t *ip = &bytecode->instructions[0];
 
 
