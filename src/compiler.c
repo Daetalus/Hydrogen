@@ -655,64 +655,6 @@ void infinite_loop(Compiler *compiler) {
 
 
 //
-//  Function Calls
-//
-
-// Returns true if the token should terminate a function call
-// argument.
-bool should_terminate_function_call(Token token) {
-	return token.type == TOKEN_COMMA || token.type == TOKEN_CLOSE_PARENTHESIS;
-}
-
-
-// TODO Move to expression.c
-//
-// Compiles a set of function call arguments as expressions
-// separated by commas. Expects the compiler to start on an
-// opening parenthesis, and consumes a closing parenthesis after
-// the arguments list.
-//
-// Returns the number of arguments compiled.
-int function_call_arguments(Compiler *compiler) {
-	Lexer *lexer = &compiler->vm->lexer;
-
-	// Consume the opening parenthesis
-	lexer_disable_newlines(lexer);
-	expect(lexer, TOKEN_OPEN_PARENTHESIS,
-		"Expected `(` to begin function call arguments");
-
-	// Consume expressions separated by commas
-	int arity = 0;
-	while (!lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
-		// Compile an expression
-		lexer_enable_newlines(lexer);
-		Expression expression = expression_new(compiler,
-			&should_terminate_function_call);
-		expression_compile(&expression);
-		lexer_disable_newlines(lexer);
-		arity++;
-
-		if (lexer_match(lexer, TOKEN_COMMA)) {
-			// Another argument
-			lexer_consume(lexer);
-		} else if (!lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
-			// Unrecognised operator
-			Token token = lexer_current(lexer);
-			error(lexer->line,
-				"Unexpected `%.*s` in arguments to function call",
-				token.length, token.location);
-		}
-	}
-
-	// Consume the close parenthesis and return
-	lexer_consume(lexer);
-	lexer_enable_newlines(lexer);
-	return arity;
-}
-
-
-
-//
 //  Function Definitions
 //
 

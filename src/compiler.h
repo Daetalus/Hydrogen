@@ -156,19 +156,6 @@ typedef struct compiler {
 void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
 	TokenType terminator);
 
-
-// Compiles a set of function call arguments as expressions
-// separated by commas. Expects the compiler to start on an
-// opening parenthesis, and consumes a closing parenthesis after
-// the arguments list.
-//
-// Returns the number of arguments compiled.
-int function_call_arguments(Compiler *compiler);
-
-// Compiles a function call, leaving the return value of the
-// function on the top of the stack.
-void function_call(Compiler *compiler);
-
 // Parses the arguments list for `fn`. Expects the lexer's
 // cursor to be on the opening parenthesis of the arguments
 // list.
