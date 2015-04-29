@@ -216,6 +216,59 @@ int vm_find_native(VirtualMachine *vm, char *name, int length) {
 
 
 //
+//  Classes
+//
+
+// Create a new class definition, returning its index in the
+// VM's class definitions list.
+int vm_new_class_definition(VirtualMachine *vm, ClassDefinition **definition) {
+	int index = vm->class_definition_count;
+	vm->class_definition_count++;
+
+	// Check we haven't exceeded the hard limit on the number of
+	// class definitions we can have
+	if (vm->class_definition_count > MAX_CLASSES) {
+		error(-1, "Cannot define more than %d classes", MAX_CLASSES);
+	}
+
+	// If the number of classes we've defined exceeds the
+	// array's capacity, then reallocate the array.
+	if (vm->class_definition_count > vm->class_definition_capacity) {
+		vm->class_definition_capacity *= 2;
+
+		size_t new_size = vm->class_definition_capacity *
+			sizeof(ClassDefinition);
+		vm->class_definitions = realloc(vm->class_definitions, new_size);
+	}
+
+	*definition = &vm->class_definitions[index];
+	(*definition)->name = NULL;
+	(*definition)->length = 0;
+	(*definition)->field_count = 0;
+
+	return index;
+}
+
+
+// Returns the index of the class named `name`, or -1 if no
+// class with that name if found.
+int vm_find_class(VirtualMachine *vm, char *name, int length) {
+	for (int i = 0; i < vm->class_definition_count; i++) {
+		ClassDefinition *definition = &vm->class_definitions[i];
+
+		if (definition->length == length &&
+				strncmp(definition->name, name, length) == 0) {
+			// Found a matching class
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+
+
+//
 //  String Literals
 //
 
@@ -279,42 +332,6 @@ int vm_new_upvalue(VirtualMachine *vm, Upvalue **upvalue) {
 	(*upvalue)->name = NULL;
 	(*upvalue)->length = 0;
 	(*upvalue)->defining_function = NULL;
-
-	return index;
-}
-
-
-
-//
-//  Classes
-//
-
-// Create a new class definition, returning its index in the
-// VM's class definitions list.
-int vm_new_class_definition(VirtualMachine *vm, ClassDefinition **definition) {
-	int index = vm->class_definition_count;
-	vm->class_definition_count++;
-
-	// Check we haven't exceeded the hard limit on the number of
-	// class definitions we can have
-	if (vm->class_definition_count > MAX_CLASSES) {
-		error(-1, "Cannot define more than %d classes", MAX_CLASSES);
-	}
-
-	// If the number of classes we've defined exceeds the
-	// array's capacity, then reallocate the array.
-	if (vm->class_definition_count > vm->class_definition_capacity) {
-		vm->class_definition_capacity *= 2;
-
-		size_t new_size = vm->class_definition_capacity *
-			sizeof(ClassDefinition);
-		vm->class_definitions = realloc(vm->class_definitions, new_size);
-	}
-
-	*definition = &vm->class_definitions[index];
-	(*definition)->name = NULL;
-	(*definition)->length = 0;
-	(*definition)->field_count = 0;
 
 	return index;
 }
@@ -602,6 +619,25 @@ instructions:
 		NativeFunction fn = value_to_ptr(READ_8_BYTES());
 		fn(stack, &stack_size);
 		goto instructions;
+	}
+
+	// Instantiate a new instance of a class and push it onto
+	// the stack.
+	case CODE_INSTANTIATE_CLASS: {
+		uint16_t index = READ_2_BYTES();
+		ClassDefinition *definition = &vm->class_definitions[index];
+
+		size_t size = sizeof(ClassInstance) +
+			definition->field_count * sizeof(uint64_t);
+		ClassInstance *instance = malloc(size);
+
+		// Nil-ify all of the instance's fields
+		for (int i = 0; i < definition->field_count; i++) {
+			instance->fields[i] = NIL_VALUE;
+		}
+
+		// Push the class
+		PUSH(ptr_to_value(instance));
 	}
 
 	// Return from the current function.

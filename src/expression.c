@@ -138,32 +138,17 @@ typedef struct {
 } Rule;
 
 
-// Compile a number.
+// Compile operands.
 void operand_number(Expression *expression);
-
-// Compile an identifier.
 void operand_identifier(Expression *expression);
-
-// Compile a string literal.
 void operand_string_literal(Expression *expression);
-
-// Compile a sub-expression (surrounded by parentheses).
 void sub_expression(Expression *expression);
-
-// Compile a true constant.
 void operand_true(Expression *expression);
-
-// Compile a false constant.
 void operand_false(Expression *expression);
-
-// Compile a nil constant.
 void operand_nil(Expression *expression);
-
-// Compile a function operand.
 void operand_function(Expression *expression);
-
-// Compile a postfix function call.
 void postfix_function_call(Expression *expression);
+void operand_class(Expression *expression);
 
 
 // Expression rules array. The entries in the array are in order
@@ -292,7 +277,7 @@ Rule rules[] = {
 	// Class
 	{RULE_UNUSED},
 	// New
-	{RULE_UNUSED},
+	{RULE_OPERAND, {.operand = {&operand_class}}},
 	// Function
 	{RULE_OPERAND, {.operand = {&operand_function}}},
 	// Return
@@ -781,4 +766,43 @@ void postfix_function_call(Expression *expression) {
 	emit_call(bytecode, arity);
 
 	expression->is_only_function_call = true;
+}
+
+
+// Compiles a class constructor (the `new` keyword).
+void operand_class(Expression *expression) {
+	VirtualMachine *vm = expression->compiler->vm;
+	Lexer *lexer = &expression->compiler->vm->lexer;
+	Bytecode *bytecode = &expression->compiler->fn->bytecode;
+
+	// Consume the new keyword
+	lexer_disable_newlines(lexer);
+	lexer_consume(lexer);
+
+	// Expect the name of the class we're creating an instance
+	// of (an identifier)
+	Token name = expect(lexer, TOKEN_IDENTIFIER,
+		"Expected class name after `new`");
+	lexer_enable_newlines(lexer);
+
+	// Get the index of the class we're instantiating
+	int index = vm_find_class(vm, name.location, name.length);
+	if (index == -1) {
+		error(lexer->line, "Class `%.*s` is undefined", name.length,
+			name.location);
+	}
+
+	// Emit an instantiation instruction
+	emit(bytecode, CODE_INSTANTIATE_CLASS);
+	emit_arg_2(bytecode, index);
+
+	// Expect an opening and closing parenthesis, where the
+	// arguments to the constructor call would normally go.
+	//
+	// This must go on the same line as the class name like all
+	// other function calls.
+	expect(lexer, TOKEN_OPEN_PARENTHESIS, "Expected `()` after class name");
+	expect(lexer, TOKEN_CLOSE_PARENTHESIS, "Expected `()` after class name");
+
+	// TODO emit call to constructor
 }

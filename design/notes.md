@@ -287,6 +287,7 @@ struct Class {
 * Treat `.identifier` as a postfix operator
 	* Emits bytecode to push the field named `identifier` of the expression before the operator onto the stack
 	* No runtime tests yet, but unit tests for compiler
+* Compile new class call
 * Compile class definitions with fields
 	* Optional braces defining field names
 	* Trigger compile error if class already exists
@@ -294,6 +295,7 @@ struct Class {
 * Compile method definitions
 	* Add methods to class definition
 * Compile constructors
+* Add library classes
 
 **Instructions**
 

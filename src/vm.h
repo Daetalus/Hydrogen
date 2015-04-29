@@ -263,6 +263,15 @@ int vm_new_native(VirtualMachine *vm, Native **native);
 int vm_find_native(VirtualMachine *vm, char *name, int length);
 
 
+// Create a new class definition, returning its index in the
+// VM's class definitions list.
+int vm_new_class_definition(VirtualMachine *vm, ClassDefinition **definition);
+
+// Returns the index of the class named `name`, or -1 if no
+// class with that name if found.
+int vm_find_class(VirtualMachine *vm, char *name, int length);
+
+
 // Create a new string literal, returning a pointer to it and
 // its index in the literals list.
 int vm_new_string_literal(VirtualMachine *vm, String ***literal);
@@ -270,9 +279,5 @@ int vm_new_string_literal(VirtualMachine *vm, String ***literal);
 // Create a new upvalue, returning a pointer to it and its index
 // in the upvalues list.
 int vm_new_upvalue(VirtualMachine *vm, Upvalue **upvalue);
-
-// Create a new class definition, returning its index in the
-// VM's class definitions list.
-int vm_new_class_definition(VirtualMachine *vm, ClassDefinition **definition);
 
 #endif

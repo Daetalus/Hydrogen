@@ -131,6 +131,12 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 		break;
 	}
 
+	case CODE_INSTANTIATE_CLASS: {
+		uint16_t index = READ_2_BYTES();
+		printf("%lu: instantiate class %d\n", position, index);
+		break;
+	}
+
 	case CODE_RETURN: {
 		printf("%lu: return\n", position);
 		break;

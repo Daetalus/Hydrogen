@@ -200,6 +200,15 @@ typedef enum {
 	// * 8 bytes - the C function pointer to call.
 	CODE_CALL_NATIVE,
 
+	// Creates a new instance of a class and pushes it onto the
+	// stack. Doesn't call the class' constructor - that needs
+	// to be done with a separate call instruction.
+	//
+	// Arguments:
+	// * 2 bytes - the index in the VM's class definitions list
+	//   of the class to create an instance of.
+	CODE_INSTANTIATE_CLASS,
+
 	// Returns from a function. Pops the return argument off the
 	// top of the stack and saves it, then discards all local
 	// variables, then pushes the return argument for the
