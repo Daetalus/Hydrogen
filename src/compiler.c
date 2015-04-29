@@ -732,17 +732,17 @@ void function_definition(Compiler *compiler) {
 			name.length, name.location);
 	}
 
-	// Compile the function's arguments list
-	lexer_enable_newlines(lexer);
-	function_definition_arguments(compiler, fn);
-	lexer_disable_newlines(lexer);
-
 	// Check library functions
 	int native = vm_find_native(vm, name.location, name.length);
 	if (native != -1) {
 		error(lexer->line, "Function `%.*s` is already defined in a library",
 			name.length, name.location);
 	}
+
+	// Compile the function's arguments list
+	lexer_enable_newlines(lexer);
+	function_definition_arguments(compiler, fn);
+	lexer_disable_newlines(lexer);
 
 	// Add the function as a local
 	int local_index = define_local(compiler, name.location, name.length);
