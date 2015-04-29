@@ -502,11 +502,18 @@ void if_statement(Compiler *compiler) {
 //  While Loops
 //
 
-// Create a new loop and push it onto the compiler's loop stack.
-void push_new_loop(Compiler *compiler, Loop *loop) {
+// Create a new loop at the compiler's current scope depth and
+// push it onto the loop stack.
+void push_loop(Compiler *compiler, Loop *loop) {
 	loop->break_statement_count = 0;
 	loop->scope_depth = compiler->scope_depth;
 	compiler->loops[compiler->loop_count++] = loop;
+}
+
+
+// Pop the top most loop off the compiler's loop stack.
+void pop_loop(Compiler *compiler) {
+	compiler->loop_count--;
 }
 
 
@@ -515,13 +522,6 @@ void patch_break_statements(Bytecode *bytecode, Loop *loop) {
 	for (int i = 0; i < loop->break_statement_count; i++) {
 		patch_forward_jump(bytecode, loop->break_statements[i]);
 	}
-}
-
-
-// Pop the top most loop off the compiler's loop stack.
-void pop_loop(Compiler *compiler) {
-	// Pop the loop from the loop stack.
-	compiler->loop_count--;
 }
 
 
@@ -555,7 +555,7 @@ void while_loop(Compiler *compiler) {
 
 	// Append a loop to the compiler.
 	Loop loop;
-	push_new_loop(compiler, &loop);
+	push_loop(compiler, &loop);
 
 	// Compile the block.
 	expect(lexer, TOKEN_OPEN_BRACE,
@@ -581,19 +581,19 @@ void while_loop(Compiler *compiler) {
 
 // Compiles a break statement.
 void break_statement(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+
 	if (compiler->loop_count == 0) {
 		// Not inside a loop
-		error(compiler->vm->lexer.line,
-			"Break statement not within loop");
+		error(lexer->line, "Break statement not within loop");
 	}
 
-	Lexer *lexer = &compiler->vm->lexer;
 	Loop *loop = compiler->loops[compiler->loop_count - 1];
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
 	if (loop->break_statement_count >= MAX_BREAK_STATEMENTS) {
 		// Too many break statements in a loop
-		error(compiler->vm->lexer.line,
+		error(lexer->line,
 			"Reached maximum break statement limit in loop (%d)",
 			MAX_BREAK_STATEMENTS);
 	}
@@ -639,7 +639,7 @@ void infinite_loop(Compiler *compiler) {
 
 	// Append a loop to the compiler
 	Loop loop;
-	push_new_loop(compiler, &loop);
+	push_loop(compiler, &loop);
 
 	// Save the starting location to jump back to
 	int start = bytecode->count;
@@ -726,16 +726,16 @@ void function_definition(Compiler *compiler) {
 	Function *fn;
 	int fn_index = vm_new_function(compiler->vm, &fn);
 
-	// Compile the function's arguments list
-	lexer_enable_newlines(lexer);
-	function_definition_arguments(compiler, fn);
-	lexer_disable_newlines(lexer);
-
 	// Check the function isn't already defined
 	if (variable_exists(compiler, name.location, name.length)) {
 		error(lexer->line, "Function name `%.*s` is already in use",
 			name.length, name.location);
 	}
+
+	// Compile the function's arguments list
+	lexer_enable_newlines(lexer);
+	function_definition_arguments(compiler, fn);
+	lexer_disable_newlines(lexer);
 
 	// Check library functions
 	int native = vm_find_native(vm, name.location, name.length);
@@ -1013,8 +1013,10 @@ bool find_local(Compiler *compiler, Variable *result, char *name, int length) {
 // one is found, else returns false.
 bool find_upvalue(Compiler *compiler, Variable *result, char *name,
 		int length) {
-	for (int i = 0; i < compiler->vm->upvalue_count; i++) {
-		Upvalue *upvalue = &compiler->vm->upvalues[i];
+	VirtualMachine *vm = compiler->vm;
+
+	for (int i = 0; i < vm->upvalue_count; i++) {
+		Upvalue *upvalue = &vm->upvalues[i];
 
 		if (upvalue->name != NULL && upvalue->length == length &&
 				strncmp(name, upvalue->name, length) == 0) {
@@ -1067,8 +1069,10 @@ int find_local_in_all_scopes(Compiler *compiler, Local **local, Function **fn,
 // Adds `upvalue` to the list of all upvalues closed over by the
 // compiler if it doesn't yet exist in the upvalue's list.
 void add_upvalue(Compiler *compiler, Upvalue *upvalue) {
-	for (int i = 0; i < compiler->fn->captured_upvalue_count; i++) {
-		if (compiler->fn->captured_upvalues[i] == upvalue) {
+	Function *fn = compiler->fn;
+
+	for (int i = 0; i < fn->captured_upvalue_count; i++) {
+		if (fn->captured_upvalues[i] == upvalue) {
 			// The upvalue already exists in the list of all
 			// upvalues closed over by the function, so don't
 			// bother adding it again
@@ -1078,7 +1082,6 @@ void add_upvalue(Compiler *compiler, Upvalue *upvalue) {
 
 	// We haven't seen this upvalue before, so add it to the
 	// upvalues list
-	Function *fn = compiler->fn;
 	fn->captured_upvalues[fn->captured_upvalue_count++] = upvalue;
 
 	// We need to add the upvalue to the list of upvalues the
