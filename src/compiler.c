@@ -38,6 +38,7 @@ void break_statement(Compiler *compiler);
 void function_definition(Compiler *compiler);
 void expression_statement(Compiler *compiler);
 void return_statement(Compiler *compiler);
+void class_definition(Compiler *compiler);
 
 // Returns true if the lexer matches a variable assignment.
 // Matches an identifier, followed by an assignment operator, or
@@ -101,7 +102,8 @@ void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
 	// Treat the source code as a top level block without a
 	// scope, stopping when we reach the terminator character.
 	Lexer *lexer = &compiler.vm->lexer;
-	while (!lexer_match(lexer, terminator)) {
+	while (!lexer_match(lexer, terminator) &&
+			!lexer_match(lexer, TOKEN_END_OF_FILE)) {
 		statement(&compiler);
 	}
 
@@ -132,7 +134,8 @@ void block(Compiler *compiler, TokenType terminator) {
 	// parsing this block, and pop it when we're finished.
 	push_scope(compiler);
 
-	while (!lexer_match(lexer, terminator)) {
+	while (!lexer_match(lexer, terminator) &&
+			!lexer_match(lexer, TOKEN_END_OF_FILE)) {
 		// Blocks consist of a sequence of statements.
 		statement(compiler);
 	}
@@ -163,6 +166,8 @@ void statement(Compiler *compiler) {
 		function_definition(compiler);
 	} else if (lexer_match(lexer, TOKEN_RETURN)) {
 		return_statement(compiler);
+	} else if (lexer_match(lexer, TOKEN_CLASS)) {
+		class_definition(compiler);
 	} else {
 		expression_statement(compiler);
 	}
@@ -674,35 +679,31 @@ void function_definition_arguments(Compiler *compiler, Function *fn) {
 	expect(lexer, TOKEN_OPEN_PARENTHESIS,
 		"Expected `(` after name in function definition");
 
-	if (!lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
-		while (1) {
-			// Expect the name of the function's argument
-			Token argument = expect(lexer, TOKEN_IDENTIFIER,
-				"Expected argument name in function argument list");
+	while (!lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS) &&
+			!lexer_match(lexer, TOKEN_END_OF_FILE)) {
+		// Expect the name of the function's argument
+		Token name = expect(lexer, TOKEN_IDENTIFIER,
+			"Expected argument name in function arguments list");
 
-			int index = fn->arity;
-			fn->arity++;
-			fn->arguments[index].location = argument.location;
-			fn->arguments[index].length = argument.length;
+		SourceString *argument = &fn->arguments[fn->arity++];
+		argument->location = name.location;
+		argument->length = name.length;
 
-			// Expect a comma or closing parenthesis
-			if (lexer_match(lexer, TOKEN_COMMA)) {
-				lexer_consume(lexer);
-			} else if (lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
-				// End of the arguments list
-				lexer_consume(lexer);
-				break;
-			} else {
-				Token token = lexer_peek(lexer, 1);
-				error(lexer->line,
-					"Unexpected token `%.*s` in function definition",
-					token.length, token.location);
-			}
+		// Expect a comma or closing parenthesis
+		if (lexer_match(lexer, TOKEN_COMMA)) {
+			lexer_consume(lexer);
+		} else if (lexer_match(lexer, TOKEN_CLOSE_PARENTHESIS)) {
+			// Don't trigger an error
+		} else {
+			error(lexer->line,
+				"Unexpected token `%.*s` in function definition",
+				name.length, name.location);
 		}
-	} else {
-		// Consume the closing parenthesis
-		lexer_consume(lexer);
 	}
+
+	// Expect the closing parenthesis
+	expect(lexer, TOKEN_CLOSE_PARENTHESIS,
+		"Expected `)` to finish function arguments list");
 
 	lexer_enable_newlines(lexer);
 }
@@ -771,6 +772,8 @@ void function_definition(Compiler *compiler) {
 
 // Compile an expression that exists as a statement.
 void expression_statement(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+
 	// Start an expression here
 	Expression expression = expression_new(compiler, NULL);
 	expression_compile(&expression);
@@ -778,7 +781,6 @@ void expression_statement(Compiler *compiler) {
 	if (!expression.is_only_function_call) {
 		// We have something other than a single function call
 		// on this line, so trigger an error
-		Lexer *lexer = &compiler->vm->lexer;
 		Token token = lexer_current(lexer);
 		error(lexer->line, "Unexpected expression at `%.*s`",
 			token.length, token.location);
@@ -787,6 +789,12 @@ void expression_statement(Compiler *compiler) {
 	// Pop the result of the expression
 	Bytecode *bytecode = &compiler->fn->bytecode;
 	emit(bytecode, CODE_POP);
+
+	// Check we have a newline after the expression
+	if (!lexer_match(lexer, TOKEN_LINE) &&
+			!lexer_match(lexer, TOKEN_END_OF_FILE)) {
+		error(lexer->line, "Expected newline after function call");
+	}
 }
 
 
@@ -820,6 +828,7 @@ void close_captured_locals(Compiler *compiler) {
 	}
 }
 
+
 // Compile a return statement.
 //
 // Functions return by pushing the return value onto the top of
@@ -847,6 +856,82 @@ void return_statement(Compiler *compiler) {
 
 	emit(bytecode, CODE_RETURN);
 	compiler->explicit_return_statement = true;
+}
+
+
+
+//
+//  Class Definitions
+//
+
+// Compile a class' fields list.
+void class_field_list(Compiler *compiler, ClassDefinition *definition) {
+	Lexer *lexer = &compiler->vm->lexer;
+
+	lexer_disable_newlines(lexer);
+
+	// Consume the opening brace
+	lexer_consume(lexer);
+
+	// Expect a list of comma separated identifiers, acting as
+	// field names
+	while (!lexer_match(lexer, TOKEN_CLOSE_BRACE) &&
+			!lexer_match(lexer, TOKEN_END_OF_FILE)) {
+		// Expect an identifier (the name of the field)
+		Token name = expect(lexer, TOKEN_IDENTIFIER,
+			"Expected identifier in class field list");
+
+		// Add the field to the class definition
+		SourceString *field = &definition->fields[definition->field_count++];
+		field->location = name.location;
+		field->length = name.length;
+
+		// Expect a comma or a closing brace
+		if (lexer_match(lexer, TOKEN_COMMA)) {
+			// Consume the comma separating the field names
+			lexer_consume(lexer);
+		} else if (lexer_match(lexer, TOKEN_CLOSE_BRACE)) {
+			// Don't trigger an error
+		} else {
+			// Unexpected token, so trigger an error
+			Token after = lexer_current(lexer);
+			error(lexer->line,  "Expected `,` after field name in class "
+				"definition, found `%.*s`", after.length, after.location);
+		}
+	}
+
+	// Expect the closing brace
+	expect(lexer, TOKEN_CLOSE_BRACE,
+		"Expected `}` to finish class definition fields list");
+
+	lexer_enable_newlines(lexer);
+}
+
+
+// Compile a class definition.
+void class_definition(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+
+	// Consume the class keyword
+	lexer_consume(lexer);
+
+	// Expect an identifier (the class' name)
+	lexer_disable_newlines(lexer);
+	Token name = expect(lexer, TOKEN_IDENTIFIER,
+		"Expected identifier (a class name) after `class` keyword");
+
+	// Create the class definition
+	ClassDefinition *definition;
+	vm_new_class_definition(compiler->vm, &definition);
+	definition->name = name.location;
+	definition->length = name.length;
+
+	// Check for the optional opening brace after the class
+	// name.
+	if (lexer_match(lexer, TOKEN_OPEN_BRACE)) {
+		lexer_enable_newlines(lexer);
+		class_field_list(compiler, definition);
+	}
 }
 
 

@@ -470,6 +470,9 @@ Token lexer_next(Lexer *lexer) {
 		KEYWORD("loop", TOKEN_LOOP);
 		KEYWORD("break", TOKEN_BREAK);
 
+		KEYWORD("class", TOKEN_CLASS);
+		KEYWORD("new", TOKEN_NEW);
+
 		KEYWORD("true", TOKEN_TRUE);
 		KEYWORD("false", TOKEN_FALSE);
 		KEYWORD("nil", TOKEN_NIL);

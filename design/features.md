@@ -169,3 +169,9 @@ test.test()
 [] Standard library
 [] Calling results of expressions
 [] Multiple levels of indirection with . operator
+
+Function calls cannot have newlines between opening parenthesis and the identifier, eg:
+test
+(a, b, c)
+
+is illegal

@@ -21,7 +21,7 @@ cmake ..
 make
 ```
 
-Create your Hydrogen script in a `.hy` file, and execute it with:
+This will generate a `hydrogen` executable, which you can use to run your scripts. Create a Hydrogen script in a `.hy` file and execute it with:
 
 ```
 ./hydrogen my-script.hy
@@ -30,29 +30,36 @@ Create your Hydrogen script in a `.hy` file, and execute it with:
 
 ## Sample Code
 
+Classic hello world:
+
+```rust
+io.println("Hello, World!")
+```
+
+Fibonacci:
+
 ```rust
 fn fib(n) {
 	if n == 1 {
 		return 1
-	} else {
-		return fib(n - 1) + fib(n - 2)
 	}
+	return fib(n - 1) + fib(n - 2)
 }
 
 io.println(fib(5))
 ```
 
-Iterators:
+Fibonacci with iterators:
 
 ```rust
 fn fib_iter(max) {
-	current = 1
-	previous = 1
+	let current = 1
+	let previous = 1
 
 	return fn() {
-		old_current = current
+		let old = current
 		current += previous
-		previous = old_current
+		previous = old
 		return current
 	}
 }
@@ -65,35 +72,34 @@ for fib in iter.only(fib_iter(10), 10) {
 Classes:
 
 ```rust
-// A tree node
 class Node {
-	fn new(value) {
-		self.value = value
-		self.children = []
-	}
-
-	fn new(value, child) {
-		self.value = value
-		self.children = [child]
-	}
-
-	fn new(value, child1, child2) {
-		self.value = value
-		self.children = [child1, child2]
-	}
-
-	fn print() {
-		io.print("[" + self.value)
-
-		for child in self.children {
-			io.print(", ")
-			child.print()
-		}
-
-		io.print("]")
-	}
+	value,
+	children
 }
 
-tree = new Node(2, new Node(7, new Node(2), new Node(6)), new Node(5))
+fn (Node) new(value, children) {
+	self.value = value
+	self.children = children
+}
+
+fn (Node) print() {
+	io.print("[" + self.value)
+
+	for child in self.children {
+		io.print(", ")
+		child.print()
+	}
+
+	io.print("]")
+}
+
+tree = new Node(2, [
+	new Node(7, [
+		new Node(2, []),
+		new Node(6, []),
+	]),
+	new Node(5, []),
+])
+
 tree.print() // Will print [2, [7, [2], [6]], [5]]
 ```

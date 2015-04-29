@@ -35,6 +35,12 @@
 // The maximum number of locals that can be used as upvalues.
 #define MAX_USED_UPVALUES 512
 
+// The maximum number of class definitions that can be created.
+#define MAX_CLASSES 65535
+
+// The maximum number of fields that can be defined in a class.
+#define MAX_FIELDS 128
+
 
 // A struct storing a string with an associated length, rather
 // than terminated with a NULL byte.
@@ -136,6 +142,36 @@ typedef struct {
 } Native;
 
 
+// A class definition, constructed during compilation.
+typedef struct {
+	// The name of the class, as a pointer into the source code.
+	char *name;
+
+	// The length of the class' name.
+	int length;
+
+	// A list of all fields defined by the class.
+	SourceString fields[MAX_FIELDS];
+	int field_count;
+} ClassDefinition;
+
+
+// An instance of a class, heap allocated during runtime.
+typedef struct {
+	// A pointer to the definition that this object is an
+	// instance of.
+	ClassDefinition *definition;
+
+	// The fields for this class, indexed in the same order as
+	// the `fields` list defined in the class definition.
+	//
+	// This uses the C struct "hack", similar to strings, where
+	// we allocate extra space after the class on the heap for
+	// the fields.
+	uint64_t fields[0];
+} ClassInstance;
+
+
 // Executes compiled bytecode.
 typedef struct {
 	// A lexer, producing a stream of tokens from the source
@@ -169,6 +205,15 @@ typedef struct {
 	Upvalue *upvalues;
 	int upvalue_count;
 	int upvalue_capacity;
+
+	// An array of all classes defined in the source code.
+	ClassDefinition *class_definitions;
+	int class_definition_count;
+	int class_definition_capacity;
+
+	// A pointer to the head of the linked list of all allocated
+	// instances of classes.
+	ClassInstance *instance_head;
 } VirtualMachine;
 
 
@@ -225,5 +270,9 @@ int vm_new_string_literal(VirtualMachine *vm, String ***literal);
 // Create a new upvalue, returning a pointer to it and its index
 // in the upvalues list.
 int vm_new_upvalue(VirtualMachine *vm, Upvalue **upvalue);
+
+// Create a new class definition, returning its index in the
+// VM's class definitions list.
+int vm_new_class_definition(VirtualMachine *vm, ClassDefinition **definition);
 
 #endif

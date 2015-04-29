@@ -159,6 +159,7 @@ func RunBenchmark(language Language, benchmark Benchmark) {
 	}
 	stddev = math.Sqrt(stddev)
 
-	fmt.Printf(Bold + Blue + "\n           Average: " + White + "%.3f\n" + Normal, average)
+	fmt.Println("")
+	fmt.Printf(Bold + Blue + "           Average: " + White + "%.3f\n" + Normal, average)
 	fmt.Printf(Bold + Blue + "Standard Deviation: " + White + "%.3f\n" + Normal, stddev)
 }

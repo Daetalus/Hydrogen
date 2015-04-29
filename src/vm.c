@@ -54,6 +54,11 @@ VirtualMachine vm_new(char *source) {
 	vm.upvalue_capacity = 128;
 	vm.upvalues = malloc(vm.upvalue_capacity * sizeof(Upvalue));
 
+	vm.class_definition_count = 0;
+	vm.class_definition_capacity = 16;
+	size_t size = vm.class_definition_capacity * sizeof(ClassDefinition);
+	vm.class_definitions = malloc(size);
+
 	return vm;
 }
 
@@ -252,6 +257,21 @@ int vm_new_upvalue(VirtualMachine *vm, Upvalue **upvalue) {
 	int index = vm->upvalue_count;
 	vm->upvalue_count++;
 
+	// Check we haven't exceeded the hard limit on the number of
+	// upvalues we can create
+	if (vm->upvalue_count > MAX_UPVALUES) {
+		error(-1, "Cannot create more than %d upvalues", MAX_UPVALUES);
+	}
+
+	// Reallocate the array if the number of elements in it
+	// exceeds its capacity
+	if (vm->upvalue_count > vm->upvalue_capacity) {
+		vm->upvalue_capacity *= 2;
+
+		size_t new_size = vm->upvalue_capacity * sizeof(Upvalue);
+		vm->upvalues = realloc(vm->upvalues, new_size);
+	}
+
 	*upvalue = &vm->upvalues[index];
 	(*upvalue)->closed = false;
 	(*upvalue)->local_index = 0;
@@ -266,13 +286,50 @@ int vm_new_upvalue(VirtualMachine *vm, Upvalue **upvalue) {
 
 
 //
+//  Classes
+//
+
+// Create a new class definition, returning its index in the
+// VM's class definitions list.
+int vm_new_class_definition(VirtualMachine *vm, ClassDefinition **definition) {
+	int index = vm->class_definition_count;
+	vm->class_definition_count++;
+
+	// Check we haven't exceeded the hard limit on the number of
+	// class definitions we can have
+	if (vm->class_definition_count > MAX_CLASSES) {
+		error(-1, "Cannot define more than %d classes", MAX_CLASSES);
+	}
+
+	// If the number of classes we've defined exceeds the
+	// array's capacity, then reallocate the array.
+	if (vm->class_definition_count > vm->class_definition_capacity) {
+		vm->class_definition_capacity *= 2;
+
+		size_t new_size = vm->class_definition_capacity *
+			sizeof(ClassDefinition);
+		vm->class_definitions = realloc(vm->class_definitions, new_size);
+	}
+
+	*definition = &vm->class_definitions[index];
+	(*definition)->name = NULL;
+	(*definition)->length = 0;
+	(*definition)->field_count = 0;
+
+	return index;
+}
+
+
+
+//
 //  Execution
 //
 
 // The maximum size of the stack.
 #define MAX_STACK_SIZE 2048
 
-// The maximum size of the function call frame stack.
+// The maximum size of the function call frame stack (ie. the
+// recursive depth limit before we hit a stack overflow).
 #define MAX_CALL_STACK_SIZE 1024
 
 

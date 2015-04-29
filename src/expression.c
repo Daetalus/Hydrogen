@@ -289,6 +289,10 @@ Rule rules[] = {
 	{RULE_UNUSED},
 	// In
 	{RULE_UNUSED},
+	// Class
+	{RULE_UNUSED},
+	// New
+	{RULE_UNUSED},
 	// Function
 	{RULE_OPERAND, {.operand = {&operand_function}}},
 	// Return
@@ -377,7 +381,6 @@ void expression_compile(Expression *expression) {
 // Compiles an expression, stopping once we reach an operator
 // with a higher precedence than `precedence`.
 void parse_precedence(Expression *expression, Precedence precedence) {
-	Lexer *lexer = &expression->compiler->vm->lexer;
 	InfixOperator operator;
 
 	// Compile the left hand side of an infix operator
