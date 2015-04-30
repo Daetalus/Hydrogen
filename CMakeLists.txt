@@ -64,6 +64,7 @@ unit_test(function_calls)
 unit_test(function_definitions)
 unit_test(anonymous_functions)
 unit_test(closures)
+unit_test(classes)
 test(runtime)
 
 

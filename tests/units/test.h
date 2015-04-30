@@ -132,12 +132,9 @@
 	uint8_t *ip = &bytecode->instructions[0];
 
 
-#define COMPILER(code)                              \
-	VirtualMachine vm = vm_new((code));             \
-	vm_attach_standard_library(&vm);                \
-	vm_compile(&vm);                                \
-	Bytecode *bytecode = &vm.functions[0].bytecode; \
-	uint8_t *ip = &bytecode->instructions[0];
+#define COMPILER(code) \
+	VM(code);          \
+	USE_FUNCTION(0);
 
 
 #define VM(code)                        \
@@ -157,35 +154,41 @@
 	ASSERT_EQ(READ_BYTE(), instruction);
 
 
-#define ASSERT_NUMBER_PUSH(number)            \
+#define ASSERT_PUSH_NUMBER(number)            \
 	ASSERT_EQ(READ_BYTE(), CODE_PUSH_NUMBER); \
 	ASSERT_EQ(value_to_number(READ_8_BYTES()), number);
 
 
-#define ASSERT_STRING_PUSH(index, str)        \
+#define ASSERT_PUSH_STRING(index, str)        \
 	ASSERT_EQ(READ_BYTE(), CODE_PUSH_STRING); \
 	ASSERT_EQ(READ_2_BYTES(), index);         \
 	ASSERT_STR_EQ(vm.literals[index]->contents, str);
 
 
-#define ASSERT_LOCAL_PUSH(slot)              \
+#define ASSERT_PUSH_LOCAL(slot)              \
 	ASSERT_EQ(READ_BYTE(), CODE_PUSH_LOCAL); \
 	ASSERT_EQ(READ_2_BYTES(), slot);
 
 
-#define ASSERT_NATIVE_PUSH(index)             \
+#define ASSERT_PUSH_NATIVE(index)             \
 	ASSERT_EQ(READ_BYTE(), CODE_PUSH_NATIVE); \
 	ASSERT_EQ(READ_2_BYTES(), index);
 
 
-#define ASSERT_FUNCTION_PUSH(index)             \
+#define ASSERT_PUSH_FUNCTION(index)             \
 	ASSERT_EQ(READ_BYTE(), CODE_PUSH_FUNCTION); \
 	ASSERT_EQ(READ_2_BYTES(), index);
 
 
-#define ASSERT_UPVALUE_PUSH(index)             \
+#define ASSERT_PUSH_UPVALUE(index)             \
 	ASSERT_EQ(READ_BYTE(), CODE_PUSH_UPVALUE); \
 	ASSERT_EQ(READ_2_BYTES(), index);
+
+
+#define ASSERT_PUSH_FIELD(name)              \
+	ASSERT_INSTRUCTION(CODE_PUSH_FIELD);     \
+	ASSERT_EQ(READ_2_BYTES(), strlen(name)); \
+	ASSERT_STRN_EQ(value_to_ptr(READ_8_BYTES()), name, (int) strlen(name));
 
 
 #define ASSERT_UPVALUE_CLOSE(index)             \
@@ -226,3 +229,8 @@
 #define ASSERT_RETURN_NIL()            \
 	ASSERT_INSTRUCTION(CODE_PUSH_NIL); \
 	ASSERT_INSTRUCTION(CODE_RETURN);
+
+
+#define ASSERT_INSTANTIATE_CLASS(index)         \
+	ASSERT_INSTRUCTION(CODE_INSTANTIATE_CLASS); \
+	ASSERT_EQ(READ_2_BYTES(), index);

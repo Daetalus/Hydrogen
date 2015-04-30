@@ -481,6 +481,46 @@ instructions:
 		goto instructions;
 	}
 
+	// Pop a class off the stack (triggering an error if it
+	// isn't one) and push one of its fields.
+	case CODE_PUSH_FIELD: {
+		char *name = value_to_ptr(READ_8_BYTES());
+		uint16_t length = READ_2_BYTES();
+
+		uint64_t ptr = TOP();
+		POP();
+
+		if (!IS_PTR(ptr)) {
+			// Not a class, so trigger an error
+			error(-1, "Attempt to access field `%.*s` of non-object",
+				length, name);
+		}
+
+		ClassInstance *instance = value_to_ptr(ptr);
+		ClassDefinition *definition = instance->definition;
+
+		// Look for the field in the definition's fields list
+		int index = -1;
+		for (int i = 0; i < definition->field_count; i++) {
+			SourceString *field = &definition->fields[i];
+
+			if (field->length == length &&
+					strncmp(field->location, name, length) == 0) {
+				index = i;
+				break;
+			}
+		}
+
+		if (index == -1) {
+			// Couldn't find a field with the given name
+			error(-1, "Attempt to access missing field `%.*s` on class",
+				length, name);
+		}
+
+		// Push the field
+		PUSH(instance->fields[index]);
+	}
+
 	// Pop an item from the top of the stack.
 	case CODE_POP:
 		POP();

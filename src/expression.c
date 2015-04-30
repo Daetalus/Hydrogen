@@ -373,7 +373,7 @@ void prefix(Expression *expression, PrefixOperator prefix);
 //
 // Assumes the left side of the operator is already on the
 // top of the stack.
-void infix(Expression *expression, InfixOperator infix);
+void infix(Expression *expression, InfixOperator infix_operator);
 
 // Peeks at the next token, assuming its a binary operator.
 //
@@ -410,13 +410,13 @@ void expression_compile(Expression *expression) {
 // Compiles an expression, stopping once we reach an operator
 // with a higher precedence than `precedence`.
 void parse_precedence(Expression *expression, Precedence precedence) {
-	InfixOperator operator;
+	InfixOperator infix_operator;
 
 	// Compile the left hand side of an infix operator
 	left(expression);
 
 	// Get the infix operator after the left argument
-	if (!next_infix(expression, &operator)) {
+	if (!next_infix(expression, &infix_operator)) {
 		return;
 	}
 
@@ -425,13 +425,13 @@ void parse_precedence(Expression *expression, Precedence precedence) {
 	// Keep compiling operators until we reach the end of the
 	// expression, or an operator of higher precedence than the
 	// one we're allowed.
-	while (precedence < operator.precedence) {
+	while (precedence < infix_operator.precedence) {
 		// Compile an infix operator
-		infix(expression, operator);
+		infix(expression, infix_operator);
 		expression->is_only_function_call = false;
 
 		// Fetch the next operator
-		if (!next_infix(expression, &operator)) {
+		if (!next_infix(expression, &infix_operator)) {
 			break;
 		}
 	}
@@ -542,28 +542,31 @@ void prefix(Expression *expression, PrefixOperator prefix) {
 //
 // Assumes the left side of the operator is already on the
 // top of the stack.
-void infix(Expression *expression, InfixOperator infix) {
+void infix(Expression *expression, InfixOperator infix_operator) {
 	Lexer *lexer = &expression->compiler->vm->lexer;
 	Bytecode *bytecode = &expression->compiler->fn->bytecode;
 
 	// Determine precedence level
-	Precedence precedence = infix.precedence;
-	if (infix.associativity == ASSOC_RIGHT) {
+	Precedence precedence = infix_operator.precedence;
+	if (infix_operator.associativity == ASSOC_RIGHT) {
 		precedence--;
 	}
 
-	// Consume the operator token
-	lexer_consume(lexer);
-
-	// Evaluate the right hand side of the expression, leaving
-	// the result on the top of the stack
-	parse_precedence(expression, precedence);
-
 	// Emit the native call for this operator
-	if (infix.type == INFIX_OPERATOR_NATIVE) {
-		emit_call_native(bytecode, infix.native);
+	if (infix_operator.type == INFIX_OPERATOR_NATIVE) {
+			// Consume the operator token
+		lexer_consume(lexer);
+
+		// Evaluate the right hand side of the expression, leaving
+		// the result on the top of the stack
+		parse_precedence(expression, precedence);
+
+		// Call the operator's native function
+		emit_call_native(bytecode, infix_operator.native);
 	} else {
-		infix.custom(expression);
+		// Get the custom function to compile the operator for
+		// us
+		infix_operator.custom(expression);
 	}
 }
 
@@ -615,7 +618,21 @@ bool next_infix(Expression *expr, InfixOperator *infix) {
 
 // Compile a field access operator (a dot).
 void infix_field_access(Expression *expression) {
+	Lexer *lexer = &expression->compiler->vm->lexer;
+	Bytecode *bytecode = &expression->compiler->fn->bytecode;
 
+	// Consume the dot token
+	lexer_consume(lexer);
+	lexer_disable_newlines(lexer);
+
+	// Expect the name of the field to access (an identifier)
+	Token name = expect(lexer, TOKEN_IDENTIFIER,
+		"Expected identifier after `.`");
+	lexer_enable_newlines(lexer);
+
+	// Assume the class we're pushing the field of has already
+	// been pushed onto the stack
+	emit_push_field(bytecode, name.location, name.length);
 }
 
 
@@ -802,8 +819,10 @@ void operand_class(Expression *expression) {
 	//
 	// This must go on the same line as the class name like all
 	// other function calls.
+	lexer_disable_newlines(lexer);
 	expect(lexer, TOKEN_OPEN_PARENTHESIS, "Expected `()` after class name");
 	expect(lexer, TOKEN_CLOSE_PARENTHESIS, "Expected `()` after class name");
+	lexer_enable_newlines(lexer);
 
 	// TODO emit call to constructor
 }

@@ -78,6 +78,13 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 		break;
 	}
 
+	case CODE_PUSH_FIELD: {
+		char *name = value_to_ptr(READ_8_BYTES());
+		uint16_t length = READ_2_BYTES();
+		printf("%lu: push field `%.*s`\n", position, length, name);
+		break;
+	}
+
 	case CODE_POP: {
 		printf("%lu: pop\n", position);
 		break;

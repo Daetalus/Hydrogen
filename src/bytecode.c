@@ -175,3 +175,12 @@ void emit_call_native(Bytecode *bytecode, void *fn) {
 	emit(bytecode, CODE_CALL_NATIVE);
 	emit_arg_8(bytecode, ptr_to_value(fn));
 }
+
+
+// Emits bytecode to push a field of the class on the top of the
+// stack.
+void emit_push_field(Bytecode *bytecode, char *name, int length) {
+	emit(bytecode, CODE_PUSH_FIELD);
+	emit_arg_2(bytecode, length);
+	emit_arg_8(bytecode, ptr_to_value(name));
+}

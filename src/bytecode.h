@@ -128,9 +128,9 @@ typedef enum {
 	// `arg2`).
 	//
 	// Arguments:
+	// * 2 bytes - the length of the name of the field.
 	// * 8 bytes - char pointer to the name of the field to
 	//   push.
-	// * 2 bytes - the length of the name of the field.
 	CODE_PUSH_FIELD,
 
 	// Pops an item off the top of the stack.
@@ -305,6 +305,10 @@ void emit_push_native(Bytecode *bytecode, int index);
 
 // Emits bytecode to push a user function onto the stack.
 void emit_push_function(Bytecode *bytecode, uint16_t index);
+
+// Emits bytecode to push a field of the class on the top of the
+// stack.
+void emit_push_field(Bytecode *bytecode, char *name, int length);
 
 // Emits a call to a function.
 void emit_call(Bytecode *bytecode, int arity);
