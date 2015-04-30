@@ -28,3 +28,4 @@ To Do
 * Heap allocate functions list (remove potential for stack overflow and remove maximum limit on number of functions)
 * Heap allocate runtime call stack to raise stack overflow limit
 * Short circuiting boolean operators
+* Replace call native with each of the binary operators as bytecode instructions

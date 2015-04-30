@@ -16,9 +16,14 @@
 #include "error.h"
 
 
+// The maximum number of items (ie. operands, operators, etc.)
+// that can be used in a grammar rule.
+#define MAX_RULE_ITEMS 2
+
+
 // The precedence of an operator.
 typedef enum {
-	// No precision
+	// No precedence
 	PREC_NONE,
 	// Boolean or
 	PREC_BOOLEAN_OR,
@@ -43,6 +48,8 @@ typedef enum {
 	PREC_MULTIPLICATION,
 	// Bitwise not, boolean not, negation
 	PREC_NOT,
+	// Field access
+	PREC_FIELD_ACCESS,
 } Precedence;
 
 
@@ -78,11 +85,23 @@ typedef struct {
 } PrefixOperator;
 
 
+// The type of an infix operator.
+typedef enum {
+	INFIX_OPERATOR_NATIVE,
+	INFIX_OPERATOR_CUSTOM,
+} InfixOperatorType;
+
+
 // Information about an infix operator.
 typedef struct {
+	InfixOperatorType type;
 	Precedence precedence;
 	Associativity associativity;
-	NativeFunction fn;
+
+	union {
+		NativeFunction native;
+		Callback custom;
+	};
 } InfixOperator;
 
 
@@ -105,40 +124,36 @@ typedef enum {
 	RULE_POSTFIX,
 	RULE_OPERAND,
 	RULE_UNUSED,
-	RULE_PREFIX_INFIX,
-	RULE_OPERAND_POSTFIX,
 } RuleType;
 
 
-// A rule instructing the expression parser on what to do when
-// it encounters an operator.
+// A rule item, defining one behaviour for a token.
 typedef struct {
 	RuleType type;
-
 	union {
 		PrefixOperator prefix;
 		InfixOperator infix;
 		PostfixOperator postfix;
 		Operand operand;
-
-		// An operator that uses the same token for both prefix
-		// and infix operators (eg. subtraction and negation).
-		struct {
-			PrefixOperator prefix;
-			InfixOperator infix;
-		} prefix_infix;
-
-		// A symbol that acts as both an operand and postfix
-		// operator.
-		struct {
-			Operand operand;
-			PostfixOperator postfix;
-		} operand_postfix;
 	};
+} RuleItem;
+
+
+// A rule instructing the expression parser on what to do when
+// it encounters an operator.
+typedef struct {
+	// The number of items defined for this rule. Will be 0 if
+	// the rule is unused.
+	int count;
+
+	// An array of items defined for this rule. A token may
+	// refer to more than one rule (eg. a prefix and infix
+	// operator).
+	RuleItem items[MAX_RULE_ITEMS];
 } Rule;
 
 
-// Compile operands.
+// Operands.
 void operand_number(Expression *expression);
 void operand_identifier(Expression *expression);
 void operand_string_literal(Expression *expression);
@@ -147,8 +162,60 @@ void operand_true(Expression *expression);
 void operand_false(Expression *expression);
 void operand_nil(Expression *expression);
 void operand_function(Expression *expression);
-void postfix_function_call(Expression *expression);
 void operand_class(Expression *expression);
+
+// Custom infix operators.
+void infix_field_access(Expression *expression);
+
+// Postfix operators.
+void postfix_function_call(Expression *expression);
+
+
+// Define a prefix operator.
+#define PREFIX(precedence, fn) \
+	{RULE_PREFIX, .prefix = {  \
+		(precedence),          \
+		&(fn),                 \
+	}}
+
+
+// Define an infix operator.
+#define INFIX(precedence, fn)  \
+	{RULE_INFIX, .infix = {    \
+		INFIX_OPERATOR_NATIVE, \
+		(precedence),          \
+		ASSOC_LEFT,            \
+		.native = &(fn),       \
+	}}
+
+
+// Define a custom infix operator.
+#define CUSTOM_INFIX(precedence, fn) \
+	{RULE_INFIX, .infix = {          \
+		INFIX_OPERATOR_CUSTOM,       \
+		(precedence),                \
+		ASSOC_LEFT,                  \
+		.custom = &(fn),             \
+	}}
+
+
+// Define a postfix operator.
+#define POSTFIX(fn)             \
+	{RULE_POSTFIX, .postfix = { \
+		&(fn),                  \
+	}}
+
+
+// Define an operand.
+#define OPERAND(fn)             \
+	{RULE_OPERAND, .operand = { \
+		&(fn),                  \
+	}}
+
+
+// Define an unused token.
+#define UNUSED() \
+	{0}
 
 
 // Expression rules array. The entries in the array are in order
@@ -159,156 +226,136 @@ void operand_class(Expression *expression);
 // Note: Must be kept in order of the `Token` enum in `lexer.h`
 Rule rules[] = {
 	// Addition
-	{RULE_INFIX,
-	{.infix = {PREC_ADDITION, ASSOC_LEFT, &operator_addition}}},
+	{1, {INFIX(PREC_ADDITION, operator_addition)}},
 	// Subtraction and negation
-	{RULE_PREFIX_INFIX, {.prefix_infix = {
-		{PREC_NOT, &operator_negation},
-		{PREC_ADDITION, ASSOC_LEFT, &operator_subtraction}
-	}}},
+	{2, {
+		PREFIX(PREC_NOT, operator_negation),
+		INFIX(PREC_ADDITION, operator_subtraction),
+	}},
 	// Multiplication
-	{RULE_INFIX,
-	{.infix = {PREC_MULTIPLICATION, ASSOC_LEFT, &operator_multiplication}}},
+	{1, {INFIX(PREC_MULTIPLICATION, operator_multiplication)}},
 	// Division
-	{RULE_INFIX,
-	{.infix = {PREC_MULTIPLICATION, ASSOC_LEFT, &operator_division}}},
+	{1, {INFIX(PREC_MULTIPLICATION, operator_division)}},
 	// Modulo
-	{RULE_INFIX,
-	{.infix = {PREC_MULTIPLICATION, ASSOC_LEFT, &operator_modulo}}},
+	{1, {INFIX(PREC_MULTIPLICATION, operator_modulo)}},
 
 	// Boolean and
-	{RULE_INFIX,
-	{.infix = {PREC_BOOLEAN_AND, ASSOC_LEFT, &operator_boolean_and}}},
+	{1, {INFIX(PREC_BOOLEAN_AND, operator_boolean_and)}},
 	// Boolean or
-	{RULE_INFIX,
-	{.infix = {PREC_BOOLEAN_OR, ASSOC_LEFT, &operator_boolean_or}}},
+	{1, {INFIX(PREC_BOOLEAN_OR, operator_boolean_or)}},
 	// Boolean not
-	{RULE_PREFIX,
-	{.prefix = {PREC_NOT, &operator_boolean_not}}},
+	{1, {PREFIX(PREC_NOT, operator_boolean_not)}},
 	// Equal
-	{RULE_INFIX,
-	{.infix = {PREC_EQUALITY, ASSOC_LEFT, &operator_equal}}},
+	{1, {INFIX(PREC_EQUALITY, operator_equal)}},
 	// Not equal
-	{RULE_INFIX,
-	{.infix = {PREC_EQUALITY, ASSOC_LEFT, &operator_not_equal}}},
+	{1, {INFIX(PREC_EQUALITY, operator_not_equal)}},
 	// Less than
-	{RULE_INFIX,
-	{.infix = {PREC_ORDERING, ASSOC_LEFT, &operator_less_than}}},
+	{1, {INFIX(PREC_ORDERING, operator_less_than)}},
 	// Less than equal to
-	{RULE_INFIX,
-	{.infix = {PREC_ORDERING, ASSOC_LEFT, &operator_less_than_equal_to}}},
+	{1, {INFIX(PREC_ORDERING, operator_less_than_equal_to)}},
 	// Greater than
-	{RULE_INFIX,
-	{.infix = {PREC_ORDERING, ASSOC_LEFT, &operator_greater_than}}},
+	{1, {INFIX(PREC_ORDERING, operator_greater_than)}},
 	// Greater than equal to
-	{RULE_INFIX,
-	{.infix = {PREC_ORDERING, ASSOC_LEFT, &operator_greater_than_equal_to}}},
+	{1, {INFIX(PREC_ORDERING, operator_greater_than_equal_to)}},
 
 	// Left shift
-	{RULE_INFIX,
-	{.infix = {PREC_BITWISE_SHIFT, ASSOC_LEFT, &operator_left_shift}}},
+	{1, {INFIX(PREC_BITWISE_SHIFT, operator_left_shift)}},
 	// Right shift
-	{RULE_INFIX,
-	{.infix = {PREC_BITWISE_SHIFT, ASSOC_LEFT, &operator_right_shift}}},
+	{1, {INFIX(PREC_BITWISE_SHIFT, operator_right_shift)}},
 	// Bitwise and
-	{RULE_INFIX,
-	{.infix = {PREC_BITWISE_AND, ASSOC_LEFT, &operator_bitwise_and}}},
+	{1, {INFIX(PREC_BITWISE_AND, operator_bitwise_and)}},
 	// Bitwise or
-	{RULE_INFIX,
-	{.infix = {PREC_BITWISE_OR, ASSOC_LEFT, &operator_bitwise_or}}},
+	{1, {INFIX(PREC_BITWISE_OR, operator_bitwise_or)}},
 	// Bitwise not
-	{RULE_PREFIX,
-	{.prefix = {PREC_NOT, &operator_bitwise_not}}},
+	{1, {PREFIX(PREC_NOT, operator_bitwise_not)}},
 	// Bitwise xor
-	{RULE_INFIX,
-	{.infix = {PREC_BITWISE_XOR, ASSOC_LEFT, &operator_bitwise_xor}}},
+	{1, {INFIX(PREC_BITWISE_XOR, operator_bitwise_xor)}},
 
 	// Assignment
-	{RULE_UNUSED},
+	UNUSED(),
 	// Addition assignment
-	{RULE_UNUSED},
+	UNUSED(),
 	// Subtraction assignment
-	{RULE_UNUSED},
+	UNUSED(),
 	// Multiplication assignment
-	{RULE_UNUSED},
+	UNUSED(),
 	// Division assignment
-	{RULE_UNUSED},
+	UNUSED(),
 	// Modulo assignment
-	{RULE_UNUSED},
+	UNUSED(),
 
 	// Open parenthesis
-	{RULE_OPERAND_POSTFIX, {.operand_postfix = {
-		{&sub_expression},
-		{&postfix_function_call},
-	}}},
+	{2, {
+		OPERAND(sub_expression),
+		POSTFIX(postfix_function_call),
+	}},
 	// Close parenthesis
-	{RULE_UNUSED},
+	UNUSED(),
 	// Open bracket
-	{RULE_UNUSED},
+	UNUSED(),
 	// Close bracket
-	{RULE_UNUSED},
+	UNUSED(),
 	// Open brace
-	{RULE_UNUSED},
+	UNUSED(),
 	// Close brace
-	{RULE_UNUSED},
+	UNUSED(),
 	// Dot
-	{RULE_UNUSED},
+	{1, {CUSTOM_INFIX(PREC_FIELD_ACCESS, infix_field_access)}},
 	// Comma
-	{RULE_UNUSED},
+	UNUSED(),
 
 	// Let
-	{RULE_UNUSED},
+	UNUSED(),
 	// If
-	{RULE_UNUSED},
+	UNUSED(),
 	// Else
-	{RULE_UNUSED},
+	UNUSED(),
 	// Else if
-	{RULE_UNUSED},
+	UNUSED(),
 	// While
-	{RULE_UNUSED},
+	UNUSED(),
 	// Loop
-	{RULE_UNUSED},
+	UNUSED(),
 	// Break
-	{RULE_UNUSED},
+	UNUSED(),
 	// For
-	{RULE_UNUSED},
+	UNUSED(),
 	// In
-	{RULE_UNUSED},
+	UNUSED(),
 	// Class
-	{RULE_UNUSED},
+	UNUSED(),
 	// New
-	{RULE_OPERAND, {.operand = {&operand_class}}},
+	{1, {OPERAND(operand_class)}},
 	// Function
-	{RULE_OPERAND, {.operand = {&operand_function}}},
+	{1, {OPERAND(operand_function)}},
 	// Return
-	{RULE_UNUSED},
+	UNUSED(),
 
 	// True
-	{RULE_OPERAND, {.operand = {&operand_true}}},
+	{1, {OPERAND(operand_true)}},
 	// False
-	{RULE_OPERAND, {.operand = {&operand_false}}},
+	{1, {OPERAND(operand_false)}},
 	// Nil
-	{RULE_OPERAND, {.operand = {&operand_nil}}},
+	{1, {OPERAND(operand_nil)}},
 
 	// Identifier
-	{RULE_OPERAND, {.operand = {&operand_identifier}}},
+	{1, {OPERAND(operand_identifier)}},
 	// Number
-	{RULE_OPERAND, {.operand = {&operand_number}}},
+	{1, {OPERAND(operand_number)}},
 	// String
-	{RULE_OPERAND, {.operand = {&operand_string_literal}}},
+	{1, {OPERAND(operand_string_literal)}},
 	// Line
-	{RULE_UNUSED},
+	UNUSED(),
 	// End of file
-	{RULE_UNUSED},
+	UNUSED(),
 	// None
-	{RULE_UNUSED},
+	UNUSED(),
 };
 
 
 // Compiles an expression, stopping once we reach an operator
 // with a higher precedence than the given precedence level.
 void parse_precedence(Expression *expression, Precedence precedence);
-
 
 // Compile the left hand side of an infix operator. This could
 // be a number or variable name, or a prefix operator (like
@@ -317,25 +364,22 @@ void parse_precedence(Expression *expression, Precedence precedence);
 // Leaves the result on the top of the stack.
 void left(Expression *expression);
 
-
 // Compiles a prefix operator, leaving the result on the top of
 // the stack.
-void prefix(Expression *expression, Precedence precedence, NativeFunction fn);
-
+void prefix(Expression *expression, PrefixOperator prefix);
 
 // Compiles an infix operator, leaving the result on the top
 // of the stack.
 //
 // Assumes the left side of the operator is already on the
 // top of the stack.
-void infix(Expression *expression, InfixOperator operator);
-
+void infix(Expression *expression, InfixOperator infix);
 
 // Peeks at the next token, assuming its a binary operator.
 //
 // Returns true if the next token is an operator, populating the
 // infix operator argument.
-bool next_operator(Expression *expression, InfixOperator *infix);
+bool next_infix(Expression *expression, InfixOperator *infix);
 
 
 // Create a new expression.
@@ -372,7 +416,7 @@ void parse_precedence(Expression *expression, Precedence precedence) {
 	left(expression);
 
 	// Get the infix operator after the left argument
-	if (!next_operator(expression, &operator)) {
+	if (!next_infix(expression, &operator)) {
 		return;
 	}
 
@@ -387,10 +431,31 @@ void parse_precedence(Expression *expression, Precedence precedence) {
 		expression->is_only_function_call = false;
 
 		// Fetch the next operator
-		if (!next_operator(expression, &operator)) {
+		if (!next_infix(expression, &operator)) {
 			break;
 		}
 	}
+}
+
+
+// Searches the rules list for a rule matching a particular
+// token and type, returning true and a rule item if one was
+// found, else returns false.
+bool find_rule(TokenType token, RuleType type, RuleItem **item) {
+	Rule rule = rules[token];
+
+	for (int i = 0; i < rule.count; i++) {
+		if (rule.items[i].type == type) {
+			// Found a matching rule
+			if (item != NULL) {
+				*item = &rule.items[i];
+			}
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 
@@ -400,15 +465,14 @@ void postfix(Expression *expression) {
 	Lexer *lexer = &compiler->vm->lexer;
 
 	// Fetch the postfix operand we're attempting to compile
+	RuleItem *rule;
 	Token token = lexer_current(lexer);
-	Rule rule = rules[token.type];
-
-	// Compile the postfix operand if it exists
-	if (rule.type == RULE_POSTFIX) {
-		rule.postfix.fn(expression);
-	} else if (rule.type == RULE_OPERAND_POSTFIX) {
-		rule.operand_postfix.postfix.fn(expression);
+	if (!find_rule(token.type, RULE_POSTFIX, &rule)) {
+		return;
 	}
+
+	// Compile the postfix operator
+	rule->postfix.fn(expression);
 }
 
 
@@ -424,41 +488,32 @@ void left(Expression *expression) {
 	// Fetch the token we're using as the operand or prefix
 	// operator
 	Token token = lexer_current(lexer);
+
+	// Check for a continuation of the expression on the next
+	// line
 	if (token.type == TOKEN_LINE) {
-		// There might be a continuation of the expression on
-		// next line
 		Token after = lexer_peek(lexer, 1);
-		RuleType type = rules[after.type].type;
-		if (type == RULE_OPERAND || type == RULE_PREFIX) {
-			// The expression is continued onto the next line
+
+		if (find_rule(after.type, RULE_PREFIX, NULL) ||
+				find_rule(after.type, RULE_OPERAND, NULL)) {
+			// Continued on the next line
 			lexer_consume(lexer);
 			token = after;
 		}
 	}
 
-	// Fetch the rule for the token
-	Rule rule = rules[token.type];
-
-	if (rule.type == RULE_OPERAND || rule.type == RULE_OPERAND_POSTFIX) {
-		// An operand
-		if (rule.type == RULE_OPERAND) {
-			rule.operand.fn(expression);
-		} else {
-			rule.operand_postfix.operand.fn(expression);
-		}
+	RuleItem *rule;
+	if (find_rule(token.type, RULE_OPERAND, &rule)) {
+		// Compile the operand
+		rule->operand.fn(expression);
 
 		// Look for a potential postfix operator
 		postfix(expression);
-	} else if (rule.type == RULE_PREFIX) {
+	} else if (find_rule(token.type, RULE_PREFIX, &rule)) {
 		// A prefix operator
-		prefix(expression, rule.prefix.precedence, rule.prefix.fn);
-	} else if (rule.type == RULE_PREFIX_INFIX) {
-		// A prefix operator, but with for a token that also
-		// acts as an infix operator.
-		prefix(expression, rule.prefix_infix.prefix.precedence,
-			rule.prefix_infix.prefix.fn);
+		prefix(expression, rule->prefix);
 	} else {
-		// Unrecognised left hand expression
+		// Expected operand
 		error(lexer->line, "Expected operand in expression, found `%.*s`",
 			token.length, token.location);
 	}
@@ -467,7 +522,7 @@ void left(Expression *expression) {
 
 // Compiles a prefix operator, leaving the result on the top of
 // the stack.
-void prefix(Expression *expression, Precedence precedence, NativeFunction fn) {
+void prefix(Expression *expression, PrefixOperator prefix) {
 	Lexer *lexer = &expression->compiler->vm->lexer;
 	Bytecode *bytecode = &expression->compiler->fn->bytecode;
 
@@ -478,7 +533,7 @@ void prefix(Expression *expression, Precedence precedence, NativeFunction fn) {
 	parse_precedence(expression, 0);
 
 	// Emit the native call
-	emit_call_native(bytecode, fn);
+	emit_call_native(bytecode, prefix.fn);
 }
 
 
@@ -487,13 +542,13 @@ void prefix(Expression *expression, Precedence precedence, NativeFunction fn) {
 //
 // Assumes the left side of the operator is already on the
 // top of the stack.
-void infix(Expression *expression, InfixOperator operator) {
+void infix(Expression *expression, InfixOperator infix) {
 	Lexer *lexer = &expression->compiler->vm->lexer;
 	Bytecode *bytecode = &expression->compiler->fn->bytecode;
 
 	// Determine precedence level
-	Precedence precedence = operator.precedence;
-	if (operator.associativity == ASSOC_RIGHT) {
+	Precedence precedence = infix.precedence;
+	if (infix.associativity == ASSOC_RIGHT) {
 		precedence--;
 	}
 
@@ -505,7 +560,11 @@ void infix(Expression *expression, InfixOperator operator) {
 	parse_precedence(expression, precedence);
 
 	// Emit the native call for this operator
-	emit_call_native(bytecode, operator.fn);
+	if (infix.type == INFIX_OPERATOR_NATIVE) {
+		emit_call_native(bytecode, infix.native);
+	} else {
+		infix.custom(expression);
+	}
 }
 
 
@@ -513,44 +572,50 @@ void infix(Expression *expression, InfixOperator operator) {
 //
 // Returns true if the next token is an operator, populating the
 // infix operator argument.
-bool next_operator(Expression *expression, InfixOperator *infix) {
-	Lexer *lexer = &expression->compiler->vm->lexer;
-	Token token = lexer_current(lexer);
-	Rule rule;
+bool next_infix(Expression *expr, InfixOperator *infix) {
+	Lexer *lexer = &expr->compiler->vm->lexer;
 
-	if (token.type == TOKEN_END_OF_FILE || (expression->terminator != NULL &&
-			expression->terminator(token))) {
+	// Fetch the next token
+	Token token = lexer_current(lexer);
+	RuleItem *rule;
+
+	if (token.type == TOKEN_END_OF_FILE ||
+			(expr->terminator != NULL && expr->terminator(token))) {
 		// Reached the terminating token
 		return false;
 	} else if (token.type == TOKEN_LINE) {
+		// The expression may continue over the newline
 		token = lexer_peek(lexer, 1);
-		rule = rules[token.type];
-
-		if (rule.type != RULE_INFIX && rule.type != RULE_PREFIX_INFIX) {
-			// We reached a new line token and there was no
-			// continuation of the expression over the line
+		if (!find_rule(token.type, RULE_INFIX, &rule)) {
+			// No continuation, so terminate
 			return false;
 		}
 
 		// Consume the newline token
 		lexer_consume(lexer);
 	} else {
-		// Plain token, so set the rule
-		rule = rules[token.type];
+		// We set the rule when handling newlines, but we
+		// haven't done so for any other token yet
+		if (!find_rule(token.type, RULE_INFIX, &rule)) {
+			// Not an infix operator
+			error(lexer->line, "Expected binary operator, found `%.*s`",
+				token.length, token.location);
+		}
 	}
 
-	if (rule.type == RULE_INFIX) {
-		*infix = rule.infix;
-	} else if (rule.type == RULE_PREFIX_INFIX) {
-		*infix = rule.prefix_infix.infix;
-	} else {
-		// Not an infix operator
-		error(lexer->line, "Expected binary operator, found `%.*s`",
-			token.length, token.location);
-		return false;
-	}
-
+	*infix = rule->infix;
 	return true;
+}
+
+
+
+//
+//  Custom Infix Operators
+//
+
+// Compile a field access operator (a dot).
+void infix_field_access(Expression *expression) {
+
 }
 
 
@@ -705,6 +770,50 @@ void operand_function(Expression *expression) {
 }
 
 
+// Compiles a class constructor (the `new` keyword).
+void operand_class(Expression *expression) {
+	VirtualMachine *vm = expression->compiler->vm;
+	Lexer *lexer = &expression->compiler->vm->lexer;
+	Bytecode *bytecode = &expression->compiler->fn->bytecode;
+
+	// Consume the new keyword
+	lexer_disable_newlines(lexer);
+	lexer_consume(lexer);
+
+	// Expect the name of the class we're creating an instance
+	// of (an identifier)
+	Token name = expect(lexer, TOKEN_IDENTIFIER,
+		"Expected class name after `new`");
+	lexer_enable_newlines(lexer);
+
+	// Get the index of the class we're instantiating
+	int index = vm_find_class(vm, name.location, name.length);
+	if (index == -1) {
+		error(lexer->line, "Class `%.*s` is undefined", name.length,
+			name.location);
+	}
+
+	// Emit an instantiation instruction
+	emit(bytecode, CODE_INSTANTIATE_CLASS);
+	emit_arg_2(bytecode, index);
+
+	// Expect an opening and closing parenthesis, where the
+	// arguments to the constructor call would normally go.
+	//
+	// This must go on the same line as the class name like all
+	// other function calls.
+	expect(lexer, TOKEN_OPEN_PARENTHESIS, "Expected `()` after class name");
+	expect(lexer, TOKEN_CLOSE_PARENTHESIS, "Expected `()` after class name");
+
+	// TODO emit call to constructor
+}
+
+
+
+//
+//  Postfix Operators
+//
+
 // Returns true if the token should terminate a function call
 // argument.
 bool should_terminate_function_call(Token token) {
@@ -766,43 +875,4 @@ void postfix_function_call(Expression *expression) {
 	emit_call(bytecode, arity);
 
 	expression->is_only_function_call = true;
-}
-
-
-// Compiles a class constructor (the `new` keyword).
-void operand_class(Expression *expression) {
-	VirtualMachine *vm = expression->compiler->vm;
-	Lexer *lexer = &expression->compiler->vm->lexer;
-	Bytecode *bytecode = &expression->compiler->fn->bytecode;
-
-	// Consume the new keyword
-	lexer_disable_newlines(lexer);
-	lexer_consume(lexer);
-
-	// Expect the name of the class we're creating an instance
-	// of (an identifier)
-	Token name = expect(lexer, TOKEN_IDENTIFIER,
-		"Expected class name after `new`");
-	lexer_enable_newlines(lexer);
-
-	// Get the index of the class we're instantiating
-	int index = vm_find_class(vm, name.location, name.length);
-	if (index == -1) {
-		error(lexer->line, "Class `%.*s` is undefined", name.length,
-			name.location);
-	}
-
-	// Emit an instantiation instruction
-	emit(bytecode, CODE_INSTANTIATE_CLASS);
-	emit_arg_2(bytecode, index);
-
-	// Expect an opening and closing parenthesis, where the
-	// arguments to the constructor call would normally go.
-	//
-	// This must go on the same line as the class name like all
-	// other function calls.
-	expect(lexer, TOKEN_OPEN_PARENTHESIS, "Expected `()` after class name");
-	expect(lexer, TOKEN_CLOSE_PARENTHESIS, "Expected `()` after class name");
-
-	// TODO emit call to constructor
 }

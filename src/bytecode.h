@@ -122,6 +122,17 @@ typedef enum {
 	//   list.
 	CODE_PUSH_UPVALUE,
 
+	// Pops a variable off the stack, assuming it is an instance
+	// of a class (triggering an error if it isn't). Then pushes
+	// the value in the field named `arg1` (with length in
+	// `arg2`).
+	//
+	// Arguments:
+	// * 8 bytes - char pointer to the name of the field to
+	//   push.
+	// * 2 bytes - the length of the name of the field.
+	CODE_PUSH_FIELD,
+
 	// Pops an item off the top of the stack.
 	//
 	// Arguments:
@@ -147,6 +158,19 @@ typedef enum {
 	// * 2 bytes - the index in the VM's upvalues list to store
 	//   the top of the stack to.
 	CODE_STORE_UPVALUE,
+
+	// Pops a value off the stack, saving it as the value to set
+	// a field of a class to. Then pops another value off the
+	// stack, assuming its an instance of a class (triggering an
+	// error if it isn't). Then sets the field named `arg1`
+	// (with length `arg2`) on the class to the first popped
+	// value.
+	//
+	// Arguments:
+	// * 8 bytes - char pointer to the name of the field to
+	//   store to.
+	// * 2 bytes - the length of the name of the field.
+	CODE_STORE_FIELD,
 
 	// Closes an upvalue by copying its value off the stack
 	// (found at its absolute stack location) into the upvalue's
