@@ -375,12 +375,12 @@ int if_condition_and_block(Compiler *compiler) {
 	int jump = emit_jump(bytecode, CODE_JUMP_IF_NOT);
 
 	// Consume the opening brace of the if statement's block.
-	lexer_disable_newlines(&compiler->vm->lexer);
+	lexer_disable_newlines(lexer);
 	expect(lexer, TOKEN_OPEN_BRACE,
 		"Expected `{` after conditional expression in if statement");
+	lexer_enable_newlines(lexer);
 
 	// Compile the block.
-	lexer_enable_newlines(&compiler->vm->lexer);
 	block(compiler, TOKEN_CLOSE_BRACE);
 
 	// Consume the closing brace.

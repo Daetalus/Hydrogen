@@ -304,7 +304,7 @@ void emit_push_number(Bytecode *bytecode, double number);
 void emit_push_native(Bytecode *bytecode, int index);
 
 // Emits bytecode to push a user function onto the stack.
-void emit_push_function(Bytecode *bytecode, uint16_t index);
+void emit_push_function(Bytecode *bytecode, int index);
 
 // Emits bytecode to push a field of the class on the top of the
 // stack.

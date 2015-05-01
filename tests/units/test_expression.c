@@ -24,11 +24,11 @@ END()
 
 
 START(single_precedence_one) {
-	EXPRESSION("3 + 4")
+	EXPRESSION("3 - 4")
 
 	ASSERT_PUSH_NUMBER(3.0);
 	ASSERT_PUSH_NUMBER(4.0);
-	ASSERT_NATIVE_CALL(operator_addition);
+	ASSERT_NATIVE_CALL(operator_subtraction);
 }
 END()
 
@@ -47,12 +47,24 @@ END()
 
 START(single_precedence_three) {
 	EXPRESSION("1\n \n-\n 2 - 3");
+	print_bytecode(bytecode);
 
+	printf("%p\n", operator_subtraction);
 	ASSERT_PUSH_NUMBER(1.0);
 	ASSERT_PUSH_NUMBER(2.0);
 	ASSERT_NATIVE_CALL(operator_subtraction);
 	ASSERT_PUSH_NUMBER(3.0);
 	ASSERT_NATIVE_CALL(operator_subtraction);
+}
+END()
+
+
+START(prefix_one) {
+	EXPRESSION("-3");
+	print_bytecode(bytecode);
+
+	ASSERT_PUSH_NUMBER(3.0);
+	ASSERT_NATIVE_CALL(operator_negation);
 }
 END()
 
@@ -271,6 +283,7 @@ START_MAIN(expression) {
 	RUN(single_precedence_one)
 	RUN(single_precedence_two)
 	RUN(single_precedence_three)
+	RUN(prefix_one)
 	RUN(multi_precedence_one)
 	RUN(multi_precedence_two)
 	RUN(multi_precedence_three)

@@ -453,6 +453,8 @@ instructions:
 	case CODE_PUSH_NATIVE: {
 		uint16_t index = READ_2_BYTES();
 		PUSH(NATIVE_TO_VALUE(index));
+
+
 		goto instructions;
 	}
 
@@ -484,8 +486,8 @@ instructions:
 	// Pop a class off the stack (triggering an error if it
 	// isn't one) and push one of its fields.
 	case CODE_PUSH_FIELD: {
-		char *name = value_to_ptr(READ_8_BYTES());
 		uint16_t length = READ_2_BYTES();
+		char *name = value_to_ptr(READ_8_BYTES());
 
 		uint64_t ptr = TOP();
 		POP();
@@ -519,6 +521,8 @@ instructions:
 
 		// Push the field
 		PUSH(instance->fields[index]);
+
+		goto instructions;
 	}
 
 	// Pop an item from the top of the stack.
@@ -614,7 +618,7 @@ instructions:
 
 			if (fn->arity != arity) {
 				// Incorrect number of arguments
-				error(-1, "Attempting to call function with incorrect number"
+				error(-1, "Attempt to call function with incorrect number"
 					"of arguments (have %d, expected %d)", arity, fn->arity);
 			}
 
@@ -625,7 +629,7 @@ instructions:
 
 			if (native->arity != arity) {
 				// Incorrect number of arguments
-				error(-1, "Attempting to call function `%s` with incorrect "
+				error(-1, "Attempt to call function `%s` with incorrect "
 					"number of arguments (have %d, expected %d)", native->name,
 					arity, native->arity);
 			}
@@ -648,7 +652,7 @@ instructions:
 			// to push it again.
 			PUSH(return_value);
 		} else {
-			error(-1, "Attempting to call non-function variable");
+			error(-1, "Attempt to call non-function variable");
 		}
 
 		goto instructions;
@@ -667,9 +671,10 @@ instructions:
 		uint16_t index = READ_2_BYTES();
 		ClassDefinition *definition = &vm->class_definitions[index];
 
-		size_t size = sizeof(ClassInstance) +
-			definition->field_count * sizeof(uint64_t);
+		size_t size = sizeof(ClassInstance) + definition->field_count *
+			sizeof(uint64_t);
 		ClassInstance *instance = malloc(size);
+		instance->definition = definition;
 
 		// Nil-ify all of the instance's fields
 		for (int i = 0; i < definition->field_count; i++) {
@@ -678,6 +683,7 @@ instructions:
 
 		// Push the class
 		PUSH(ptr_to_value(instance));
+		goto instructions;
 	}
 
 	// Return from the current function.

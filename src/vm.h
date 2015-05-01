@@ -210,10 +210,6 @@ typedef struct {
 	ClassDefinition *class_definitions;
 	int class_definition_count;
 	int class_definition_capacity;
-
-	// A pointer to the head of the linked list of all allocated
-	// instances of classes.
-	ClassInstance *instance_head;
 } VirtualMachine;
 
 

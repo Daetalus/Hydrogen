@@ -79,8 +79,8 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 	}
 
 	case CODE_PUSH_FIELD: {
-		char *name = value_to_ptr(READ_8_BYTES());
 		uint16_t length = READ_2_BYTES();
+		char *name = value_to_ptr(READ_8_BYTES());
 		printf("%lu: push field `%.*s`\n", position, length, name);
 		break;
 	}
@@ -133,7 +133,7 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 	}
 
 	case CODE_CALL_NATIVE: {
-		uint16_t ptr = READ_2_BYTES();
+		uint64_t ptr = READ_8_BYTES();
 		printf("%lu: call native %p\n", position, value_to_ptr(ptr));
 		break;
 	}
@@ -162,9 +162,11 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 void print_stack(uint64_t *stack, int stack_size) {
 	printf("---------- Stack:\n");
 	for (int i = 0; i < stack_size; i++) {
-		printf("%d: %llx, %.2f, is true: %d, is false: %d, is nil: %d\n",
-			i, stack[i], value_to_number(stack[i]),
-			IS_TRUE(stack[i]), IS_FALSE(stack[i]), IS_NIL(stack[i]));
+		printf("%d: %llx, %.2f, is ptr: %d, is true: %d, is false: %d, "
+			"is nil: %d, is function %d, is native: %d\n", i, stack[i],
+			value_to_number(stack[i]), IS_PTR(stack[i]), IS_TRUE(stack[i]),
+			IS_FALSE(stack[i]), IS_NIL(stack[i]), IS_NATIVE(stack[i]),
+			IS_FUNCTION(stack[i]));
 	}
 	printf("----------\n");
 }

@@ -157,7 +157,7 @@ void emit_push_native(Bytecode *bytecode, int index) {
 
 
 // Emits bytecode to push a user function onto the stack.
-void emit_push_function(Bytecode *bytecode, uint16_t index) {
+void emit_push_function(Bytecode *bytecode, int index) {
 	emit(bytecode, CODE_PUSH_FUNCTION);
 	emit_arg_2(bytecode, index);
 }

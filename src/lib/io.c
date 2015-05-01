@@ -11,6 +11,7 @@
 #include "str.h"
 #include "../value.h"
 #include "../error.h"
+#include "../debug.h"
 
 
 void native_print(uint64_t *stack, int *stack_size) {
@@ -52,5 +53,11 @@ void native_assert(uint64_t *stack, int *stack_size) {
 		error(-1, "Assertion failed.");
 	}
 
+	PUSH(NIL_VALUE);
+}
+
+
+void native_print_stack(uint64_t *stack, int *stack_size) {
+	print_stack(stack, *stack_size);
 	PUSH(NIL_VALUE);
 }

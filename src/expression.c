@@ -18,7 +18,7 @@
 
 // The maximum number of items (ie. operands, operators, etc.)
 // that can be used in a grammar rule.
-#define MAX_RULE_ITEMS 2
+#define MAX_RULE_ITEMS 4
 
 
 // The precedence of an operator.
@@ -362,18 +362,18 @@ void parse_precedence(Expression *expression, Precedence precedence);
 // negation).
 //
 // Leaves the result on the top of the stack.
-void left(Expression *expression);
+void expression_operand(Expression *expression);
 
 // Compiles a prefix operator, leaving the result on the top of
 // the stack.
-void prefix(Expression *expression, PrefixOperator prefix);
+void prefix_operator(Expression *expression, PrefixOperator prefix);
 
 // Compiles an infix operator, leaving the result on the top
 // of the stack.
 //
 // Assumes the left side of the operator is already on the
 // top of the stack.
-void infix(Expression *expression, InfixOperator infix_operator);
+void infix_operator(Expression *expression, InfixOperator infix);
 
 // Peeks at the next token, assuming its a binary operator.
 //
@@ -410,13 +410,13 @@ void expression_compile(Expression *expression) {
 // Compiles an expression, stopping once we reach an operator
 // with a higher precedence than `precedence`.
 void parse_precedence(Expression *expression, Precedence precedence) {
-	InfixOperator infix_operator;
+	InfixOperator infix;
 
 	// Compile the left hand side of an infix operator
-	left(expression);
+	expression_operand(expression);
 
 	// Get the infix operator after the left argument
-	if (!next_infix(expression, &infix_operator)) {
+	if (!next_infix(expression, &infix)) {
 		return;
 	}
 
@@ -425,13 +425,13 @@ void parse_precedence(Expression *expression, Precedence precedence) {
 	// Keep compiling operators until we reach the end of the
 	// expression, or an operator of higher precedence than the
 	// one we're allowed.
-	while (precedence < infix_operator.precedence) {
+	while (precedence < infix.precedence) {
 		// Compile an infix operator
-		infix(expression, infix_operator);
+		infix_operator(expression, infix);
 		expression->is_only_function_call = false;
 
 		// Fetch the next operator
-		if (!next_infix(expression, &infix_operator)) {
+		if (!next_infix(expression, &infix)) {
 			break;
 		}
 	}
@@ -460,7 +460,7 @@ bool find_rule(TokenType token, RuleType type, RuleItem **item) {
 
 
 // Checks for a postfix operator, compiling it if one exists.
-void postfix(Expression *expression) {
+void postfix_operator(Expression *expression) {
 	Compiler *compiler = expression->compiler;
 	Lexer *lexer = &compiler->vm->lexer;
 
@@ -481,7 +481,7 @@ void postfix(Expression *expression) {
 // negation).
 //
 // Leaves the result on the top of the stack.
-void left(Expression *expression) {
+void expression_operand(Expression *expression) {
 	Compiler *compiler = expression->compiler;
 	Lexer *lexer = &compiler->vm->lexer;
 
@@ -508,10 +508,10 @@ void left(Expression *expression) {
 		rule->operand.fn(expression);
 
 		// Look for a potential postfix operator
-		postfix(expression);
+		postfix_operator(expression);
 	} else if (find_rule(token.type, RULE_PREFIX, &rule)) {
 		// A prefix operator
-		prefix(expression, rule->prefix);
+		prefix_operator(expression, rule->prefix);
 	} else {
 		// Expected operand
 		error(lexer->line, "Expected operand in expression, found `%.*s`",
@@ -522,7 +522,7 @@ void left(Expression *expression) {
 
 // Compiles a prefix operator, leaving the result on the top of
 // the stack.
-void prefix(Expression *expression, PrefixOperator prefix) {
+void prefix_operator(Expression *expression, PrefixOperator prefix) {
 	Lexer *lexer = &expression->compiler->vm->lexer;
 	Bytecode *bytecode = &expression->compiler->fn->bytecode;
 
@@ -542,19 +542,19 @@ void prefix(Expression *expression, PrefixOperator prefix) {
 //
 // Assumes the left side of the operator is already on the
 // top of the stack.
-void infix(Expression *expression, InfixOperator infix_operator) {
+void infix_operator(Expression *expression, InfixOperator infix) {
 	Lexer *lexer = &expression->compiler->vm->lexer;
 	Bytecode *bytecode = &expression->compiler->fn->bytecode;
 
 	// Determine precedence level
-	Precedence precedence = infix_operator.precedence;
-	if (infix_operator.associativity == ASSOC_RIGHT) {
+	Precedence precedence = infix.precedence;
+	if (infix.associativity == ASSOC_RIGHT) {
 		precedence--;
 	}
 
 	// Emit the native call for this operator
-	if (infix_operator.type == INFIX_OPERATOR_NATIVE) {
-			// Consume the operator token
+	if (infix.type == INFIX_OPERATOR_NATIVE) {
+		// Consume the operator token
 		lexer_consume(lexer);
 
 		// Evaluate the right hand side of the expression, leaving
@@ -562,11 +562,11 @@ void infix(Expression *expression, InfixOperator infix_operator) {
 		parse_precedence(expression, precedence);
 
 		// Call the operator's native function
-		emit_call_native(bytecode, infix_operator.native);
+		emit_call_native(bytecode, infix.native);
 	} else {
 		// Get the custom function to compile the operator for
 		// us
-		infix_operator.custom(expression);
+		infix.custom(expression);
 	}
 }
 
