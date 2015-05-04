@@ -30,7 +30,7 @@ bool variable_exists(Compiler *compiler, char *name, int length);
 
 // Compilation functions for each type of statement.
 bool identifier(Compiler *compiler);
-void variable_assignment(Compiler *compiler);
+void assignment(Compiler *compiler);
 void if_statement(Compiler *compiler);
 void while_loop(Compiler *compiler);
 void infinite_loop(Compiler *compiler);
@@ -43,7 +43,7 @@ void class_definition(Compiler *compiler);
 // Returns true if the lexer matches a variable assignment.
 // Matches an identifier, followed by an assignment operator, or
 // a let keyword.
-bool match_variable_assignment(Lexer *lexer);
+bool match_assignment(Lexer *lexer);
 
 // Iterate over the compiler's locals and close any upvalues.
 void close_captured_locals(Compiler *compiler);
@@ -149,26 +149,45 @@ void block(Compiler *compiler, TokenType terminator) {
 void statement(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 
-	if (lexer_match(lexer, TOKEN_LINE)) {
+	switch (lexer_current(lexer).type) {
+	case TOKEN_LINE:
 		// Ignore empty lines
 		lexer_consume(lexer);
-	} else if (match_variable_assignment(lexer)) {
-		variable_assignment(compiler);
-	} else if (lexer_match(lexer, TOKEN_IF)) {
+		break;
+
+	case TOKEN_IF:
 		if_statement(compiler);
-	} else if (lexer_match(lexer, TOKEN_WHILE)) {
+		break;
+
+	case TOKEN_WHILE:
 		while_loop(compiler);
-	} else if (lexer_match(lexer, TOKEN_LOOP)) {
+		break;
+
+	case TOKEN_LOOP:
 		infinite_loop(compiler);
-	} else if (lexer_match(lexer, TOKEN_BREAK)) {
+		break;
+
+	case TOKEN_BREAK:
 		break_statement(compiler);
-	} else if (lexer_match(lexer, TOKEN_FUNCTION)) {
+		break;
+
+	case TOKEN_FUNCTION:
 		function_definition(compiler);
-	} else if (lexer_match(lexer, TOKEN_RETURN)) {
+		break;
+
+	case TOKEN_RETURN:
 		return_statement(compiler);
-	} else if (lexer_match(lexer, TOKEN_CLASS)) {
+		break;
+
+	case TOKEN_CLASS:
 		class_definition(compiler);
-	} else {
+		break;
+
+	default:
+		if (match_assignment(lexer)) {
+			assignment(compiler);
+			break;
+		}
 		expression_statement(compiler);
 	}
 }
@@ -185,28 +204,46 @@ bool is_assignment_operator(TokenType token) {
 }
 
 
+#define SKIP_LINE()                                    \
+	if (lexer_peek(lexer, index).type == TOKEN_LINE) { \
+		index++;                                       \
+	}
+
+
 // Returns true if the lexer matches a variable assignment.
 // Matches an identifier, followed by an assignment operator, or
 // a let keyword.
-bool match_variable_assignment(Lexer *lexer) {
+bool match_assignment(Lexer *lexer) {
 	// Check for a let keyword, which automatically means we're
-	// assigning a variable.
+	// assigning to a variable
 	if (lexer_match(lexer, TOKEN_LET)) {
 		return true;
 	}
 
-	// Check for an identifier, followed by an assignment
-	// operator.
-	if (lexer_match(lexer, TOKEN_IDENTIFIER)) {
-		lexer_disable_newlines(lexer);
-		Token token = lexer_peek(lexer, 1);
-		lexer_enable_newlines(lexer);
-		if (is_assignment_operator(token.type)) {
-			return true;
+	int index = 0;
+	SKIP_LINE()
+
+	if (lexer_peek(lexer, index).type != TOKEN_IDENTIFIER) {
+		return false;
+	}
+	index++;
+	SKIP_LINE()
+
+	while (!is_assignment_operator(lexer_peek(lexer, index).type)) {
+		if (lexer_peek(lexer, index).type != TOKEN_DOT) {
+			return false;
 		}
+		index++;
+		SKIP_LINE()
+
+		if (lexer_peek(lexer, index).type != TOKEN_IDENTIFIER) {
+			return false;
+		}
+		index++;
+		SKIP_LINE()
 	}
 
-	return false;
+	return true;
 }
 
 
@@ -227,89 +264,104 @@ bool match_function_call(Lexer *lexer) {
 //  Variable Assignment
 //
 
-// Compile a variable assignment.
-void variable_assignment(Compiler *compiler) {
+// Compile a prefix to a variable assignment (the `let`
+// keyword).
+//
+// Returns true if this assignment is to a new variable.
+bool assignment_prefix(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+
+	if (lexer_match(lexer, TOKEN_LET)) {
+		// Consume the let keyword
+		lexer_consume(lexer);
+
+		// Assigning to a new variable
+		return true;
+	}
+
+	return false;
+}
+
+
+// Compile a field assignment.
+void field_assignment(Compiler *compiler, Token left_token) {
 	Lexer *lexer = &compiler->vm->lexer;
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
-	// Indicates whether the variable we're assigning to has
-	// been defined before, or whether we're defining it for the
-	// first time.
-	bool is_new_var = false;
+	// Push the left hand token
+	Variable left = capture_variable(compiler, left_token.location,
+		left_token.length);
 
-	// Check for the let keyword.
-	if (lexer_match(lexer, TOKEN_LET)) {
-		is_new_var = true;
+	// Check for undefined variable
+	if (left.type == VARIABLE_UNDEFINED) {
+		error(lexer->line, "Undefined variable `%.*s`", left_token.length,
+			left_token.location);
+	}
 
-		// Consume the let keyword.
+	// Save the start of the code used to push the left side of
+	// this assignment
+	int start = bytecode->count;
+
+	// Push the class we're accessing a field of
+	emit_push_variable(bytecode, &left);
+
+	// Consume the dot
+	lexer_disable_newlines(lexer);
+	lexer_consume(lexer);
+
+	// We don't want to push the very last identifier as a field
+	// access, but keep it so we can store to it. But, we need
+	// to emit field accesses in between that, eg. in `a.b.c`,
+	// so repeatedly emit field access instructions.
+	while (lexer_match_two(lexer, TOKEN_IDENTIFIER, TOKEN_DOT)) {
+		// Consume the identifier and push it as a field access
+		Token field = lexer_consume(lexer);
+		emit_push_field(bytecode, field.location, field.length);
+
+		// Consume the dot
 		lexer_consume(lexer);
 	}
 
-	// Ignore newlines until the expression
-	lexer_disable_newlines(lexer);
+	int end = bytecode->count;
 
-	// Expect an identifier (the variable's name).
-	Token name = expect(lexer, TOKEN_IDENTIFIER,
-		"Expected variable name in assignment");
-	if (name.type == TOKEN_NONE) {
-		return;
-	}
+	// We should have a final identifier left, which is the one
+	// we want to store to
+	Token field = expect(lexer, TOKEN_IDENTIFIER,
+		"Expected identifier after `.`");
 
-	// Check to see if the variable already exists.
-	//
-	// Allow the redefinition of locals (using `let`) over
-	// potential upvalues.
-	Variable variable = capture_variable(compiler, name.location, name.length);
-	if (is_new_var && variable.type == VARIABLE_LOCAL) {
-		// We're trying to create a new variable using a
-		// variable name that's already taken.
-		error(lexer->line, "Variable name `%.*s` already in use",
-			name.length, name.location);
-	} else if (!is_new_var && variable.type == VARIABLE_UNDEFINED) {
-		// We're trying to assign a new value to an undefined
-		// variable.
-		error(lexer->line,
-			"Undefined variable `%.*s`. Use `let` to define a new variable",
-			name.length, name.location);
-	}
-
-	// Expect an assignment sign. If we find something other
-	// than a normal equals sign, we need to perform some sort
-	// of modification.
-	NativeFunction modifier_fn = NULL;
-	if (lexer_match(lexer, TOKEN_ADDITION_ASSIGNMENT)) {
-		modifier_fn = &operator_addition;
-	} else if (lexer_match(lexer, TOKEN_SUBTRACTION_ASSIGNMENT)) {
-		modifier_fn = &operator_subtraction;
-	} else if (lexer_match(lexer, TOKEN_MULTIPLICATION_ASSIGNMENT)) {
-		modifier_fn = &operator_multiplication;
-	} else if (lexer_match(lexer, TOKEN_DIVISION_ASSIGNMENT)) {
-		modifier_fn = &operator_division;
-	} else if (lexer_match(lexer, TOKEN_MODULO_ASSIGNMENT)) {
-		modifier_fn = &operator_modulo;
-	} else if (lexer_match(lexer, TOKEN_ASSIGNMENT)) {
-		// No modification needed, but we don't want to trigger
-		// an error.
-	} else {
-		// Missing an assignment operator
+	// Consume the assignment operator
+	NativeFunction modifier = NULL;
+	switch (lexer_consume(lexer).type) {
+	case TOKEN_ADDITION_ASSIGNMENT:
+		modifier = &operator_addition;
+		break;
+	case TOKEN_SUBTRACTION_ASSIGNMENT:
+		modifier = &operator_subtraction;
+		break;
+	case TOKEN_MULTIPLICATION_ASSIGNMENT:
+		modifier = &operator_multiplication;
+		break;
+	case TOKEN_DIVISION_ASSIGNMENT:
+		modifier = &operator_division;
+		break;
+	case TOKEN_MODULO_ASSIGNMENT:
+		modifier = &operator_modulo;
+		break;
+	case TOKEN_ASSIGNMENT:
+		break;
+	default:
 		error(lexer->line, "Expected `=` after `%.*s` in assignment",
-			name.length, name.location);
+			field.length, field.location);
 	}
 
-	// Disallow modifier operators on new variables (ie. ones
-	// with the `let` keyword)
-	if (is_new_var && modifier_fn != NULL) {
-		error(lexer->line,
-			"Expected `=` after `%.*s` in assignment of new variable",
-			name.length, name.location);
-	}
+	if (modifier != NULL) {
+		// Duplicate the code to push the part before the last
+		// identifier on the left of this assignment
+		bytecode_append_duplicate(bytecode, start, end - start);
 
-	// Consume the assignment sign
-	lexer_consume(lexer);
-
-	if (modifier_fn != NULL) {
-		// Push the variable for the modifier function
-		emit_push_variable(bytecode, &variable);
+		// Push the instruction to push the last field, instead
+		// of storing to it
+		emit_push_field(bytecode, field.location, field.length);
 	}
 
 	// Compile the expression that follows the assignment sign
@@ -317,16 +369,117 @@ void variable_assignment(Compiler *compiler) {
 	Expression expression = expression_new(compiler, NULL);
 	expression_compile(&expression);
 
-	if (modifier_fn != NULL) {
-		// Push a call to the modifier function.
-		emit_call_native(bytecode, modifier_fn);
+	if (modifier != NULL) {
+		// Push a call to the operator to add the expression
+		// result to the previous value of this field
+		emit_call_native(bytecode, modifier);
 	}
 
-	if (is_new_var) {
+	// Emit a store instruction for the field
+	emit_store_field(bytecode, field.location, field.length);
+}
+
+
+// Compile a variable assignment.
+void assignment(Compiler *compiler) {
+	Lexer *lexer = &compiler->vm->lexer;
+	Bytecode *bytecode = &compiler->fn->bytecode;
+
+	// Compile a potential `let` statement
+	bool is_new = assignment_prefix(compiler);
+	lexer_disable_newlines(lexer);
+
+	// Expect an identifier
+	Token name = expect(lexer, TOKEN_IDENTIFIER,
+		"Expected identifier after `let`");
+
+	// Branch off to a field assignment if we find a dot
+	if (lexer_match(lexer, TOKEN_DOT)) {
+		if (is_new) {
+			// Disallow field access within a `let` statement
+			error(lexer->line, "Unexpected token `.` after identifier");
+		}
+
+		lexer_enable_newlines(lexer);
+		field_assignment(compiler, name);
+		return;
+	}
+
+	// Assume we're assigning to a local or upvalue
+	Variable variable = capture_variable(compiler, name.location, name.length);
+
+	// Check to see if the variable already exists.
+	//
+	// Allow the redefinition of locals (using `let`) over
+	// potential upvalues.
+	if (is_new && variable.type == VARIABLE_LOCAL) {
+		// We're trying to create a new variable using a name
+		// that's already taken
+		error(lexer->line, "Variable name `%.*s` already in use",
+			name.length, name.location);
+	} else if (!is_new && variable.type == VARIABLE_UNDEFINED) {
+		// We're trying to assign a new value to an undefined
+		// variable
+		error(lexer->line,
+			"Undefined variable `%.*s`, use `let` to define a new variable",
+			name.length, name.location);
+	}
+
+	// Expect only an equals sign if we're assigning to a new
+	// variable using `let`
+	if (is_new && !lexer_match(lexer, TOKEN_ASSIGNMENT)) {
+		error(lexer->line,
+			"Expected `=` after `%.*s` in assignment",
+			name.length, name.location);
+	}
+
+	// Expect an assignment sign. If we find something other
+	// than a normal equals sign, we need to perform some sort
+	// of modification.
+	NativeFunction modifier = NULL;
+	switch (lexer_consume(lexer).type) {
+	case TOKEN_ADDITION_ASSIGNMENT:
+		modifier = &operator_addition;
+		break;
+	case TOKEN_SUBTRACTION_ASSIGNMENT:
+		modifier = &operator_subtraction;
+		break;
+	case TOKEN_MULTIPLICATION_ASSIGNMENT:
+		modifier = &operator_multiplication;
+		break;
+	case TOKEN_DIVISION_ASSIGNMENT:
+		modifier = &operator_division;
+		break;
+	case TOKEN_MODULO_ASSIGNMENT:
+		modifier = &operator_modulo;
+		break;
+	case TOKEN_ASSIGNMENT:
+		break;
+	default:
+		error(lexer->line, "Expected `=` after `%.*s` in assignment",
+			name.length, name.location);
+	}
+
+	if (modifier != NULL) {
+		// Push the variable for the modifier function
+		emit_push_variable(bytecode, &variable);
+	}
+
+	// Compile the expression that follows the assignment operator
+	lexer_enable_newlines(lexer);
+	Expression expression = expression_new(compiler, NULL);
+	expression_compile(&expression);
+
+	if (modifier != NULL) {
+		// Push a call to the modifier function.
+		emit_call_native(bytecode, modifier);
+	}
+
+	if (is_new) {
 		// We're assigning to a new variable, so we need a new
 		// local index for it.
-		variable.index = define_local(compiler, name.location, name.length);
 		variable.type = VARIABLE_LOCAL;
+		variable.index = define_local(compiler, name.location, name.length);
 	}
 
 	emit_store_variable(bytecode, &variable);
@@ -782,7 +935,7 @@ void expression_statement(Compiler *compiler) {
 		// We have something other than a single function call
 		// on this line, so trigger an error
 		Token token = lexer_current(lexer);
-		error(lexer->line, "Unexpected expression at `%.*s`",
+		error(lexer->line, "Unexpected token `%.*s`",
 			token.length, token.location);
 	}
 

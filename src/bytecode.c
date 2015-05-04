@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "value.h"
 #include "bytecode.h"
@@ -99,6 +100,18 @@ void emit_arg_8(Bytecode *bytecode, uint64_t arg) {
 }
 
 
+// Duplicates a section of bytecode and appends it to the end of
+// the bytecode array.
+//
+// `length` is the number of instructions to copy, and `start`
+// is the index to start copying from.
+void bytecode_append_duplicate(Bytecode *bytecode, int start, int length) {
+	int index = resize(bytecode, length);
+	size_t size = length * sizeof(uint8_t);
+	memcpy(&bytecode->instructions[index], &bytecode->instructions[start], size);
+}
+
+
 
 //
 //  Jumps
@@ -181,6 +194,16 @@ void emit_call_native(Bytecode *bytecode, void *fn) {
 // stack.
 void emit_push_field(Bytecode *bytecode, char *name, int length) {
 	emit(bytecode, CODE_PUSH_FIELD);
+	emit_arg_2(bytecode, length);
+	emit_arg_8(bytecode, ptr_to_value(name));
+}
+
+
+// Emits bytecode to store the value on the top of the stack
+// into the field named `name` of the class just below the value
+// on the stack.
+void emit_store_field(Bytecode *bytecode, char *name, int length) {
+	emit(bytecode, CODE_STORE_FIELD);
 	emit_arg_2(bytecode, length);
 	emit_arg_8(bytecode, ptr_to_value(name));
 }

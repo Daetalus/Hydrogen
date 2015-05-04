@@ -18,7 +18,7 @@ START(two) {
 	COMPILER("class Test {a, b}\nlet a = new Test()");
 
 	ASSERT_INSTANTIATE_CLASS(0);
-	ASSERT_STORE(0);
+	ASSERT_STORE_LOCAL(0);
 	ASSERT_RETURN_NIL();
 }
 END()
@@ -28,7 +28,7 @@ START(three) {
 	COMPILER("class Test {a, b}\nlet a = \nnew\n\n Test(\n\n)\n");
 
 	ASSERT_INSTANTIATE_CLASS(0);
-	ASSERT_STORE(0);
+	ASSERT_STORE_LOCAL(0);
 	ASSERT_RETURN_NIL();
 }
 END()
@@ -38,7 +38,7 @@ START(four) {
 	COMPILER("class Test{a, b}\nlet a = new Test()\nprint(a.a)");
 
 	ASSERT_INSTANTIATE_CLASS(0);
-	ASSERT_STORE(0);
+	ASSERT_STORE_LOCAL(0);
 	ASSERT_PUSH_NATIVE(0);
 	ASSERT_PUSH_LOCAL(0);
 	ASSERT_PUSH_FIELD("a");
@@ -53,12 +53,70 @@ START(five) {
 	COMPILER("class Test{a, b}\nlet a = new Test()\nprint(a\n.\na)");
 
 	ASSERT_INSTANTIATE_CLASS(0);
-	ASSERT_STORE(0);
+	ASSERT_STORE_LOCAL(0);
 	ASSERT_PUSH_NATIVE(0);
 	ASSERT_PUSH_LOCAL(0);
 	ASSERT_PUSH_FIELD("a");
 	ASSERT_CALL(1);
 	ASSERT_INSTRUCTION(CODE_POP);
+	ASSERT_RETURN_NIL();
+}
+END()
+
+
+START(six) {
+	COMPILER("let a = 3\na.b = 4");
+
+	ASSERT_PUSH_NUMBER(3.0);
+	ASSERT_STORE_LOCAL(0);
+	ASSERT_PUSH_LOCAL(0);
+	ASSERT_PUSH_NUMBER(4.0);
+	ASSERT_STORE_FIELD("b");
+	ASSERT_RETURN_NIL();
+}
+END()
+
+
+START(seven) {
+	COMPILER("let \na \n=\n 3\na\n.\nb \n=\n 4\n");
+
+	ASSERT_PUSH_NUMBER(3.0);
+	ASSERT_STORE_LOCAL(0);
+	ASSERT_PUSH_LOCAL(0);
+	ASSERT_PUSH_NUMBER(4.0);
+	ASSERT_STORE_FIELD("b");
+	ASSERT_RETURN_NIL();
+}
+END()
+
+
+START(eight) {
+	COMPILER("let a = 3\na.b += 1");
+
+	ASSERT_PUSH_NUMBER(3.0);
+	ASSERT_STORE_LOCAL(0);
+	ASSERT_PUSH_LOCAL(0);
+	ASSERT_PUSH_LOCAL(0);
+	ASSERT_PUSH_FIELD("b");
+	ASSERT_PUSH_NUMBER(1);
+	ASSERT_NATIVE_CALL(operator_addition);
+	ASSERT_STORE_FIELD("b");
+	ASSERT_RETURN_NIL();
+}
+END()
+
+
+START(nine) {
+	COMPILER("let\n a = \r3\na\n.\n\nb\n \n+=\n 1\n\r");
+
+	ASSERT_PUSH_NUMBER(3.0);
+	ASSERT_STORE_LOCAL(0);
+	ASSERT_PUSH_LOCAL(0);
+	ASSERT_PUSH_LOCAL(0);
+	ASSERT_PUSH_FIELD("b");
+	ASSERT_PUSH_NUMBER(1);
+	ASSERT_NATIVE_CALL(operator_addition);
+	ASSERT_STORE_FIELD("b");
 	ASSERT_RETURN_NIL();
 }
 END()
@@ -70,5 +128,9 @@ START_MAIN(classes) {
 	RUN(three)
 	RUN(four)
 	RUN(five)
+	RUN(six)
+	RUN(seven)
+	RUN(eight)
+	RUN(nine)
 }
 END_MAIN()

@@ -110,7 +110,6 @@
 //  Bytecode Testing
 //
 
-
 #define EXPRESSION(content)                                  \
 	VirtualMachine vm = vm_new((content));                   \
 	Function fn;                                             \
@@ -154,34 +153,34 @@
 	ASSERT_EQ(READ_BYTE(), instruction);
 
 
-#define ASSERT_PUSH_NUMBER(number)            \
-	ASSERT_EQ(READ_BYTE(), CODE_PUSH_NUMBER); \
+#define ASSERT_PUSH_NUMBER(number)        \
+	ASSERT_INSTRUCTION(CODE_PUSH_NUMBER); \
 	ASSERT_EQ(value_to_number(READ_8_BYTES()), number);
 
 
-#define ASSERT_PUSH_STRING(index, str)        \
-	ASSERT_EQ(READ_BYTE(), CODE_PUSH_STRING); \
-	ASSERT_EQ(READ_2_BYTES(), index);         \
+#define ASSERT_PUSH_STRING(index, str)    \
+	ASSERT_INSTRUCTION(CODE_PUSH_STRING); \
+	ASSERT_EQ(READ_2_BYTES(), index);     \
 	ASSERT_STR_EQ(vm.literals[index]->contents, str);
 
 
-#define ASSERT_PUSH_LOCAL(slot)              \
-	ASSERT_EQ(READ_BYTE(), CODE_PUSH_LOCAL); \
+#define ASSERT_PUSH_LOCAL(slot)          \
+	ASSERT_INSTRUCTION(CODE_PUSH_LOCAL); \
 	ASSERT_EQ(READ_2_BYTES(), slot);
 
 
-#define ASSERT_PUSH_NATIVE(index)             \
-	ASSERT_EQ(READ_BYTE(), CODE_PUSH_NATIVE); \
+#define ASSERT_PUSH_NATIVE(index)         \
+	ASSERT_INSTRUCTION(CODE_PUSH_NATIVE); \
 	ASSERT_EQ(READ_2_BYTES(), index);
 
 
-#define ASSERT_PUSH_FUNCTION(index)             \
-	ASSERT_EQ(READ_BYTE(), CODE_PUSH_FUNCTION); \
+#define ASSERT_PUSH_FUNCTION(index)         \
+	ASSERT_INSTRUCTION(CODE_PUSH_FUNCTION); \
 	ASSERT_EQ(READ_2_BYTES(), index);
 
 
-#define ASSERT_PUSH_UPVALUE(index)             \
-	ASSERT_EQ(READ_BYTE(), CODE_PUSH_UPVALUE); \
+#define ASSERT_PUSH_UPVALUE(index)         \
+	ASSERT_INSTRUCTION(CODE_PUSH_UPVALUE); \
 	ASSERT_EQ(READ_2_BYTES(), index);
 
 
@@ -191,38 +190,44 @@
 	ASSERT_STRN_EQ(value_to_ptr(READ_8_BYTES()), name, (int) strlen(name));
 
 
-#define ASSERT_UPVALUE_CLOSE(index)             \
-	ASSERT_EQ(READ_BYTE(), CODE_CLOSE_UPVALUE); \
+#define ASSERT_UPVALUE_CLOSE(index)         \
+	ASSERT_INSTRUCTION(CODE_CLOSE_UPVALUE); \
 	ASSERT_EQ(READ_2_BYTES(), index);
 
 
-#define ASSERT_STORE(slot)                    \
-	ASSERT_EQ(READ_BYTE(), CODE_STORE_LOCAL); \
+#define ASSERT_STORE_LOCAL(slot)          \
+	ASSERT_INSTRUCTION(CODE_STORE_LOCAL); \
 	ASSERT_EQ(READ_2_BYTES(), slot);
 
 
-#define ASSERT_CALL(arity)             \
-	ASSERT_EQ(READ_BYTE(), CODE_CALL); \
+#define ASSERT_STORE_FIELD(name)             \
+	ASSERT_INSTRUCTION(CODE_STORE_FIELD);    \
+	ASSERT_EQ(READ_2_BYTES(), strlen(name)); \
+	ASSERT_STRN_EQ(value_to_ptr(READ_8_BYTES()), name, (int) strlen(name));
+
+
+#define ASSERT_CALL(arity)         \
+	ASSERT_INSTRUCTION(CODE_CALL); \
 	ASSERT_EQ(READ_2_BYTES(), arity);
 
 
-#define ASSERT_NATIVE_CALL(ptr)               \
-	ASSERT_EQ(READ_BYTE(), CODE_CALL_NATIVE); \
+#define ASSERT_NATIVE_CALL(ptr)           \
+	ASSERT_INSTRUCTION(CODE_CALL_NATIVE); \
 	ASSERT_EQ(value_to_ptr(READ_8_BYTES()), ptr);
 
 
-#define ASSERT_CONDITIONAL_JUMP(amount)       \
-	ASSERT_EQ(READ_BYTE(), CODE_JUMP_IF_NOT); \
+#define ASSERT_CONDITIONAL_JUMP(amount)   \
+	ASSERT_INSTRUCTION(CODE_JUMP_IF_NOT); \
 	ASSERT_EQ(READ_2_BYTES(), amount);
 
 
-#define ASSERT_JUMP(amount)                    \
-	ASSERT_EQ(READ_BYTE(), CODE_JUMP_FORWARD); \
+#define ASSERT_JUMP(amount)                \
+	ASSERT_INSTRUCTION(CODE_JUMP_FORWARD); \
 	ASSERT_EQ(READ_2_BYTES(), amount);
 
 
-#define ASSERT_BACKWARDS_JUMP(amount)       \
-	ASSERT_EQ(READ_BYTE(), CODE_JUMP_BACK); \
+#define ASSERT_BACKWARDS_JUMP(amount)   \
+	ASSERT_INSTRUCTION(CODE_JUMP_BACK); \
 	ASSERT_EQ(READ_2_BYTES(), amount);
 
 

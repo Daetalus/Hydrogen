@@ -12,7 +12,7 @@ START(one) {
 	print_bytecode(bytecode);
 
 	ASSERT_PUSH_NUMBER(3.0);
-	ASSERT_STORE(0);
+	ASSERT_STORE_LOCAL(0);
 	ASSERT_RETURN_NIL();
 }
 END()
@@ -22,7 +22,7 @@ START(two) {
 	COMPILER("\n\rlet\n\r \n\ra\n\r \n=\n\n \n\r3\n");
 
 	ASSERT_PUSH_NUMBER(3.0);
-	ASSERT_STORE(0);
+	ASSERT_STORE_LOCAL(0);
 	ASSERT_RETURN_NIL();
 }
 END()
@@ -36,7 +36,7 @@ START(three) {
 	ASSERT_PUSH_NUMBER(9.0);
 	ASSERT_NATIVE_CALL(operator_multiplication);
 	ASSERT_NATIVE_CALL(operator_addition);
-	ASSERT_STORE(0);
+	ASSERT_STORE_LOCAL(0);
 	ASSERT_RETURN_NIL();
 }
 END()
@@ -50,10 +50,10 @@ START(four) {
 	ASSERT_PUSH_NUMBER(9.0);
 	ASSERT_NATIVE_CALL(operator_multiplication);
 	ASSERT_NATIVE_CALL(operator_addition);
-	ASSERT_STORE(0);
+	ASSERT_STORE_LOCAL(0);
 
 	ASSERT_PUSH_NUMBER(5.0);
-	ASSERT_STORE(0);
+	ASSERT_STORE_LOCAL(0);
 
 	ASSERT_RETURN_NIL();
 }
@@ -64,12 +64,12 @@ START(modifier_one) {
 	COMPILER("let testing = 3\ntesting += 1");
 
 	ASSERT_PUSH_NUMBER(3.0);
-	ASSERT_STORE(0);
+	ASSERT_STORE_LOCAL(0);
 
 	ASSERT_PUSH_LOCAL(0);
 	ASSERT_PUSH_NUMBER(1.0);
 	ASSERT_NATIVE_CALL(operator_addition);
-	ASSERT_STORE(0);
+	ASSERT_STORE_LOCAL(0);
 
 	ASSERT_RETURN_NIL();
 }
@@ -80,12 +80,12 @@ START(modifier_two) {
 	COMPILER("let \n\rtesting = 3\n\n\rtesting \n \n\r+= \n\r1\n");
 
 	ASSERT_PUSH_NUMBER(3.0);
-	ASSERT_STORE(0);
+	ASSERT_STORE_LOCAL(0);
 
 	ASSERT_PUSH_LOCAL(0);
 	ASSERT_PUSH_NUMBER(1.0);
 	ASSERT_NATIVE_CALL(operator_addition);
-	ASSERT_STORE(0);
+	ASSERT_STORE_LOCAL(0);
 
 	ASSERT_RETURN_NIL();
 }

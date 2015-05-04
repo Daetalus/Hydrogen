@@ -167,9 +167,9 @@ typedef enum {
 	// value.
 	//
 	// Arguments:
+	// * 2 bytes - the length of the name of the field.
 	// * 8 bytes - char pointer to the name of the field to
 	//   store to.
-	// * 2 bytes - the length of the name of the field.
 	CODE_STORE_FIELD,
 
 	// Closes an upvalue by copying its value off the stack
@@ -284,6 +284,13 @@ void emit_arg_4(Bytecode *bytecode, uint32_t arg);
 // Emit an 8 byte argument.
 void emit_arg_8(Bytecode *bytecode, uint64_t arg);
 
+// Duplicates a section of bytecode and appends it to the end of
+// the bytecode array.
+//
+// `length` is the number of instructions to copy, and `start`
+// is the index to start copying from.
+void bytecode_append_duplicate(Bytecode *bytecode, int start, int length);
+
 // Emit an incomplete jump instruction, where the amount to jump
 // is given a dummy value of 0.
 int emit_jump(Bytecode *bytecode, uint8_t instruction);
@@ -309,6 +316,11 @@ void emit_push_function(Bytecode *bytecode, int index);
 // Emits bytecode to push a field of the class on the top of the
 // stack.
 void emit_push_field(Bytecode *bytecode, char *name, int length);
+
+// Emits bytecode to store the value on the top of the stack
+// into the field named `name` of the class just below the value
+// on the stack.
+void emit_store_field(Bytecode *bytecode, char *name, int length);
 
 // Emits a call to a function.
 void emit_call(Bytecode *bytecode, int arity);
