@@ -267,6 +267,23 @@ int vm_find_class(VirtualMachine *vm, char *name, int length) {
 }
 
 
+// Returns the index of a field within a class instance.
+int find_class_field(ClassInstance *instance, char *name, int length) {
+	ClassDefinition *definition = instance->definition;
+
+	for (int i = 0; i < definition->field_count; i++) {
+		SourceString *field = &definition->fields[i];
+
+		if (field->length == length &&
+				strncmp(field->location, name, length) == 0) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+
 
 //
 //  String Literals
@@ -450,11 +467,10 @@ instructions:
 		goto instructions;
 	}
 
+	// Push a native function onto the stack.
 	case CODE_PUSH_NATIVE: {
 		uint16_t index = READ_2_BYTES();
 		PUSH(NATIVE_TO_VALUE(index));
-
-
 		goto instructions;
 	}
 
@@ -499,29 +515,15 @@ instructions:
 		}
 
 		ClassInstance *instance = value_to_ptr(ptr);
-		ClassDefinition *definition = instance->definition;
-
-		// Look for the field in the definition's fields list
-		int index = -1;
-		for (int i = 0; i < definition->field_count; i++) {
-			SourceString *field = &definition->fields[i];
-
-			if (field->length == length &&
-					strncmp(field->location, name, length) == 0) {
-				index = i;
-				break;
-			}
-		}
-
+		int index = find_class_field(instance, name, length);
 		if (index == -1) {
 			// Couldn't find a field with the given name
-			error(-1, "Attempt to access missing field `%.*s` on class",
+			error(-1, "Attempt to access missing field `%.*s` on object",
 				length, name);
 		}
 
 		// Push the field
 		PUSH(instance->fields[index]);
-
 		goto instructions;
 	}
 
@@ -539,6 +541,41 @@ instructions:
 		if (stack_size - 1 > stack_index) {
 			POP();
 		}
+		goto instructions;
+	}
+
+	// Pop an item off the stack, using this as the value to
+	// store. Pop another item off the stack, and store the
+	// first value into a field on this second item.
+	case CODE_STORE_FIELD: {
+		uint16_t length = READ_2_BYTES();
+		char *name = value_to_ptr(READ_8_BYTES());
+
+		// Pop the value to store
+		uint64_t value = TOP();
+		POP();
+
+		// Pop the class to store into
+		uint64_t ptr = TOP();
+		POP();
+
+		if (!IS_PTR(ptr)) {
+			// Trying to store into a value that isn't an
+			// instance of a class
+			error(-1, "Attempt to write to field `%.*s` of non-object",
+				length, name);
+		}
+
+		ClassInstance *instance = value_to_ptr(ptr);
+		int index = find_class_field(instance, name, length);
+		if (index == -1) {
+			// Field doesn't exist
+			error(-1, "Attempt to write to missing field `%.*s` on object",
+				length, name);
+		}
+
+		// Write to the field
+		instance->fields[index] = value;
 		goto instructions;
 	}
 

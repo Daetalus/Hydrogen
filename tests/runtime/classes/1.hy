@@ -5,4 +5,5 @@ class Test {
 }
 
 let test = new Test()
-print(test.a)
+assert(test.a == nil)
+assert(test.b == nil)

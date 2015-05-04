@@ -81,6 +81,7 @@ char *files[] = {
 	"function_expressions/3.hy",
 
 	"classes/1.hy",
+	"classes/2.hy",
 };
 
 
