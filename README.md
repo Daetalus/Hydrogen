@@ -13,15 +13,33 @@ Hydrogen is intended as more of a learning project for me about writing a byteco
 
 Make sure you have [CMake](http://www.cmake.org/download/) and GNU Make installed, and build the project like any other CMake project:
 
+Clone the repository and `cd` into the folder:
+
 ```
+git clone https://github.com/GravityScore/Hydrogen
 cd Hydrogen
+```
+
+Create a build directory:
+
+```
 mkdir build
 cd build
+```
+
+Generate the build scripts using CMake (defaults to Unix Makefiles):
+
+```
 cmake ..
+```
+
+Build the project:
+
+```
 make
 ```
 
-This will generate a `hydrogen` executable, which you can use to run your scripts. Create a Hydrogen script in a `.hy` file and execute it with:
+This will create a `hydrogen` executable file, which you can use to run your scripts. Create a file with a `.hy` extension and execute it with:
 
 ```
 ./hydrogen my-script.hy
