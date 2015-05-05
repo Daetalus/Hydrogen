@@ -59,11 +59,11 @@ void pop_scope(Compiler *compiler);
 // new local in the compiler's index list.
 int define_local(Compiler *compiler, char *name, int length);
 
-// Returns the appropriate instruction for storing a variable
-// of type `type`.
+// Emits bytecode to store a variable as a local.
 void emit_store_variable(Bytecode *bytecode, Variable *variable);
 
-// Stores a function onto the stack.
+// Emits bytecode to push a function onto the stack and store it
+// in a local variable.
 void emit_store_function(Bytecode *bytecode, int fn_index, int local_index);
 
 
@@ -221,41 +221,29 @@ bool match_assignment(Lexer *lexer) {
 	}
 
 	int index = 0;
-	SKIP_LINE()
+	SKIP_LINE();
 
 	if (lexer_peek(lexer, index).type != TOKEN_IDENTIFIER) {
 		return false;
 	}
 	index++;
-	SKIP_LINE()
+	SKIP_LINE();
 
 	while (!is_assignment_operator(lexer_peek(lexer, index).type)) {
 		if (lexer_peek(lexer, index).type != TOKEN_DOT) {
 			return false;
 		}
 		index++;
-		SKIP_LINE()
+		SKIP_LINE();
 
 		if (lexer_peek(lexer, index).type != TOKEN_IDENTIFIER) {
 			return false;
 		}
 		index++;
-		SKIP_LINE()
+		SKIP_LINE();
 	}
 
 	return true;
-}
-
-
-// Returns true if the lexer matches a function call. Matches an
-// identifier followed by an open parethesis.
-bool match_function_call(Lexer *lexer) {
-	lexer_disable_newlines(lexer);
-	bool result = lexer_match_two(lexer, TOKEN_IDENTIFIER,
-		TOKEN_OPEN_PARENTHESIS);
-	lexer_enable_newlines(lexer);
-
-	return result;
 }
 
 
@@ -1356,8 +1344,7 @@ void emit_push_variable(Bytecode *bytecode, Variable *variable) {
 }
 
 
-// Returns the appropriate instruction for storing a variable
-// of type `type`.
+// Emits bytecode to store a variable as a local.
 void emit_store_variable(Bytecode *bytecode, Variable *variable) {
 	if (variable->type == VARIABLE_UPVALUE) {
 		emit(bytecode, CODE_STORE_UPVALUE);

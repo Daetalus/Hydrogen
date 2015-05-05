@@ -85,7 +85,6 @@ void vm_free(VirtualMachine *vm) {
 // Compiles the source code into bytecode.
 void vm_compile(VirtualMachine *vm) {
 	// Create the main function, whose bytecode we'll populate.
-	// The main function is identified by the NULL name value.
 	Function *fn;
 	vm_new_function(vm, &fn);
 	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
