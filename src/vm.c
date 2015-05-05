@@ -271,10 +271,10 @@ int find_class_field(ClassInstance *instance, char *name, int length) {
 	ClassDefinition *definition = instance->definition;
 
 	for (int i = 0; i < definition->field_count; i++) {
-		SourceString *field = &definition->fields[i];
+		Field *field = &definition->fields[i];
 
 		if (field->length == length &&
-				strncmp(field->location, name, length) == 0) {
+				strncmp(field->name, name, length) == 0) {
 			return i;
 		}
 	}

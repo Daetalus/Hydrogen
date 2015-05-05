@@ -142,6 +142,20 @@ typedef struct {
 } Native;
 
 
+// A field in a class definition.
+typedef struct {
+	// The name of the field, as a pointer into the source code
+	// string.
+	char *name;
+
+	// The length of the name string.
+	int length;
+
+	// True if this field is a method defined on the class.
+	bool is_method;
+} Field;
+
+
 // A class definition, constructed during compilation.
 typedef struct {
 	// The name of the class, as a pointer into the source code.
@@ -151,7 +165,7 @@ typedef struct {
 	int length;
 
 	// A list of all fields defined by the class.
-	SourceString fields[MAX_FIELDS];
+	Field fields[MAX_FIELDS];
 	int field_count;
 } ClassDefinition;
 

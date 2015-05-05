@@ -263,7 +263,7 @@ bool assignment_prefix(Compiler *compiler) {
 		// Consume the let keyword
 		lexer_consume(lexer);
 
-		// Assigning to a new variable
+		// We're assigning to a new variable
 		return true;
 	}
 
@@ -512,7 +512,6 @@ int if_condition_and_block(Compiler *compiler) {
 
 
 // Compile an if statement.
-// TODO: Split into multiple functions
 void if_statement(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 	Bytecode *bytecode = &compiler->fn->bytecode;
@@ -1002,8 +1001,8 @@ void class_field_list(Compiler *compiler, ClassDefinition *definition) {
 			"Expected identifier in class field list");
 
 		// Add the field to the class definition
-		SourceString *field = &definition->fields[definition->field_count++];
-		field->location = name.location;
+		Field *field = &definition->fields[definition->field_count++];
+		field->name = name.location;
 		field->length = name.length;
 
 		// Expect a comma or a closing brace
