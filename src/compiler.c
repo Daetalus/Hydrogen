@@ -271,6 +271,29 @@ bool assignment_prefix(Compiler *compiler) {
 }
 
 
+// Consume an assignment operator, returning a modifier function
+// if one needs to be applied.
+NativeFunction assignment_operator(Lexer *lexer) {
+	switch (lexer_consume(lexer).type) {
+	case TOKEN_ADDITION_ASSIGNMENT:
+		return &operator_addition;
+	case TOKEN_SUBTRACTION_ASSIGNMENT:
+		return &operator_subtraction;
+	case TOKEN_MULTIPLICATION_ASSIGNMENT:
+		return &operator_multiplication;
+	case TOKEN_DIVISION_ASSIGNMENT:
+		return &operator_division;
+	case TOKEN_MODULO_ASSIGNMENT:
+		return &operator_modulo;
+	case TOKEN_ASSIGNMENT:
+		return NULL;
+	default:
+		error(lexer->line, "Expected `=` in assignment");
+	}
+	return NULL;
+}
+
+
 // Compile a field assignment.
 void field_assignment(Compiler *compiler, Token left_token) {
 	Lexer *lexer = &compiler->vm->lexer;
@@ -318,36 +341,14 @@ void field_assignment(Compiler *compiler, Token left_token) {
 		"Expected identifier after `.`");
 
 	// Consume the assignment operator
-	NativeFunction modifier = NULL;
-	switch (lexer_consume(lexer).type) {
-	case TOKEN_ADDITION_ASSIGNMENT:
-		modifier = &operator_addition;
-		break;
-	case TOKEN_SUBTRACTION_ASSIGNMENT:
-		modifier = &operator_subtraction;
-		break;
-	case TOKEN_MULTIPLICATION_ASSIGNMENT:
-		modifier = &operator_multiplication;
-		break;
-	case TOKEN_DIVISION_ASSIGNMENT:
-		modifier = &operator_division;
-		break;
-	case TOKEN_MODULO_ASSIGNMENT:
-		modifier = &operator_modulo;
-		break;
-	case TOKEN_ASSIGNMENT:
-		break;
-	default:
-		error(lexer->line, "Expected `=` after `%.*s` in assignment",
-			field.length, field.location);
-	}
+	NativeFunction modifier = assignment_operator(lexer);
 
 	if (modifier != NULL) {
 		// Duplicate the code to push the part before the last
 		// identifier on the left of this assignment
 		bytecode_append_duplicate(bytecode, start, end - start);
 
-		// Push the instruction to push the last field, instead
+		// Emit the instruction to push the last field, instead
 		// of storing to it
 		emit_push_field(bytecode, field.location, field.length);
 	}
@@ -424,29 +425,7 @@ void assignment(Compiler *compiler) {
 	// Expect an assignment sign. If we find something other
 	// than a normal equals sign, we need to perform some sort
 	// of modification.
-	NativeFunction modifier = NULL;
-	switch (lexer_consume(lexer).type) {
-	case TOKEN_ADDITION_ASSIGNMENT:
-		modifier = &operator_addition;
-		break;
-	case TOKEN_SUBTRACTION_ASSIGNMENT:
-		modifier = &operator_subtraction;
-		break;
-	case TOKEN_MULTIPLICATION_ASSIGNMENT:
-		modifier = &operator_multiplication;
-		break;
-	case TOKEN_DIVISION_ASSIGNMENT:
-		modifier = &operator_division;
-		break;
-	case TOKEN_MODULO_ASSIGNMENT:
-		modifier = &operator_modulo;
-		break;
-	case TOKEN_ASSIGNMENT:
-		break;
-	default:
-		error(lexer->line, "Expected `=` after `%.*s` in assignment",
-			name.length, name.location);
-	}
+	NativeFunction modifier = assignment_operator(lexer);
 
 	if (modifier != NULL) {
 		// Push the variable for the modifier function
