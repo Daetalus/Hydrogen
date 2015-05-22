@@ -62,8 +62,8 @@ int define_local(Compiler *compiler, char *name, int length);
 // Emits bytecode to store a variable as a local.
 void emit_store_variable(Bytecode *bytecode, Variable *variable);
 
-// Emits bytecode to push a function onto the stack and store it
-// in a local variable.
+// Stores a function at `fn_index` into a local at
+// `local_index`.
 void emit_store_function(Bytecode *bytecode, int fn_index, int local_index);
 
 
@@ -76,10 +76,15 @@ void emit_store_function(Bytecode *bytecode, int fn_index, int local_index);
 // virtual machine `vm` as input. Outputs bytecode directly into
 // `fn`'s bytecode array.
 //
+// If this compiler is compiling a method on a class,
+// `method_class_definition` is a pointer to the class
+// definition on which the method will be defined. NULL if we're
+// not compiling a method.
+//
 // Stops compiling when `terminator` is found, or end of file is
 // reached.
 void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
-		TokenType terminator) {
+		TokenType terminator, ClassDefinition *method_class_definition) {
 	// Create a compiler for this function.
 	Compiler compiler;
 	compiler.vm = vm;
@@ -88,7 +93,7 @@ void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
 	compiler.local_count = 0;
 	compiler.scope_depth = 0;
 	compiler.loop_count = 0;
-	compiler.explicit_return_statement = false;
+	compiler.method_class_definition = method_class_definition;
 
 	// Push the function's arguments as locals
 	for (int i = 0; i < fn->arity; i++) {
@@ -109,12 +114,10 @@ void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
 
 	// Insert a final return instruction, pushing nil as the
 	// return value.
-	if (!compiler.explicit_return_statement) {
-		close_captured_locals(&compiler);
-		Bytecode *bytecode = &compiler.fn->bytecode;
-		emit(bytecode, CODE_PUSH_NIL);
-		emit(bytecode, CODE_RETURN);
-	}
+	close_captured_locals(&compiler);
+	Bytecode *bytecode = &compiler.fn->bytecode;
+	emit(bytecode, CODE_PUSH_NIL);
+	emit(bytecode, CODE_RETURN);
 }
 
 
@@ -155,39 +158,50 @@ void statement(Compiler *compiler) {
 		lexer_consume(lexer);
 		break;
 
+	// Compile an if statement, with optional else if and else
+	// statements following it
 	case TOKEN_IF:
 		if_statement(compiler);
 		break;
 
+	// Compile a while loop
 	case TOKEN_WHILE:
 		while_loop(compiler);
 		break;
 
+	// Compile an infinite loop
 	case TOKEN_LOOP:
 		infinite_loop(compiler);
 		break;
 
+	// Compile a break statement, assuming we're inside a loop
 	case TOKEN_BREAK:
 		break_statement(compiler);
 		break;
 
+	// Compile a new function definition
 	case TOKEN_FUNCTION:
 		function_definition(compiler);
 		break;
 
+	// Compile a return statement from a function
 	case TOKEN_RETURN:
 		return_statement(compiler);
 		break;
 
+	// Compile a class definition
 	case TOKEN_CLASS:
 		class_definition(compiler);
 		break;
 
 	default:
+		// Compile an assignment to a variable
 		if (match_assignment(lexer)) {
 			assignment(compiler);
 			break;
 		}
+
+		// Compile a function call using the expression system
 		expression_statement(compiler);
 	}
 }
@@ -204,6 +218,9 @@ bool is_assignment_operator(TokenType token) {
 }
 
 
+// Enabling and disabling newlines on the lexer doesn't play
+// nicely with peeking ahead at tokens, so we need this utility
+// macro to neaten up our code.
 #define SKIP_LINE()                                    \
 	if (lexer_peek(lexer, index).type == TOKEN_LINE) { \
 		index++;                                       \
@@ -223,7 +240,8 @@ bool match_assignment(Lexer *lexer) {
 	int index = 0;
 	SKIP_LINE();
 
-	if (lexer_peek(lexer, index).type != TOKEN_IDENTIFIER) {
+	TokenType type = lexer_peek(lexer, index).type;
+	if (type != TOKEN_IDENTIFIER && type != TOKEN_SELF) {
 		return false;
 	}
 	index++;
@@ -299,22 +317,27 @@ void field_assignment(Compiler *compiler, Token left_token) {
 	Lexer *lexer = &compiler->vm->lexer;
 	Bytecode *bytecode = &compiler->fn->bytecode;
 
-	// Push the left hand token
-	Variable left = capture_variable(compiler, left_token.location,
-		left_token.length);
-
-	// Check for undefined variable
-	if (left.type == VARIABLE_UNDEFINED) {
-		error(lexer->line, "Undefined variable `%.*s`", left_token.length,
-			left_token.location);
-	}
-
 	// Save the start of the code used to push the left side of
 	// this assignment
 	int start = bytecode->count;
 
-	// Push the class we're accessing a field of
-	emit_push_variable(bytecode, &left);
+	if (left_token.type == TOKEN_IDENTIFIER) {
+		// Push the left hand token
+		Variable left = capture_variable(compiler, left_token.location,
+			left_token.length);
+
+		// Check for undefined variable
+		if (left.type == VARIABLE_UNDEFINED) {
+			error(lexer->line, "Undefined variable `%.*s`", left_token.length,
+				left_token.location);
+		}
+
+		// Push the class we're accessing a field of
+		emit_push_variable(bytecode, &left);
+	} else {
+		// Accessing a field on self
+		emit(bytecode, CODE_PUSH_RECEIVER);
+	}
 
 	// Consume the dot
 	lexer_disable_newlines(lexer);
@@ -379,8 +402,13 @@ void assignment(Compiler *compiler) {
 	lexer_disable_newlines(lexer);
 
 	// Expect an identifier
-	Token name = expect(lexer, TOKEN_IDENTIFIER,
-		"Expected identifier after `let`");
+	Token name;
+	if (lexer_match(lexer, TOKEN_IDENTIFIER) ||
+			lexer_match(lexer, TOKEN_SELF)) {
+		name = lexer_consume(lexer);
+	} else {
+		error(lexer->line, "Expected identifier after `let`");
+	}
 
 	// Branch off to a field assignment if we find a dot
 	if (lexer_match(lexer, TOKEN_DOT)) {
@@ -392,6 +420,9 @@ void assignment(Compiler *compiler) {
 		lexer_enable_newlines(lexer);
 		field_assignment(compiler, name);
 		return;
+	} else if (name.type == TOKEN_SELF) {
+		// Trying to assign to self
+		error(lexer->line, "Assigning to `self` is disallowed");
 	}
 
 	// Assume we're assigning to a local or upvalue
@@ -828,6 +859,29 @@ void function_definition_arguments(Compiler *compiler, Function *fn) {
 }
 
 
+// Errors if a native function with the name `name` already
+// exists.
+void assert_no_native(VirtualMachine *vm, char *name, int length) {
+	int native = vm_find_native(vm, name, length);
+	if (native != -1) {
+		// Native exists
+		error(vm->lexer.line,
+			"Function `%.*s` is already defined in a library", length, name);
+	}
+}
+
+
+// Errors if a local variable with the name `name` already
+// exists.
+void assert_no_local(Compiler *compiler, char *name, int length) {
+	if (variable_exists(compiler, name, length)) {
+		// Local exists
+		error(compiler->vm->lexer.line,
+			"Function name `%.*s` is already in use", length, name);
+	}
+}
+
+
 // Compiles a function definition.
 void function_definition(Compiler *compiler) {
 	VirtualMachine *vm = compiler->vm;
@@ -835,6 +889,40 @@ void function_definition(Compiler *compiler) {
 
 	// Consume the function keyword
 	lexer_consume(lexer);
+
+	// Check if its a method definition on a class
+	ClassDefinition *definition = NULL;
+	if (lexer_match(lexer, TOKEN_OPEN_PARENTHESIS)) {
+		// Consume the open parenthesis
+		lexer_consume(lexer);
+
+		// Expect an identifier - the name of the class
+		Token class = expect(lexer, TOKEN_IDENTIFIER,
+			"Expected identifier for method's class name after `(`");
+
+		// Expect a closing parenthesis
+		expect(lexer, TOKEN_CLOSE_PARENTHESIS,
+			"Expected `)` after class name in method definition");
+
+		// Check the class name exists
+		for (int i = 0; i < vm->class_definition_count; i++) {
+			ClassDefinition *potential = &vm->class_definitions[i];
+			if (potential->length == class.length &&
+					strncmp(potential->name, class.location,
+					class.length) == 0) {
+				// Found the class
+				definition = potential;
+				break;
+			}
+		}
+
+		if (definition == NULL) {
+			// Undefined class
+			error(lexer->line,
+				"Attempting to define method on undefined class `%.*s`",
+				class.length, class.location);
+		}
+	}
 
 	// Expect the function name identifier
 	lexer_disable_newlines(lexer);
@@ -846,30 +934,36 @@ void function_definition(Compiler *compiler) {
 	int fn_index = vm_new_function(compiler->vm, &fn);
 
 	// Check the function isn't already defined
-	if (variable_exists(compiler, name.location, name.length)) {
-		error(lexer->line, "Function name `%.*s` is already in use",
-			name.length, name.location);
-	}
-
-	// Check library functions
-	int native = vm_find_native(vm, name.location, name.length);
-	if (native != -1) {
-		error(lexer->line, "Function `%.*s` is already defined in a library",
-			name.length, name.location);
-	}
+	assert_no_local(compiler, name.location, name.length);
+	assert_no_native(vm, name.location, name.length);
 
 	// Compile the function's arguments list
 	lexer_enable_newlines(lexer);
 	function_definition_arguments(compiler, fn);
 	lexer_disable_newlines(lexer);
 
-	// Add the function as a local
-	int local_index = define_local(compiler, name.location, name.length);
+	if (definition != NULL) {
+		// Add the function as a method on the class
+		int method_index = definition->method_count++;
+		Method *method = &definition->methods[method_index];
+		method->function_index = fn_index;
+		method->instance = NULL;
 
-	// Save the function onto the stack since it's now a local
-	// variable
-	Bytecode *bytecode = &compiler->fn->bytecode;
-	emit_store_function(bytecode, fn_index, local_index);
+		// Add the function as a field on the class
+		int field_index = definition->field_count++;
+		Field *field = &definition->fields[field_index];
+		field->name = name.location;
+		field->length = name.length;
+		field->method_index = method_index;
+	} else {
+		// Add the function as a local
+		int local_index = define_local(compiler, name.location, name.length);
+
+		// Save the function onto the stack since it's now a local
+		// variable
+		Bytecode *bytecode = &compiler->fn->bytecode;
+		emit_store_function(bytecode, fn_index, local_index);
+	}
 
 	// Expect an opening brace to open the function's block
 	expect(lexer, TOKEN_OPEN_BRACE, "Expected `{` to begin function block");
@@ -877,7 +971,7 @@ void function_definition(Compiler *compiler) {
 	// Compile the function
 	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
 	lexer_enable_newlines(lexer);
-	compile(compiler->vm, compiler, fn, TOKEN_CLOSE_BRACE);
+	compile(compiler->vm, compiler, fn, TOKEN_CLOSE_BRACE, definition);
 
 	// Expect a closing brace to close the function's block
 	expect(lexer, TOKEN_CLOSE_BRACE, "Expected `}` to close function block");
@@ -905,7 +999,7 @@ void expression_statement(Compiler *compiler) {
 			token.length, token.location);
 	}
 
-	// Pop the result of the expression
+	// Pop the result of the function call
 	Bytecode *bytecode = &compiler->fn->bytecode;
 	emit(bytecode, CODE_POP);
 
@@ -974,7 +1068,6 @@ void return_statement(Compiler *compiler) {
 	close_captured_locals(compiler);
 
 	emit(bytecode, CODE_RETURN);
-	compiler->explicit_return_statement = true;
 }
 
 
@@ -1000,10 +1093,23 @@ void class_field_list(Compiler *compiler, ClassDefinition *definition) {
 		Token name = expect(lexer, TOKEN_IDENTIFIER,
 			"Expected identifier in class field list");
 
+		// Ensure the field name is unique
+		for (int i = 0; i < definition->field_count; i++) {
+			Field *field = &definition->fields[i];
+			if (field->length == name.length &&
+					strncmp(field->name, name.location, name.length) == 0) {
+				// Found a field that's already been defined
+				error(lexer->line, "Redefinition of field `%.*s` for class",
+					name.length, name.location);
+			}
+		}
+
 		// Add the field to the class definition
-		Field *field = &definition->fields[definition->field_count++];
+		int index = definition->field_count++;
+		Field *field = &definition->fields[index];
 		field->name = name.location;
 		field->length = name.length;
+		field->method_index = -1;
 
 		// Expect a comma or a closing brace
 		if (lexer_match(lexer, TOKEN_COMMA)) {
@@ -1278,8 +1384,9 @@ bool variable_exists(Compiler *compiler, char *name, int length) {
 		return true;
 	}
 
-	if (find_local_in_all_scopes(compiler->parent, NULL, NULL, name,
-			length) != -1) {
+	int found = find_local_in_all_scopes(compiler->parent, NULL,
+		NULL, name, length);
+	if (found != -1) {
 		return true;
 	}
 
@@ -1334,7 +1441,8 @@ void emit_store_variable(Bytecode *bytecode, Variable *variable) {
 }
 
 
-// Stores a function onto the stack.
+// Stores a function at `fn_index` into a local at
+// `local_index`.
 void emit_store_function(Bytecode *bytecode, int fn_index, int local_index) {
 	emit_push_function(bytecode, fn_index);
 	emit(bytecode, CODE_STORE_LOCAL);

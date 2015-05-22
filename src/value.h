@@ -28,8 +28,9 @@
 //
 // Functions and natives are stored as a 2 byte index in the
 // VM's functions list or natives list respectively.
-#define FUNCTION_MASK (QUIET_NAN | 0x10000)
-#define NATIVE_MASK   (QUIET_NAN | 0x20000)
+#define FUNCTION_MASK (QUIET_NAN | 0x100000000)
+#define NATIVE_MASK   (QUIET_NAN | 0x200000000)
+#define METHOD_MASK   (POINTER_MASK | (uint64_t) 1 << 49)
 
 // Bitwise representation for constant language values.
 #define TRUE_VALUE  (QUIET_NAN | 0x1)
@@ -54,6 +55,7 @@
 // type.
 #define IS_FUNCTION(value) (((value) & FUNCTION_MASK) == FUNCTION_MASK)
 #define IS_NATIVE(value)   (((value) & NATIVE_MASK) == NATIVE_MASK)
+#define IS_METHOD(value)   (((value) & METHOD_MASK) == METHOD_MASK)
 
 // Compare `value` against static constants.
 #define IS_TRUE(value)  ((value) == TRUE_VALUE)
@@ -68,9 +70,13 @@
 
 // Convert different types of functions to values and back.
 #define FUNCTION_TO_VALUE(index) ((index) | FUNCTION_MASK)
-#define NATIVE_TO_VALUE(index)   ((index) | NATIVE_MASK)
 #define VALUE_TO_FUNCTION(value) ((value) ^ FUNCTION_MASK)
+
+#define NATIVE_TO_VALUE(index)   ((index) | NATIVE_MASK)
 #define VALUE_TO_NATIVE(value)   ((value) ^ NATIVE_MASK)
+
+#define METHOD_TO_VALUE(ptr)     (ptr_to_value((ptr)) | METHOD_MASK)
+#define VALUE_TO_METHOD(value)   value_to_ptr((value) ^ METHOD_MASK)
 
 // Converts a value into a number.
 double value_to_number(uint64_t value);

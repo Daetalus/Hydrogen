@@ -85,6 +85,11 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 		break;
 	}
 
+	case CODE_PUSH_RECEIVER: {
+		printf("%lu: push self\n", position);
+		break;
+	}
+
 	case CODE_POP: {
 		printf("%lu: pop\n", position);
 		break;

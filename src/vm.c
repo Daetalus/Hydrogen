@@ -26,6 +26,12 @@ typedef struct {
 	// The saved instruction pointer, pointing into the
 	// function's bytecode instructions array.
 	uint8_t *instruction_ptr;
+
+	// A copy of the receiver for this function, set to nil if
+	// this function isn't a method.
+	//
+	// The receiver points to the `self` variable.
+	uint64_t receiver;
 } CallFrame;
 
 
@@ -91,7 +97,7 @@ void vm_compile(VirtualMachine *vm) {
 
 	// Compile the source code into the function's
 	// bytecode array.
-	compile(vm, NULL, fn, TOKEN_END_OF_FILE);
+	compile(vm, NULL, fn, TOKEN_END_OF_FILE, NULL);
 }
 
 
@@ -244,6 +250,7 @@ int vm_new_class_definition(VirtualMachine *vm, ClassDefinition **definition) {
 	(*definition)->name = NULL;
 	(*definition)->length = 0;
 	(*definition)->field_count = 0;
+	(*definition)->method_count = 0;
 
 	return index;
 }
@@ -366,6 +373,15 @@ int vm_new_upvalue(VirtualMachine *vm, Upvalue **upvalue) {
 #define MAX_CALL_STACK_SIZE 1024
 
 
+// Trigger an invalid number of arguments error.
+void assert_arity(int have, int expected) {
+	if (have != expected) {
+		error(-1, "Attempt to call function with incorrect number"
+			"of arguments (have %d, expected %d)", have, expected);
+	}
+}
+
+
 // Runs the compiled bytecode.
 void vm_run(VirtualMachine *vm) {
 	// The stack, where local variables and intermediate values
@@ -401,7 +417,7 @@ void vm_run(VirtualMachine *vm) {
 	// Pushes a new call frame for `fn` onto the call frame
 	// stack. Updates `ip` and `stack_start` with the values for
 	// the new function.
-	#define PUSH_FRAME(fn)                                           \
+	#define PUSH_FRAME(fn, receiver_value)                           \
 		if (call_stack_size + 1 > MAX_CALL_STACK_SIZE) {             \
 			error(-1, "Stack overflow");                             \
 		}                                                            \
@@ -419,12 +435,13 @@ void vm_run(VirtualMachine *vm) {
 		ip = (fn)->bytecode.instructions;                            \
 		call_stack[call_stack_size].stack_start = stack_start;       \
 		call_stack[call_stack_size].instruction_ptr = ip;            \
+		call_stack[call_stack_size].receiver = (receiver_value);     \
 		call_stack_size++;
 
 	// Push the main function onto the call stack. The main
 	// function is always the first function in the functions
 	// array.
-	PUSH_FRAME(&vm->functions[0]);
+	PUSH_FRAME(&vm->functions[0], NIL_VALUE);
 
 	// Begin execution
 instructions:
@@ -523,6 +540,22 @@ instructions:
 
 		// Push the field
 		PUSH(instance->fields[index]);
+		goto instructions;
+	}
+
+	// Push the receiver of the current function's stack frame,
+	// triggering an error if it's nil (meaning we're not in a
+	// method and we're using `self` illegally).
+	case CODE_PUSH_RECEIVER: {
+		uint64_t receiver = call_stack[call_stack_size - 1].receiver;
+
+		if (IS_NIL(receiver)) {
+			// We're using `self` inside a function that isn't a
+			// method
+			error(-1, "Attempt to use `self` in non-method");
+		}
+
+		PUSH(receiver);
 		goto instructions;
 	}
 
@@ -646,30 +679,26 @@ instructions:
 		// The function we're trying to call is placed
 		// underneath the arguments we're passing to it, so we
 		// can't just access the top element in the stack.
+		//
+		// This function which was pushed underneath the
+		// arguments is popped upon the CODE_RETURN instruction
+		// at the end of the function.
 		uint64_t value = stack[stack_size - arity - 1];
 
-		if (IS_FUNCTION(value)) {
+		if (IS_METHOD(value)) {
+			Method *method = VALUE_TO_METHOD(value);
+			Function *fn = &vm->functions[method->function_index];
+			assert_arity(arity, fn->arity);
+			PUSH_FRAME(fn, ptr_to_value(method->instance));
+		} else if (IS_FUNCTION(value)) {
 			uint16_t index = VALUE_TO_FUNCTION(value);
 			Function *fn = &vm->functions[index];
-
-			if (fn->arity != arity) {
-				// Incorrect number of arguments
-				error(-1, "Attempt to call function with incorrect number"
-					"of arguments (have %d, expected %d)", arity, fn->arity);
-			}
-
-			PUSH_FRAME(fn);
+			assert_arity(arity, fn->arity);
+			PUSH_FRAME(fn, NIL_VALUE);
 		} else if (IS_NATIVE(value)) {
 			uint16_t index = VALUE_TO_NATIVE(value);
 			Native *native = &vm->natives[index];
-
-			if (native->arity != arity) {
-				// Incorrect number of arguments
-				error(-1, "Attempt to call function `%s` with incorrect "
-					"number of arguments (have %d, expected %d)", native->name,
-					arity, native->arity);
-			}
-
+			assert_arity(arity, native->arity);
 			native->fn(stack, &stack_size);
 
 			// Save the return value from native function and
@@ -707,14 +736,32 @@ instructions:
 		uint16_t index = READ_2_BYTES();
 		ClassDefinition *definition = &vm->class_definitions[index];
 
-		size_t size = sizeof(ClassInstance) + definition->field_count *
-			sizeof(uint64_t);
+		// Create the instance on the heap
+		size_t size = definition->field_count * sizeof(uint64_t) +
+			sizeof(ClassInstance);
 		ClassInstance *instance = malloc(size);
+
+		// Set the instance's definition
 		instance->definition = definition;
 
-		// Nil-ify all of the instance's fields
+		// Set the instance's methods list
+		for (int i = 0; i < definition->method_count; i++) {
+			Method *method = &instance->methods[i];
+			method->function_index = definition->methods[i].function_index;
+			method->instance = instance;
+		}
+
+		// Set each of the instance's fields
 		for (int i = 0; i < definition->field_count; i++) {
-			instance->fields[i] = NIL_VALUE;
+			int method_index = definition->fields[i].method_index;
+			if (method_index != -1) {
+				// The field is a method
+				Method *method = &instance->methods[method_index];
+				instance->fields[i] = METHOD_TO_VALUE(method);
+			} else {
+				// Just set the field to nil
+				instance->fields[i] = NIL_VALUE;
+			}
 		}
 
 		// Push the class

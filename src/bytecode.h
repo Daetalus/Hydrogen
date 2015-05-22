@@ -133,6 +133,13 @@ typedef enum {
 	//   push.
 	CODE_PUSH_FIELD,
 
+	// Pushes the receiver (`self`) for a method onto the top of
+	// the stack.
+	//
+	// Arguments:
+	// None
+	CODE_PUSH_RECEIVER,
+
 	// Pops an item off the top of the stack.
 	//
 	// Arguments:

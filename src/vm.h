@@ -38,8 +38,11 @@
 // The maximum number of class definitions that can be created.
 #define MAX_CLASSES 65535
 
-// The maximum number of fields that can be defined in a class.
-#define MAX_FIELDS 128
+// The maximum number of fields that can be defined on a class.
+#define MAX_FIELDS 256
+
+// The maximum number of methods that can be defined on a class.
+#define MAX_METHODS 128
 
 
 // A struct storing a string with an associated length, rather
@@ -151,9 +154,30 @@ typedef struct {
 	// The length of the name string.
 	int length;
 
-	// True if this field is a method defined on the class.
-	bool is_method;
+	// If this field represents a method, this is set to the
+	// index of the method in the class' methods list, or to -1
+	// otherwise.
+	int method_index;
 } Field;
+
+
+// A method in a class instance and definition.
+typedef struct {
+	// A pointer to the class instance this method belongs to.
+	//
+	// Don't use the typedef'ed value because the struct hasn't
+	// been defined yet, and C allows pointers to forward
+	// declared structs.
+	//
+	// This is set to NULL when this struct is used in a method
+	// definition, and only set at runtime when a class is
+	// instantiated.
+	struct class_instance *instance;
+
+	// The index of the method's function in the VM's functions
+	// list.
+	int function_index;
+} Method;
 
 
 // A class definition, constructed during compilation.
@@ -164,17 +188,25 @@ typedef struct {
 	// The length of the class' name.
 	int length;
 
-	// A list of all fields defined by the class.
+	// A list of methods defined on this class.
+	Method methods[MAX_METHODS];
+	int method_count;
+
+	// A list of all fields defined on the class.
 	Field fields[MAX_FIELDS];
 	int field_count;
 } ClassDefinition;
 
 
 // An instance of a class, heap allocated during runtime.
-typedef struct {
+typedef struct class_instance {
 	// A pointer to the definition that this object is an
 	// instance of.
 	ClassDefinition *definition;
+
+	// A list of all methods defined on this class, which method
+	// fields point to.
+	Method methods[MAX_METHODS];
 
 	// The fields for this class, indexed in the same order as
 	// the `fields` list defined in the class definition.

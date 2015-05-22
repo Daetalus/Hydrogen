@@ -29,3 +29,5 @@ To Do
 * Heap allocate runtime call stack to raise stack overflow limit
 * Short circuiting boolean operators
 * Replace call native with each of the binary operators as bytecode instructions
+* Trigger compile time error for accessing self in functions which aren't defined as methods
+* Trigger compile time error for accessing fields on self that don't exist

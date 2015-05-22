@@ -473,6 +473,7 @@ Token lexer_next(Lexer *lexer) {
 		KEYWORD("class", TOKEN_CLASS);
 		KEYWORD("new", TOKEN_NEW);
 
+		KEYWORD("self", TOKEN_SELF);
 		KEYWORD("true", TOKEN_TRUE);
 		KEYWORD("false", TOKEN_FALSE);
 		KEYWORD("nil", TOKEN_NIL);

@@ -140,10 +140,10 @@ typedef struct compiler {
 	Loop *loops[MAX_LOOP_DEPTH];
 	int loop_count;
 
-	// True if the function being compiled uses an explicit
-	// return statement, and we don't need to add an implicit
-	// one.
-	bool explicit_return_statement;
+	// If we're compiling a method, this is a pointer to the
+	// class definition the method will be defined on, or NULL
+	// if we're not compiling a method.
+	ClassDefinition *method_class_definition;
 } Compiler;
 
 
@@ -151,10 +151,15 @@ typedef struct compiler {
 // virtual machine `vm` as input. Outputs bytecode directly into
 // `fn`'s bytecode array.
 //
+// If this compiler is compiling a method on a class,
+// `method_class_definition` is a pointer to the class
+// definition on which the method will be defined. NULL if we're
+// not compiling a method.
+//
 // Stops compiling when `terminator` is found, or end of file is
 // reached.
 void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
-	TokenType terminator);
+	TokenType terminator, ClassDefinition *method_class_definition);
 
 // Parses the arguments list for `fn`. Expects the lexer's
 // cursor to be on the opening parenthesis of the arguments

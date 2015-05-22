@@ -163,6 +163,7 @@ void operand_false(Expression *expression);
 void operand_nil(Expression *expression);
 void operand_function(Expression *expression);
 void operand_class(Expression *expression);
+void operand_self(Expression *expression);
 
 // Custom infix operators.
 void infix_field_access(Expression *expression);
@@ -330,6 +331,8 @@ Rule rules[] = {
 	{1, {OPERAND(operand_function)}},
 	// Return
 	UNUSED(),
+	// Self
+	{1, {OPERAND(operand_self)}},
 
 	// True
 	{1, {OPERAND(operand_true)}},
@@ -428,12 +431,13 @@ void parse_precedence(Expression *expression, Precedence precedence) {
 	while (precedence < infix.precedence) {
 		// Compile an infix operator
 		infix_operator(expression, infix);
-		expression->is_only_function_call = false;
 
 		// Fetch the next operator
 		if (!next_infix(expression, &infix)) {
 			break;
 		}
+
+		expression->is_only_function_call = false;
 	}
 }
 
@@ -546,14 +550,14 @@ void infix_operator(Expression *expression, InfixOperator infix) {
 	Lexer *lexer = &expression->compiler->vm->lexer;
 	Bytecode *bytecode = &expression->compiler->fn->bytecode;
 
-	// Determine precedence level
-	Precedence precedence = infix.precedence;
-	if (infix.associativity == ASSOC_RIGHT) {
-		precedence--;
-	}
-
 	// Emit the native call for this operator
 	if (infix.type == INFIX_OPERATOR_NATIVE) {
+		// Determine precedence level
+		Precedence precedence = infix.precedence;
+		if (infix.associativity == ASSOC_RIGHT) {
+			precedence--;
+		}
+
 		// Consume the operator token
 		lexer_consume(lexer);
 
@@ -633,6 +637,9 @@ void infix_field_access(Expression *expression) {
 	// Assume the class we're pushing the field of has already
 	// been pushed onto the stack
 	emit_push_field(bytecode, name.location, name.length);
+
+	// Check for a postfix operator (a function call)
+	postfix_operator(expression);
 }
 
 
@@ -775,7 +782,7 @@ void operand_function(Expression *expression) {
 	// Compile the function's block
 	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
 	lexer_enable_newlines(lexer);
-	compile(vm, expression->compiler, fn, TOKEN_CLOSE_BRACE);
+	compile(vm, expression->compiler, fn, TOKEN_CLOSE_BRACE, NULL);
 
 	// Expect a closing brace after the function's block
 	expect(lexer, TOKEN_CLOSE_BRACE,
@@ -825,6 +832,26 @@ void operand_class(Expression *expression) {
 	lexer_enable_newlines(lexer);
 
 	// TODO emit call to constructor
+}
+
+
+// Compile the self operand by simply emitting a push receiver
+// instruction.
+void operand_self(Expression *expression) {
+	Lexer *lexer = &expression->compiler->vm->lexer;
+	Bytecode *bytecode = &expression->compiler->fn->bytecode;
+
+	if (expression->compiler->method_class_definition == NULL) {
+		// We're using self outside of a method, so trigger an
+		// error.
+		error(lexer->line, "Attempt to use `self` in non-method");
+	}
+
+	// Consume the self keyword
+	lexer_consume(lexer);
+
+	// Emit the push receiver instruction
+	emit(bytecode, CODE_PUSH_RECEIVER);
 }
 
 

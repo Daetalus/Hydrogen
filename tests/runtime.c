@@ -82,6 +82,13 @@ char *files[] = {
 
 	"classes/1.hy",
 	"classes/2.hy",
+	"classes/3.hy",
+
+	"methods/1.hy",
+	"methods/2.hy",
+	"methods/3.hy",
+	"methods/4.hy",
+	"methods/5.hy",
 };
 
 

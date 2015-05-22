@@ -125,7 +125,6 @@
 	compiler.local_count = 0;                                \
 	compiler.scope_depth = 0;                                \
 	compiler.loop_count = 0;                                 \
-	compiler.explicit_return_statement = false;              \
 	Expression expression = expression_new(&compiler, NULL); \
 	expression_compile(&expression);                         \
 	uint8_t *ip = &bytecode->instructions[0];

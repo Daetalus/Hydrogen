@@ -356,7 +356,6 @@ struct Class {
 * Encounter `PUSH_FIELD` instruction (during execution)
 	* Get index of
 	* Pop off top of stack (the receiver)
-	*
 
 * Method call and dot operator need to be recursive (to handle levels of indirection, ie. thing.position.x, and (fn(a, b) {io.println(a, b)})(1, 2))
 
@@ -368,6 +367,36 @@ struct Class {
 
 * New expression operators:
 	* `(` acts as an operand and as a operator
+
+
+### Class Methods
+
+typedef struct {
+	ClassInstance *instance;
+	int function_index;
+} Method;
+
+* Methods are a simply pointers with an extra identifying bit
+* Class instances store an array of Method structs
+* When a class is instantiated, the class' Method structs are populated from the class' definition
+	* All instance pointers for every struct is set to reference the new class instance
+* Methods point to a Method struct inside the instance of the class their defined on
+
+
+Defining Method
+* Create a new method struct on the class definition with the class instance as NULL and the function index as the index of the compiled function
+* Create a new field on the class definition with the name of the method
+* Set the field's method index to the method's index
+
+Class Instantiation
+* Allocate a new class instance
+* Set its definition pointer
+* Loop over each of the methods in the class definition, copying across the function index and setting the instance pointer to the class instance
+* Loop over each of the fields in the class definition, setting the field to a method pointer (pointing to the method in the instance's methods list) if the field is a method, or to nil otherwise
+
+Calling Method
+* Convert the value we're calling back into a pointer to a Method struct
+* Call the function at the method's function index, setting its receiver to be the `instance` pointer in Method struct
 
 ## Garbage Collection
 
