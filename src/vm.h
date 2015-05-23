@@ -313,6 +313,10 @@ int vm_new_class_definition(VirtualMachine *vm, ClassDefinition **definition);
 // class with that name if found.
 int vm_find_class(VirtualMachine *vm, char *name, int length);
 
+// Returns true if the class definition has a method named
+// `name`.
+bool class_has_method(ClassDefinition *definition, char *name, int length);
+
 
 // Create a new string literal, returning a pointer to it and
 // its index in the literals list.

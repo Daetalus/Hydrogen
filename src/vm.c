@@ -97,7 +97,7 @@ void vm_compile(VirtualMachine *vm) {
 
 	// Compile the source code into the function's
 	// bytecode array.
-	compile(vm, NULL, fn, TOKEN_END_OF_FILE, NULL);
+	compile(vm, NULL, fn, TOKEN_END_OF_FILE, NULL, false);
 }
 
 
@@ -287,6 +287,22 @@ int find_class_field(ClassInstance *instance, char *name, int length) {
 	}
 
 	return -1;
+}
+
+
+// Returns true if the class definition has a method named
+// `name`.
+bool class_has_method(ClassDefinition *definition, char *name, int length) {
+	for (int i = 0; i < definition->field_count; i++) {
+		Field *field = &definition->fields[i];
+
+		if (field->method_index != -1 && field->length == length &&
+				strncmp(field->name, name, length) == 0) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 

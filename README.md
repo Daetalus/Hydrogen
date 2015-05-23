@@ -70,7 +70,7 @@ io.println(fib(5))
 Fibonacci with iterators:
 
 ```rust
-fn fib_iter(max) {
+fn fib() {
 	let current = 1
 	let previous = 1
 
@@ -82,8 +82,8 @@ fn fib_iter(max) {
 	}
 }
 
-for fib in iter.take(fib_iter(10), 10) {
-	io.println("The next fibonacci number is", fib)
+for i in iter.take(fib(), 10) {
+	io.println("The next fibonacci number is", i)
 }
 ```
 

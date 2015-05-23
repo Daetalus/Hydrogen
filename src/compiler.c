@@ -81,10 +81,14 @@ void emit_store_function(Bytecode *bytecode, int fn_index, int local_index);
 // definition on which the method will be defined. NULL if we're
 // not compiling a method.
 //
+// If this is a constructor for a class, `is_constructor` should
+// be set to true. This will ensure the method returns `self`.
+//
 // Stops compiling when `terminator` is found, or end of file is
 // reached.
 void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
-		TokenType terminator, ClassDefinition *method_class_definition) {
+		TokenType terminator, ClassDefinition *method_class_definition,
+		bool is_constructor) {
 	// Create a compiler for this function.
 	Compiler compiler;
 	compiler.vm = vm;
@@ -94,6 +98,7 @@ void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
 	compiler.scope_depth = 0;
 	compiler.loop_count = 0;
 	compiler.method_class_definition = method_class_definition;
+	compiler.is_constructor = is_constructor;
 
 	// Push the function's arguments as locals
 	for (int i = 0; i < fn->arity; i++) {
@@ -112,11 +117,18 @@ void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
 		statement(&compiler);
 	}
 
+	// Close any locals that were used as upvalues
+	close_captured_locals(&compiler);
+
 	// Insert a final return instruction, pushing nil as the
 	// return value.
-	close_captured_locals(&compiler);
 	Bytecode *bytecode = &compiler.fn->bytecode;
-	emit(bytecode, CODE_PUSH_NIL);
+	if (compiler.is_constructor) {
+		// Return self if we're compiling a constructor
+		emit(bytecode, CODE_PUSH_RECEIVER);
+	} else {
+		emit(bytecode, CODE_PUSH_NIL);
+	}
 	emit(bytecode, CODE_RETURN);
 }
 
@@ -924,10 +936,23 @@ void function_definition(Compiler *compiler) {
 		}
 	}
 
-	// Expect the function name identifier
+	// Expect the function name identifier or the `new` keyword
+	// for creating a constructor
 	lexer_disable_newlines(lexer);
-	Token name = expect(lexer, TOKEN_IDENTIFIER,
-		"Expected identifier after `fn` keyword");
+	Token name;
+	if (lexer_match(lexer, TOKEN_IDENTIFIER)) {
+		name = lexer_consume(lexer);
+	} else if (lexer_match(lexer, TOKEN_NEW)) {
+		if (definition == NULL) {
+			// Only allow constructors on classes
+			error(lexer->line, "Unexpected keyword `new`. Constructors can "
+				"only be created as methods on classes");
+		}
+
+		name = lexer_consume(lexer);
+	} else {
+		error(lexer->line, "Expected identifier after `fn` keyword");
+	}
 
 	// Check that a method with this name isn't already defined
 	// on the class, if we're defining a method
@@ -938,9 +963,8 @@ void function_definition(Compiler *compiler) {
 
 			// If we've found a field that is a method and has a
 			// matching name
-			if (field->length == name.length &&
-					strncmp(field->name, name.location, name.length) == 0 &&
-					field->method_index != -1) {
+			if (field->method_index != -1 && field->length == name.length &&
+					strncmp(field->name, name.location, name.length) == 0) {
 				// Trigger an error
 				error(lexer->line,
 					"Method `%.*s` is already defined on class `%.*s`",
@@ -990,9 +1014,11 @@ void function_definition(Compiler *compiler) {
 	expect(lexer, TOKEN_OPEN_BRACE, "Expected `{` to begin function block");
 
 	// Compile the function
+	bool is_constructor = name.type == TOKEN_NEW;
 	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
 	lexer_enable_newlines(lexer);
-	compile(compiler->vm, compiler, fn, TOKEN_CLOSE_BRACE, definition);
+	compile(compiler->vm, compiler, fn, TOKEN_CLOSE_BRACE, definition,
+		is_constructor);
 
 	// Expect a closing brace to close the function's block
 	expect(lexer, TOKEN_CLOSE_BRACE, "Expected `}` to close function block");
@@ -1076,16 +1102,30 @@ void return_statement(Compiler *compiler) {
 	lexer_consume(lexer);
 
 	// Check for an expression to return
-	if (lexer_match(lexer, TOKEN_LINE)) {
-		// Implicitly returning nil
-		emit(bytecode, CODE_PUSH_NIL);
+	if (compiler->is_constructor) {
+		if (lexer_match(lexer, TOKEN_LINE)) {
+			// A valid return statement for a constructor
+			// We must return self from a constructor, so push
+			// the receiver
+			emit(bytecode, CODE_PUSH_RECEIVER);
+		} else {
+			// Attempting to return an expression from a
+			// constructor
+			error(lexer->line, "Unexpected expression after `return`. "
+				"Cannot return values from constructors");
+		}
 	} else {
-		// Return an expression terminated by a newline
-		Expression expression = expression_new(compiler, NULL);
-		expression_compile(&expression);
+		if (lexer_match(lexer, TOKEN_LINE)) {
+			// No expression, so return nil
+			emit(bytecode, CODE_PUSH_NIL);
+		} else {
+			// Compile an expression
+			Expression expression = expression_new(compiler, NULL);
+			expression_compile(&expression);
+		}
 	}
 
-	// Close any upvalues
+	// Close any locals captured as upvalues
 	close_captured_locals(compiler);
 
 	emit(bytecode, CODE_RETURN);

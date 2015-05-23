@@ -168,6 +168,14 @@ void operand_self(Expression *expression);
 // Custom infix operators.
 void infix_field_access(Expression *expression);
 
+// Compiles a set of function call arguments as expressions
+// separated by commas. Expects the compiler to start on an
+// opening parenthesis, and consumes a closing parenthesis after
+// the arguments list.
+//
+// Returns the number of arguments compiled.
+int function_call_arguments(Compiler *compiler);
+
 // Postfix operators.
 void postfix_function_call(Expression *expression);
 
@@ -782,7 +790,7 @@ void operand_function(Expression *expression) {
 	// Compile the function's block
 	fn->bytecode = bytecode_new(DEFAULT_INSTRUCTIONS_CAPACITY);
 	lexer_enable_newlines(lexer);
-	compile(vm, expression->compiler, fn, TOKEN_CLOSE_BRACE, NULL);
+	compile(vm, expression->compiler, fn, TOKEN_CLOSE_BRACE, NULL, false);
 
 	// Expect a closing brace after the function's block
 	expect(lexer, TOKEN_CLOSE_BRACE,
@@ -821,17 +829,31 @@ void operand_class(Expression *expression) {
 	emit(bytecode, CODE_INSTANTIATE_CLASS);
 	emit_arg_2(bytecode, index);
 
-	// Expect an opening and closing parenthesis, where the
-	// arguments to the constructor call would normally go.
-	//
-	// This must go on the same line as the class name like all
-	// other function calls.
-	lexer_disable_newlines(lexer);
-	expect(lexer, TOKEN_OPEN_PARENTHESIS, "Expected `()` after class name");
-	expect(lexer, TOKEN_CLOSE_PARENTHESIS, "Expected `()` after class name");
-	lexer_enable_newlines(lexer);
+	// Check if a constructor exists
+	ClassDefinition *definition = &vm->class_definitions[index];
+	if (class_has_method(definition, "new", 3)) {
+		// Push the constructor field. The class will already be
+		// on the top of the stack after the instantiate class
+		// instruction
+		emit_push_field(bytecode, "new", 3);
 
-	// TODO emit call to constructor
+		// Emit a call to the constructor. The constructor will
+		// return the class instance so the instance will remain
+		// on the top of the stack after this
+		int arity = function_call_arguments(expression->compiler);
+		emit_call(bytecode, arity);
+	} else {
+		// Since there's no constructor, expect an empty
+		// arguments list `()`
+		lexer_disable_newlines(lexer);
+		expect(lexer, TOKEN_OPEN_PARENTHESIS,
+			"Expected `()` after class name in class instantiation, as class "
+			"`%.*s` has no constructor", name.length, name.location);
+		expect(lexer, TOKEN_CLOSE_PARENTHESIS,
+			"Expected `()` after class name in class instantiation, as class "
+			"`%.*s` has no constructor", name.length, name.location);
+		lexer_enable_newlines(lexer);
+	}
 }
 
 
@@ -913,11 +935,12 @@ int function_call_arguments(Compiler *compiler) {
 
 // Compile a postfix function call.
 void postfix_function_call(Expression *expression) {
+	Bytecode *bytecode = &expression->compiler->fn->bytecode;
+
 	// Push the function call arguments onto the stack
 	int arity = function_call_arguments(expression->compiler);
 
 	// Push a call to the function
-	Bytecode *bytecode = &expression->compiler->fn->bytecode;
 	emit_call(bytecode, arity);
 
 	expression->is_only_function_call = true;

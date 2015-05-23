@@ -144,6 +144,10 @@ typedef struct compiler {
 	// class definition the method will be defined on, or NULL
 	// if we're not compiling a method.
 	ClassDefinition *method_class_definition;
+
+	// Set to true if this we're compiling a constructor for a
+	// class.
+	bool is_constructor;
 } Compiler;
 
 
@@ -156,10 +160,14 @@ typedef struct compiler {
 // definition on which the method will be defined. NULL if we're
 // not compiling a method.
 //
+// If this is a constructor for a class, `is_constructor` should
+// be set to true. This will ensure the method returns `self`.
+//
 // Stops compiling when `terminator` is found, or end of file is
 // reached.
 void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
-	TokenType terminator, ClassDefinition *method_class_definition);
+	TokenType terminator, ClassDefinition *method_class_definition,
+	bool is_constructor);
 
 // Parses the arguments list for `fn`. Expects the lexer's
 // cursor to be on the opening parenthesis of the arguments
