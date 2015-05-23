@@ -82,7 +82,7 @@ fn fib_iter(max) {
 	}
 }
 
-for fib in iter.only(fib_iter(10), 10) {
+for fib in iter.take(fib_iter(10), 10) {
 	io.println("The next fibonacci number is", fib)
 }
 ```

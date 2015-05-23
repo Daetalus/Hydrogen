@@ -898,7 +898,7 @@ void function_definition(Compiler *compiler) {
 
 		// Expect an identifier - the name of the class
 		Token class = expect(lexer, TOKEN_IDENTIFIER,
-			"Expected identifier for method's class name after `(`");
+			"Expected class name after `(` in method definition");
 
 		// Expect a closing parenthesis
 		expect(lexer, TOKEN_CLOSE_PARENTHESIS,
@@ -928,6 +928,27 @@ void function_definition(Compiler *compiler) {
 	lexer_disable_newlines(lexer);
 	Token name = expect(lexer, TOKEN_IDENTIFIER,
 		"Expected identifier after `fn` keyword");
+
+	// Check that a method with this name isn't already defined
+	// on the class, if we're defining a method
+	if (definition != NULL) {
+		// Iterate over the class' fields
+		for (int i = 0; i < definition->field_count; i++) {
+			Field *field = &definition->fields[i];
+
+			// If we've found a field that is a method and has a
+			// matching name
+			if (field->length == name.length &&
+					strncmp(field->name, name.location, name.length) == 0 &&
+					field->method_index != -1) {
+				// Trigger an error
+				error(lexer->line,
+					"Method `%.*s` is already defined on class `%.*s`",
+					name.length, name.location, definition->length,
+					definition->name);
+			}
+		}
+	}
 
 	// Define the function on the virtual machine
 	Function *fn;
