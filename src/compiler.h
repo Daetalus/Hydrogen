@@ -141,12 +141,12 @@ typedef struct compiler {
 	int loop_count;
 
 	// If we're compiling a method, this is a pointer to the
-	// class definition the method will be defined on, or NULL
+	// struct definition the method will be defined on, or NULL
 	// if we're not compiling a method.
-	ClassDefinition *method_class_definition;
+	StructDefinition *struct_definition;
 
 	// Set to true if this we're compiling a constructor for a
-	// class.
+	// struct.
 	bool is_constructor;
 } Compiler;
 
@@ -155,18 +155,18 @@ typedef struct compiler {
 // virtual machine `vm` as input. Outputs bytecode directly into
 // `fn`'s bytecode array.
 //
-// If this compiler is compiling a method on a class,
-// `method_class_definition` is a pointer to the class
-// definition on which the method will be defined. NULL if we're
-// not compiling a method.
+// If this compiler is compiling a method on a struct,
+// `struct_definition` is a pointer to the struct definition on
+// which the method will be defined. NULL if we're not compiling
+// a method.
 //
-// If this is a constructor for a class, `is_constructor` should
+// If this is a constructor for a struct, `is_constructor` should
 // be set to true. This will ensure the method returns `self`.
 //
 // Stops compiling when `terminator` is found, or end of file is
 // reached.
 void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
-	TokenType terminator, ClassDefinition *method_class_definition,
+	TokenType terminator, StructDefinition *struct_definition,
 	bool is_constructor);
 
 // Parses the arguments list for `fn`. Expects the lexer's

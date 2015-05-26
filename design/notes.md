@@ -222,7 +222,7 @@ struct Field {
 	int length;
 }
 
-struct ClassDefinition {
+struct StructDefinition {
 	char *name;
 	int length;
 
@@ -242,7 +242,7 @@ struct ClassDefinition {
 
 struct Class {
 	// Pointer to the class' definition.
-	ClassDefinition *definition;
+	StructDefinition *definition;
 
 	// Values of each of the class's fields
 	uint64_t fields[0];
@@ -372,7 +372,7 @@ struct Class {
 ### Class Methods
 
 typedef struct {
-	ClassInstance *instance;
+	StructInstance *instance;
 	int function_index;
 } Method;
 

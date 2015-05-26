@@ -190,8 +190,8 @@ void emit_call_native(Bytecode *bytecode, void *fn) {
 }
 
 
-// Emits bytecode to push a field of the class on the top of the
-// stack.
+// Emits bytecode to push a field of the struct on the top of
+// the stack.
 void emit_push_field(Bytecode *bytecode, char *name, int length) {
 	emit(bytecode, CODE_PUSH_FIELD);
 	emit_arg_2(bytecode, length);
@@ -200,8 +200,8 @@ void emit_push_field(Bytecode *bytecode, char *name, int length) {
 
 
 // Emits bytecode to store the value on the top of the stack
-// into the field named `name` of the class just below the value
-// on the stack.
+// into the field named `name` of the struct just below the
+// value on the stack.
 void emit_store_field(Bytecode *bytecode, char *name, int length) {
 	emit(bytecode, CODE_STORE_FIELD);
 	emit_arg_2(bytecode, length);

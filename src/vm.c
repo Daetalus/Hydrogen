@@ -60,10 +60,10 @@ VirtualMachine vm_new(char *source) {
 	vm.upvalue_capacity = 128;
 	vm.upvalues = malloc(vm.upvalue_capacity * sizeof(Upvalue));
 
-	vm.class_definition_count = 0;
-	vm.class_definition_capacity = 16;
-	size_t size = vm.class_definition_capacity * sizeof(ClassDefinition);
-	vm.class_definitions = malloc(size);
+	vm.struct_count = 0;
+	vm.struct_capacity = 16;
+	size_t size = vm.struct_capacity * sizeof(StructDefinition);
+	vm.structs = malloc(size);
 
 	return vm;
 }
@@ -221,32 +221,32 @@ int vm_find_native(VirtualMachine *vm, char *name, int length) {
 
 
 //
-//  Classes
+//  Structs
 //
 
-// Create a new class definition, returning its index in the
-// VM's class definitions list.
-int vm_new_class_definition(VirtualMachine *vm, ClassDefinition **definition) {
-	int index = vm->class_definition_count;
-	vm->class_definition_count++;
+// Create a new struct, returning its index in the VM's struct
+// list.
+int vm_new_struct(VirtualMachine *vm, StructDefinition **definition) {
+	int index = vm->struct_count;
+	vm->struct_count++;
 
 	// Check we haven't exceeded the hard limit on the number of
-	// class definitions we can have
-	if (vm->class_definition_count > MAX_CLASSES) {
-		error(-1, "Cannot define more than %d classes", MAX_CLASSES);
+	// struct definitions we can have
+	if (vm->struct_count > MAX_STRUCTS) {
+		error(-1, "Cannot define more than %d structs", MAX_STRUCTS);
 	}
 
-	// If the number of classes we've defined exceeds the
+	// If the number of structs we've defined exceeds the
 	// array's capacity, then reallocate the array.
-	if (vm->class_definition_count > vm->class_definition_capacity) {
-		vm->class_definition_capacity *= 2;
+	if (vm->struct_count > vm->struct_capacity) {
+		vm->struct_capacity *= 2;
 
-		size_t new_size = vm->class_definition_capacity *
-			sizeof(ClassDefinition);
-		vm->class_definitions = realloc(vm->class_definitions, new_size);
+		size_t new_size = vm->struct_capacity *
+			sizeof(StructDefinition);
+		vm->structs = realloc(vm->structs, new_size);
 	}
 
-	*definition = &vm->class_definitions[index];
+	*definition = &vm->structs[index];
 	(*definition)->name = NULL;
 	(*definition)->length = 0;
 	(*definition)->field_count = 0;
@@ -256,15 +256,15 @@ int vm_new_class_definition(VirtualMachine *vm, ClassDefinition **definition) {
 }
 
 
-// Returns the index of the class named `name`, or -1 if no
-// class with that name if found.
-int vm_find_class(VirtualMachine *vm, char *name, int length) {
-	for (int i = 0; i < vm->class_definition_count; i++) {
-		ClassDefinition *definition = &vm->class_definitions[i];
+// Returns the index of the struct named `name`, or -1 if no
+// struct with that name if found.
+int vm_find_struct(VirtualMachine *vm, char *name, int length) {
+	for (int i = 0; i < vm->struct_count; i++) {
+		StructDefinition *definition = &vm->structs[i];
 
 		if (definition->length == length &&
 				strncmp(definition->name, name, length) == 0) {
-			// Found a matching class
+			// Found a matching struct
 			return i;
 		}
 	}
@@ -273,9 +273,9 @@ int vm_find_class(VirtualMachine *vm, char *name, int length) {
 }
 
 
-// Returns the index of a field within a class instance.
-int find_class_field(ClassInstance *instance, char *name, int length) {
-	ClassDefinition *definition = instance->definition;
+// Returns the index of a field within a struct instance.
+int find_struct_field(StructInstance *instance, char *name, int length) {
+	StructDefinition *definition = instance->definition;
 
 	for (int i = 0; i < definition->field_count; i++) {
 		Field *field = &definition->fields[i];
@@ -290,9 +290,9 @@ int find_class_field(ClassInstance *instance, char *name, int length) {
 }
 
 
-// Returns true if the class definition has a method named
+// Returns true if the struct definition has a method named
 // `name`.
-bool class_has_method(ClassDefinition *definition, char *name, int length) {
+bool struct_has_method(StructDefinition *definition, char *name, int length) {
 	for (int i = 0; i < definition->field_count; i++) {
 		Field *field = &definition->fields[i];
 
@@ -531,7 +531,7 @@ instructions:
 		goto instructions;
 	}
 
-	// Pop a class off the stack (triggering an error if it
+	// Pop a struct off the stack (triggering an error if it
 	// isn't one) and push one of its fields.
 	case CODE_PUSH_FIELD: {
 		uint16_t length = READ_2_BYTES();
@@ -541,13 +541,13 @@ instructions:
 		POP();
 
 		if (!IS_PTR(ptr)) {
-			// Not a class, so trigger an error
+			// Not a struct, so trigger an error
 			error(-1, "Attempt to access field `%.*s` of non-object",
 				length, name);
 		}
 
-		ClassInstance *instance = value_to_ptr(ptr);
-		int index = find_class_field(instance, name, length);
+		StructInstance *instance = value_to_ptr(ptr);
+		int index = find_struct_field(instance, name, length);
 		if (index == -1) {
 			// Couldn't find a field with the given name
 			error(-1, "Attempt to access missing field `%.*s` on object",
@@ -603,19 +603,19 @@ instructions:
 		uint64_t value = TOP();
 		POP();
 
-		// Pop the class to store into
+		// Pop the struct to store into
 		uint64_t ptr = TOP();
 		POP();
 
 		if (!IS_PTR(ptr)) {
 			// Trying to store into a value that isn't an
-			// instance of a class
+			// instance of a struct
 			error(-1, "Attempt to write to field `%.*s` of non-object",
 				length, name);
 		}
 
-		ClassInstance *instance = value_to_ptr(ptr);
-		int index = find_class_field(instance, name, length);
+		StructInstance *instance = value_to_ptr(ptr);
+		int index = find_struct_field(instance, name, length);
 		if (index == -1) {
 			// Field doesn't exist
 			error(-1, "Attempt to write to missing field `%.*s` on object",
@@ -746,16 +746,16 @@ instructions:
 		goto instructions;
 	}
 
-	// Instantiate a new instance of a class and push it onto
+	// Instantiate a new instance of a struct and push it onto
 	// the stack.
-	case CODE_INSTANTIATE_CLASS: {
+	case CODE_INSTANTIATE_STRUCT: {
 		uint16_t index = READ_2_BYTES();
-		ClassDefinition *definition = &vm->class_definitions[index];
+		StructDefinition *definition = &vm->structs[index];
 
 		// Create the instance on the heap
 		size_t size = definition->field_count * sizeof(uint64_t) +
-			sizeof(ClassInstance);
-		ClassInstance *instance = malloc(size);
+			sizeof(StructInstance);
+		StructInstance *instance = malloc(size);
 
 		// Set the instance's definition
 		instance->definition = definition;
@@ -780,7 +780,7 @@ instructions:
 			}
 		}
 
-		// Push the class
+		// Push the struct
 		PUSH(ptr_to_value(instance));
 		goto instructions;
 	}

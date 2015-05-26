@@ -38,7 +38,7 @@ void break_statement(Compiler *compiler);
 void function_definition(Compiler *compiler);
 void expression_statement(Compiler *compiler);
 void return_statement(Compiler *compiler);
-void class_definition(Compiler *compiler);
+void struct_definition(Compiler *compiler);
 
 // Returns true if the lexer matches a variable assignment.
 // Matches an identifier, followed by an assignment operator, or
@@ -76,18 +76,19 @@ void emit_store_function(Bytecode *bytecode, int fn_index, int local_index);
 // virtual machine `vm` as input. Outputs bytecode directly into
 // `fn`'s bytecode array.
 //
-// If this compiler is compiling a method on a class,
-// `method_class_definition` is a pointer to the class
-// definition on which the method will be defined. NULL if we're
-// not compiling a method.
+// If this compiler is compiling a method on a struct,
+// `method_struct` is a pointer to the struct definition on
+// which the method will be defined. NULL if we're not compiling
+// a method.
 //
-// If this is a constructor for a class, `is_constructor` should
-// be set to true. This will ensure the method returns `self`.
+// If this is a constructor for a struct, `is_constructor`
+// should be set to true. This will ensure the method returns
+// `self`.
 //
 // Stops compiling when `terminator` is found, or end of file is
 // reached.
 void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
-		TokenType terminator, ClassDefinition *method_class_definition,
+		TokenType terminator, StructDefinition *struct_definition,
 		bool is_constructor) {
 	// Create a compiler for this function.
 	Compiler compiler;
@@ -97,7 +98,7 @@ void compile(VirtualMachine *vm, Compiler *parent, Function *fn,
 	compiler.local_count = 0;
 	compiler.scope_depth = 0;
 	compiler.loop_count = 0;
-	compiler.method_class_definition = method_class_definition;
+	compiler.struct_definition = struct_definition;
 	compiler.is_constructor = is_constructor;
 
 	// Push the function's arguments as locals
@@ -201,9 +202,9 @@ void statement(Compiler *compiler) {
 		return_statement(compiler);
 		break;
 
-	// Compile a class definition
-	case TOKEN_CLASS:
-		class_definition(compiler);
+	// Compile a struct definition
+	case TOKEN_STRUCT:
+		struct_definition(compiler);
 		break;
 
 	default:
@@ -344,7 +345,7 @@ void field_assignment(Compiler *compiler, Token left_token) {
 				left_token.location);
 		}
 
-		// Push the class we're accessing a field of
+		// Push the struct we're accessing a field of
 		emit_push_variable(bytecode, &left);
 	} else {
 		// Accessing a field on self
@@ -902,37 +903,37 @@ void function_definition(Compiler *compiler) {
 	// Consume the function keyword
 	lexer_consume(lexer);
 
-	// Check if its a method definition on a class
-	ClassDefinition *definition = NULL;
+	// Check if its a method definition on a struct
+	StructDefinition *definition = NULL;
 	if (lexer_match(lexer, TOKEN_OPEN_PARENTHESIS)) {
 		// Consume the open parenthesis
 		lexer_consume(lexer);
 
-		// Expect an identifier - the name of the class
-		Token class = expect(lexer, TOKEN_IDENTIFIER,
-			"Expected class name after `(` in method definition");
+		// Expect an identifier - the name of the struct
+		Token name = expect(lexer, TOKEN_IDENTIFIER,
+			"Expected struct name after `(` in method definition");
 
 		// Expect a closing parenthesis
 		expect(lexer, TOKEN_CLOSE_PARENTHESIS,
-			"Expected `)` after class name in method definition");
+			"Expected `)` after struct name in method definition");
 
-		// Check the class name exists
-		for (int i = 0; i < vm->class_definition_count; i++) {
-			ClassDefinition *potential = &vm->class_definitions[i];
-			if (potential->length == class.length &&
-					strncmp(potential->name, class.location,
-					class.length) == 0) {
-				// Found the class
+		// Check the struct name exists
+		for (int i = 0; i < vm->struct_count; i++) {
+			StructDefinition *potential = &vm->structs[i];
+			if (potential->length == name.length &&
+					strncmp(potential->name, name.location,
+					name.length) == 0) {
+				// Found the struct
 				definition = potential;
 				break;
 			}
 		}
 
 		if (definition == NULL) {
-			// Undefined class
+			// Undefined struct
 			error(lexer->line,
-				"Attempting to define method on undefined class `%.*s`",
-				class.length, class.location);
+				"Attempting to define method on undefined struct `%.*s`",
+				name.length, name.location);
 		}
 	}
 
@@ -944,9 +945,9 @@ void function_definition(Compiler *compiler) {
 		name = lexer_consume(lexer);
 	} else if (lexer_match(lexer, TOKEN_NEW)) {
 		if (definition == NULL) {
-			// Only allow constructors on classes
+			// Only allow constructors on structs
 			error(lexer->line, "Unexpected keyword `new`. Constructors can "
-				"only be created as methods on classes");
+				"only be created as methods on structs");
 		}
 
 		name = lexer_consume(lexer);
@@ -955,9 +956,9 @@ void function_definition(Compiler *compiler) {
 	}
 
 	// Check that a method with this name isn't already defined
-	// on the class, if we're defining a method
+	// on the struct, if we're defining a method
 	if (definition != NULL) {
-		// Iterate over the class' fields
+		// Iterate over the struct's fields
 		for (int i = 0; i < definition->field_count; i++) {
 			Field *field = &definition->fields[i];
 
@@ -967,7 +968,7 @@ void function_definition(Compiler *compiler) {
 					strncmp(field->name, name.location, name.length) == 0) {
 				// Trigger an error
 				error(lexer->line,
-					"Method `%.*s` is already defined on class `%.*s`",
+					"Method `%.*s` is already defined on struct `%.*s`",
 					name.length, name.location, definition->length,
 					definition->name);
 			}
@@ -988,13 +989,13 @@ void function_definition(Compiler *compiler) {
 	lexer_disable_newlines(lexer);
 
 	if (definition != NULL) {
-		// Add the function as a method on the class
+		// Add the function as a method on the struct
 		int method_index = definition->method_count++;
 		Method *method = &definition->methods[method_index];
 		method->function_index = fn_index;
 		method->instance = NULL;
 
-		// Add the function as a field on the class
+		// Add the function as a field on the struct
 		int field_index = definition->field_count++;
 		Field *field = &definition->fields[field_index];
 		field->name = name.location;
@@ -1134,11 +1135,11 @@ void return_statement(Compiler *compiler) {
 
 
 //
-//  Class Definitions
+//  Struct Definitions
 //
 
-// Compile a class' fields list.
-void class_field_list(Compiler *compiler, ClassDefinition *definition) {
+// Compile a struct's fields list.
+void struct_field_list(Compiler *compiler, StructDefinition *definition) {
 	Lexer *lexer = &compiler->vm->lexer;
 
 	lexer_disable_newlines(lexer);
@@ -1152,7 +1153,7 @@ void class_field_list(Compiler *compiler, ClassDefinition *definition) {
 			!lexer_match(lexer, TOKEN_END_OF_FILE)) {
 		// Expect an identifier (the name of the field)
 		Token name = expect(lexer, TOKEN_IDENTIFIER,
-			"Expected identifier in class field list");
+			"Expected identifier in struct field list");
 
 		// Ensure the field name is unique
 		for (int i = 0; i < definition->field_count; i++) {
@@ -1160,12 +1161,12 @@ void class_field_list(Compiler *compiler, ClassDefinition *definition) {
 			if (field->length == name.length &&
 					strncmp(field->name, name.location, name.length) == 0) {
 				// Found a field that's already been defined
-				error(lexer->line, "Redefinition of field `%.*s` for class",
+				error(lexer->line, "Redefinition of field `%.*s` for struct",
 					name.length, name.location);
 			}
 		}
 
-		// Add the field to the class definition
+		// Add the field to the struct definition
 		int index = definition->field_count++;
 		Field *field = &definition->fields[index];
 		field->name = name.location;
@@ -1181,42 +1182,42 @@ void class_field_list(Compiler *compiler, ClassDefinition *definition) {
 		} else {
 			// Unexpected token, so trigger an error
 			Token after = lexer_current(lexer);
-			error(lexer->line,  "Expected `,` after field name in class "
+			error(lexer->line,  "Expected `,` after field name in struct "
 				"definition, found `%.*s`", after.length, after.location);
 		}
 	}
 
 	// Expect the closing brace
 	expect(lexer, TOKEN_CLOSE_BRACE,
-		"Expected `}` to finish class definition fields list");
+		"Expected `}` to finish struct definition fields list");
 
 	lexer_enable_newlines(lexer);
 }
 
 
-// Compile a class definition.
-void class_definition(Compiler *compiler) {
+// Compile a struct definition.
+void struct_definition(Compiler *compiler) {
 	Lexer *lexer = &compiler->vm->lexer;
 
-	// Consume the class keyword
+	// Consume the struct keyword
 	lexer_consume(lexer);
 
-	// Expect an identifier (the class' name)
+	// Expect an identifier (the struct's name)
 	lexer_disable_newlines(lexer);
 	Token name = expect(lexer, TOKEN_IDENTIFIER,
-		"Expected identifier (a class name) after `class` keyword");
+		"Expected identifier (a struct name) after `struct` keyword");
 
-	// Create the class definition
-	ClassDefinition *definition;
-	vm_new_class_definition(compiler->vm, &definition);
+	// Create the struct definition
+	StructDefinition *definition;
+	vm_new_struct(compiler->vm, &definition);
 	definition->name = name.location;
 	definition->length = name.length;
 
-	// Check for the optional opening brace after the class
+	// Check for the optional opening brace after the struct
 	// name.
 	if (lexer_match(lexer, TOKEN_OPEN_BRACE)) {
 		lexer_enable_newlines(lexer);
-		class_field_list(compiler, definition);
+		struct_field_list(compiler, definition);
 	}
 }
 

@@ -80,9 +80,9 @@ char *files[] = {
 	"function_expressions/2.hy",
 	"function_expressions/3.hy",
 
-	"classes/1.hy",
-	"classes/2.hy",
-	"classes/3.hy",
+	"structs/1.hy",
+	"structs/2.hy",
+	"structs/3.hy",
 
 	"methods/1.hy",
 	"methods/2.hy",

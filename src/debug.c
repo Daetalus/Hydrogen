@@ -143,9 +143,9 @@ uint8_t * print_instruction(uint8_t *ip, long position) {
 		break;
 	}
 
-	case CODE_INSTANTIATE_CLASS: {
+	case CODE_INSTANTIATE_STRUCT: {
 		uint16_t index = READ_2_BYTES();
-		printf("%lu: instantiate class %d\n", position, index);
+		printf("%lu: instantiate struct %d\n", position, index);
 		break;
 	}
 

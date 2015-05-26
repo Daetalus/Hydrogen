@@ -35,13 +35,14 @@
 // The maximum number of locals that can be used as upvalues.
 #define MAX_USED_UPVALUES 512
 
-// The maximum number of class definitions that can be created.
-#define MAX_CLASSES 65535
+// The maximum number of struct definitions that can be created.
+#define MAX_STRUCTS 65535
 
-// The maximum number of fields that can be defined on a class.
+// The maximum number of fields that can be defined on a struct.
 #define MAX_FIELDS 256
 
-// The maximum number of methods that can be defined on a class.
+// The maximum number of methods that can be defined on a
+// struct.
 #define MAX_METHODS 128
 
 
@@ -145,7 +146,7 @@ typedef struct {
 } Native;
 
 
-// A field in a class definition.
+// A field in a struct definition.
 typedef struct {
 	// The name of the field, as a pointer into the source code
 	// string.
@@ -155,24 +156,24 @@ typedef struct {
 	int length;
 
 	// If this field represents a method, this is set to the
-	// index of the method in the class' methods list, or to -1
+	// index of the method in the struct's methods list, or to -1
 	// otherwise.
 	int method_index;
 } Field;
 
 
-// A method in a class instance and definition.
+// A method in a struct instance and definition.
 typedef struct {
-	// A pointer to the class instance this method belongs to.
+	// A pointer to the struct instance this method belongs to.
 	//
 	// Don't use the typedef'ed value because the struct hasn't
 	// been defined yet, and C allows pointers to forward
 	// declared structs.
 	//
 	// This is set to NULL when this struct is used in a method
-	// definition, and only set at runtime when a class is
+	// definition, and only set at runtime when a struct is
 	// instantiated.
-	struct class_instance *instance;
+	struct struct_instance *instance;
 
 	// The index of the method's function in the VM's functions
 	// list.
@@ -180,42 +181,42 @@ typedef struct {
 } Method;
 
 
-// A class definition, constructed during compilation.
+// A struct definition, constructed during compilation.
 typedef struct {
-	// The name of the class, as a pointer into the source code.
+	// The name of the struct, as a pointer into the source code.
 	char *name;
 
-	// The length of the class' name.
+	// The length of the struct' name.
 	int length;
 
-	// A list of methods defined on this class.
+	// A list of methods defined on this struct.
 	Method methods[MAX_METHODS];
 	int method_count;
 
-	// A list of all fields defined on the class.
+	// A list of all fields defined on the struct.
 	Field fields[MAX_FIELDS];
 	int field_count;
-} ClassDefinition;
+} StructDefinition;
 
 
-// An instance of a class, heap allocated during runtime.
-typedef struct class_instance {
+// An instance of a struct, heap allocated during runtime.
+typedef struct struct_instance {
 	// A pointer to the definition that this object is an
 	// instance of.
-	ClassDefinition *definition;
+	StructDefinition *definition;
 
-	// A list of all methods defined on this class, which method
+	// A list of all methods defined on this struct, which method
 	// fields point to.
 	Method methods[MAX_METHODS];
 
-	// The fields for this class, indexed in the same order as
-	// the `fields` list defined in the class definition.
+	// The fields for this struct, indexed in the same order as
+	// the `fields` list defined in the struct definition.
 	//
 	// This uses the C struct "hack", similar to strings, where
-	// we allocate extra space after the class on the heap for
+	// we allocate extra space after the struct on the heap for
 	// the fields.
 	uint64_t fields[0];
-} ClassInstance;
+} StructInstance;
 
 
 // Executes compiled bytecode.
@@ -252,10 +253,10 @@ typedef struct {
 	int upvalue_count;
 	int upvalue_capacity;
 
-	// An array of all classes defined in the source code.
-	ClassDefinition *class_definitions;
-	int class_definition_count;
-	int class_definition_capacity;
+	// An array of all structs defined in the source code.
+	StructDefinition *structs;
+	int struct_count;
+	int struct_capacity;
 } VirtualMachine;
 
 
@@ -305,17 +306,17 @@ int vm_new_native(VirtualMachine *vm, Native **native);
 int vm_find_native(VirtualMachine *vm, char *name, int length);
 
 
-// Create a new class definition, returning its index in the
-// VM's class definitions list.
-int vm_new_class_definition(VirtualMachine *vm, ClassDefinition **definition);
+// Create a new struct, returning its index in the VM's struct
+// list.
+int vm_new_struct(VirtualMachine *vm, StructDefinition **definition);
 
-// Returns the index of the class named `name`, or -1 if no
-// class with that name if found.
-int vm_find_class(VirtualMachine *vm, char *name, int length);
+// Returns the index of the struct named `name`, or -1 if no
+// struct with that name if found.
+int vm_find_struct(VirtualMachine *vm, char *name, int length);
 
-// Returns true if the class definition has a method named
+// Returns true if the struct definition has a method named
 // `name`.
-bool class_has_method(ClassDefinition *definition, char *name, int length);
+bool struct_has_method(StructDefinition *definition, char *name, int length);
 
 
 // Create a new string literal, returning a pointer to it and

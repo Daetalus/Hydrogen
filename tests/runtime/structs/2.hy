@@ -1,5 +1,5 @@
 
-class Thing {
+struct Thing {
 	a,
 	b,
 }

@@ -1,6 +1,6 @@
 
 //
-//  Classes
+//  Structs
 //
 
 
@@ -8,16 +8,16 @@
 
 
 START(one) {
-	COMPILER("class \nTest\n{a,\nb,\n}");
+	COMPILER("struct \nTest\n{a,\nb,\n}");
 	ASSERT_RETURN_NIL();
 }
 END()
 
 
 START(two) {
-	COMPILER("class Test {a, b}\nlet a = new Test()");
+	COMPILER("struct Test {a, b}\nlet a = new Test()");
 
-	ASSERT_INSTANTIATE_CLASS(0);
+	ASSERT_INSTANTIATE_STRUCT(0);
 	ASSERT_STORE_LOCAL(0);
 	ASSERT_RETURN_NIL();
 }
@@ -25,9 +25,9 @@ END()
 
 
 START(three) {
-	COMPILER("class Test {a, b}\nlet a = \nnew\n\n Test(\n\n)\n");
+	COMPILER("struct Test {a, b}\nlet a = \nnew\n\n Test(\n\n)\n");
 
-	ASSERT_INSTANTIATE_CLASS(0);
+	ASSERT_INSTANTIATE_STRUCT(0);
 	ASSERT_STORE_LOCAL(0);
 	ASSERT_RETURN_NIL();
 }
@@ -35,9 +35,9 @@ END()
 
 
 START(four) {
-	COMPILER("class Test{a, b}\nlet a = new Test()\nprint(a.a)");
+	COMPILER("struct Test{a, b}\nlet a = new Test()\nprint(a.a)");
 
-	ASSERT_INSTANTIATE_CLASS(0);
+	ASSERT_INSTANTIATE_STRUCT(0);
 	ASSERT_STORE_LOCAL(0);
 	ASSERT_PUSH_NATIVE(0);
 	ASSERT_PUSH_LOCAL(0);
@@ -50,9 +50,9 @@ END()
 
 
 START(five) {
-	COMPILER("class Test{a, b}\nlet a = new Test()\nprint(a\n.\na)");
+	COMPILER("struct Test{a, b}\nlet a = new Test()\nprint(a\n.\na)");
 
-	ASSERT_INSTANTIATE_CLASS(0);
+	ASSERT_INSTANTIATE_STRUCT(0);
 	ASSERT_STORE_LOCAL(0);
 	ASSERT_PUSH_NATIVE(0);
 	ASSERT_PUSH_LOCAL(0);
@@ -122,7 +122,7 @@ START(nine) {
 END()
 
 
-START_MAIN(classes) {
+START_MAIN(structs) {
 	RUN(one)
 	RUN(two)
 	RUN(three)

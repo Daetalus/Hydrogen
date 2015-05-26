@@ -162,7 +162,7 @@ void operand_true(Expression *expression);
 void operand_false(Expression *expression);
 void operand_nil(Expression *expression);
 void operand_function(Expression *expression);
-void operand_class(Expression *expression);
+void operand_struct(Expression *expression);
 void operand_self(Expression *expression);
 
 // Custom infix operators.
@@ -331,10 +331,10 @@ Rule rules[] = {
 	UNUSED(),
 	// In
 	UNUSED(),
-	// Class
+	// Struct
 	UNUSED(),
 	// New
-	{1, {OPERAND(operand_class)}},
+	{1, {OPERAND(operand_struct)}},
 	// Function
 	{1, {OPERAND(operand_function)}},
 	// Return
@@ -642,7 +642,7 @@ void infix_field_access(Expression *expression) {
 		"Expected identifier after `.`");
 	lexer_enable_newlines(lexer);
 
-	// Assume the class we're pushing the field of has already
+	// Assume the struct we're pushing the field of has already
 	// been pushed onto the stack
 	emit_push_field(bytecode, name.location, name.length);
 
@@ -802,8 +802,8 @@ void operand_function(Expression *expression) {
 }
 
 
-// Compiles a class constructor (the `new` keyword).
-void operand_class(Expression *expression) {
+// Compiles a struct constructor (the `new` keyword).
+void operand_struct(Expression *expression) {
 	VirtualMachine *vm = expression->compiler->vm;
 	Lexer *lexer = &expression->compiler->vm->lexer;
 	Bytecode *bytecode = &expression->compiler->fn->bytecode;
@@ -812,33 +812,33 @@ void operand_class(Expression *expression) {
 	lexer_disable_newlines(lexer);
 	lexer_consume(lexer);
 
-	// Expect the name of the class we're creating an instance
+	// Expect the name of the struct we're creating an instance
 	// of (an identifier)
 	Token name = expect(lexer, TOKEN_IDENTIFIER,
-		"Expected class name after `new`");
+		"Expected struct name after `new`");
 	lexer_enable_newlines(lexer);
 
-	// Get the index of the class we're instantiating
-	int index = vm_find_class(vm, name.location, name.length);
+	// Get the index of the struct we're instantiating
+	int index = vm_find_struct(vm, name.location, name.length);
 	if (index == -1) {
-		error(lexer->line, "Class `%.*s` is undefined", name.length,
+		error(lexer->line, "Struct `%.*s` is undefined", name.length,
 			name.location);
 	}
 
 	// Emit an instantiation instruction
-	emit(bytecode, CODE_INSTANTIATE_CLASS);
+	emit(bytecode, CODE_INSTANTIATE_STRUCT);
 	emit_arg_2(bytecode, index);
 
 	// Check if a constructor exists
-	ClassDefinition *definition = &vm->class_definitions[index];
-	if (class_has_method(definition, "new", 3)) {
-		// Push the constructor field. The class will already be
-		// on the top of the stack after the instantiate class
+	StructDefinition *definition = &vm->structs[index];
+	if (struct_has_method(definition, "new", 3)) {
+		// Push the constructor field. The struct will already be
+		// on the top of the stack after the instantiate struct
 		// instruction
 		emit_push_field(bytecode, "new", 3);
 
 		// Emit a call to the constructor. The constructor will
-		// return the class instance so the instance will remain
+		// return the struct instance so the instance will remain
 		// on the top of the stack after this
 		int arity = function_call_arguments(expression->compiler);
 		emit_call(bytecode, arity);
@@ -847,11 +847,11 @@ void operand_class(Expression *expression) {
 		// arguments list `()`
 		lexer_disable_newlines(lexer);
 		expect(lexer, TOKEN_OPEN_PARENTHESIS,
-			"Expected `()` after class name in class instantiation, as class "
-			"`%.*s` has no constructor", name.length, name.location);
+			"Expected `()` after struct name in struct instantiation, as "
+			"struct `%.*s` has no constructor", name.length, name.location);
 		expect(lexer, TOKEN_CLOSE_PARENTHESIS,
-			"Expected `()` after class name in class instantiation, as class "
-			"`%.*s` has no constructor", name.length, name.location);
+			"Expected `()` after struct name in struct instantiation, as "
+			"struct `%.*s` has no constructor", name.length, name.location);
 		lexer_enable_newlines(lexer);
 	}
 }
@@ -863,7 +863,7 @@ void operand_self(Expression *expression) {
 	Lexer *lexer = &expression->compiler->vm->lexer;
 	Bytecode *bytecode = &expression->compiler->fn->bytecode;
 
-	if (expression->compiler->method_class_definition == NULL) {
+	if (expression->compiler->struct_definition == NULL) {
 		// We're using self outside of a method, so trigger an
 		// error.
 		error(lexer->line, "Attempt to use `self` in non-method");

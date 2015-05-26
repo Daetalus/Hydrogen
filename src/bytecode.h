@@ -123,9 +123,9 @@ typedef enum {
 	CODE_PUSH_UPVALUE,
 
 	// Pops a variable off the stack, assuming it is an instance
-	// of a class (triggering an error if it isn't). Then pushes
-	// the value in the field named `arg1` (with length in
-	// `arg2`).
+	// of a struct (triggering an error if it isn't). Then
+	// pushes the value in the field named `arg1` (with length
+	// in `arg2`).
 	//
 	// Arguments:
 	// * 2 bytes - the length of the name of the field.
@@ -167,10 +167,10 @@ typedef enum {
 	CODE_STORE_UPVALUE,
 
 	// Pops a value off the stack, saving it as the value to set
-	// a field of a class to. Then pops another value off the
-	// stack, assuming its an instance of a class (triggering an
-	// error if it isn't). Then sets the field named `arg1`
-	// (with length `arg2`) on the class to the first popped
+	// a field of a struct to. Then pops another value off the
+	// stack, assuming its an instance of a struct (triggering
+	// an error if it isn't). Then sets the field named `arg1`
+	// (with length `arg2`) on the struct to the first popped
 	// value.
 	//
 	// Arguments:
@@ -231,14 +231,14 @@ typedef enum {
 	// * 8 bytes - the C function pointer to call.
 	CODE_CALL_NATIVE,
 
-	// Creates a new instance of a class and pushes it onto the
-	// stack. Doesn't call the class' constructor - that needs
+	// Creates a new instance of a struct and pushes it onto the
+	// stack. Doesn't call the struct's constructor - that needs
 	// to be done with a separate call instruction.
 	//
 	// Arguments:
-	// * 2 bytes - the index in the VM's class definitions list
-	//   of the class to create an instance of.
-	CODE_INSTANTIATE_CLASS,
+	// * 2 bytes - the index in the VM's struct definitions list
+	//   of the struct to create an instance of.
+	CODE_INSTANTIATE_STRUCT,
 
 	// Returns from a function. Pops the return argument off the
 	// top of the stack and saves it, then discards all local
@@ -320,13 +320,13 @@ void emit_push_native(Bytecode *bytecode, int index);
 // Emits bytecode to push a user function onto the stack.
 void emit_push_function(Bytecode *bytecode, int index);
 
-// Emits bytecode to push a field of the class on the top of the
-// stack.
+// Emits bytecode to push a field of the struct on the top of
+// the stack.
 void emit_push_field(Bytecode *bytecode, char *name, int length);
 
 // Emits bytecode to store the value on the top of the stack
-// into the field named `name` of the class just below the value
-// on the stack.
+// into the field named `name` of the struct just below the
+// value on the stack.
 void emit_store_field(Bytecode *bytecode, char *name, int length);
 
 // Emits a call to a function.

@@ -1,5 +1,5 @@
 
-class Test {
+struct Test {
 	a, b
 }
 
