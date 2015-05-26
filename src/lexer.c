@@ -9,6 +9,7 @@
 
 #include "lexer.h"
 #include "parser.h"
+#include "error.h"
 
 
 
@@ -337,6 +338,62 @@ bool parse_identifier(Parser *parser, Token *token) {
 }
 
 
+// Consume a single line comment, starting at the first `/`.
+void consume_line_comment(Lexer *lexer, Token *token) {
+	Parser *parser = &lexer->parser;
+
+	// Consume the two `/`
+	parser_move(parser, 2);
+
+	// Keep consuming until end of line, but don't consume the
+	// newline tokens
+	while (!parser_is_eof(parser) && parser_current(parser) != '\n' &&
+			parser_current(parser) != '\r') {
+		parser_consume(parser);
+	}
+
+	if (parser_is_eof(parser)) {
+		token->type = TOKEN_END_OF_FILE;
+		token->location = parser_ptr(parser);
+		token->length = 0;
+	} else {
+		// Consume the newlines after the comment
+		newlines(lexer, token);
+	}
+}
+
+
+// Consume a block comment, starting at the first `/` before the
+// `*`.
+void consume_block_comment(Lexer *lexer, Token *token) {
+	Parser *parser = &lexer->parser;
+
+	// Consume the `/*`
+	parser_move(parser, 2);
+
+	// Keep consuming until the final `*/`
+	while (!parser_is_eof(parser) && !(parser_current(parser) == '*' &&
+			parser_peek(parser, 1) == '/')) {
+		// Ensure we count any newlines
+		if (parser_current(parser) == '\n' || parser_current(parser) == '\r') {
+			lexer->line++;
+		}
+
+		parser_consume(parser);
+	}
+
+	if (parser_is_eof(parser)) {
+		error(-1, "Unterminated block comment");
+	} else {
+		// Consume the final `/`
+		parser_move(parser, 2);
+
+		// Get the token after the block comment
+		*token = lexer_next(lexer);
+	}
+}
+
+
 // Shorthand call for function `keyword`.
 #define KEYWORD(word, type)                         \
 	if (keyword(parser, &result, (word), (type))) { \
@@ -356,6 +413,9 @@ bool parse_identifier(Parser *parser, Token *token) {
 Token lexer_next(Lexer *lexer) {
 	Parser *parser = &lexer->parser;
 	Token result;
+	result.type = TOKEN_NONE;
+	result.location = NULL;
+	result.length = 0;
 
 	// Check for end of file first.
 	if (parser_is_eof(parser)) {
@@ -384,8 +444,17 @@ Token lexer_next(Lexer *lexer) {
 			'=', TOKEN_MULTIPLICATION_ASSIGNMENT);
 		break;
 	case '/':
-		double_token(parser, &result, TOKEN_DIVISION,
-			'=', TOKEN_DIVISION_ASSIGNMENT);
+		if (parser_peek(parser, 1) == '/') {
+			// Single line comment
+			consume_line_comment(lexer, &result);
+		} else if (parser_peek(parser, 1) == '*') {
+			// Block comment
+			consume_block_comment(lexer, &result);
+		} else {
+			// Division or divide equals
+			double_token(parser, &result, TOKEN_DIVISION,
+				'=', TOKEN_DIVISION_ASSIGNMENT);
+		}
 		break;
 	case '%':
 		double_token(parser, &result, TOKEN_MODULO,
@@ -493,11 +562,6 @@ Token lexer_next(Lexer *lexer) {
 		if (parse_identifier(parser, &result)) {
 			break;
 		}
-
-		// Unrecognised token
-		result.type = TOKEN_NONE;
-		result.location = NULL;
-		result.length = 0;
 	}
 
 	return result;

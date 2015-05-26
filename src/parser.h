@@ -93,7 +93,7 @@ char parser_peek(Parser *parser, int amount);
 void parser_move_to(Parser *parser, int position);
 
 // Moves the cursor forward or backward by `amount`.
-void parser_move(Parser *parser, int32_t amount);
+void parser_move(Parser *parser, int amount);
 
 // Returns true if the parser starts with `str`.
 bool parser_starts_with(Parser *parser, char *str, int length);

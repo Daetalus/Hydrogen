@@ -142,7 +142,7 @@ void parser_move_to(Parser *parser, int position) {
 
 
 // Moves the cursor forward or backward by `amount`.
-void parser_move(Parser *parser, int32_t amount) {
+void parser_move(Parser *parser, int amount) {
 	if (parser->cursor + amount > parser->length) {
 		// Overflow
 		parser->cursor = parser->length;

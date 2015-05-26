@@ -92,6 +92,9 @@ char *files[] = {
 	"methods/6.hy",
 	"methods/7.hy",
 	"methods/8.hy",
+
+	"comments/1.hy",
+	"comments/2.hy",
 };
 
 
