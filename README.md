@@ -1,123 +1,47 @@
 
-Hydrogen
-========
+The Hydrogen Programming Language
+---------------------------------
 
-The Hydrogen Programming Language.
-
-Hydrogen is a simple programming language. It's object oriented, interpreted, dynamically typed, and garbage collected, with C-style syntax and a (hopefully soon to be) extensive standard library.
-
-Hydrogen is intended as more of a learning project for me about writing a bytecode-interpreted language. I've just tested it against Python in the world's most inaccurate and pointless benchmark, and it ran twice as fast! :D
+Hydrogen is a small, lightweight programming language.
+It's intepreted, dynamically typed, and sports a blazing fast tracing JIT compiler.
+It also has a C API, which allows you to embed Hydrogen in your own programs.
 
 
-## Building
+## Installation
 
-Make sure you have [CMake](http://www.cmake.org/download/) and GNU Make installed, and build the project like any other CMake project:
+Hydrogen is built using the CMake build system:
 
-Clone the repository and `cd` into the folder:
-
-```
-git clone https://github.com/GravityScore/Hydrogen
-cd Hydrogen
-```
-
-Create a build directory:
-
-```
-mkdir build
-cd build
+```bash
+$ git clone https://github.com/GravityScore/Hydrogen
+$ cd Hydrogen
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+$ sudo make install
 ```
 
-Generate the build scripts using CMake (defaults to Unix Makefiles):
+This clones the GitHub repository, builds Hydrogen, and installs it on your system.
 
-```
-cmake ..
-```
+You can run Hydrogen code using the command line interface:
 
-Build the project:
-
-```
-make
+```bash
+$ hydrogen test.hy
 ```
 
-This will create a `hydrogen` executable file, which you can use to run your scripts. Create a file with a `.hy` extension and execute it with:
+You can start a REPL session by omitting any options:
 
-```
-./hydrogen my-script.hy
-```
-
-
-## Sample Code
-
-Classic hello world:
-
-```rust
-io.println("Hello, World!")
+```bash
+$ hydrogen
 ```
 
-Fibonacci:
+The command line interface has the following options:
 
-```rust
-fn fib(n) {
-	if n == 1 {
-		return 1
-	}
-	return fib(n - 1) + fib(n - 2)
-}
-
-io.println(fib(5))
-```
-
-Fibonacci with iterators:
-
-```rust
-fn fib() {
-	let current = 1
-	let previous = 1
-
-	return fn() {
-		let old = current
-		current += previous
-		previous = old
-		return current
-	}
-}
-
-for i in iter.take(fib(), 10) {
-	io.println("The next fibonacci number is", i)
-}
-```
-
-Classes:
-
-```rust
-class Node {
-	value,
-	children
-}
-
-fn (Node) new(value, children) {
-	self.value = value
-	self.children = children
-}
-
-fn (Node) print() {
-	io.print("[" + self.value)
-
-	for child in self.children {
-		io.print(", ")
-		child.print()
-	}
-
-	io.print("]")
-}
-
-tree = new Node(2, [
-	new Node(7, [
-		new Node(2, []),
-		new Node(6, []),
-	]),
-	new Node(5, []),
-])
-
-tree.print() // Will print [2, [7, [2], [6]], [5]]
-```
+Option        | Description
+---------------------------
+`-h`          | Shows this help information.
+`-v`          | Shows the version number of the current Hydrogen installation.
+`-b`          | Instead of executing the given program, compiles it and prints its bytecode.
+`-s [string]` | Treats the provided string as source code, instead of a path to a file.
+`-joff`       | Turns off JIT compilation (slows down program execution).
+`-jinfo`      | Shows information about hot loops that are JIT compiled during execution.

@@ -1,77 +1,52 @@
 
-# --
-# Hydrogen Build File
-# --
+#
+#  Hydrogen Build File
+#
 
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 2.8)
 project(Hydrogen)
 
-set(CMAKE_C_FLAGS_DEBUG "-g -Wall")
-set(CMAKE_C_FLAGS_RELEASE "-O3 -Wall")
+# Set the default build type to `release`.
+IF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+	SET(CMAKE_BUILD_TYPE Release)
+ENDIF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+
+set(CMAKE_C_FLAGS_DEBUG "-Wall -Wextra -O0 -g")
+set(CMAKE_C_FLAGS_RELEASE "-Wall -Wextra -O3")
 
 
 
-# --
+#
 # Library
-# --
+#
 
-add_library(
-	vm
-	src/hydrogen.c
-	src/bytecode.c
-	src/compiler.c
-	src/error.c
-	src/debug.c
-	src/expression.c
-	src/lexer.c
-	src/parser.c
-	src/value.c
-	src/vm.c
-
-	src/lib/operator.c
-	src/lib/str.c
-	src/lib/io.c
-)
+include_directories(include)
+file(GLOB VM_SOURCES src/vm/*.c)
+add_library(hydrogen STATIC ${VM_SOURCES})
 
 
 
-# --
-# Tests
-# --
+#
+#  Command Line Executable
+#
+
+file(GLOB CLI_SOURCES src/cli/*.c)
+add_executable(cli ${CLI_SOURCES})
+target_link_libraries(cli hydrogen)
+
+
+
+#
+#  Tests
+#
 
 enable_testing()
 
-macro(unit_test name)
-	add_executable(test_${name} tests/units/test_${name}.c)
-	target_link_libraries(test_${name} vm)
-	add_test(test_${name} test_${name})
-endmacro()
-
 macro(test name)
-	add_executable(test_${name} tests/${name}.c)
-	target_link_libraries(test_${name} vm)
+	include_directories(src/vm)
+	add_executable(test_${name} tests/test_${name}.c)
+	target_link_libraries(test_${name} hydrogen)
 	add_test(test_${name} test_${name})
 endmacro()
 
-unit_test(value)
-unit_test(parser)
-unit_test(lexer)
-unit_test(expression)
-unit_test(assignment)
-unit_test(if)
-unit_test(while)
-unit_test(function_calls)
-unit_test(function_definitions)
-unit_test(anonymous_functions)
-unit_test(closures)
-unit_test(structs)
-test(runtime)
-
-
-
-# --
-# Benchmarks
-# --
-
-add_executable(interpreter benchmarks/interpreter.c)
-target_link_libraries(interpreter vm)
+test(lexer)
