@@ -1,13 +1,13 @@
 
-The Hydrogen Programming Language
----------------------------------
+Hydrogen Programming Language
+-----------------------------
 
-Hydrogen is a small, lightweight programming language.
-It's intepreted, dynamically typed, and sports a blazing fast tracing JIT compiler.
-It also has a C API, which allows you to embed Hydrogen in your own programs.
+Hydrogen is a small, lightweight programming language with C-style syntax.
+It's intepreted, dynamically typed, and sports a blazingly fast tracing JIT compiler,
+along with an easy to use C API, allowing you to quickly embed Hydrogen in your own programs.
 
 
-## Installation
+### Installation
 
 Hydrogen is built using the CMake build system:
 
@@ -21,7 +21,7 @@ $ make
 $ sudo make install
 ```
 
-This clones the GitHub repository, builds Hydrogen, and installs it on your system.
+This clones the GitHub repository, builds Hydrogen, and installs it on your system (in `/usr/local`).
 
 You can run Hydrogen code using the command line interface:
 
@@ -29,19 +29,19 @@ You can run Hydrogen code using the command line interface:
 $ hydrogen test.hy
 ```
 
-You can start a REPL session by omitting any options:
+You can start a REPL session like so:
 
 ```bash
 $ hydrogen
 ```
 
-The command line interface has the following options:
+The command line interface has a number of options:
 
-Option        | Description
-------------- | -----------
-`-h`          | Shows this help information.
-`-v`          | Shows the version number of the current Hydrogen installation.
-`-b`          | Instead of executing the given program, compiles it and prints its bytecode.
-`-s [string]` | Treats the provided string as source code, instead of a path to a file.
-`-joff`       | Turns off JIT compilation (slows down program execution).
-`-jinfo`      | Shows information about hot loops that are JIT compiled during execution.
+Option   | Description
+-------- | -----------
+`-h`     | Shows this help information.
+`-v`     | Shows the version number of the current Hydrogen installation.
+`-b`     | Prints the program's compiled bytecode.
+`-s`     | Doesn't execute a file, but rather treats the command line arguments as Hydrogen source code.
+`-joff`  | Turns off JIT compilation during runtime (slows down program execution).
+`-jinfo` | Shows information about hot loops that are JIT-compiled during execution.
