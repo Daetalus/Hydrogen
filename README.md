@@ -38,7 +38,7 @@ $ hydrogen
 The command line interface has the following options:
 
 Option        | Description
----------------------------
+------------- | -----------
 `-h`          | Shows this help information.
 `-v`          | Shows the version number of the current Hydrogen installation.
 `-b`          | Instead of executing the given program, compiles it and prints its bytecode.
