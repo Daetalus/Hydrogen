@@ -3,8 +3,11 @@
 //  Error
 //
 
+#include <stdio.h>
+#include <string.h>
 
 #include "error.h"
+
 
 // The maximum number of characters an error message can
 // be.
@@ -13,6 +16,7 @@
 
 // Sets the error on the VM.
 static void set_error(VirtualMachine *vm, Lexer *lexer, char *message) {
+	vm_free_error(vm);
 	vm->error.description = message;
 	vm->error.line = lexer_line(lexer);
 	vm->error.package = NULL;
@@ -42,7 +46,7 @@ void err_fatal(VirtualMachine *vm, Lexer *lexer, char *fmt, ...) {
 
 // Appends the textual representation of a token to a
 // string.
-static void print_token(char *string, Token token, TokenValue value) {
+static char * print_token(char *string, Token token, TokenValue value) {
 	switch (token) {
 	// Mathematical operators
 	SYMBOL(TOKEN_ADD, "+")
@@ -89,20 +93,27 @@ static void print_token(char *string, Token token, TokenValue value) {
 	SYMBOL(TOKEN_DOT, ".")
 
 	// Values
-	case TOKEN_IDENTIFIER:
+	case TOKEN_IDENTIFIER: {
 		int written = snprintf(string, value.identifier.length, "%s",
 			value.identifier.start);
 		return &string[written];
-	case TOKEN_STRING:
+	}
+
+	case TOKEN_STRING: {
 		int written = snprintf(string, value.identifier.length, "\"%s\"",
 			value.identifier.start);
 		return &string[written];
-	case TOKEN_INTEGER:
+	}
+
+	case TOKEN_INTEGER: {
 		int written = sprintf(string, "%d", value.integer);
 		return &string[written];
-	case TOKEN_NUMBER:
+	}
+
+	case TOKEN_NUMBER: {
 		int written = sprintf(string, "%f", value.number);
 		return &string[written];
+	}
 
 	SYMBOL(TOKEN_TRUE, "true")
 	SYMBOL(TOKEN_FALSE, "false")
@@ -125,7 +136,7 @@ static void print_token(char *string, Token token, TokenValue value) {
 
 
 // Triggers an unexpected token error on the VM.
-void unexpected_token(VirtualMachine *vm, Lexer *lexer, char *fmt, ...) {
+void err_unexpected(VirtualMachine *vm, Lexer *lexer, char *fmt, ...) {
 	// Format the message
 	char *message = malloc(sizeof(char) * MAX_ERROR_LENGTH);
 	char *start = message;

@@ -50,3 +50,4 @@ macro(test name)
 endmacro()
 
 test(lexer)
+test(expr)

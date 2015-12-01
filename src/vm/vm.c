@@ -3,8 +3,10 @@
 //  Virtual Machine
 //
 
+#include <string.h>
 
 #include "vm.h"
+#include "parser.h"
 
 
 // Frees a pointer only if it's not NULL.
@@ -37,8 +39,8 @@ HyVM * hy_new(void) {
 // Free an interpreter's state.
 void hy_free(HyVM *vm) {
 	// Packages
-	for (int i = 0; i < vm->packages_count; i++) {
-		Package *package = vm->packages[i];
+	for (uint32_t i = 0; i < vm->packages_count; i++) {
+		Package *package = &vm->packages[i];
 		package_free(package);
 	}
 
@@ -55,10 +57,15 @@ void hy_free(HyVM *vm) {
 
 // Frees the current error on the VM.
 void vm_free_error(VirtualMachine *vm) {
-	HyError *error = &vm->error;
-	FREE(error->description);
-	FREE(error->package);
-	FREE(error->file);
+	FREE(vm->error.description);
+	FREE(vm->error.package);
+	FREE(vm->error.file);
+}
+
+
+// Returns true when an error has occurred.
+bool vm_has_error(VirtualMachine *vm) {
+	return vm->error.description != NULL;
 }
 
 
@@ -69,13 +76,16 @@ void vm_free_error(VirtualMachine *vm) {
 
 // Runs the given source code string.
 HyResult hy_exec_string(HyVM *vm, char *source) {
-	return HY_SUCCESS;
+	Package *main = package_new(vm);
+	main->source = source;
+	parse_package(vm, main);
+	return fn_exec(vm, main->main_fn);
 }
 
 
 // Returns the most recent error that has occurred.
 HyError * hy_error(HyVM *vm) {
-	return NULL;
+	return &vm->error;
 }
 
 
@@ -118,6 +128,8 @@ Package * package_new(VirtualMachine *vm) {
 	// Initialise the package
 	Package *package = &vm->packages[index];
 	package->name = NULL;
+	package->source = NULL;
+	package->main_fn = 0;
 	ARRAY_INIT(package->functions, Function *, 4);
 	return package;
 }
@@ -125,16 +137,14 @@ Package * package_new(VirtualMachine *vm) {
 
 // Frees a package.
 void package_free(Package *package) {
-	FREE(package->name);
-	FREE(package->source);
 	free(package->functions);
 }
 
 
 // Finds a package with the given name. Returns NULL if
 // the package doesn't exist.
-Package * package_find(VirtualMachine *vm, char *name, int length) {
-	for (int i = 0; i < vm->packages_count; i++) {
+Package * package_find(VirtualMachine *vm, char *name, size_t length) {
+	for (uint32_t i = 0; i < vm->packages_count; i++) {
 		Package *package = &vm->packages[i];
 
 		// Check the length of the package name and the
@@ -173,6 +183,7 @@ Function * fn_new(VirtualMachine *vm, Package *package, uint16_t *index) {
 	fn->name = NULL;
 	fn->length = 0;
 	fn->package = NULL;
+	ARRAY_INIT(fn->bytecode, uint64_t, 64);
 
 	// Add the function to the package's function list
 	uint32_t package_index = package->functions_count++;
@@ -185,7 +196,7 @@ Function * fn_new(VirtualMachine *vm, Package *package, uint16_t *index) {
 
 // Finds a function with the given name. Returns NULL if
 // the function doesn't exist.
-Function * fn_find(VirtualMachine *vm, char *name, int length,
+Function * fn_find(VirtualMachine *vm, char *name, size_t length,
 		uint16_t *index) {
 	// Functions that are defined recently are more likely
 	// to be used sooner, so search the array in reverse
@@ -206,4 +217,24 @@ Function * fn_find(VirtualMachine *vm, char *name, int length,
 
 	// Couldn't find a function with the given name
 	return NULL;
+}
+
+
+// Emits an instruction.
+uint32_t fn_emit(Function *fn, uint64_t instruction) {
+	uint16_t index = fn->bytecode_count++;
+	ARRAY_REALLOC(fn->bytecode, uint64_t);
+	fn->bytecode[index] = instruction;
+	return index;
+}
+
+
+
+//
+//  Execution
+//
+
+// Executes a compiled function on the virtual machine.
+HyResult fn_exec(VirtualMachine *vm, uint16_t fn_index) {
+	return HY_SUCCESS;
 }

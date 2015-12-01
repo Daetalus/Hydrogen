@@ -25,7 +25,7 @@ uint16_t int16_to_uint16(int16_t value);
 
 // Creates a new array in a struct.
 #define ARRAY(type, name)       \
-    type name;                  \
+    type *name;                 \
     uint32_t name ## _count;    \
     uint32_t name ## _capacity; \
 

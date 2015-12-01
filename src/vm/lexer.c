@@ -3,7 +3,6 @@
 //  Lexer
 //
 
-
 #include <string.h>
 #include <stdbool.h>
 #include <limits.h>
@@ -278,7 +277,9 @@ Token lexer_keyword_identifier(Lexer *lexer) {
 	KEYWORD("while", TOKEN_WHILE)
 	KEYWORD("loop", TOKEN_LOOP)
 	KEYWORD("for", TOKEN_FOR)
+	KEYWORD("let", TOKEN_LET)
 	KEYWORD("fn", TOKEN_FN)
+	KEYWORD("import", TOKEN_IMPORT)
 	KEYWORD("true", TOKEN_TRUE)
 	KEYWORD("false", TOKEN_FALSE)
 	KEYWORD("nil", TOKEN_NIL)
@@ -318,6 +319,7 @@ void lexer_next(Lexer *lexer) {
 	case '>': DOUBLE(TOKEN_GT, '=', TOKEN_GE);
 	case '&': DOUBLE(TOKEN_BIT_AND, '&', TOKEN_AND);
 	case '|': DOUBLE(TOKEN_BIT_OR, '|', TOKEN_OR);
+	case '.': DOUBLE(TOKEN_DOT, '.', TOKEN_CONCAT);
 	case '^': SINGLE(TOKEN_BIT_XOR);
 	case '~': SINGLE(TOKEN_BIT_NOT);
 	case '(': SINGLE(TOKEN_OPEN_PARENTHESIS);
@@ -327,7 +329,6 @@ void lexer_next(Lexer *lexer) {
 	case '{': SINGLE(TOKEN_OPEN_BRACE);
 	case '}': SINGLE(TOKEN_CLOSE_BRACE);
 	case ',': SINGLE(TOKEN_COMMA);
-	case '.': SINGLE(TOKEN_DOT);
 
 	// Numbers
 	case '0':
@@ -389,7 +390,7 @@ char * lexer_extract_string(Identifier identifier) {
 
 	for (size_t i = 0; i < identifier.length; i++) {
 		// Check for an escape sequence
-		if (identifier->start[i] == '\\') {
+		if (identifier.start[i] == '\\') {
 			result[length++] = escape_sequence(identifier.start[++i]);
 
 			// Invalid escape sequence

@@ -16,7 +16,26 @@
 
 
 // A package.
+typedef struct package Package;
+
+
+// A user-defined function.
 typedef struct {
+	// The name of the function. NULL for an anonymous
+	// function.
+	char *name;
+	size_t length;
+
+	// The compiled bytecode for the function.
+	ARRAY(uint64_t, bytecode);
+
+	// The package the function was defined in.
+	Package *package;
+} Function;
+
+
+// A package.
+struct package {
 	// The name of the package as a heap allocated string.
 	// NULL if the package is anonymous.
 	char *name;
@@ -29,19 +48,7 @@ typedef struct {
 
 	// A list of functions defined in this package.
 	ARRAY(Function *, functions);
-} Package;
-
-
-// A user-defined function.
-typedef struct {
-	// The name of the function. NULL for an anonymous
-	// function.
-	char *name;
-	int length;
-
-	// The package the function was defined in.
-	Package *package;
-} Function;
+};
 
 
 // A virtual machine, storing the interpreter's state.
@@ -74,6 +81,9 @@ uint16_t vm_add_number(VirtualMachine *vm, double number);
 // Frees the current error on the VM.
 void vm_free_error(VirtualMachine *vm);
 
+// Returns true when an error has occurred.
+bool vm_has_error(VirtualMachine *vm);
+
 
 // Defines a new package.
 Package * package_new(VirtualMachine *vm);
@@ -83,7 +93,7 @@ void package_free(Package *package);
 
 // Finds a package with the given name. Returns NULL if
 // the package doesn't exist.
-Package * package_find(VirtualMachine *vm, char *name, int length);
+Package * package_find(VirtualMachine *vm, char *name, size_t length);
 
 
 // Defines a new function and associates it with the given
@@ -93,7 +103,14 @@ Function * fn_new(VirtualMachine *vm, Package *package, uint16_t *index);
 
 // Finds a function with the given name. Returns NULL if
 // the function doesn't exist.
-Function * fn_find(VirtualMachine *vm, char *name, int length,
+Function * fn_find(VirtualMachine *vm, char *name, size_t length,
 	uint16_t *index);
+
+// Emits an instruction.
+uint32_t fn_emit(Function *fn, uint64_t instruction);
+
+
+// Executes a compiled function on the virtual machine.
+HyResult fn_exec(VirtualMachine *vm, uint16_t fn_index);
 
 #endif
