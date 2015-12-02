@@ -7,30 +7,22 @@
 
 #include "vm.h"
 #include "parser.h"
-
-
-// Frees a pointer only if it's not NULL.
-#define FREE(ptr)        \
-	if ((ptr) != NULL) { \
-		free((ptr));     \
-	}
+#include "error.h"
 
 
 // Create a new interpreter state.
 HyVM * hy_new(void) {
 	VirtualMachine *vm = malloc(sizeof(VirtualMachine));
 
+	// Error
+	vm->err.description = NULL;
+	vm->err.line = 0;
+
 	// Allocate memory for arrays
 	ARRAY_INIT(vm->functions, Function, 4);
 	ARRAY_INIT(vm->packages, Package, 4);
 	ARRAY_INIT(vm->numbers, double, 16);
 	ARRAY_INIT(vm->strings, char *, 16);
-
-	// Initialise the error
-	vm->error.description = NULL;
-	vm->error.line = 0;
-	vm->error.package = NULL;
-	vm->error.file = NULL;
 
 	return (HyVM *) vm;
 }
@@ -50,22 +42,17 @@ void hy_free(HyVM *vm) {
 	free(vm->numbers);
 	free(vm->strings);
 
+	// Error
+	err_free(&vm->err);
+
 	// The VM itself
 	free(vm);
 }
 
 
-// Frees the current error on the VM.
-void vm_free_error(VirtualMachine *vm) {
-	FREE(vm->error.description);
-	FREE(vm->error.package);
-	FREE(vm->error.file);
-}
-
-
 // Returns true when an error has occurred.
 bool vm_has_error(VirtualMachine *vm) {
-	return vm->error.description != NULL;
+	return vm->err.description != NULL;
 }
 
 
@@ -85,7 +72,7 @@ HyResult hy_exec_string(HyVM *vm, char *source) {
 
 // Returns the most recent error that has occurred.
 HyError * hy_error(HyVM *vm) {
-	return &vm->error;
+	return &vm->err;
 }
 
 
@@ -94,8 +81,8 @@ HyError * hy_error(HyVM *vm) {
 //  Constants
 //
 
-// Adds a string to the VM's strings list. Returns the
-// index of the added string.
+// Adds a string to the VM's strings list. Returns the index of the added
+// string.
 uint16_t vm_add_string(VirtualMachine *vm, char *string) {
 	uint16_t index = vm->strings_count++;
 	ARRAY_REALLOC(vm->strings, char *);
@@ -104,8 +91,8 @@ uint16_t vm_add_string(VirtualMachine *vm, char *string) {
 }
 
 
-// Adds a number to the VM's numbers list. Returns the
-// index of the added number.
+// Adds a number to the VM's numbers list. Returns the index of the added
+// number.
 uint16_t vm_add_number(VirtualMachine *vm, double number) {
 	uint16_t index = vm->numbers_count++;
 	ARRAY_REALLOC(vm->numbers, double);
@@ -141,14 +128,13 @@ void package_free(Package *package) {
 }
 
 
-// Finds a package with the given name. Returns NULL if
-// the package doesn't exist.
+// Finds a package with the given name. Returns NULL if the package doesn't
+// exist.
 Package * package_find(VirtualMachine *vm, char *name, size_t length) {
 	for (uint32_t i = 0; i < vm->packages_count; i++) {
 		Package *package = &vm->packages[i];
 
-		// Check the length of the package name and the
-		// name itself are equal
+		// Check the length of the package name and the name itself are equal
 		if (strlen(package->name) == length &&
 				strncmp(package->name, name, length) == 0) {
 			return package;
@@ -165,9 +151,8 @@ Package * package_find(VirtualMachine *vm, char *name, size_t length) {
 //  Functions
 //
 
-// Defines a new function and associates it with the given
-// package, or with the global namespace if `package` is
-// NULL.
+// Defines a new function and associates it with the given package, or with
+// the global namespace if `package` is NULL.
 Function * fn_new(VirtualMachine *vm, Package *package, uint16_t *index) {
 	// Increment the size of the functions array
 	uint32_t fn_index = vm->functions_count++;
@@ -194,18 +179,17 @@ Function * fn_new(VirtualMachine *vm, Package *package, uint16_t *index) {
 }
 
 
-// Finds a function with the given name. Returns NULL if
-// the function doesn't exist.
+// Finds a function with the given name. Returns NULL if the function doesn't
+// exist.
 Function * fn_find(VirtualMachine *vm, char *name, size_t length,
 		uint16_t *index) {
-	// Functions that are defined recently are more likely
-	// to be used sooner, so search the array in reverse
-	// order
+	// Functions that are defined recently are more likely to be used sooner
+	// (maybe), so search the array in reverse order
 	for (int i = vm->functions_count; i >= 0; i--) {
 		Function *fn = &vm->functions[i];
 
-		// Check if the length of the function's name
-		// matches, along with the name itself
+		// Check if the length of the function's name matches, along with the
+		// name itself
 		if (fn->length == length && strncmp(fn->name, name, length) == 0) {
 			// Set the index
 			if (index != NULL) {
@@ -217,15 +201,6 @@ Function * fn_find(VirtualMachine *vm, char *name, size_t length,
 
 	// Couldn't find a function with the given name
 	return NULL;
-}
-
-
-// Emits an instruction.
-uint32_t fn_emit(Function *fn, uint64_t instruction) {
-	uint16_t index = fn->bytecode_count++;
-	ARRAY_REALLOC(fn->bytecode, uint64_t);
-	fn->bytecode[index] = instruction;
-	return index;
 }
 
 

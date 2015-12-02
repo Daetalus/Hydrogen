@@ -37,9 +37,8 @@ uint16_t int16_to_uint16(int16_t value);
 	array = malloc(array ## _capacity * sizeof(type));
 
 
-// Increases the capacity of the array if its size is
-// larger than it's capacity. You need to increase the
-// size of the array before actually setting any data.
+// Increases the capacity of the array if its size is larger than it's capacity.
+// You need to increase the size of the array before actually setting any data.
 #define ARRAY_REALLOC(array, type)                                 \
     if (array ## _count > array ## _capacity) {                    \
 		if (array ## _count <= array ## _capacity * 2) {           \

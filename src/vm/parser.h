@@ -12,9 +12,7 @@
 #include "vm.h"
 #include "lexer.h"
 
-
-// Parses a package into bytecode. Sets the main function
-// index property on the package.
+// Parses a package into bytecode. Sets the main function index on the package.
 void parse_package(VirtualMachine *vm, Package *package);
 
 #endif

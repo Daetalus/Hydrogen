@@ -7,16 +7,7 @@
 #ifndef BYTECODE_H
 #define BYTECODE_H
 
-// Extracts an argument from a 64 bit instruction.
-#define INSTRUCTION_ARG(instr, arg)                                           \
-	((uint16_t) ((((uint64_t) (instr)) & (((uint64_t) 0xffff) << (arg * 16))) \
-		>> (arg * 16)))
-
-
-// Creates an instruction from an opcode and 3 arguments.
-#define INSTRUCTION(opcode, arg1, arg2, arg3)              \
-	(((uint64_t) (opcode)) | (((uint64_t) (arg1)) << 16) | \
-	 (((uint64_t) (arg2)) << 32) | (((uint64_t) (arg3)) << 48))
+#include "vm.h"
 
 
 // All bytecode operation codes.
@@ -104,5 +95,26 @@ typedef enum {
 	// Return
 	RET0,
 } Opcode;
+
+// Creates an instruction from an opcode and arguments.
+uint64_t instr_new(Opcode opcode, uint16_t arg1, uint16_t arg2, uint16_t arg3);
+
+// Returns an argument to an instruction, where argument 0 is the opcode.
+uint16_t instr_arg(uint64_t instruction, int arg);
+
+// Modifies an argument to an instruction.
+uint64_t instr_set(uint64_t instruction, int arg, uint16_t value);
+
+
+// Emits an instruction for a function. Returns the index of the instruction in
+// the bytecode.
+uint32_t emit(Function *fn, uint64_t instruction);
+
+// Emits an empty jump instruction. Returns the index of the jump instruction.
+uint32_t jmp_new(Function *fn);
+
+// Sets the target of the jump instruction at `index` within the function's
+// bytecode.
+void jmp_set(Function *fn, uint32_t index, uint32_t target);
 
 #endif

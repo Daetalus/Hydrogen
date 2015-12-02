@@ -8,8 +8,9 @@
 #include "debug.h"
 #include "bytecode.h"
 
+
 // The maximum length of an opcode's name.
-#define MAX_NAME_LENGTH 100
+#define MAX_NAME_LENGTH 50
 
 // The number of opcodes.
 #define OPCODE_COUNT 60
@@ -148,14 +149,14 @@ int ARGUMENT_COUNT[OPCODE_COUNT] = {
 // Prints a single instruction.
 void debug_print_instruction(uint64_t instruction) {
 	// Opcode
-	uint16_t opcode = INSTRUCTION_ARG(instruction, 0);
+	uint16_t opcode = instr_arg(instruction, 0);
 	char *name = &OPCODE_NAMES[opcode][0];
 	printf("%-10s ", name);
 
 	// Arguments
 	int argument_count = ARGUMENT_COUNT[opcode];
 	for (int i = 1; i <= argument_count; i++) {
-		uint16_t arg = INSTRUCTION_ARG(instruction, i);
+		uint16_t arg = instr_arg(instruction, i);
 		printf("%-6u ", arg);
 	}
 

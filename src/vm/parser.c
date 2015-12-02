@@ -33,14 +33,12 @@ typedef struct {
 } Local;
 
 
-// A parser, which converts lexed source code into
-// bytecode.
+// A parser, which converts lexed source code into bytecode.
 typedef struct _parser {
 	// The virtual machine we're parsing for.
 	VirtualMachine *vm;
 
-	// A pointer to the parent parser. NULL if this parser
-	// is top level.
+	// A pointer to the parent parser. NULL if this parser is top level.
 	struct _parser *parent;
 
 	// The lexer.
@@ -60,38 +58,26 @@ typedef struct _parser {
 
 
 //
-//  Error Handling
+//  Errors
 //
 
 // Triggers a custom error.
 #define ERROR(...) \
-	err_fatal(parser->vm, parser->lexer, __VA_ARGS__);
+	err_new(&parser->vm->err, lexer_line(parser->lexer), __VA_ARGS__);
 
-// Triggers an unexpected token error and returns from the
-// current function.
+
+// Triggers an unexpected token error.
 #define UNEXPECTED(...) \
-	err_unexpected(parser->vm, parser->lexer, __VA_ARGS__);
+	err_unexpected(&parser->vm->err, parser->lexer, __VA_ARGS__);
 
 
-// Triggers an error if the current token doesn't match the
+// Triggers an unexpected token error if the current token does not match the
 // given one.
-#define EXPECT(expected, ...)                                   \
-	if (lexer->token != (expected)) {                           \
-		err_unexpected(parser->vm, parser->lexer, __VA_ARGS__); \
-		return;                                                 \
+#define EXPECT(expected, ...)                 \
+	if (parser->lexer->token != (expected)) { \
+		UNEXPECTED(__VA_ARGS__);              \
+		return;                               \
 	}
-
-
-
-//
-//  Bytecode
-//
-
-// Emits an empty jump instruction. Returns the position
-// in the bytecode of the instruction.
-uint32_t emit_jump(Parser *parser) {
-	return fn_emit(parser->fn, INSTRUCTION(JMP, 0, 0, 0));
-}
 
 
 
@@ -109,8 +95,7 @@ void import(Parser *parser, char *name) {
 void parse_multi_import(Parser *parser) {
 	Lexer *lexer = parser->lexer;
 
-	// Ensure there's at least one string within the
-	// parentheses
+	// Ensure there's at least one string within the parentheses
 	EXPECT(TOKEN_STRING, "Expected package name after `(`");
 
 	// Expect a comma separated list of strings
@@ -137,8 +122,7 @@ void parse_multi_import(Parser *parser) {
 void parse_import(Parser *parser) {
 	Lexer *lexer = parser->lexer;
 
-	// Parse a multi-import statement if the next token is
-	// an open parenthesis
+	// Parse a multi-import statement if the next token is an open parenthesis
 	if (lexer->token == TOKEN_OPEN_PARENTHESIS) {
 		// Consume the open parenthesis
 		lexer_next(lexer);
@@ -179,8 +163,7 @@ void parse_imports(Parser *parser) {
 //  Local Variables
 //
 
-// Creates a new local variable at the top of the locals
-// stack.
+// Creates a new local variable at the top of the locals stack.
 Local * local_new(Parser *parser, uint16_t *slot) {
 	uint16_t index = parser->locals_count++;
 	if (slot != NULL) {
@@ -195,19 +178,24 @@ Local * local_new(Parser *parser, uint16_t *slot) {
 }
 
 
-// Returns a pointer to the local with the given name, or
-// NULL if no local with that name could be found.
+// Returns a pointer to the local with the given name, or NULL if no local with
+// that name could be found.
 Local * local_find(Parser *parser, char *name, size_t length, uint16_t *slot) {
+	// Iterate over the locals backwards, as locals are more likely to be used
+	// right after they've been defined (maybe)
 	for (int i = parser->locals_count - 1; i >= 0; i--) {
 		Local *local = &parser->locals[i];
-		if (local->length == length &&
-				strncmp(local->name, name, length) == 0) {
+
+		// Check if this is the correct local
+		if (local->length == length && strncmp(local->name, name, length) == 0) {
+			// Return the slot the local is in
 			if (slot != NULL) {
 				*slot = i;
 			}
 			return local;
 		}
 	}
+
 	return NULL;
 }
 
@@ -218,8 +206,8 @@ void scope_new(Parser *parser) {
 }
 
 
-// Decrements the parser's scope depth, removing all locals
-// from the stack created in that scope.
+// Decrements the parser's scope depth, removing all locals from the stack
+// created in that scope.
 void scope_free(Parser *parser) {
 	parser->scope_depth--;
 
@@ -239,20 +227,28 @@ void scope_free(Parser *parser) {
 // Possible operator precedences.
 typedef enum {
 	PREC_NONE,
+
+	// Boolean operators
 	PREC_OR,
 	PREC_AND,
+
+	// Bitwise operators
 	PREC_BIT_OR,
 	PREC_BIT_XOR,
 	PREC_BIT_AND,
+
 	// Equal, not equal
 	PREC_EQ,
-	// Less than, less than equal, greater than, greater
-	// than equal
+
+	// Less than, less than equal, greater than, greater than equal
 	PREC_ORD,
+
 	// Addition, subtraction
 	PREC_ADD,
+
 	// Concatenation
 	PREC_CONCAT,
+
 	// Multiplication, division, modulo
 	PREC_MUL,
 } Precedence;
@@ -276,8 +272,8 @@ typedef struct {
 	// The type of the operand.
 	OperandType type;
 
-	// The value of the operand. Numbers and strings are
-	// stored as indices into the VM's number/string list.
+	// The value of the operand. Numbers and strings are stored as indices into
+	// the VM's number/string list.
 	union {
 		int16_t integer;
 		uint16_t number;
@@ -294,8 +290,8 @@ typedef struct {
 #define IS_NUMBER(type) (type == OP_INTEGER || type == OP_NUMBER)
 
 
-// Parses an expression, stopping when we reach a binary
-// operator of lower precedence than the given precedence.
+// Parses an expression, stopping when we reach a binary operator of lower
+// precedence than the given precedence.
 Operand expr_prec(Parser *parser, Precedence precedence);
 
 
@@ -333,8 +329,8 @@ Precedence binary_prec(Token operator) {
 }
 
 
-// Returns the opcode for a binary operator. Either `left`
-// or `right` must be a local.
+// Returns the opcode for a binary operator. Either `left` or `right` must be a
+// local.
 Opcode binary_opcode(Token operator, OperandType left, OperandType right) {
 	int opcodes_per_operation = ADD_NL - ADD_LL + 1;
 	int start = ADD_LL + (operator - TOKEN_ADD) * opcodes_per_operation;
@@ -342,8 +338,7 @@ Opcode binary_opcode(Token operator, OperandType left, OperandType right) {
 }
 
 
-// Returns true if the given operands are valid for the
-// given binary operation.
+// Returns true if the given operands are valid for the given binary operation.
 bool binary_valid(Token operator, OperandType left, OperandType right) {
 	switch (operator) {
 	case TOKEN_ADD:
@@ -417,8 +412,7 @@ Opcode unary_opcode(Token operator) {
 }
 
 
-// Returns true if the given operand is valid for the given
-// unary operation.
+// Returns true if the given operand is valid for the given unary operation.
 bool unary_valid(Opcode operator, OperandType operand) {
 	switch (operator) {
 	case NEG_L:
@@ -449,12 +443,12 @@ void expr_discharge(Parser *parser, Operand operand) {
 	if (operand.type == OP_LOCAL) {
 		// Copy a local if isn't in a deallocated scope
 		if (operand.local < parser->locals_count) {
-			fn_emit(parser->fn, INSTRUCTION(MOV_LL, slot, operand.local, 0));
+			emit(parser->fn, instr_new(MOV_LL, slot, operand.local, 0));
 		}
 	} else {
 		// Calculate the instruction to use
 		Opcode opcode = MOV_LL + operand.type;
-		fn_emit(parser->fn, INSTRUCTION(opcode, slot, operand.value, 0));
+		emit(parser->fn, instr_new(opcode, slot, operand.value, 0));
 	}
 }
 
@@ -527,8 +521,8 @@ Operand expr_binary_fold_arithmetic(Parser *parser, Token operator,
 }
 
 
-// Attempts to fold a binary operation. Assumes the
-// operands are valid for the operation.
+// Attempts to fold a binary operation. Assumes the operands are valid for the
+// operation.
 Operand expr_binary_fold(Parser *parser, Token operator, Operand left,
 		Operand right) {
 	Operand operand;
@@ -577,7 +571,7 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 
 	// Emit the operation
 	Opcode opcode = binary_opcode(operator, left.type, right.type);
-	fn_emit(parser->fn, INSTRUCTION(opcode, operand.local,
+	emit(parser->fn, instr_new(opcode, operand.local,
 			left.value, right.value));
 
 	// Return a local pointing to the slot we stored the
@@ -633,10 +627,9 @@ Operand expr_unary(Parser *parser, Opcode opcode, Operand right) {
 	local_new(parser, &operand.local);
 
 	// Emit operation
-	fn_emit(parser->fn, INSTRUCTION(opcode, operand.local, right.value, 0));
+	emit(parser->fn, instr_new(opcode, operand.local, right.value, 0));
 
-	// Return a local pointing to the slot we stored the
-	// result of the operation into
+	// Return a the local in which we stored the result of the operation
 	return operand;
 }
 
@@ -741,8 +734,7 @@ Operand expr_left(Parser *parser) {
 		// Consume the unary operator
 		lexer_next(lexer);
 
-		// Parse more unary operators, or the operand
-		// itself
+		// Parse another unary operator, or the operand itself
 		Operand right = expr_left(parser);
 
 		// Emit the unary operand instruction
@@ -754,9 +746,9 @@ Operand expr_left(Parser *parser) {
 }
 
 
-// Parses an expression, stopping when we reach a binary
-// operator of lower precedence than the given precedence.
-Operand expr_prec(Parser *parser, Precedence precedence) {
+// Parses an expression, stopping when we reach a binary operator of lower
+// precedence than the given precedence.
+Operand expr_prec(Parser *parser, Precedence limit) {
 	Lexer *lexer = parser->lexer;
 
 	// Start a new variable scope depth
@@ -770,8 +762,7 @@ Operand expr_prec(Parser *parser, Precedence precedence) {
 	Operand left = expr_left(parser);
 
 	// Parse a binary operator
-	while (!vm_has_error(parser->vm) &&
-			binary_prec(lexer->token) > precedence) {
+	while (!vm_has_error(parser->vm) && binary_prec(lexer->token) > limit) {
 		// Consume the operator
 		Token operator = lexer->token;
 		lexer_next(lexer);
@@ -796,8 +787,7 @@ Operand expr(Parser *parser) {
 }
 
 
-// Parses an expression, placing results into consecutive
-// local slots.
+// Parses an expression, placing results into consecutive local slots.
 void expr_emit(Parser *parser) {
 	Operand operand = expr(parser);
 	expr_discharge(parser, operand);
@@ -815,7 +805,7 @@ bool parse_assignment_left(Parser *parser, Identifier *variables, int *count) {
 	Lexer *lexer = parser->lexer;
 
 	bool found_unique = false;
-	while (!vm_has_error(parser->vm) && lexer->token == TOKEN_IDENTIFIER) {
+	while (!vm_has_error(parser->vm)) {
 		char *name = lexer->value.identifier.start;
 		size_t length = lexer->value.identifier.length;
 
@@ -824,7 +814,7 @@ bool parse_assignment_left(Parser *parser, Identifier *variables, int *count) {
 			found_unique = true;
 		}
 
-		// Save the left hand side variable
+		// Save the variable
 		variables[(*count)++] = lexer->value.identifier;
 		lexer_next(lexer);
 
@@ -832,6 +822,7 @@ bool parse_assignment_left(Parser *parser, Identifier *variables, int *count) {
 			// Skip the comma
 			lexer_next(lexer);
 		} else {
+			// If we don't find a comma, break
 			break;
 		}
 	}
@@ -860,8 +851,7 @@ void parse_assignment_right(Parser *parser, Identifier *variables, int count) {
 }
 
 
-// Parses an assignment to a new variable (using a `let`
-// token).
+// Parses an assignment to a new variable (using a `let` token).
 void parse_initial_assignment(Parser *parser) {
 	Lexer *lexer = parser->lexer;
 
@@ -891,9 +881,9 @@ void parse_initial_assignment(Parser *parser) {
 void parse_assignment(Parser *parser, Identifier first_identifier) {
 	Lexer *lexer = parser->lexer;
 
-	// Expect a comma separated list of identifiers
-	// Since the previous function already consumed the first identifier,
-	// get rid of its following comma (if it exists)
+	// Expect a comma separated list of identifiers.
+	// Since the previous function already consumed the first identifier, get
+	// rid of its following comma (if it exists)
 	if (lexer->token == TOKEN_COMMA) {
 		lexer_next(lexer);
 	}
@@ -970,8 +960,7 @@ void parse_statement(Parser *parser) {
 }
 
 
-// Parses a block of statements, terminated by the given
-// character.
+// Parses a block of statements, terminated by the given character.
 void parse_block(Parser *parser, Token terminator) {
 	Lexer *lexer = parser->lexer;
 
@@ -989,8 +978,7 @@ void parse_block(Parser *parser, Token terminator) {
 //  Parser
 //
 
-// Parses a package into bytecode. Sets the main function
-// index property on the package.
+// Parses a package into bytecode. Sets the main function index on the package.
 void parse_package(VirtualMachine *vm, Package *package) {
 	// Create the lexer used for all parent and child parsers
 	Lexer lexer = lexer_new(package->source);
@@ -1012,5 +1000,5 @@ void parse_package(VirtualMachine *vm, Package *package) {
 	parse_block(&parser, TOKEN_EOF);
 
 	// Append a return instruction
-	fn_emit(parser.fn, INSTRUCTION(RET0, 0, 0, 0));
+	emit(parser.fn, instr_new(RET0, 0, 0, 0));
 }

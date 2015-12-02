@@ -13,36 +13,43 @@
 // Evaluates to true if the given character is a digit.
 #define IS_NUMBER(ch) (ch >= '0' && ch <= '9')
 
-// Evaluates to true if the given character is an
-// identifier (letter, number, underscore).
+
+// Evaluates to true if the given character is an identifier (letter, number,
+// underscore).
 #define IS_IDENTIFIER(ch)                                     \
 	((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||  \
 	 IS_NUMBER(ch) || ch == '_')
 
+
 // Evaluates to true if the given character is a newline.
 #define IS_NEWLINE(ch) (ch == '\n' || ch == '\r')
+
 
 // Evaluates to true if the given character is whitespace.
 #define IS_WHITESPACE(ch)  \
 	(ch == '\n' || ch == '\r' || ch == '\t' || ch == ' ')
 
+
 // Moves the cursor 1 place forward.
 #define CONSUME() (lexer->cursor++)
 
-// Evaluates to the character at the current cursor
-// position.
+
+// Evaluates to the character at the current cursor position.
 #define CURRENT() (lexer->source[lexer->cursor])
+
 
 // Evaluates to a pointer to the current character.
 #define CURRENT_PTR() (&CURRENT())
 
-// Evaluates to the character a certain amount in
-// front of the current cursor position.
+
+// Evaluates to the character a certain amount in front of the current cursor
+// position.
 #define PEEK(amount) (lexer->source[lexer->cursor + amount])
 
-// Evaluates to true if the cursor is past the end of the
-// file.
+
+// Evaluates to true if the cursor is past the end of the file.
 #define IS_EOF() (CURRENT() == '\0')
+
 
 // Consumes a character and returns the given token.
 #define SINGLE(single)     \
@@ -50,13 +57,14 @@
 	lexer->token = single; \
 	break;
 
-// Consumes a character, and if the next character matches
-// the given character, returns the second option, else
-// returns the first.
+
+// Consumes a character, and if the next character matches the given character,
+// returns the second option, else returns the first.
 #define DOUBLE(first, condition, second)                                   \
 	CONSUME();                                                             \
 	lexer->token = CURRENT() == (condition) ? (CONSUME(), second) : first; \
 	break;
+
 
 // Convenience method for defining a keyword.
 #define KEYWORD(name, token)                 \
@@ -75,14 +83,12 @@ bool lexer_matches(Lexer *lexer, char *string) {
 		}
 	}
 
-	// Ensure the character after the match is not an
-	// identifier
+	// Ensure the character after the match is not an identifier
 	return !IS_IDENTIFIER(PEEK(i));
 }
 
 
-// Consumes characters up until the next non-whitespace
-// characters.
+// Consumes characters up until the next non-whitespace characters.
 void consume_whitespace(Lexer *lexer) {
 	while (IS_WHITESPACE(CURRENT())) {
 		CONSUME();
@@ -138,8 +144,7 @@ Token lexer_integer(Lexer *lexer, int base) {
 		return TOKEN_UNRECOGNISED;
 	}
 
-	// Convert to a double if the number is too large for
-	// an integer
+	// Convert to a double if the number is too large for an integer
 	if (integer > SHRT_MAX) {
 		lexer->value.number = (double) integer;
 		return TOKEN_NUMBER;
@@ -183,8 +188,7 @@ bool lexer_number_is_decimal(Lexer *lexer) {
 		amount++;
 	}
 
-	// The number is a decimal if we have a dot followed
-	// by another number
+	// The number is a decimal if we have a dot followed by another number
 	return PEEK(amount) == '.' && IS_NUMBER(PEEK(amount + 1));
 }
 
@@ -199,8 +203,8 @@ Token lexer_number(Lexer *lexer) {
 	}
 
 	if (base != 10 || !lexer_number_is_decimal(lexer)) {
-		// Consume an integer if we're not parsing a number
-		// that needs to be stored as a double
+		// Consume an integer if we're not parsing a number that needs to be
+		// stored as a double
 		return lexer_integer(lexer, base);
 	} else {
 		return lexer_decimal(lexer);
@@ -218,8 +222,7 @@ Token lexer_string(Lexer *lexer) {
 	identifier->start = CURRENT_PTR();
 	identifier->length = 0;
 
-	// Consume characters until we reach the end of the
-	// string
+	// Consume characters until we reach the end of the string
 	while (!IS_EOF() && (CURRENT() != quote || PEEK(-1) == '\\')) {
 		identifier->length++;
 		CONSUME();
@@ -249,8 +252,7 @@ Token lexer_identifier(Lexer *lexer) {
 		identifier->length++;
 	}
 
-	// We have an identifier if the length is greater
-	// than 0
+	// We have an identifier if the length is greater than 0
 	return identifier->length > 0 ? TOKEN_IDENTIFIER : TOKEN_UNRECOGNISED;
 }
 
@@ -284,8 +286,7 @@ Token lexer_keyword_identifier(Lexer *lexer) {
 	KEYWORD("false", TOKEN_FALSE)
 	KEYWORD("nil", TOKEN_NIL)
 
-	// If we didn't match a keyword, try and parse an
-	// identifier
+	// If we didn't match a keyword, try and parse an identifier
 	return lexer_identifier(lexer);
 }
 
@@ -358,8 +359,8 @@ void lexer_next(Lexer *lexer) {
 }
 
 
-// Converts the character following a `\` into its
-// corresponding escape sequence.
+// Converts the character following a `\` into its corresponding escape
+// sequence.
 char escape_sequence(char ch) {
 	switch (ch) {
 	case 'n':  return '\n';
@@ -375,15 +376,13 @@ char escape_sequence(char ch) {
 }
 
 
-// Extracts a string from the given identifier. Returns a
-// heap allocated string that needs to be freed.
+// Extracts a string from the given identifier. Returns a heap allocated string
+// that needs to be freed.
 //
-// Returns NULL if the string contains an invalid escape
-// sequence.
+// Returns NULL if the string contains an invalid escape sequence.
 char * lexer_extract_string(Identifier identifier) {
-	// Since the string with parsed escape sequences can't
-	// be longer than the string in the source code,
-	// allocate the same amount of room for each
+	// Since the string with parsed escape sequences can't be longer than the
+	// string in the source code, allocate the same amount of room for each.
 	// Add 1 for the NULL terminator
 	size_t length = 0;
 	char *result = malloc((identifier.length + 1) * sizeof(char));
@@ -412,19 +411,23 @@ char * lexer_extract_string(Identifier identifier) {
 // Returns the current source code line of the lexer.
 uint32_t lexer_line(Lexer *lexer) {
 	uint32_t line = 0;
-	char *current = CURRENT_PTR();
-	while (current >= lexer->source) {
-		if (*current == '\n' || *current == '\r') {
-			line++;
 
-			// Treat \n\r or \r\n as a single newline
-			if ((*(current - 1) == '\n' || *(current - 1) == '\r') &&
-					*(current - 1) != *current) {
-				current--;
-			}
+	// Iterate over every character in the source code
+	for (char *current = CURRENT_PTR(); current >= lexer->source; current--) {
+		// Skip the current character if it isn't a newline
+		if (*current != '\n' && *current != '\r') {
+			continue;
 		}
 
-		current--;
+		// Increment the line number
+		line++;
+
+		// Treat \n\r or \r\n as a single newline
+		char prev = *(current - 1);
+		if ((prev == '\n' || prev == '\r') && prev != *current) {
+			current--;
+		}
 	}
+
 	return line;
 }

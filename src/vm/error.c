@@ -9,45 +9,86 @@
 #include "error.h"
 
 
-// The maximum number of characters an error message can
-// be.
+// The maximum number of characters an error message can be.
 #define MAX_ERROR_LENGTH 1024
 
 
-// Sets the error on the VM.
-static void set_error(VirtualMachine *vm, Lexer *lexer, char *message) {
-	vm_free_error(vm);
-	vm->error.description = message;
-	vm->error.line = lexer_line(lexer);
-	vm->error.package = NULL;
-	vm->error.file = NULL;
-}
+// Returns the textual representation of the lexer's most recent token as a
+// heap allocated string. Returns NULL for an invalid token.
+char * token_string(Lexer *lexer);
 
 
-// Triggers a custom error on the VM.
-void err_fatal(VirtualMachine *vm, Lexer *lexer, char *fmt, ...) {
-	// Format the error message
-	char *message = malloc(sizeof(char) * MAX_ERROR_LENGTH);
+// Create a new error.
+void err_new(HyError *err, int line, char *fmt, ...) {
+	err->line = line;
+
+	// Allocate space for a new description
+	err->description = malloc(sizeof(char) * MAX_ERROR_LENGTH);
+
+	// Write to the description
 	va_list args;
 	va_start(args, fmt);
-	vsnprintf(message, MAX_ERROR_LENGTH, fmt, args);
+	vsnprintf(err->description, MAX_ERROR_LENGTH, fmt, args);
 	va_end(args);
-
-	set_error(vm, lexer, message);
 }
 
 
-// Shortcut for defining the contents of a token.
-#define SYMBOL(token, content)           \
-	case token:                          \
-		strcpy(string, content);         \
-		return &string[strlen(content)]; \
+// Free an error.
+void err_free(HyError *err) {
+	if (err->description != NULL) {
+		free(err->description);
+	}
+}
 
 
-// Appends the textual representation of a token to a
-// string.
-static char * print_token(char *string, Token token, TokenValue value) {
-	switch (token) {
+// Create an unexpected token error for the most recent token on the lexer.
+void err_unexpected(HyError *err, Lexer *lexer, char *fmt, ...) {
+	err->line = lexer_line(lexer);
+
+	// Create the description
+	err->description = malloc(MAX_ERROR_LENGTH * sizeof(char));
+	char *description = err->description;
+
+	// Add the given message
+	va_list args;
+	va_start(args, fmt);
+	int length = vsnprintf(description, MAX_ERROR_LENGTH, fmt, args);
+	va_end(args);
+	description = &description[length];
+
+	// Add the `, found ...` part
+	length = sprintf(description, ", found `");
+	description = &description[length];
+
+	// Print the token
+	char *token = token_string(lexer);
+	strcpy(description, token);
+	free(token);
+	description = &description[strlen(token)];
+
+	// Add the final closing backtick
+	sprintf(description, "`");
+}
+
+
+
+//
+//  Token to String Conversion
+//
+
+// Handles a case in converting a token to a string.
+#define SYMBOL(token, text)                                 \
+	case token: {                                           \
+		char *result = malloc(strlen(text) * sizeof(char)); \
+		strcpy(result, text);                               \
+		return result;                                      \
+	}
+
+
+// Returns the textual representation of the lexer's most recent token as a
+// heap allocated string. Returns NULL for an invalid token.
+char * token_string(Lexer *lexer) {
+	switch (lexer->token) {
 	// Mathematical operators
 	SYMBOL(TOKEN_ADD, "+")
 	SYMBOL(TOKEN_SUB, "-")
@@ -92,29 +133,6 @@ static char * print_token(char *string, Token token, TokenValue value) {
 	SYMBOL(TOKEN_COMMA, ",")
 	SYMBOL(TOKEN_DOT, ".")
 
-	// Values
-	case TOKEN_IDENTIFIER: {
-		int written = snprintf(string, value.identifier.length, "%s",
-			value.identifier.start);
-		return &string[written];
-	}
-
-	case TOKEN_STRING: {
-		int written = snprintf(string, value.identifier.length, "\"%s\"",
-			value.identifier.start);
-		return &string[written];
-	}
-
-	case TOKEN_INTEGER: {
-		int written = sprintf(string, "%d", value.integer);
-		return &string[written];
-	}
-
-	case TOKEN_NUMBER: {
-		int written = sprintf(string, "%f", value.number);
-		return &string[written];
-	}
-
 	SYMBOL(TOKEN_TRUE, "true")
 	SYMBOL(TOKEN_FALSE, "false")
 	SYMBOL(TOKEN_NIL, "nil")
@@ -126,40 +144,41 @@ static char * print_token(char *string, Token token, TokenValue value) {
 	SYMBOL(TOKEN_WHILE, "while")
 	SYMBOL(TOKEN_LOOP, "loop")
 	SYMBOL(TOKEN_FOR, "for")
+	SYMBOL(TOKEN_LET, "let")
 	SYMBOL(TOKEN_FN, "fn")
+	SYMBOL(TOKEN_IMPORT, "import")
 
-	// Invalid token
-	default:
-		return string;
+	// Values
+	case TOKEN_IDENTIFIER: {
+		Identifier *ident = &lexer->value.identifier;
+		char *result = malloc((ident->length + 1) * sizeof(char));
+		snprintf(result, ident->length, "%.*s", ident->length, ident->start);
+		return result;
 	}
-}
 
+	case TOKEN_STRING: {
+		Identifier *ident = &lexer->value.identifier;
+		char *result = malloc((ident->length + 3) * sizeof(char));
+		snprintf(result, ident->length, "'%.*s'", ident->length, ident->start);
+		return result;
+	}
 
-// Triggers an unexpected token error on the VM.
-void err_unexpected(VirtualMachine *vm, Lexer *lexer, char *fmt, ...) {
-	// Format the message
-	char *message = malloc(sizeof(char) * MAX_ERROR_LENGTH);
-	char *start = message;
-	int next;
-	va_list args;
+	case TOKEN_INTEGER: {
+		// 7 characters as maximum int16_t is 32767 (5 characters), plus one
+		// for the sign (if it's negative), plus one for the NULL terminator
+		char *result = malloc(7 * sizeof(char));
+		sprintf(result, "%d", lexer->value.integer);
+		return result;
+	}
 
-	// Add the given message
-	va_start(args, fmt);
-	next = vsprintf(message, fmt, args);
-	message = &message[next];
-	va_end(args);
+	case TOKEN_NUMBER: {
+		char *result = malloc(20 * sizeof(char));
+		sprintf(result, "%.5f", lexer->value.number);
+		return result;
+	}
 
-	// Add the static text
-	next = sprintf(message, ", found `");
-	message = &message[next];
-
-	// Add the token
-	// TODO: Prevent overflow of max error length when
-	// writing a token
-	message = print_token(message, lexer->token, lexer->value);
-
-	// Finish the static text
-	sprintf(message, "`");
-
-	set_error(vm, lexer, start);
+	// Unrecognised token
+	default:
+		return NULL;
+	}
 }

@@ -126,11 +126,10 @@ Lexer lexer_new(char *source);
 // Parses the next token.
 void lexer_next(Lexer *lexer);
 
-// Extracts a string from the given identifier. Returns a
-// heap allocated string that needs to be freed.
+// Extracts a string from the given identifier. Returns a heap allocated string
+// that needs to be freed.
 //
-// Returns NULL if the string contains an invalid escape
-// sequence.
+// Returns NULL if the string contains an invalid escape sequence.
 char * lexer_extract_string(Identifier identifier);
 
 // Returns the current source code line of the lexer.

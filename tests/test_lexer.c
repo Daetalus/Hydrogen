@@ -9,11 +9,13 @@
 // Creates a new lexer.
 #define LEXER(source) Lexer lexer = lexer_new((source));
 
+
 // Reads the next token from the lexer and ensures it
 // matches the given type.
 #define ASSERT_TOKEN(type) \
 	lexer_next(&lexer);    \
 	EQ(lexer.token, type);
+
 
 // Ensures the next token matches the given identifier.
 #define ASSERT_IDENTIFIER(contents) {                                  \
@@ -22,6 +24,7 @@
 	EQ(lexer.value.identifier.length, strlen(contents));               \
 	EQ_STRN(lexer.value.identifier.start, contents, strlen(contents)); \
 }
+
 
 // Ensures the next token matches the given string.
 #define ASSERT_STRING(contents, parsed) {                              \
@@ -35,12 +38,14 @@
 	free(extracted);                                                   \
 }
 
+
 // Ensures the next token matches the given number.
 #define ASSERT_NUMBER(expected) {     \
 	lexer_next(&lexer);               \
 	EQ(lexer.token, TOKEN_NUMBER);    \
 	EQ(lexer.value.number, expected); \
 }
+
 
 // Ensures the next token matches the given integer.
 #define ASSERT_INTEGER(expected) {     \

@@ -8,33 +8,32 @@
 #define HYDROGEN_H
 
 // The interpreter state.
-typedef struct _vm HyVM;
+typedef struct vm HyVM;
 
 
 // Possible results for the execution of source code.
 typedef enum {
-    HY_SUCCESS,
-    HY_COMPILE_ERROR,
-    HY_RUNTIME_ERROR,
+	HY_SUCCESS,
+	HY_COMPILE_ERROR,
+	HY_RUNTIME_ERROR,
 } HyResult;
 
 
 // A runtime or compile error.
 typedef struct {
-    // A description of the error.
-    char *description;
+	// A description of the error.
+	char *description;
 
-    // The line of source code the error occurred on.
-    uint32_t line;
+	// The line of source code the error occurred on.
+	int line;
 
-	// The name of the package the error occurred in, or
-	// NULL if the package is anonymous.
-	char *package;
+	// The name of the package the error occurred in, or NULL if the package is
+	// anonymous.
+	// char *package;
 
-    // The path to the file the error occurred in, or NULL
-    // if the source code the error occurred in is not
-    // located in a file.
-    char *file;
+	// The path to the file the error occurred in, or NULL if the source code
+	// the error occurred in is not located in a file.
+	// char *file;
 } HyError;
 
 
@@ -47,8 +46,8 @@ void hy_free(HyVM *vm);
 // Runs the given source code string.
 HyResult hy_exec_string(HyVM *vm, char *source);
 
-// Returns the most recent error that has occurred.
-// Do not attempt to free the returned pointer!
+// Returns the most recent error that has occurred. Do not attempt to free the
+// returned pointer!
 HyError * hy_error(HyVM *vm);
 
 #endif
