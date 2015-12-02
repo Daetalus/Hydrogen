@@ -192,6 +192,7 @@ Local * local_find(Parser *parser, char *name, size_t length, uint16_t *slot) {
 			if (slot != NULL) {
 				*slot = i;
 			}
+
 			return local;
 		}
 	}
@@ -211,6 +212,10 @@ void scope_new(Parser *parser) {
 void scope_free(Parser *parser) {
 	parser->scope_depth--;
 
+	// Since the locals are stored in order of stack depth, with the locals
+	// allocated in the deepest scope stored at the end of the array,
+	// continually decrease the size of the array until we hit a local in a
+	// scope that is still active
 	int i = parser->locals_count - 1;
 	while (i >= 0 && parser->locals[i].scope_depth > parser->scope_depth) {
 		parser->locals_count--;
@@ -227,28 +232,21 @@ void scope_free(Parser *parser) {
 // Possible operator precedences.
 typedef enum {
 	PREC_NONE,
-
 	// Boolean operators
 	PREC_OR,
 	PREC_AND,
-
 	// Bitwise operators
 	PREC_BIT_OR,
 	PREC_BIT_XOR,
 	PREC_BIT_AND,
-
 	// Equal, not equal
 	PREC_EQ,
-
 	// Less than, less than equal, greater than, greater than equal
 	PREC_ORD,
-
 	// Addition, subtraction
 	PREC_ADD,
-
 	// Concatenation
 	PREC_CONCAT,
-
 	// Multiplication, division, modulo
 	PREC_MUL,
 } Precedence;
@@ -280,7 +278,6 @@ typedef struct {
 		uint16_t string;
 		uint16_t primitive;
 		uint16_t local;
-
 		uint16_t value;
 	};
 } Operand;
@@ -359,9 +356,7 @@ bool binary_valid(Token operator, OperandType left, OperandType right) {
 
 // Returns true if a binary operator is an arithmetic operator.
 bool binary_is_arithmetic(Token operator) {
-	return operator == TOKEN_ADD || operator == TOKEN_SUB ||
-		operator == TOKEN_MUL || operator == TOKEN_DIV ||
-		operator == TOKEN_MOD;
+	return operator >= TOKEN_ADD  && operator <= TOKEN_MOD;
 }
 
 
@@ -424,9 +419,9 @@ bool unary_valid(Opcode operator, OperandType operand) {
 
 
 // Converts an integer or number operand into a double value.
-double operand_to_number(Operand operand) {
+double operand_to_number(Parser *parser, Operand operand) {
 	if (operand.type == OP_NUMBER) {
-		return operand.number;
+		return parser->vm->numbers[operand.number];
 	} else if (operand.type == OP_INTEGER) {
 		return (double) operand.integer;
 	} else {
@@ -490,8 +485,7 @@ Operand expr_binary_fold_arithmetic(Parser *parser, Token operator,
 		return operand;
 	}
 
-	// If both are integers and the operation is not division, return an
-	// integer
+	// If both are integers and the operation is not division, return an integer
 	if (left.type == OP_INTEGER && right.type == OP_INTEGER &&
 			operator != TOKEN_DIV) {
 		int32_t result = binary_integer_arithmetic(operator,
@@ -510,8 +504,8 @@ Operand expr_binary_fold_arithmetic(Parser *parser, Token operator,
 		}
 	} else {
 		// Convert both to numbers and compute the operation
-		double left_value = operand_to_number(left);
-		double right_value = operand_to_number(right);
+		double left_value = operand_to_number(parser, left);
+		double right_value = operand_to_number(parser, right);
 		operand.type = OP_NUMBER;
 		operand.number = vm_add_number(parser->vm,
 			binary_number_arithmetic(operator, left_value, right_value));
@@ -574,8 +568,7 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 	emit(parser->fn, instr_new(opcode, operand.local,
 			left.value, right.value));
 
-	// Return a local pointing to the slot we stored the
-	// result of the operation into
+	// Return the local we stored the result of the operation into
 	return operand;
 }
 
@@ -707,6 +700,7 @@ Operand expr_operand(Parser *parser) {
 		if (lexer->token != TOKEN_CLOSE_PARENTHESIS) {
 			ERROR("Expected `)` to close `(` in expression");
 			operand.type = OP_NONE;
+			break;
 		}
 
 		// Consume the closing parenthesis

@@ -107,15 +107,19 @@ Lexer lexer_new(char *source) {
 
 // Lexes the base prefix of a number.
 int lexer_number_base(Lexer *lexer) {
+	// Base prefixes begin with a 0
 	if (CURRENT() == '0') {
+		// Skip over the 0
 		CONSUME();
-		switch (CURRENT()) {
-		// Base 2, 8 and 16 (binary, octal and hex)
-		case 'b': return 2;
-		case 'o': return 8;
-		case 'x': return 16;
 
-		// Invalid base
+		switch (CURRENT()) {
+		// Binary
+		case 'b': return 2;
+		// Octal
+		case 'o': return 8;
+		// Hexadecimal
+		case 'x': return 16;
+		// Invalid
 		default: return -1;
 		}
 	}
