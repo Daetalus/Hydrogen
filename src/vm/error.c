@@ -152,14 +152,16 @@ char * token_string(Lexer *lexer) {
 	case TOKEN_IDENTIFIER: {
 		Identifier *ident = &lexer->value.identifier;
 		char *result = malloc((ident->length + 1) * sizeof(char));
-		snprintf(result, ident->length, "%.*s", ident->length, ident->start);
+		snprintf(result, ident->length, "%.*s", (int) ident->length,
+			ident->start);
 		return result;
 	}
 
 	case TOKEN_STRING: {
 		Identifier *ident = &lexer->value.identifier;
 		char *result = malloc((ident->length + 3) * sizeof(char));
-		snprintf(result, ident->length, "'%.*s'", ident->length, ident->start);
+		snprintf(result, ident->length, "'%.*s'", (int) ident->length,
+			ident->start);
 		return result;
 	}
 

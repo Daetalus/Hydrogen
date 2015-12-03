@@ -259,8 +259,7 @@ typedef enum {
 	OP_NUMBER,
 	OP_STRING,
 	OP_PRIMITIVE,
-	OP_CALL,
-	OP_FUNCTION,
+	OP_JUMP,
 	OP_NONE,
 } OperandType;
 
@@ -279,6 +278,8 @@ typedef struct {
 		uint16_t primitive;
 		uint16_t local;
 		uint16_t value;
+
+		uint32_t jump;
 	};
 } Operand;
 
@@ -327,11 +328,26 @@ Precedence binary_prec(Token operator) {
 
 
 // Returns the opcode for a binary operator. Either `left` or `right` must be a
-// local.
+// local. Both must be valid operands for the operator.
 Opcode binary_opcode(Token operator, OperandType left, OperandType right) {
-	int opcodes_per_operation = ADD_NL - ADD_LL + 1;
-	int start = ADD_LL + (operator - TOKEN_ADD) * opcodes_per_operation;
-	return start + (left == OP_LOCAL ? right : left + 2);
+	if (operator >= TOKEN_ADD && operator <= TOKEN_CONCAT) {
+		// Arithmetic
+		int base = ADD_LL + (operator - TOKEN_ADD) * 5;
+		return base + (left == OP_LOCAL ? right : left + 2);
+	} else if (operator == TOKEN_CONCAT) {
+		// Concatenation
+		return CONCAT_LL + (left - OP_LOCAL) + (right - OP_LOCAL) * 2;
+	} else if (operator == TOKEN_EQ || operator == TOKEN_NEQ) {
+		// Comparison
+		int base = EQ_LL + (operator - TOKEN_EQ) * 5;
+		return base + (left == OP_LOCAL ? right : left);
+	} else if (operator >= TOKEN_LT && operator <= TOKEN_GE) {
+		// Ordering
+		int base = LT_LL + (operator - TOKEN_LT) * 3;
+		return base + (left == OP_LOCAL ? right : left);
+	}
+
+	return NO_OP;
 }
 
 
@@ -343,20 +359,22 @@ bool binary_valid(Token operator, OperandType left, OperandType right) {
 	case TOKEN_MUL:
 	case TOKEN_DIV:
 	case TOKEN_MOD:
+	case TOKEN_LT:
+	case TOKEN_LE:
+	case TOKEN_GT:
+	case TOKEN_GE:
 		return (IS_NUMBER(left) || left == OP_LOCAL) &&
 			(IS_NUMBER(right) || right == OP_LOCAL);
 	case TOKEN_CONCAT:
 		return (left == OP_STRING || left == OP_LOCAL) &&
 			(right == OP_STRING || right == OP_LOCAL);
+	case TOKEN_EQ:
+	case TOKEN_NEQ:
+		return (left >= OP_LOCAL && left <= OP_PRIMITIVE) &&
+			(right >= OP_LOCAL && right <= OP_PRIMITIVE);
 	default:
 		return false;
 	}
-}
-
-
-// Returns true if a binary operator is an arithmetic operator.
-bool binary_is_arithmetic(Token operator) {
-	return operator >= TOKEN_ADD  && operator <= TOKEN_MOD;
 }
 
 
@@ -422,34 +440,115 @@ bool unary_valid(Opcode operator, OperandType operand) {
 double operand_to_number(Parser *parser, Operand operand) {
 	if (operand.type == OP_NUMBER) {
 		return parser->vm->numbers[operand.number];
-	} else if (operand.type == OP_INTEGER) {
-		return (double) operand.integer;
 	} else {
-		return 0.0;
+		return (double) operand.integer;
 	}
 }
 
 
-// Places an operand in the next available local slot.
-void expr_discharge(Parser *parser, Operand operand) {
-	// Place the variable in the next available local slot
-	uint16_t slot = parser->locals_count;
+// Attempts to fold an equality test.
+Operand fold_equal(Parser *parser, Token operator, Operand left, Operand right) {
+	Operand operand;
+	operand.type = OP_NONE;
 
-	if (operand.type == OP_LOCAL) {
-		// Copy a local if isn't in a deallocated scope
-		if (operand.local < parser->locals_count) {
-			emit(parser->fn, instr_new(MOV_LL, slot, operand.local, 0));
-		}
-	} else {
-		// Calculate the instruction to use
-		Opcode opcode = MOV_LL + operand.type;
-		emit(parser->fn, instr_new(opcode, slot, operand.value, 0));
+	// Only fold if types are equal
+	if (left.type != right.type) {
+		return operand;
 	}
+
+	// If their values are equal
+	operand.type = OP_PRIMITIVE;
+	if (left.value == right.value) {
+		operand.type = (operator == TOKEN_EQ) ? TRUE_TAG : FALSE_TAG;
+		return operand;
+	}
+
+	// Try individual tests depending on the operand type
+	switch (left.type) {
+	case OP_LOCAL:
+		// Don't fold the operation so we compare the locals at runtime
+		operand.type = OP_NONE;
+		break;
+	case OP_NUMBER: {
+		double first = parser->vm->numbers[left.number];
+		double second = parser->vm->numbers[right.number];
+		operand.primitive = (first == second) ? TRUE_TAG : FALSE_TAG;
+		break;
+	}
+	case OP_STRING: {
+		char *first = parser->vm->strings[left.string];
+		char *second = parser->vm->strings[right.string];
+		operand.primitive = (strcmp(first, second) == 0) ? TRUE_TAG : FALSE_TAG;
+		break;
+	}
+	default:
+		operand.primitive = FALSE_TAG;
+		break;
+	}
+
+	// Invert the result if we're testing for inequality
+	if (operator == TOKEN_NEQ && operand.type == OP_PRIMITIVE) {
+		operand.primitive = (operand.primitive == TRUE_TAG) ? FALSE_TAG :
+			TRUE_TAG;
+	}
+
+	return operand;
+}
+
+
+// Returns the result of a comparison between two identical locals.
+uint16_t comp_locals(Token operator) {
+	switch (operator) {
+	case TOKEN_LT: return FALSE_TAG;
+	case TOKEN_LE: return TRUE_TAG;
+	case TOKEN_GT: return FALSE_TAG;
+	case TOKEN_GE: return TRUE_TAG;
+	default: return FALSE_TAG;
+	}
+}
+
+
+// Returns the result of a comparison between two numbers.
+uint16_t comp_numbers(Token operator, double left, double right) {
+	switch (operator) {
+	case TOKEN_LT: return (left < right) ? TRUE_TAG : FALSE_TAG;
+	case TOKEN_LE: return (left <= right) ? TRUE_TAG : FALSE_TAG;
+	case TOKEN_GT: return (left > right) ? TRUE_TAG : FALSE_TAG;
+	case TOKEN_GE: return (left >= right) ? TRUE_TAG : FALSE_TAG;
+	default: return FALSE_TAG;
+	}
+}
+
+
+// Attempts to fold an order operation.
+Operand fold_order(Parser *parser, Token operator, Operand left, Operand right) {
+	Operand operand;
+	operand.type = OP_NONE;
+
+	// Two identical locals
+	if (left.type == OP_LOCAL && right.type == OP_LOCAL &&
+			left.local == right.local) {
+		operand.type = OP_PRIMITIVE;
+		operand.primitive = comp_locals(operator);
+	}
+
+	// Both numbers
+	if (IS_NUMBER(left.type) && IS_NUMBER(right.type)) {
+		// Convert operands into numbers
+		double first = operand_to_number(parser, left);
+		double second = operand_to_number(parser, right);
+
+		// Compare them
+		operand.type = OP_PRIMITIVE;
+		operand.primitive = comp_numbers(operator, first, second);
+	}
+
+	return operand;
 }
 
 
 // Attempts to fold a concatenation operation.
-Operand expr_binary_fold_concat(Parser *parser, Operand left, Operand right) {
+Operand fold_concat(Parser *parser, Operand left, Operand right) {
 	Operand operand;
 	operand.type = OP_NONE;
 
@@ -475,8 +574,8 @@ Operand expr_binary_fold_concat(Parser *parser, Operand left, Operand right) {
 
 
 // Attempts to fold an arithmetic operation.
-Operand expr_binary_fold_arithmetic(Parser *parser, Token operator,
-		Operand left, Operand right) {
+Operand fold_arithmetic(Parser *parser, Token operator, Operand left,
+		Operand right) {
 	Operand operand;
 	operand.type = OP_NONE;
 
@@ -517,7 +616,7 @@ Operand expr_binary_fold_arithmetic(Parser *parser, Token operator,
 
 // Attempts to fold a binary operation. Assumes the operands are valid for the
 // operation.
-Operand expr_binary_fold(Parser *parser, Token operator, Operand left,
+Operand fold_binary(Parser *parser, Token operator, Operand left,
 		Operand right) {
 	Operand operand;
 	operand.type = OP_NONE;
@@ -527,14 +626,24 @@ Operand expr_binary_fold(Parser *parser, Token operator, Operand left,
 		return operand;
 	}
 
-	// Attempt to fold concatenation
+	// Concatenation
 	if (operator == TOKEN_CONCAT) {
-		return expr_binary_fold_concat(parser, left, right);
+		return fold_concat(parser, left, right);
 	}
 
-	// Attempt to fold arithmetic
-	if (binary_is_arithmetic(operator)) {
-		return expr_binary_fold_arithmetic(parser, operator, left, right);
+	// Arithmetic
+	if (operator >= TOKEN_ADD && operator <= TOKEN_MOD) {
+		return fold_arithmetic(parser, operator, left, right);
+	}
+
+	// Equality
+	if (operator == TOKEN_EQ || operator == TOKEN_NEQ) {
+		return fold_equal(parser, operator, left, right);
+	}
+
+	// Ordering
+	if (operator >= TOKEN_LT && operator <= TOKEN_GE) {
+		return fold_order(parser, operator, left, right);
 	}
 
 	return operand;
@@ -554,7 +663,7 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 	}
 
 	// Attempt to fold the operation
-	operand = expr_binary_fold(parser, operator, left, right);
+	operand = fold_binary(parser, operator, left, right);
 	if (operand.type != OP_NONE) {
 		return operand;
 	}
@@ -574,7 +683,7 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 
 
 // Attempts to fold a unary operation.
-Operand expr_unary_fold(Parser *parser, Opcode opcode, Operand right) {
+Operand fold_unary(Parser *parser, Opcode opcode, Operand right) {
 	Operand operand;
 	operand.type = OP_NONE;
 
@@ -609,7 +718,7 @@ Operand expr_unary(Parser *parser, Opcode opcode, Operand right) {
 	}
 
 	// Attempt to fold the operation
-	operand = expr_unary_fold(parser, opcode, right);
+	operand = fold_unary(parser, opcode, right);
 	if (operand.type != OP_NONE) {
 		return operand;
 	}
@@ -624,6 +733,26 @@ Operand expr_unary(Parser *parser, Opcode opcode, Operand right) {
 
 	// Return a the local in which we stored the result of the operation
 	return operand;
+}
+
+
+// Places an operand in the next available local slot.
+void expr_discharge(Parser *parser, Operand operand) {
+	// Place the variable in the next available local slot
+	uint16_t slot = parser->locals_count;
+
+	if (operand.type == OP_LOCAL) {
+		// Copy a local if isn't in a deallocated scope
+		if (operand.local < parser->locals_count) {
+			emit(parser->fn, instr_new(MOV_LL, slot, operand.local, 0));
+		}
+	} else if (operand.type == OP_JUMP) {
+
+	} else {
+		// Calculate the instruction to use
+		Opcode opcode = MOV_LL + operand.type;
+		emit(parser->fn, instr_new(opcode, slot, operand.value, 0));
+	}
 }
 
 
