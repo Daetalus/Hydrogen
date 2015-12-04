@@ -50,4 +50,5 @@ macro(test name)
 endmacro()
 
 test(lexer)
+test(bytecode)
 test(expr)

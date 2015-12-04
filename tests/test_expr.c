@@ -94,9 +94,50 @@ TEST(parentheses) {
 }
 
 
+TEST(conditional) {
+	COMPILER("let a = 3\nlet b = 4\nlet c = a == b\nlet d = a < b\n"
+		"let e = b >= c\nlet f = a != c\n");
+
+	ASSERT_INSTRUCTION(MOV_LI, 0, 3, 0);
+	ASSERT_INSTRUCTION(MOV_LI, 1, 4, 0);
+
+	// a == b
+	ASSERT_INSTRUCTION(EQ_LL, 0, 1, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(MOV_LP, 2, FALSE_TAG, 0);
+	ASSERT_JMP(2);
+	ASSERT_INSTRUCTION(MOV_LP, 2, TRUE_TAG, 0);
+
+	// a < b
+	ASSERT_INSTRUCTION(LT_LL, 0, 1, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(MOV_LP, 3, FALSE_TAG, 0);
+	ASSERT_JMP(2);
+	ASSERT_INSTRUCTION(MOV_LP, 3, TRUE_TAG, 0);
+
+	// b >= c
+	ASSERT_INSTRUCTION(GE_LL, 1, 2, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(MOV_LP, 4, FALSE_TAG, 0);
+	ASSERT_JMP(2);
+	ASSERT_INSTRUCTION(MOV_LP, 4, TRUE_TAG, 0);
+
+	// a != c
+	ASSERT_INSTRUCTION(NEQ_LL, 0, 2, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(MOV_LP, 5, FALSE_TAG, 0);
+	ASSERT_JMP(2);
+	ASSERT_INSTRUCTION(MOV_LP, 5, TRUE_TAG, 0);
+
+	ASSERT_RET0();
+	FREE_COMPILER();
+}
+
+
 MAIN() {
 	RUN(assignment);
 	RUN(addition);
 	RUN(precedence);
 	RUN(parentheses);
+	RUN(conditional);
 }

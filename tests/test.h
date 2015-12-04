@@ -105,6 +105,15 @@
 }
 
 
+// Asserts a jump instruction.
+#define ASSERT_JMP(amount) {                      \
+	NEQ(index, fn->bytecode_count);               \
+	uint64_t instruction = fn->bytecode[index++]; \
+	EQ(instr_arg(instruction, 0), JMP);           \
+	EQ(instr_arg(instruction, 1), amount);        \
+}
+
+
 // Asserts an empty return.
 #define ASSERT_RET0() ASSERT_INSTRUCTION(RET0, 0, 0, 0)
 

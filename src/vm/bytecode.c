@@ -29,7 +29,7 @@ uint16_t instr_arg(uint64_t instruction, int arg) {
 uint64_t instr_set(uint64_t instruction, int arg, uint16_t value) {
 	int offset = arg * 16;
 	uint64_t xor = ((uint64_t) 0xffff) << offset;
-	uint64_t cleared = instruction ^ xor;
+	uint64_t cleared = instruction & (((uint64_t) 0xffffffffffffffff) ^ xor);
 	uint64_t offset_value = ((uint64_t) value) << offset;
 	return cleared | offset_value;
 }
@@ -54,6 +54,6 @@ uint32_t jmp_new(Function *fn) {
 // Sets the target of the jump instruction at `index` within the function's
 // bytecode.
 void jmp_set(Function *fn, uint32_t index, uint32_t target) {
-	uint16_t offset = fn->bytecode_count - target;
+	uint16_t offset = target - index;
 	fn->bytecode[index] = instr_set(fn->bytecode[index], 1, offset);
 }

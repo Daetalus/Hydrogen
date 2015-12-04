@@ -668,16 +668,26 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 		return operand;
 	}
 
-	// Configure the resulting operand
-	operand.type = OP_LOCAL;
-	operand.local = slot;
-
-	// Emit the operation
+	// Calculate the opcode for the instruction to emit
 	Opcode opcode = binary_opcode(operator, left.type, right.type);
-	emit(parser->fn, instr_new(opcode, operand.local,
-			left.value, right.value));
 
-	// Return the local we stored the result of the operation into
+	if (operator >= TOKEN_ADD && operator <= TOKEN_CONCAT) {
+		// Arithmetic
+		operand.type = OP_LOCAL;
+		operand.local = slot;
+
+		// Emit the operation
+		emit(parser->fn, instr_new(opcode, operand.local, left.value,
+			right.value));
+	} else if (operator >= TOKEN_EQ && operator <= TOKEN_GE) {
+		// Comparison
+		operand.type = OP_JUMP;
+
+		// Emit the comparison and the empty jump instruction following it
+		emit(parser->fn, instr_new(opcode, left.value, right.value, 0));
+		operand.jump = jmp_new(parser->fn);
+	}
+
 	return operand;
 }
 
@@ -747,7 +757,13 @@ void expr_discharge(Parser *parser, Operand operand) {
 			emit(parser->fn, instr_new(MOV_LL, slot, operand.local, 0));
 		}
 	} else if (operand.type == OP_JUMP) {
+		// Emit false case, jump over true case, and true case
+		emit(parser->fn, instr_new(MOV_LP, slot, FALSE_TAG, 0));
+		emit(parser->fn, instr_new(JMP, 2, 0, 0));
+		uint32_t target = emit(parser->fn, instr_new(MOV_LP, slot, TRUE_TAG, 0));
 
+		// Point the jump instruction to the true case
+		jmp_set(parser->fn, operand.jump, target);
 	} else {
 		// Calculate the instruction to use
 		Opcode opcode = MOV_LL + operand.type;
@@ -765,20 +781,17 @@ Operand expr_operand(Parser *parser) {
 	case TOKEN_INTEGER:
 		operand.type = OP_INTEGER;
 		operand.integer = lexer->value.integer;
-		lexer_next(lexer);
 		break;
 
 	case TOKEN_NUMBER:
 		operand.type = OP_NUMBER;
 		operand.number = vm_add_number(parser->vm, lexer->value.number);
-		lexer_next(lexer);
 		break;
 
 	case TOKEN_STRING: {
 		char *string = lexer_extract_string(lexer->value.identifier);
 		operand.type = OP_STRING;
 		operand.string = vm_add_string(parser->vm, string);
-		lexer_next(lexer);
 		break;
 	}
 
@@ -796,26 +809,22 @@ Operand expr_operand(Parser *parser) {
 
 		operand.type = OP_LOCAL;
 		operand.local = slot;
-		lexer_next(lexer);
 		break;
 	}
 
 	case TOKEN_TRUE:
 		operand.type = OP_PRIMITIVE;
 		operand.primitive = TRUE_TAG;
-		lexer_next(lexer);
 		break;
 
 	case TOKEN_FALSE:
 		operand.type = OP_PRIMITIVE;
 		operand.primitive = FALSE_TAG;
-		lexer_next(lexer);
 		break;
 
 	case TOKEN_NIL:
 		operand.type = OP_PRIMITIVE;
 		operand.primitive = NIL_TAG;
-		lexer_next(lexer);
 		break;
 
 	case TOKEN_OPEN_PARENTHESIS:
@@ -831,9 +840,6 @@ Operand expr_operand(Parser *parser) {
 			operand.type = OP_NONE;
 			break;
 		}
-
-		// Consume the closing parenthesis
-		lexer_next(lexer);
 		break;
 
 	default:
@@ -842,6 +848,7 @@ Operand expr_operand(Parser *parser) {
 		break;
 	}
 
+	lexer_next(lexer);
 	return operand;
 }
 
