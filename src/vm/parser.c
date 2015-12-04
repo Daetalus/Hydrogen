@@ -287,6 +287,9 @@ typedef struct {
 // Evaluates to true if an operand is a number.
 #define IS_NUMBER(type) (type == OP_INTEGER || type == OP_NUMBER)
 
+// Evaluates to true if an operand is a jump or local.
+#define IS_JUMP_OR_LOCAL(type) ((type) == OP_LOCAL || (type) == OP_JUMP)
+
 
 // Parses an expression, stopping when we reach a binary operator of lower
 // precedence than the given precedence.
@@ -446,6 +449,63 @@ double operand_to_number(Parser *parser, Operand operand) {
 }
 
 
+// Converts an operand (that isn't a local) into a true or false value.
+bool operand_to_boolean(Operand operand) {
+	return operand.type == OP_PRIMITIVE && operand.primitive == TRUE_TAG;
+}
+
+
+// Attempts to fold an `and` or `or` operation.
+Operand fold_condition(Token operator, Operand left, Operand right) {
+	Operand operand;
+	operand.type = OP_NONE;
+
+	// Don't fold if both are locals
+	if (IS_JUMP_OR_LOCAL(left.type) && IS_JUMP_OR_LOCAL(right.type)) {
+		return operand;
+	}
+
+	// Convert each operand into a boolean
+	bool first = operand_to_boolean(left);
+	bool second = operand_to_boolean(right);
+
+	// If neither are locals
+	if (!IS_JUMP_OR_LOCAL(left.type) && !IS_JUMP_OR_LOCAL(right.type)) {
+		bool result = (operator == TOKEN_OR) ? (first || second) : (first && second);
+		operand.type = OP_PRIMITIVE;
+		operand.primitive = result ? TRUE_TAG : FALSE_TAG;
+		return operand;
+	}
+
+	// Make operand and constant agnostic of order
+	Operand local = IS_JUMP_OR_LOCAL(left.type) ? left : right;
+	bool constant = IS_JUMP_OR_LOCAL(left.type) ? second : first;
+
+	// Either left or right is a local, but not both
+	if (operator == TOKEN_AND) {
+		if (constant) {
+			// Something && true = Something
+			return local;
+		} else {
+			// Something && false = false
+			operand.type = OP_PRIMITIVE;
+			operand.primitive = FALSE_TAG;
+			return operand;
+		}
+	} else {
+		if (!constant) {
+			// Something || false = something
+			return local;
+		} else {
+			// Something || true = true
+			operand.type = OP_PRIMITIVE;
+			operand.primitive = TRUE_TAG;
+			return operand;
+		}
+	}
+}
+
+
 // Attempts to fold an equality test.
 Operand fold_equal(Parser *parser, Token operator, Operand left, Operand right) {
 	Operand operand;
@@ -459,16 +519,18 @@ Operand fold_equal(Parser *parser, Token operator, Operand left, Operand right) 
 	// If their values are equal
 	operand.type = OP_PRIMITIVE;
 	if (left.value == right.value) {
-		operand.type = (operator == TOKEN_EQ) ? TRUE_TAG : FALSE_TAG;
+		operand.primitive = (operator == TOKEN_EQ) ? TRUE_TAG : FALSE_TAG;
 		return operand;
 	}
 
-	// Try individual tests depending on the operand type
-	switch (left.type) {
-	case OP_LOCAL:
-		// Don't fold the operation so we compare the locals at runtime
+	// Don't fold non-identical locals
+	if (left.type == OP_LOCAL) {
 		operand.type = OP_NONE;
-		break;
+		return operand;
+	}
+
+	// Try equality tests depending on the operand type
+	switch (left.type) {
 	case OP_NUMBER: {
 		double first = parser->vm->numbers[left.number];
 		double second = parser->vm->numbers[right.number];
@@ -488,8 +550,8 @@ Operand fold_equal(Parser *parser, Token operator, Operand left, Operand right) 
 
 	// Invert the result if we're testing for inequality
 	if (operator == TOKEN_NEQ && operand.type == OP_PRIMITIVE) {
-		operand.primitive = (operand.primitive == TRUE_TAG) ? FALSE_TAG :
-			TRUE_TAG;
+		bool equal = (operand.primitive == TRUE_TAG);
+		operand.primitive = equal ? FALSE_TAG : TRUE_TAG;
 	}
 
 	return operand;
@@ -497,7 +559,7 @@ Operand fold_equal(Parser *parser, Token operator, Operand left, Operand right) 
 
 
 // Returns the result of a comparison between two identical locals.
-uint16_t comp_locals(Token operator) {
+uint16_t compare_locals(Token operator) {
 	switch (operator) {
 	case TOKEN_LT: return FALSE_TAG;
 	case TOKEN_LE: return TRUE_TAG;
@@ -509,7 +571,7 @@ uint16_t comp_locals(Token operator) {
 
 
 // Returns the result of a comparison between two numbers.
-uint16_t comp_numbers(Token operator, double left, double right) {
+uint16_t compare_numbers(Token operator, double left, double right) {
 	switch (operator) {
 	case TOKEN_LT: return (left < right) ? TRUE_TAG : FALSE_TAG;
 	case TOKEN_LE: return (left <= right) ? TRUE_TAG : FALSE_TAG;
@@ -525,24 +587,22 @@ Operand fold_order(Parser *parser, Token operator, Operand left, Operand right) 
 	Operand operand;
 	operand.type = OP_NONE;
 
-	// Two identical locals
 	if (left.type == OP_LOCAL && right.type == OP_LOCAL &&
 			left.local == right.local) {
+		// Two identical locals
 		operand.type = OP_PRIMITIVE;
-		operand.primitive = comp_locals(operator);
-	}
-
-	// Both numbers
-	if (IS_NUMBER(left.type) && IS_NUMBER(right.type)) {
+		operand.primitive = compare_locals(operator);
+	} else if (IS_NUMBER(left.type) && IS_NUMBER(right.type)) {
 		// Convert operands into numbers
 		double first = operand_to_number(parser, left);
 		double second = operand_to_number(parser, right);
 
 		// Compare them
 		operand.type = OP_PRIMITIVE;
-		operand.primitive = comp_numbers(operator, first, second);
+		operand.primitive = compare_numbers(operator, first, second);
 	}
 
+	// Can't fold otherwise
 	return operand;
 }
 
@@ -552,7 +612,7 @@ Operand fold_concat(Parser *parser, Operand left, Operand right) {
 	Operand operand;
 	operand.type = OP_NONE;
 
-	// If both aren't strings, we can't fold
+	// Only fold if both are strings
 	if (left.type != OP_STRING || right.type != OP_STRING) {
 		return operand;
 	}
@@ -579,7 +639,7 @@ Operand fold_arithmetic(Parser *parser, Token operator, Operand left,
 	Operand operand;
 	operand.type = OP_NONE;
 
-	// If either isn't a number, we can't fold
+	// Only fold if both are numbers
 	if (!IS_NUMBER(left.type) || !IS_NUMBER(right.type)) {
 		return operand;
 	}
@@ -621,31 +681,64 @@ Operand fold_binary(Parser *parser, Token operator, Operand left,
 	Operand operand;
 	operand.type = OP_NONE;
 
-	// Can't fold operation if either left or right are locals
-	if (left.type == OP_LOCAL || right.type == OP_LOCAL) {
+	if (operator == TOKEN_CONCAT) {
+		// Concatenation
+		return fold_concat(parser, left, right);
+	} else if (operator >= TOKEN_ADD && operator <= TOKEN_MOD) {
+		// Arithmetic
+		return fold_arithmetic(parser, operator, left, right);
+	} else if (operator == TOKEN_EQ || operator == TOKEN_NEQ) {
+		// Equality
+		return fold_equal(parser, operator, left, right);
+	} else if (operator >= TOKEN_LT && operator <= TOKEN_GE) {
+		// Ordering
+		return fold_order(parser, operator, left, right);
+	} else if (operator == TOKEN_AND || operator == TOKEN_OR) {
+		// Conditional
+		return fold_condition(operator, left, right);
+	} else {
+		// Unknown operator
 		return operand;
 	}
+}
 
-	// Concatenation
-	if (operator == TOKEN_CONCAT) {
-		return fold_concat(parser, left, right);
+
+// Emits bytecode to convert a local operand into a jump.
+Operand operand_to_jump(Parser *parser, Operand operand) {
+	Operand result;
+	result.type = OP_JUMP;
+
+	// Emit a comparison and empty jump instruction
+	emit(parser->fn, instr_new(IS_TRUE_L, operand.local, 0, 0));
+	result.jump = jmp_new(parser->fn);
+	return operand;
+}
+
+
+// Emits bytecode for an `and` operation. The left operand is expected to
+// have the jump operand type.
+Operand expr_binary_and(Parser *parser, Operand left, Operand right) {
+	// Convert right into a jump
+	if (right.type != OP_JUMP) {
+		right = operand_to_jump(parser, right);
 	}
 
-	// Arithmetic
-	if (operator >= TOKEN_ADD && operator <= TOKEN_MOD) {
-		return fold_arithmetic(parser, operator, left, right);
+	Operand operand;
+	operand.type = OP_JUMP;
+	return operand;
+}
+
+
+// Emits bytecode for an `or` operation. The left operand is expected to
+// have the jump operand type.
+Operand expr_binary_or(Parser *parser, Operand left, Operand right) {
+	// Convert right into a jump
+	if (right.type != OP_JUMP) {
+		right = operand_to_jump(parser, right);
 	}
 
-	// Equality
-	if (operator == TOKEN_EQ || operator == TOKEN_NEQ) {
-		return fold_equal(parser, operator, left, right);
-	}
-
-	// Ordering
-	if (operator >= TOKEN_LT && operator <= TOKEN_GE) {
-		return fold_order(parser, operator, left, right);
-	}
-
+	Operand operand;
+	operand.type = OP_JUMP;
 	return operand;
 }
 
@@ -666,6 +759,13 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 	operand = fold_binary(parser, operator, left, right);
 	if (operand.type != OP_NONE) {
 		return operand;
+	}
+
+	// Handle conditional operations
+	if (operator == TOKEN_AND) {
+		return expr_binary_and(parser, left, right);
+	} else if (operator == TOKEN_OR) {
+		return expr_binary_or(parser, left, right);
 	}
 
 	// Calculate the opcode for the instruction to emit
@@ -689,6 +789,20 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 	}
 
 	return operand;
+}
+
+
+// Emits bytecode for the left operator in a binary expression.
+Operand expr_binary_left(Parser *parser, Token operator, Operand left) {
+	// Turn the operand into a jump statement if we're parsing an `and` or `or`
+	// operator
+	if ((operator == TOKEN_AND || operator == TOKEN_OR) &&
+			left.type == OP_LOCAL) {
+		operand_to_jump(parser, left);
+	}
+
+	// Don't make any modification to the operand
+	return left;
 }
 
 
@@ -796,14 +910,14 @@ Operand expr_operand(Parser *parser) {
 	}
 
 	case TOKEN_IDENTIFIER: {
-		uint16_t slot;
-		Identifier *ident = &lexer->value.identifier;
-		Local *local = local_find(parser, ident->start, ident->length, &slot);
+		char *name = lexer->value.identifier.start;
+		size_t length = lexer->value.identifier.length;
 
-		// Check for an undefined variable
-		if (local == NULL) {
-			ERROR("Undefined variable `%.*s` in expression", ident->length,
-				ident->start);
+		// Find an existing variable with the given name
+		uint16_t slot;
+		if (local_find(parser, name, length, &slot) == NULL) {
+			// Variable doesn't exist
+			ERROR("Undefined variable `%.*s` in expression", length, name);
 			break;
 		}
 
@@ -896,6 +1010,9 @@ Operand expr_prec(Parser *parser, Precedence limit) {
 		// Consume the operator
 		Token operator = lexer->token;
 		lexer_next(lexer);
+
+		// Emit bytecode for the left operand
+		left = expr_binary_left(parser, operator, left);
 
 		// Parse the right hand side
 		Precedence prec = binary_prec(operator);

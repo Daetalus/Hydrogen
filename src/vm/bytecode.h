@@ -56,6 +56,9 @@ typedef enum {
 	NEG_L,
 
 	// Comparison
+	IS_TRUE_L,
+	IS_FALSE_L,
+
 	EQ_LL,
 	EQ_LI,
 	EQ_LN,
