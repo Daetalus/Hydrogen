@@ -21,6 +21,9 @@
 // The maximum number of locals that can be allocated on the stack at once.
 #define MAX_LOCALS 512
 
+// The maximum number of else ifs that can be placed after an if statement.
+#define MAX_ELSE_IFS 64
+
 
 // A local variable.
 typedef struct {
@@ -54,6 +57,9 @@ typedef struct _parser {
 	Local locals[MAX_LOCALS];
 	uint32_t locals_count;
 } Parser;
+
+// Parses a block of statements, terminated by the given character.
+void parse_block(Parser *parser, Token terminator);
 
 
 
@@ -935,10 +941,7 @@ Operand expr_unary(Parser *parser, Opcode opcode, Operand right) {
 
 
 // Places an operand in the next available local slot.
-void expr_discharge(Parser *parser, Operand operand) {
-	// Place the variable in the next available local slot
-	uint16_t slot = parser->locals_count;
-
+void expr_discharge(Parser *parser, uint16_t slot, Operand operand) {
 	if (operand.type == OP_LOCAL) {
 		// Copy a local if isn't in a deallocated scope
 		if (operand.slot < parser->locals_count) {
@@ -1113,7 +1116,10 @@ Operand expr(Parser *parser) {
 // Parses an expression, placing results into consecutive local slots.
 void expr_emit(Parser *parser) {
 	Operand operand = expr(parser);
-	expr_discharge(parser, operand);
+
+	// Place the result into the next available local slot
+	uint16_t slot = parser->locals_count;
+	expr_discharge(parser, slot, operand);
 }
 
 
@@ -1122,23 +1128,43 @@ void expr_emit(Parser *parser) {
 //  Variable Assignment
 //
 
+// A variable on the left hand side of an assignment.
+typedef struct {
+	// The name of the variable
+	char *name;
+	size_t length;
+
+	// True if the variable has already been defined
+	bool is_defined;
+
+	// If the variable has been defined, this is set to its slot
+	uint16_t slot;
+} AssignmentVariable;
+
+
 // Parses the comma separated list of variables on the left hand side of an
 // assignment. Returns true if at least one of the variables is unique.
-bool parse_assignment_left(Parser *parser, Identifier *variables, int *count) {
+bool parse_assignment_left(Parser *parser, AssignmentVariable *variables,
+		int *count) {
 	Lexer *lexer = parser->lexer;
-
 	bool found_unique = false;
-	while (!vm_has_error(parser->vm)) {
-		char *name = lexer->value.identifier.start;
-		size_t length = lexer->value.identifier.length;
+
+	// Iterate until we find no more variables
+	while (!vm_has_error(parser->vm) && lexer->token == TOKEN_IDENTIFIER) {
+		// Create the assignment variable
+		AssignmentVariable *var = &variables[(*count)++];
+		var->name = lexer->value.identifier.start;
+		var->length = lexer->value.identifier.length;
 
 		// Check if the variable is unique
-		if (local_find(parser, name, length, NULL) == NULL) {
+		if (local_find(parser, var->name, var->length, &var->slot) == NULL) {
+			var->is_defined = false;
 			found_unique = true;
+		} else {
+			var->is_defined = true;
 		}
 
-		// Save the variable
-		variables[(*count)++] = lexer->value.identifier;
+		// Skip the identifier
 		lexer_next(lexer);
 
 		if (lexer->token == TOKEN_COMMA) {
@@ -1154,26 +1180,6 @@ bool parse_assignment_left(Parser *parser, Identifier *variables, int *count) {
 }
 
 
-// Parses the right hand side of an assignment.
-void parse_assignment_right(Parser *parser, Identifier *variables, int count) {
-	Lexer *lexer = parser->lexer;
-
-	// Expect an equals sign
-	EXPECT(TOKEN_ASSIGN, "Expected `=` after identifier in assignment");
-	lexer_next(lexer);
-
-	// Expect an expression
-	expr_emit(parser);
-
-	// Create new locals for each variable we're assigning to
-	for (int i = 0; i < count; i++) {
-		Local *local = local_new(parser, NULL);
-		local->name = variables[i].start;
-		local->length = variables[i].length;
-	}
-}
-
-
 // Parses an assignment to a new variable (using a `let` token).
 void parse_initial_assignment(Parser *parser) {
 	Lexer *lexer = parser->lexer;
@@ -1182,7 +1188,7 @@ void parse_initial_assignment(Parser *parser) {
 	lexer_next(lexer);
 
 	// Expect a comma separated list of identifiers
-	Identifier variables[MAX_ASSIGNMENT_VARIABLES];
+	AssignmentVariable variables[MAX_ASSIGNMENT_VARIABLES];
 	int count = 0;
 
 	// Check at least 1 of the variables is unique
@@ -1196,12 +1202,28 @@ void parse_initial_assignment(Parser *parser) {
 		return;
 	}
 
-	parse_assignment_right(parser, variables, count);
+	// Expect an equals sign
+	EXPECT(TOKEN_ASSIGN, "Expected `=` after identifier in assignment");
+	lexer_next(lexer);
+
+	// Expect an expression
+	expr_emit(parser);
+
+	// Create new locals for each variable we're assigning to
+	for (int i = 0; i < count; i++) {
+		if (variables[i].is_defined) {
+			// TODO
+		} else {
+			Local *local = local_new(parser, NULL);
+			local->name = variables[i].name;
+			local->length = variables[i].length;
+		}
+	}
 }
 
 
 // Parses an assignment.
-void parse_assignment(Parser *parser, Identifier first_identifier) {
+void parse_assignment(Parser *parser, Identifier ident) {
 	Lexer *lexer = parser->lexer;
 
 	// Expect a comma separated list of identifiers.
@@ -1211,16 +1233,39 @@ void parse_assignment(Parser *parser, Identifier first_identifier) {
 		lexer_next(lexer);
 	}
 
-	Identifier variables[MAX_ASSIGNMENT_VARIABLES];
-	variables[0] = first_identifier;
+	AssignmentVariable variables[MAX_ASSIGNMENT_VARIABLES];
 	int count = 1;
+
+	// Copy across the first variable
+	AssignmentVariable *var = &variables[0];
+	var->name = ident.start;
+	var->length = ident.length;
+	if (local_find(parser, ident.start, ident.length, &var->slot) == NULL) {
+		var->is_defined = false;
+	} else {
+		var->is_defined = true;
+	}
 
 	// Check there are no unique variables
 	if (parse_assignment_left(parser, variables, &count)) {
 		ERROR("Assigning to undeclared variable");
 	}
 
-	parse_assignment_right(parser, variables, count);
+	// Consume the assignment operator
+	EXPECT(TOKEN_ASSIGN, "Expected `=` after identifier in assignment");
+	lexer_next(lexer);
+
+	// Parse an expression
+	Operand result = expr(parser);
+
+	// If there's only one variable on the left hand side
+	if (count == 1) {
+		// Discharge the variable into its slot
+		expr_discharge(parser, variables[0].slot, result);
+	} else {
+		// Multiple variables on the left hand side
+		// TODO
+	}
 }
 
 
@@ -1241,13 +1286,104 @@ bool parse_call_or_assignment(Parser *parser) {
 	// Check the next character
 	if (lexer->token == TOKEN_OPEN_PARENTHESIS) {
 		// Function call
-		// TODO: ...
-	} else {
+		// TODO
+		return true;
+	} else if (lexer->token == TOKEN_ASSIGN || lexer->token == TOKEN_COMMA) {
 		// Assignment
 		parse_assignment(parser, identifier);
+		return true;
+	} else {
+		return false;
+	}
+}
+
+
+
+//
+//  If Statements
+//
+
+// Parses the condition and body of an if or else if statement.
+void parse_if_body(Parser *parser) {
+	Lexer *lexer = parser->lexer;
+
+	// Parse the conditional expression
+	Operand condition = expr(parser);
+
+	// Expect an opening brace
+	EXPECT(TOKEN_OPEN_BRACE, "Expected `{` after condition in if statement");
+	lexer_next(lexer);
+
+	// Parse the block
+	parse_block(parser, TOKEN_CLOSE_BRACE);
+
+	// Expect a closing brace
+	EXPECT(TOKEN_CLOSE_BRACE, "Expected `}` to close block in if statement");
+	lexer_next(lexer);
+
+	// Get the location of the false case
+	uint32_t false_case = parser->fn->bytecode_count;
+
+	// If there's another if or else if after this
+	if (lexer->token == TOKEN_ELSE_IF || lexer->token == TOKEN_ELSE) {
+		// An extra jump is going to be inserted, so the false case is one more
+		// instruction after what we think
+		false_case++;
 	}
 
-	return true;
+	// Set the false case of the condition
+	jmp_patch(parser->fn, condition.jump, false_case);
+}
+
+
+// Parses an if statement.
+void parse_if(Parser *parser) {
+	Lexer *lexer = parser->lexer;
+
+	// Skip the `if` token
+	lexer_next(lexer);
+
+	// Keep track of all jumps that need to be patched to after the whole if
+	// statement
+	uint32_t jumps[MAX_ELSE_IFS + 1];
+	int jumps_count = 0;
+
+	// Parse if statement
+	parse_if_body(parser);
+
+	// Parse following else if statements
+	while (!vm_has_error(parser->vm) && lexer->token == TOKEN_ELSE_IF) {
+		// Insert a jump at the end of the previous if body
+		jumps[jumps_count++] = jmp_new(parser->fn);
+
+		// Skip the else if token
+		lexer_next(lexer);
+
+		// Parse the body
+		parse_if_body(parser);
+	}
+
+	// Check for an else statement
+	if (lexer->token == TOKEN_ELSE) {
+		// Jump for previous if body
+		jumps[jumps_count++] = jmp_new(parser->fn);
+
+		// Skip `else` token
+		lexer_next(lexer);
+
+		// Parse block
+		EXPECT(TOKEN_OPEN_BRACE, "Expected `{` after `else`");
+		lexer_next(lexer);
+		parse_block(parser, TOKEN_CLOSE_BRACE);
+		EXPECT(TOKEN_CLOSE_BRACE, "Expected `}` after else statement block");
+		lexer_next(lexer);
+	}
+
+	// Patch jumps to after if statement
+	uint32_t target = parser->fn->bytecode_count;
+	for (int i = 0; i < jumps_count; i++) {
+		jmp_set_target(parser->fn, jumps[i], target);
+	}
 }
 
 
@@ -1268,6 +1404,10 @@ void parse_statement(Parser *parser) {
 
 	case TOKEN_LET:
 		parse_initial_assignment(parser);
+		break;
+
+	case TOKEN_IF:
+		parse_if(parser);
 		break;
 
 	default:
