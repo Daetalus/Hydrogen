@@ -740,8 +740,8 @@ Operand expr_binary_and(Parser *parser, Operand left, Operand right) {
 	uint32_t current = left.jump;
 	do {
 		if (jmp_type(fn, current) == JUMP_OR && current != left.jump) {
-			// Point to right
-			jmp_set_target(fn, current, right.jump - 1);
+			// Point to start of right's jump list
+			jmp_set_target(fn, current, last - 1);
 		} else {
 			// Point to after right
 			jmp_set_target(fn, current, right.jump + 1);
