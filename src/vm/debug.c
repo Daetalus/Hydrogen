@@ -13,7 +13,7 @@
 #define MAX_NAME_LENGTH 50
 
 // The number of opcodes.
-#define OPCODE_COUNT 60
+#define OPCODE_COUNT 62
 
 
 // The name of every opcode.
@@ -52,6 +52,8 @@ char OPCODE_NAMES[OPCODE_COUNT][MAX_NAME_LENGTH] = {
 	"CONCAT_LS",
 	"CONCAT_SL",
 	"NEG_L",
+	"IS_TRUE_L",
+	"IS_FALSE_L",
 	"EQ_LL",
 	"EQ_LI",
 	"EQ_LN",
@@ -117,6 +119,8 @@ int ARGUMENT_COUNT[OPCODE_COUNT] = {
 	3, // CONCAT_LS
 	3, // CONCAT_SL
 	2, // NEG_L
+	2, // IS_TRUE_L
+	2, // IS_FALSE_L
 	2, // EQ_LL
 	2, // EQ_LI
 	2, // EQ_LN
@@ -147,7 +151,10 @@ int ARGUMENT_COUNT[OPCODE_COUNT] = {
 
 
 // Prints a single instruction.
-void debug_print_instruction(uint64_t instruction) {
+void debug_print_instruction(int i, uint64_t instruction) {
+	// Number
+	printf("%4d: ", i);
+
 	// Opcode
 	uint16_t opcode = instr_arg(instruction, 0);
 	char *name = &OPCODE_NAMES[opcode][0];
@@ -160,6 +167,12 @@ void debug_print_instruction(uint64_t instruction) {
 		printf("%-6u ", arg);
 	}
 
+	// Jump destination
+	if (opcode == JMP) {
+		uint32_t destination = i + instr_arg(instruction, 1);
+		printf("==> %d", destination);
+	}
+
 	printf("\n");
 }
 
@@ -167,7 +180,6 @@ void debug_print_instruction(uint64_t instruction) {
 // Prints out a function's bytecode.
 void debug_print_bytecode(Function *fn) {
 	for (uint32_t i = 0; i < fn->bytecode_count; i++) {
-		printf("%4d: ", i);
-		debug_print_instruction(fn->bytecode[i]);
+		debug_print_instruction(i, fn->bytecode[i]);
 	}
 }

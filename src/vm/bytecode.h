@@ -8,6 +8,9 @@
 
 #include "vm.h"
 
+// The value of a jump list argument that signals the end of the jump list.
+#define JUMP_LIST_END 0
+
 
 // All bytecode operation codes.
 typedef enum {
@@ -120,6 +123,13 @@ uint32_t jmp_new(Function *fn);
 void jmp_target(Function *fn, uint32_t jump, uint32_t target);
 
 
+// The type of conditions a jump instruction can belong to.
+typedef enum {
+	JUMP_NONE,
+	JUMP_AND,
+	JUMP_OR,
+} JumpType;
+
 // Returns the index of the next jump instruction in a jump list, or 0 if this
 // is the end of the jump list.
 uint32_t jmp_next(Function *fn, uint32_t jump);
@@ -129,5 +139,14 @@ uint32_t jmp_last(Function *fn, uint32_t jump);
 
 // Points `jump`'s jump list to `target`.
 void jmp_point(Function *fn, uint32_t jump, uint32_t target);
+
+// Returns the type of a jump instruction.
+JumpType jmp_type(Function *fn, uint32_t jump);
+
+// Sets which type of condition a jump instruction belongs to.
+void jmp_set_type(Function *fn, uint32_t jump, JumpType type);
+
+// Inverts the condition of a conditional jump.
+void jmp_invert_condition(Function *fn, uint32_t jump);
 
 #endif

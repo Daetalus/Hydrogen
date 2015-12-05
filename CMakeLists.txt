@@ -51,4 +51,5 @@ endmacro()
 
 test(lexer)
 test(bytecode)
+test(jmp)
 test(expr)

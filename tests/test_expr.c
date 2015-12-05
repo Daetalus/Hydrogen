@@ -134,10 +134,43 @@ TEST(conditional) {
 }
 
 
+TEST(and) {
+	COMPILER("let a = 3\nlet b = 4\nlet c = a == 3 && b == 4\n"
+		"let d = a == 3 && b == 4 && c == 5\n");
+
+	ASSERT_INSTRUCTION(MOV_LI, 0, 3, 0);
+	ASSERT_INSTRUCTION(MOV_LI, 1, 4, 0);
+
+	// a == 3 and b == 4
+	ASSERT_INSTRUCTION(NEQ_LI, 0, 3, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(EQ_LI, 1, 4, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(MOV_LP, 2, FALSE_TAG, 0);
+	ASSERT_JMP(2);
+	ASSERT_INSTRUCTION(MOV_LP, 2, TRUE_TAG, 0);
+
+	// a == 3 and b == 4 and c == 5
+	ASSERT_INSTRUCTION(NEQ_LI, 0, 3, 0);
+	ASSERT_JMP(5);
+	ASSERT_INSTRUCTION(NEQ_LI, 1, 4, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(EQ_LI, 2, 5, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(MOV_LP, 3, FALSE_TAG, 0);
+	ASSERT_JMP(2);
+	ASSERT_INSTRUCTION(MOV_LP, 3, TRUE_TAG, 0);
+
+	ASSERT_RET0();
+	FREE_COMPILER();
+}
+
+
 MAIN() {
 	RUN(assignment);
 	RUN(addition);
 	RUN(precedence);
 	RUN(parentheses);
 	RUN(conditional);
+	RUN(and);
 }

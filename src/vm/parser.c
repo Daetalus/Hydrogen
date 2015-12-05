@@ -375,6 +375,10 @@ bool binary_valid(Token operator, OperandType left, OperandType right) {
 	case TOKEN_NEQ:
 		return (left >= OP_LOCAL && left <= OP_PRIMITIVE) &&
 			(right >= OP_LOCAL && right <= OP_PRIMITIVE);
+	case TOKEN_AND:
+	case TOKEN_OR:
+		return (left >= OP_LOCAL && left <= OP_JUMP) &&
+			(right >= OP_LOCAL && right <= OP_JUMP);
 	default:
 		return false;
 	}
@@ -723,9 +727,34 @@ Operand expr_binary_and(Parser *parser, Operand left, Operand right) {
 		right = operand_to_jump(parser, right);
 	}
 
-	Operand operand;
-	operand.type = OP_JUMP;
-	return operand;
+	Function *fn = parser->fn;
+
+	// Point the end of right's jump list to left
+	uint32_t last = jmp_last(fn, right.jump);
+	jmp_point(fn, last, left.jump);
+
+	// Invert left's condition
+	jmp_invert_condition(fn, left.jump);
+
+	// Point all elements in left's jump list to after right
+	uint32_t current = left.jump;
+	do {
+		// Point to after right
+		jmp_target(fn, current, right.jump + 1);
+
+		// Get next element
+		current = jmp_next(fn, current);
+	} while (current != JUMP_LIST_END);
+
+	// Make both operands part of an `and` operation
+	if (jmp_type(fn, left.jump) == JUMP_NONE) {
+		jmp_set_type(fn, left.jump, JUMP_AND);
+	}
+	if (jmp_type(fn, right.jump) == JUMP_NONE) {
+		jmp_set_type(fn, right.jump, JUMP_OR);
+	}
+
+	return right;
 }
 
 
@@ -870,13 +899,15 @@ void expr_discharge(Parser *parser, Operand operand) {
 			emit(parser->fn, instr_new(MOV_LL, slot, operand.slot, 0));
 		}
 	} else if (operand.type == OP_JUMP) {
-		// Emit false case, jump over true case, and true case
-		emit(parser->fn, instr_new(MOV_LP, slot, FALSE_TAG, 0));
-		emit(parser->fn, instr_new(JMP, 2, 0, 0));
-		uint32_t target = emit(parser->fn, instr_new(MOV_LP, slot, TRUE_TAG, 0));
+		Function *fn = parser->fn;
 
-		// Target the jump instruction at the true case
-		jmp_target(parser->fn, operand.jump, target);
+		// Emit false case, jump over true case, and true case
+		emit(fn, instr_new(MOV_LP, slot, FALSE_TAG, 0));
+		emit(fn, instr_new(JMP, 2, 0, 0));
+		uint32_t true_case = emit(fn, instr_new(MOV_LP, slot, TRUE_TAG, 0));
+
+		// Point the jump to the true case
+		jmp_target(fn, operand.jump, true_case);
 	} else {
 		// Calculate the instruction to use
 		Opcode opcode = MOV_LL + operand.type;
