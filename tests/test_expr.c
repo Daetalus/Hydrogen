@@ -208,7 +208,6 @@ TEST(and_or) {
 	ASSERT_INSTRUCTION(MOV_LI, 0, 3, 0);
 	ASSERT_INSTRUCTION(MOV_LI, 1, 4, 0);
 	ASSERT_INSTRUCTION(MOV_LI, 2, 5, 0);
-	debug_print_bytecode(fn);
 
 	// a == 3 && b == 4 || c == 5
 	ASSERT_INSTRUCTION(NEQ_LI, 0, 3, 0);
@@ -259,6 +258,75 @@ TEST(and_or) {
 }
 
 
+TEST(and_or_2) {
+	COMPILER("let a = 3\nlet b = 4\nlet c = 5\nlet d = 6\n"
+		"let e = (a == 3 && b == 4) || (c == 5 && d == 6)\n"
+		"let f = (a == 3 || b == 4) || (c == 5 && d == 6)\n"
+		"let g = (a == 3 && b == 4) || (c == 5 || d == 6)\n"
+		"let h = (a == 3 || b == 4) || (c == 5 || d == 6)\n");
+
+	ASSERT_INSTRUCTION(MOV_LI, 0, 3, 0);
+	ASSERT_INSTRUCTION(MOV_LI, 1, 4, 0);
+	ASSERT_INSTRUCTION(MOV_LI, 2, 5, 0);
+	ASSERT_INSTRUCTION(MOV_LI, 3, 6, 0);
+
+	// (a == 3 && b == 4) || (c == 5 && d == 6)
+	ASSERT_INSTRUCTION(NEQ_LI, 0, 3, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(EQ_LI, 1, 4, 0);
+	ASSERT_JMP(7);
+	ASSERT_INSTRUCTION(NEQ_LI, 2, 5, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(EQ_LI, 3, 6, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(MOV_LP, 4, FALSE_TAG, 0);
+	ASSERT_JMP(2);
+	ASSERT_INSTRUCTION(MOV_LP, 4, TRUE_TAG, 0);
+
+	// (a == 3 || b == 4) || (c == 5 && d == 6)
+	ASSERT_INSTRUCTION(EQ_LI, 0, 3, 0);
+	ASSERT_JMP(9);
+	ASSERT_INSTRUCTION(EQ_LI, 1, 4, 0);
+	ASSERT_JMP(7);
+	ASSERT_INSTRUCTION(NEQ_LI, 2, 5, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(EQ_LI, 3, 6, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(MOV_LP, 5, FALSE_TAG, 0);
+	ASSERT_JMP(2);
+	ASSERT_INSTRUCTION(MOV_LP, 5, TRUE_TAG, 0);
+
+	// (a == 3 && b == 4) || (c == 5 || d == 6)
+	ASSERT_INSTRUCTION(NEQ_LI, 0, 3, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(EQ_LI, 1, 4, 0);
+	ASSERT_JMP(7);
+	ASSERT_INSTRUCTION(EQ_LI, 2, 5, 0);
+	ASSERT_JMP(5);
+	ASSERT_INSTRUCTION(EQ_LI, 3, 6, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(MOV_LP, 6, FALSE_TAG, 0);
+	ASSERT_JMP(2);
+	ASSERT_INSTRUCTION(MOV_LP, 6, TRUE_TAG, 0);
+
+	// (a == 3 || b == 4) || (c == 5 || d == 6)
+	ASSERT_INSTRUCTION(EQ_LI, 0, 3, 0);
+	ASSERT_JMP(9);
+	ASSERT_INSTRUCTION(EQ_LI, 1, 4, 0);
+	ASSERT_JMP(7);
+	ASSERT_INSTRUCTION(EQ_LI, 2, 5, 0);
+	ASSERT_JMP(5);
+	ASSERT_INSTRUCTION(EQ_LI, 3, 6, 0);
+	ASSERT_JMP(3);
+	ASSERT_INSTRUCTION(MOV_LP, 7, FALSE_TAG, 0);
+	ASSERT_JMP(2);
+	ASSERT_INSTRUCTION(MOV_LP, 7, TRUE_TAG, 0);
+
+	ASSERT_RET0();
+	FREE_COMPILER();
+}
+
+
 MAIN() {
 	RUN(assignment);
 	RUN(addition);
@@ -268,4 +336,5 @@ MAIN() {
 	RUN(and);
 	RUN(or);
 	RUN(and_or);
+	RUN(and_or_2);
 }
