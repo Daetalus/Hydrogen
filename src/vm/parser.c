@@ -735,7 +735,7 @@ Operand operand_to_jump(Parser *parser, Operand operand) {
 	result.type = OP_JUMP;
 
 	// Emit a comparison and empty jump instruction
-	emit(parser->fn, instr_new(IS_TRUE_L, operand.slot, 0, 0));
+	emit(parser->fn, instr_new(IS_FALSE_L, operand.slot, 0, 0));
 	result.jump = jmp_new(parser->fn);
 	return operand;
 }
@@ -751,6 +751,9 @@ Operand expr_and(Parser *parser, Operand left, Operand right) {
 
 	Function *fn = parser->fn;
 
+	// Point end of right's jump list to left
+	uint32_t last = jmp_last(fn, right.jump);
+	jmp_point(fn, last, left.jump);
 
 	// Make both operands part of an `and` operation
 	if (jmp_type(fn, left.jump) == JUMP_NONE) {
@@ -774,6 +777,34 @@ Operand expr_or(Parser *parser, Operand left, Operand right) {
 
 	Function *fn = parser->fn;
 
+	// Point end of right's jump list to left
+	uint32_t last = jmp_last(fn, right.jump);
+	jmp_point(fn, last, left.jump);
+
+	// Invert left's condition
+	jmp_invert_condition(fn, left.jump);
+
+	// Point left to after right
+	jmp_set_target(fn, left.jump, right.jump + 1);
+
+	// Iterate over left's jump list
+	uint32_t current = jmp_next(fn, left.jump);
+	while (current != JUMP_LIST_END) {
+		// Point to after right by default
+		uint32_t target = right.jump + 1;
+
+		// For conditions part of AND statements
+		if (jmp_type(fn, current) == JUMP_AND && current != left.jump) {
+			// Point to last element in right's jump list
+			target = last - 1;
+		}
+
+		// Set jump target
+		jmp_set_target(fn, current, target);
+
+		// Get next element in jump list
+		current = jmp_next(fn, current);
+	}
 
 	// Make both operands part of an `or` operation
 	if (jmp_type(fn, left.jump) == JUMP_NONE) {
@@ -920,6 +951,19 @@ void expr_discharge(Parser *parser, Operand operand) {
 		emit(fn, instr_new(MOV_LP, slot, TRUE_TAG, 0));
 		emit(fn, instr_new(JMP, 2, 0, 0));
 		uint32_t false_case = emit(fn, instr_new(MOV_LP, slot, FALSE_TAG, 0));
+
+		// Iterate over jump list
+		uint32_t current = operand.jump;
+		while (current != JUMP_LIST_END) {
+			// If the jump's target hasn't already been set
+			if (jmp_target(fn, current) == 0) {
+				// Point the jump to the false case
+				jmp_set_target(fn, current, false_case);
+			}
+
+			// Get next element in jump list
+			current = jmp_next(fn, current);
+		}
 
 		// Point the operand to the false case
 		jmp_set_target(fn, operand.jump, false_case);
