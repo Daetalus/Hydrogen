@@ -1311,6 +1311,51 @@ void parse_if(Parser *parser) {
 
 
 //
+//  Infinite Loops
+//
+
+// Parses an infinite loop.
+void parse_infinite_loop(Parser *parser) {
+	Lexer *lexer = parser->lexer;
+
+	// Skip the `loop` token
+	lexer_next(lexer);
+
+	// Expect an opening brace
+	EXPECT(TOKEN_OPEN_BRACE, "Expected `{` after `loop`");
+	lexer_next(lexer);
+
+	// Add the loop to the parser's linked list
+	Loop loop;
+	loop.breaks_count = 0;
+	loop.outer = parser->loop;
+	parser->loop = &loop;
+
+	// Parse the inner block
+	uint32_t start = parser->fn->bytecode_count;
+	parse_block(parser, TOKEN_CLOSE_BRACE);
+
+	// Expect the closing brace
+	EXPECT(TOKEN_CLOSE_BRACE, "Expected `}` to close body of infinite loop");
+	lexer_next(lexer);
+
+	// Remove the loop from the linked list
+	parser->loop = loop.outer;
+
+	// Insert a jump statement to return to the start of the loop
+	uint32_t offset = parser->fn->bytecode_count - start;
+	emit(parser->fn, instr_new(LOOP, offset, 0, 0));
+
+	// Patch break statements to here
+	uint32_t after = parser->fn->bytecode_count;
+	for (int i = 0; i < loop.breaks_count; i++) {
+		jmp_set_target(parser->fn, loop.breaks[i], after);
+	}
+}
+
+
+
+//
 //  While Loops
 //
 
@@ -1461,6 +1506,10 @@ void parse_statement(Parser *parser) {
 
 	case TOKEN_IF:
 		parse_if(parser);
+		break;
+
+	case TOKEN_LOOP:
+		parse_infinite_loop(parser);
 		break;
 
 	case TOKEN_WHILE:
