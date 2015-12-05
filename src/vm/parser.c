@@ -14,10 +14,6 @@
 #include "value.h"
 
 
-// The maximum number of varaibles that can exist on the left hand side of an
-// assignment.
-#define MAX_ASSIGNMENT_VARIABLES 16
-
 // The maximum number of locals that can be allocated on the stack at once.
 #define MAX_LOCALS 512
 
@@ -75,6 +71,9 @@ typedef struct _parser {
 	Local locals[MAX_LOCALS];
 	uint32_t locals_count;
 } Parser;
+
+// Creates a new parser.
+Parser parser_new(Parser *parent);
 
 // Parses a block of statements, terminated by the given character.
 void parse_block(Parser *parser, Token terminator);
@@ -1379,6 +1378,70 @@ void parse_break(Parser *parser) {
 
 
 //
+//  Function Definitions
+//
+
+// Parses a function definition.
+void parse_fn_definition(Parser *parser) {
+	Lexer *lexer = parser->lexer;
+
+	// Skip the `fn` token
+	lexer_next(lexer);
+
+	// Expect an identifier (the name of the function)
+	EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `fn`");
+	char *name = lexer->value.identifier.start;
+	size_t length = lexer->value.identifier.length;
+	lexer_next(lexer);
+
+	// Expect an opening parenthesis
+	EXPECT(TOKEN_OPEN_PARENTHESIS,
+		"Expected `(` after function name to begin arguments list");
+	lexer_next(lexer);
+
+	// Create the new child parser
+	Parser child = parser_new(parser);
+	child.fn = fn_new(parser->vm, parser->fn->package, NULL);
+
+	// Parse the arguments list into the child parser's locals list
+	while (lexer->token == TOKEN_IDENTIFIER) {
+		// Save the argument
+		Local *local = &child.locals[child.locals_count++];
+		local->name = lexer->value.identifier.start;
+		local->length = lexer->value.identifier.length;
+		local->scope_depth = 0;
+		lexer_next(lexer);
+
+		// Skip a comma
+		if (lexer->token == TOKEN_COMMA) {
+			lexer_next(lexer);
+		}
+	}
+
+	// Expect a closing parenthesis
+	EXPECT(TOKEN_CLOSE_PARENTHESIS,
+		"Expected `)` to close function arguments list");
+	lexer_next(lexer);
+
+	// TODO: Add bytecode to parent parser which creates a new local storing
+	// the child function
+
+	// Expect an opening brace to begin the function block
+	EXPECT(TOKEN_OPEN_BRACE,
+		"Expected `{` after arguments list to open function block");
+	lexer_next(lexer);
+
+	// Parse the function body
+	parse_block(&child, TOKEN_CLOSE_BRACE);
+
+	// Expect a closing brace
+	EXPECT(TOKEN_CLOSE_BRACE, "Expected `}` to close function block");
+	lexer_next(lexer);
+}
+
+
+
+//
 //  Statements
 //
 
@@ -1406,6 +1469,10 @@ void parse_statement(Parser *parser) {
 
 	case TOKEN_BREAK:
 		parse_break(parser);
+		break;
+
+	case TOKEN_FN:
+		parse_fn_definition(parser);
 		break;
 
 	default:
@@ -1439,6 +1506,24 @@ void parse_block(Parser *parser, Token terminator) {
 //  Parser
 //
 
+// Creates a new parser.
+Parser parser_new(Parser *parent) {
+	Parser parser;
+	parser.parent = parent;
+	parser.scope_depth = 0;
+	parser.locals_count = 0;
+	parser.loop = NULL;
+	parser.fn = NULL;
+
+	if (parent != NULL) {
+		parser.lexer = parent->lexer;
+		parser.vm = parent->vm;
+	}
+
+	return parser;
+}
+
+
 // Parses a package into bytecode. Sets the main function index on the package.
 void parse_package(VirtualMachine *vm, Package *package) {
 	// Create the lexer used for all parent and child parsers
@@ -1446,14 +1531,10 @@ void parse_package(VirtualMachine *vm, Package *package) {
 	lexer_next(&lexer);
 
 	// Create a new parser
-	Parser parser;
+	Parser parser = parser_new(NULL);
 	parser.vm = vm;
-	parser.parent = NULL;
 	parser.lexer = &lexer;
 	parser.fn = fn_new(vm, package, &package->main_fn);
-	parser.loop = NULL;
-	parser.scope_depth = 0;
-	parser.locals_count = 0;
 
 	// Parse the import statements at the top of the file
 	parse_imports(&parser);
