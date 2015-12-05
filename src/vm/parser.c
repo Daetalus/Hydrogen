@@ -299,7 +299,7 @@ typedef struct {
 
 // Parses an expression, stopping when we reach a binary operator of lower
 // precedence than the given precedence.
-Operand expr_prec(Parser *parser, Precedence precedence);
+Operand expr_prec(Parser *parser, uint16_t slot, Precedence precedence);
 
 
 // Returns the precedence of a binary operator.
@@ -944,7 +944,7 @@ Operand expr_unary(Parser *parser, Opcode opcode, Operand right) {
 void expr_discharge(Parser *parser, uint16_t slot, Operand operand) {
 	if (operand.type == OP_LOCAL) {
 		// Copy a local if isn't in a deallocated scope
-		if (operand.slot < parser->locals_count) {
+		if (operand.slot != slot && operand.slot < parser->locals_count) {
 			emit(parser->fn, instr_new(MOV_LL, slot, operand.slot, 0));
 		}
 	} else if (operand.type == OP_JUMP) {
@@ -966,7 +966,7 @@ void expr_discharge(Parser *parser, uint16_t slot, Operand operand) {
 
 
 // Parses an operand.
-Operand expr_operand(Parser *parser) {
+Operand expr_operand(Parser *parser, uint16_t slot) {
 	Lexer *lexer = parser->lexer;
 	Operand operand;
 
@@ -993,15 +993,15 @@ Operand expr_operand(Parser *parser) {
 		size_t length = lexer->value.identifier.length;
 
 		// Find an existing variable with the given name
-		uint16_t slot;
-		if (local_find(parser, name, length, &slot) == NULL) {
+		uint16_t ident_slot;
+		if (local_find(parser, name, length, &ident_slot) == NULL) {
 			// Variable doesn't exist
 			ERROR("Undefined variable `%.*s` in expression", length, name);
 			break;
 		}
 
 		operand.type = OP_LOCAL;
-		operand.slot = slot;
+		operand.slot = ident_slot;
 		break;
 	}
 
@@ -1025,7 +1025,7 @@ Operand expr_operand(Parser *parser) {
 		lexer_next(lexer);
 
 		// Parse the expression within the parentheses
-		operand = expr_prec(parser, 0);
+		operand = expr_prec(parser, slot, 0);
 
 		// Expect a closing parenthesis
 		if (lexer->token != TOKEN_CLOSE_PARENTHESIS) {
@@ -1047,7 +1047,7 @@ Operand expr_operand(Parser *parser) {
 
 
 // Parses the left hand side of a binary operator.
-Operand expr_left(Parser *parser) {
+Operand expr_left(Parser *parser, uint16_t slot) {
 	Lexer *lexer = parser->lexer;
 
 	// Check for unary operators
@@ -1058,31 +1058,24 @@ Operand expr_left(Parser *parser) {
 		lexer_next(lexer);
 
 		// Parse another unary operator, or the operand itself
-		Operand right = expr_left(parser);
+		Operand right = expr_left(parser, slot);
 
 		// Emit the unary operand instruction
 		return expr_unary(parser, opcode, right);
 	} else {
 		// Parse an operand
-		return expr_operand(parser);
+		return expr_operand(parser, slot);
 	}
 }
 
 
 // Parses an expression, stopping when we reach a binary operator of lower
 // precedence than the given precedence.
-Operand expr_prec(Parser *parser, Precedence limit) {
+Operand expr_prec(Parser *parser, uint16_t slot, Precedence limit) {
 	Lexer *lexer = parser->lexer;
 
-	// Start a new variable scope depth
-	scope_new(parser);
-
-	// Create a local to use for this level
-	uint16_t slot;
-	local_new(parser, &slot);
-
 	// Expect a left hand side operand
-	Operand left = expr_left(parser);
+	Operand left = expr_left(parser, slot);
 
 	// Parse a binary operator
 	while (!vm_has_error(parser->vm) && binary_prec(lexer->token) > limit) {
@@ -1093,33 +1086,27 @@ Operand expr_prec(Parser *parser, Precedence limit) {
 		// Emit bytecode for the left operand
 		left = expr_binary_left(parser, operator, left);
 
+		// Create a local to use for this level
+		uint16_t new_slot;
+		scope_new(parser);
+		local_new(parser, &new_slot);
+
 		// Parse the right hand side
 		Precedence prec = binary_prec(operator);
-		Operand right = expr_prec(parser, prec);
+		Operand right = expr_prec(parser, new_slot, prec);
+		scope_free(parser);
 
 		// Emit the binary operator
 		left = expr_binary(parser, slot, operator, left, right);
 	}
 
-	// Discard the variable scope we created
-	scope_free(parser);
 	return left;
 }
 
 
 // Parses an expression, returning the final result.
-Operand expr(Parser *parser) {
-	return expr_prec(parser, PREC_NONE);
-}
-
-
-// Parses an expression, placing results into consecutive local slots.
-void expr_emit(Parser *parser) {
-	Operand operand = expr(parser);
-
-	// Place the result into the next available local slot
-	uint16_t slot = parser->locals_count;
-	expr_discharge(parser, slot, operand);
+Operand expr(Parser *parser, uint16_t slot) {
+	return expr_prec(parser, slot, PREC_NONE);
 }
 
 
@@ -1128,58 +1115,6 @@ void expr_emit(Parser *parser) {
 //  Variable Assignment
 //
 
-// A variable on the left hand side of an assignment.
-typedef struct {
-	// The name of the variable
-	char *name;
-	size_t length;
-
-	// True if the variable has already been defined
-	bool is_defined;
-
-	// If the variable has been defined, this is set to its slot
-	uint16_t slot;
-} AssignmentVariable;
-
-
-// Parses the comma separated list of variables on the left hand side of an
-// assignment. Returns true if at least one of the variables is unique.
-bool parse_assignment_left(Parser *parser, AssignmentVariable *variables,
-		int *count) {
-	Lexer *lexer = parser->lexer;
-	bool found_unique = false;
-
-	// Iterate until we find no more variables
-	while (!vm_has_error(parser->vm) && lexer->token == TOKEN_IDENTIFIER) {
-		// Create the assignment variable
-		AssignmentVariable *var = &variables[(*count)++];
-		var->name = lexer->value.identifier.start;
-		var->length = lexer->value.identifier.length;
-
-		// Check if the variable is unique
-		if (local_find(parser, var->name, var->length, &var->slot) == NULL) {
-			var->is_defined = false;
-			found_unique = true;
-		} else {
-			var->is_defined = true;
-		}
-
-		// Skip the identifier
-		lexer_next(lexer);
-
-		if (lexer->token == TOKEN_COMMA) {
-			// Skip the comma
-			lexer_next(lexer);
-		} else {
-			// If we don't find a comma, break
-			break;
-		}
-	}
-
-	return found_unique;
-}
-
-
 // Parses an assignment to a new variable (using a `let` token).
 void parse_initial_assignment(Parser *parser) {
 	Lexer *lexer = parser->lexer;
@@ -1187,85 +1122,52 @@ void parse_initial_assignment(Parser *parser) {
 	// Consume the `let` token
 	lexer_next(lexer);
 
-	// Expect a comma separated list of identifiers
-	AssignmentVariable variables[MAX_ASSIGNMENT_VARIABLES];
-	int count = 0;
+	// Expect an identifier
+	EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `let`");
+	char *name = lexer->value.identifier.start;
+	size_t length = lexer->value.identifier.length;
+	lexer_next(lexer);
 
-	// Check at least 1 of the variables is unique
-	if (!parse_assignment_left(parser, variables, &count)) {
-		ERROR("No new variable to assign in `let`");
-	}
-
-	// Expect at least 1 variable
-	if (count == 0) {
-		UNEXPECTED("Expected identifier after `let`");
-		return;
+	// Check the variable isn't already defined
+	if (local_find(parser, name, length, NULL) != NULL) {
+		ERROR("Variable `%.*s` is already defined", length, name);
 	}
 
 	// Expect an equals sign
 	EXPECT(TOKEN_ASSIGN, "Expected `=` after identifier in assignment");
 	lexer_next(lexer);
 
-	// Expect an expression
-	expr_emit(parser);
+	// Create a new local
+	uint16_t slot;
+	Local *local = local_new(parser, &slot);
 
-	// Create new locals for each variable we're assigning to
-	for (int i = 0; i < count; i++) {
-		if (variables[i].is_defined) {
-			// TODO
-		} else {
-			Local *local = local_new(parser, NULL);
-			local->name = variables[i].name;
-			local->length = variables[i].length;
-		}
-	}
+	// Expect an expression
+	Operand result = expr(parser, slot);
+	expr_discharge(parser, slot, result);
+
+	// Save the local's name
+	local->name = name;
+	local->length = length;
 }
 
 
 // Parses an assignment.
-void parse_assignment(Parser *parser, Identifier ident) {
+void parse_assignment(Parser *parser, Identifier var) {
 	Lexer *lexer = parser->lexer;
-
-	// Expect a comma separated list of identifiers.
-	// Since the previous function already consumed the first identifier, get
-	// rid of its following comma (if it exists)
-	if (lexer->token == TOKEN_COMMA) {
-		lexer_next(lexer);
-	}
-
-	AssignmentVariable variables[MAX_ASSIGNMENT_VARIABLES];
-	int count = 1;
-
-	// Copy across the first variable
-	AssignmentVariable *var = &variables[0];
-	var->name = ident.start;
-	var->length = ident.length;
-	if (local_find(parser, ident.start, ident.length, &var->slot) == NULL) {
-		var->is_defined = false;
-	} else {
-		var->is_defined = true;
-	}
-
-	// Check there are no unique variables
-	if (parse_assignment_left(parser, variables, &count)) {
-		ERROR("Assigning to undeclared variable");
-	}
 
 	// Consume the assignment operator
 	EXPECT(TOKEN_ASSIGN, "Expected `=` after identifier in assignment");
 	lexer_next(lexer);
 
-	// Parse an expression
-	Operand result = expr(parser);
-
-	// If there's only one variable on the left hand side
-	if (count == 1) {
-		// Discharge the variable into its slot
-		expr_discharge(parser, variables[0].slot, result);
-	} else {
-		// Multiple variables on the left hand side
-		// TODO
+	// Check the variable is already defined
+	uint16_t slot;
+	if (local_find(parser, var.start, var.length, &slot) == NULL) {
+		ERROR("Assigning to undefined variable `%.*s`", var.length, var.start);
 	}
+
+	// Parse an expression
+	Operand result = expr(parser, slot);
+	expr_discharge(parser, slot, result);
 }
 
 
@@ -1308,7 +1210,8 @@ void parse_if_body(Parser *parser) {
 	Lexer *lexer = parser->lexer;
 
 	// Parse the conditional expression
-	Operand condition = expr(parser);
+	Operand condition = expr(parser, parser->locals_count);
+	// TODO: Check condition is a jump
 
 	// Expect an opening brace
 	EXPECT(TOKEN_OPEN_BRACE, "Expected `{` after condition in if statement");
@@ -1389,6 +1292,39 @@ void parse_if(Parser *parser) {
 
 
 //
+//  While Loops
+//
+
+// Parses a while loop.
+void parse_while(Parser *parser) {
+	Lexer *lexer = parser->lexer;
+
+	// Skip the `while` token
+	lexer_next(lexer);
+
+	// Expect an expression
+	uint32_t start = parser->fn->bytecode_count;
+	Operand condition = expr(parser, parser->locals_count);
+	// TODO: Check condition is a jump
+
+	// Parse the block
+	EXPECT(TOKEN_OPEN_BRACE, "Expected `{` after condition in while loop");
+	lexer_next(lexer);
+	parse_block(parser, TOKEN_CLOSE_BRACE);
+	EXPECT(TOKEN_CLOSE_BRACE, "Expected `}` to close while loop block");
+	lexer_next(lexer);
+
+	// Insert a jump statement to return to the start of the loop
+	uint32_t offset = parser->fn->bytecode_count - start;
+	emit(parser->fn, instr_new(LOOP, offset, 0, 0));
+
+	// Point the condition's false case here
+	jmp_patch(parser->fn, condition.jump, parser->fn->bytecode_count);
+}
+
+
+
+//
 //  Statements
 //
 
@@ -1408,6 +1344,10 @@ void parse_statement(Parser *parser) {
 
 	case TOKEN_IF:
 		parse_if(parser);
+		break;
+
+	case TOKEN_WHILE:
+		parse_while(parser);
 		break;
 
 	default:
