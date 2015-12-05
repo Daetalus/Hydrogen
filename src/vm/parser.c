@@ -24,6 +24,9 @@
 // The maximum number of else ifs that can be placed after an if statement.
 #define MAX_ELSE_IFS 64
 
+// The maximum number of break statements inside a loop.
+#define MAX_BREAK_STATEMENTS 128
+
 
 // A local variable.
 typedef struct {
@@ -34,6 +37,18 @@ typedef struct {
 	// The scope depth the local was defined at.
 	uint32_t scope_depth;
 } Local;
+
+
+// A loop.
+typedef struct loop {
+	// The position of all break statements that need to be patched to the end
+	// of the loop once it's been compiled.
+	uint32_t breaks[MAX_BREAK_STATEMENTS];
+	int breaks_count;
+
+	// The next loop in the linked list.
+	struct loop *outer;
+} Loop;
 
 
 // A parser, which converts lexed source code into bytecode.
@@ -49,6 +64,9 @@ typedef struct _parser {
 
 	// The function we're compiling the source code into.
 	Function *fn;
+
+	// The innermost loop, or NULL if we're not inside a loop.
+	Loop *loop;
 
 	// The current scope depth.
 	uint32_t scope_depth;
@@ -1131,6 +1149,7 @@ void parse_initial_assignment(Parser *parser) {
 	// Check the variable isn't already defined
 	if (local_find(parser, name, length, NULL) != NULL) {
 		ERROR("Variable `%.*s` is already defined", length, name);
+		return;
 	}
 
 	// Expect an equals sign
@@ -1163,6 +1182,7 @@ void parse_assignment(Parser *parser, Identifier var) {
 	uint16_t slot;
 	if (local_find(parser, var.start, var.length, &slot) == NULL) {
 		ERROR("Assigning to undefined variable `%.*s`", var.length, var.start);
+		return;
 	}
 
 	// Parse an expression
@@ -1303,9 +1323,15 @@ void parse_while(Parser *parser) {
 	lexer_next(lexer);
 
 	// Expect an expression
+	// TODO: Check condition is a jump
 	uint32_t start = parser->fn->bytecode_count;
 	Operand condition = expr(parser, parser->locals_count);
-	// TODO: Check condition is a jump
+
+	// Add a loop to the linked list
+	Loop loop;
+	loop.breaks_count = 0;
+	loop.outer = parser->loop;
+	parser->loop = &loop;
 
 	// Parse the block
 	EXPECT(TOKEN_OPEN_BRACE, "Expected `{` after condition in while loop");
@@ -1314,12 +1340,40 @@ void parse_while(Parser *parser) {
 	EXPECT(TOKEN_CLOSE_BRACE, "Expected `}` to close while loop block");
 	lexer_next(lexer);
 
+	// Remove the loop from the linked list
+	parser->loop = loop.outer;
+
 	// Insert a jump statement to return to the start of the loop
 	uint32_t offset = parser->fn->bytecode_count - start;
 	emit(parser->fn, instr_new(LOOP, offset, 0, 0));
 
 	// Point the condition's false case here
-	jmp_patch(parser->fn, condition.jump, parser->fn->bytecode_count);
+	uint32_t after = parser->fn->bytecode_count;
+	jmp_patch(parser->fn, condition.jump, after);
+
+	// Point all break statements here
+	for (int i = 0; i < loop.breaks_count; i++) {
+		jmp_set_target(parser->fn, loop.breaks[i], after);
+	}
+}
+
+
+// Parses a break statement.
+void parse_break(Parser *parser) {
+	Lexer *lexer = parser->lexer;
+
+	// Skip the `break` token
+	lexer_next(lexer);
+
+	// Ensure we're inside a loop
+	if (parser->loop == NULL) {
+		ERROR("`break` not inside a loop");
+		return;
+	}
+
+	// Emit a jump instruction and add it to the innermost loop's break
+	// statements list
+	parser->loop->breaks[parser->loop->breaks_count++] = jmp_new(parser->fn);
 }
 
 
@@ -1335,7 +1389,7 @@ void parse_statement(Parser *parser) {
 	switch (lexer->token) {
 		// Trigger a special error for misplaced imports
 	case TOKEN_IMPORT:
-		ERROR("Imports must be placed at the top of the file");
+		ERROR("Imports must be at the top of the file");
 		break;
 
 	case TOKEN_LET:
@@ -1348,6 +1402,10 @@ void parse_statement(Parser *parser) {
 
 	case TOKEN_WHILE:
 		parse_while(parser);
+		break;
+
+	case TOKEN_BREAK:
+		parse_break(parser);
 		break;
 
 	default:
@@ -1393,6 +1451,7 @@ void parse_package(VirtualMachine *vm, Package *package) {
 	parser.parent = NULL;
 	parser.lexer = &lexer;
 	parser.fn = fn_new(vm, package, &package->main_fn);
+	parser.loop = NULL;
 	parser.scope_depth = 0;
 	parser.locals_count = 0;
 

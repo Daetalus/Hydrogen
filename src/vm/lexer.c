@@ -283,6 +283,7 @@ Token lexer_keyword_identifier(Lexer *lexer) {
 	KEYWORD("while", TOKEN_WHILE)
 	KEYWORD("loop", TOKEN_LOOP)
 	KEYWORD("for", TOKEN_FOR)
+	KEYWORD("break", TOKEN_BREAK)
 	KEYWORD("let", TOKEN_LET)
 	KEYWORD("fn", TOKEN_FN)
 	KEYWORD("import", TOKEN_IMPORT)
