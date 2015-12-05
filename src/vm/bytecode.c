@@ -164,3 +164,25 @@ void jmp_invert_condition(Function *fn, uint32_t jump) {
 	Opcode inverted = invert_condition(current);
 	fn->bytecode[jump - 1] = instr_set(condition, 0, (uint16_t) inverted);
 }
+
+
+// Finalises a jump condition, assuming the true case is directly after the
+// instructions used to evaluate the condition, and the false case is at the
+// given index.
+void jmp_patch(Function *fn, uint32_t jump, uint32_t false_case) {
+	// Iterate over jump list
+	uint32_t current = jump;
+	while (current != JUMP_LIST_END) {
+		// If the jump's target hasn't already been set
+		if (jmp_target(fn, current) == 0) {
+			// Point the jump to the false case
+			jmp_set_target(fn, current, false_case);
+		}
+
+		// Get next element in jump list
+		current = jmp_next(fn, current);
+	}
+
+	// Point the operand to the false case
+	jmp_set_target(fn, jump, false_case);
+}

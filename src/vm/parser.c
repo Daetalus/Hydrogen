@@ -947,26 +947,13 @@ void expr_discharge(Parser *parser, Operand operand) {
 	} else if (operand.type == OP_JUMP) {
 		Function *fn = parser->fn;
 
-		// Emit false case, jump over true case, and true case
+		// Emit true case, jump over false case, and false case
 		emit(fn, instr_new(MOV_LP, slot, TRUE_TAG, 0));
 		emit(fn, instr_new(JMP, 2, 0, 0));
 		uint32_t false_case = emit(fn, instr_new(MOV_LP, slot, FALSE_TAG, 0));
 
-		// Iterate over jump list
-		uint32_t current = operand.jump;
-		while (current != JUMP_LIST_END) {
-			// If the jump's target hasn't already been set
-			if (jmp_target(fn, current) == 0) {
-				// Point the jump to the false case
-				jmp_set_target(fn, current, false_case);
-			}
-
-			// Get next element in jump list
-			current = jmp_next(fn, current);
-		}
-
-		// Point the operand to the false case
-		jmp_set_target(fn, operand.jump, false_case);
+		// Finish the condition now that we know the location of the false case
+		jmp_patch(fn, operand.jump, false_case);
 	} else {
 		// Calculate the instruction to use
 		Opcode opcode = MOV_LL + operand.type;

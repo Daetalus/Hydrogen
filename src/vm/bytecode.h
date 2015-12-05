@@ -152,4 +152,9 @@ void jmp_set_type(Function *fn, uint32_t jump, JumpType type);
 // Inverts the condition of a conditional jump.
 void jmp_invert_condition(Function *fn, uint32_t jump);
 
+// Finalises a jump condition, assuming the true case is directly after the
+// instructions used to evaluate the condition, and the false case is at the
+// given index.
+void jmp_patch(Function *fn, uint32_t jump, uint32_t false_case);
+
 #endif
