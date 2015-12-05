@@ -67,9 +67,20 @@ uint16_t jmp_offset(uint32_t jump, uint32_t target) {
 }
 
 
+// Returns the target of the jump instruction.
+uint32_t jmp_target(Function *fn, uint32_t jump) {
+	uint16_t offset = instr_arg(fn->bytecode[jump], JUMP_TARGET_ARG);
+	if (offset == 0) {
+		return 0;
+	} else {
+		return jump + offset;
+	}
+}
+
+
 // Sets the target of the jump instruction at `index` within the function's
 // bytecode.
-void jmp_target(Function *fn, uint32_t jump, uint32_t target) {
+void jmp_set_target(Function *fn, uint32_t jump, uint32_t target) {
 	uint16_t offset = target - jump;
 	uint64_t instr = fn->bytecode[jump];
 	fn->bytecode[jump] = instr_set(instr, JUMP_TARGET_ARG, offset);

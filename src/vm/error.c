@@ -180,7 +180,11 @@ char * token_string(Lexer *lexer) {
 	}
 
 	// Unrecognised token
-	default:
-		return NULL;
+	default: {
+		char *message = "unrecognised token";
+		char *result = malloc((strlen(message) + 1) * sizeof(char));
+		strcpy(result, message);
+		return result;
+	}
 	}
 }

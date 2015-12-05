@@ -118,9 +118,12 @@ uint32_t emit(Function *fn, uint64_t instruction);
 // Emits an empty jump instruction. Returns the index of the jump instruction.
 uint32_t jmp_new(Function *fn);
 
+// Returns the target of the jump instruction.
+uint32_t jmp_target(Function *fn, uint32_t jump);
+
 // Sets the target of the jump instruction at `index` within the function's
 // bytecode.
-void jmp_target(Function *fn, uint32_t jump, uint32_t target);
+void jmp_set_target(Function *fn, uint32_t jump, uint32_t target);
 
 
 // The type of conditions a jump instruction can belong to.

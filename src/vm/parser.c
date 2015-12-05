@@ -739,8 +739,13 @@ Operand expr_binary_and(Parser *parser, Operand left, Operand right) {
 	// Point all elements in left's jump list to after right
 	uint32_t current = left.jump;
 	do {
-		// Point to after right
-		jmp_target(fn, current, right.jump + 1);
+		if (jmp_type(fn, current) == JUMP_OR && current != left.jump) {
+			// Point to right
+			jmp_set_target(fn, current, right.jump - 1);
+		} else {
+			// Point to after right
+			jmp_set_target(fn, current, right.jump + 1);
+		}
 
 		// Get next element
 		current = jmp_next(fn, current);
@@ -919,20 +924,25 @@ void expr_discharge(Parser *parser, Operand operand) {
 		uint32_t true_case = emit(fn, instr_new(MOV_LP, slot, TRUE_TAG, 0));
 
 		// Iterate over jump list and point each jump to the true case
+		uint32_t previous = 0;
 		uint32_t current = operand.jump;
-		while (jmp_type(fn, current) == JUMP_OR) {
-			// Point this jump to the true case
-			jmp_target(fn, current, true_case);
+		while (current != JUMP_LIST_END) {
+			JumpType type = jmp_type(fn, current);
+			if (type == JUMP_OR && jmp_target(fn, current) == 0) {
+				// Point this jump to the true case
+				jmp_set_target(fn, current, true_case);
+			} else if (type == JUMP_AND && jmp_target(fn, current) == 0) {
+				// Point to true case
+				jmp_set_target(fn, current, true_case);
+			}
 
 			// Get the next element in the jump list
+			previous = current;
 			current = jmp_next(fn, current);
-			if (current == JUMP_LIST_END) {
-				break;
-			}
 		}
 
-		// Point the jump to the true case
-		jmp_target(fn, operand.jump, true_case);
+		// Point the operand to the true case
+		jmp_set_target(fn, operand.jump, true_case);
 	} else {
 		// Calculate the instruction to use
 		Opcode opcode = MOV_LL + operand.type;
