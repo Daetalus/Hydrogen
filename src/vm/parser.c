@@ -751,7 +751,7 @@ Operand expr_binary_and(Parser *parser, Operand left, Operand right) {
 		jmp_set_type(fn, left.jump, JUMP_AND);
 	}
 	if (jmp_type(fn, right.jump) == JUMP_NONE) {
-		jmp_set_type(fn, right.jump, JUMP_OR);
+		jmp_set_type(fn, right.jump, JUMP_AND);
 	}
 
 	return right;
@@ -766,9 +766,21 @@ Operand expr_binary_or(Parser *parser, Operand left, Operand right) {
 		right = operand_to_jump(parser, right);
 	}
 
-	Operand operand;
-	operand.type = OP_JUMP;
-	return operand;
+	Function *fn = parser->fn;
+
+	// Point end of right's jump list to left
+	uint32_t last = jmp_last(fn, right.jump);
+	jmp_point(fn, last, left.jump);
+
+	// Make both operands part of an `or` operation
+	if (jmp_type(fn, left.jump) == JUMP_NONE) {
+		jmp_set_type(fn, left.jump, JUMP_OR);
+	}
+	if (jmp_type(fn, right.jump) == JUMP_NONE) {
+		jmp_set_type(fn, right.jump, JUMP_OR);
+	}
+
+	return right;
 }
 
 
@@ -905,6 +917,19 @@ void expr_discharge(Parser *parser, Operand operand) {
 		emit(fn, instr_new(MOV_LP, slot, FALSE_TAG, 0));
 		emit(fn, instr_new(JMP, 2, 0, 0));
 		uint32_t true_case = emit(fn, instr_new(MOV_LP, slot, TRUE_TAG, 0));
+
+		// Iterate over jump list and point each jump to the true case
+		uint32_t current = operand.jump;
+		while (jmp_type(fn, current) == JUMP_OR) {
+			// Point this jump to the true case
+			jmp_target(fn, current, true_case);
+
+			// Get the next element in the jump list
+			current = jmp_next(fn, current);
+			if (current == JUMP_LIST_END) {
+				break;
+			}
+		}
 
 		// Point the jump to the true case
 		jmp_target(fn, operand.jump, true_case);
