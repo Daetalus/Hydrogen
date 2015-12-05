@@ -6,6 +6,15 @@
 #include "bytecode.h"
 #include "util.h"
 
+// The argument in a jump instruction used to store it's target offset.
+#define JUMP_TARGET_ARG 1
+
+// The argument in a jump instruction used to store it's jump list pointer.
+#define JUMP_LIST_ARG 2
+
+// The value of a jump list argument that signals the end of the jump list.
+#define JUMP_LIST_END 0
+
 
 // Creates an instruction from an opcode and arguments.
 uint64_t instr_new(Opcode opcode, uint16_t arg1, uint16_t arg2, uint16_t arg3) {
@@ -51,9 +60,43 @@ uint32_t jmp_new(Function *fn) {
 }
 
 
+// Returns the jump offset between two indices in a function's bytecode.
+uint16_t jmp_offset(uint32_t jump, uint32_t target) {
+	return (uint16_t) (target - jump);
+}
+
+
 // Sets the target of the jump instruction at `index` within the function's
 // bytecode.
-void jmp_set(Function *fn, uint32_t index, uint32_t target) {
-	uint16_t offset = target - index;
-	fn->bytecode[index] = instr_set(fn->bytecode[index], 1, offset);
+void jmp_target(Function *fn, uint32_t jump, uint32_t target) {
+	uint16_t offset = jmp_offset(jump, target);
+	uint64_t instr = fn->bytecode[jump];
+	fn->bytecode[jump] = instr_set(instr, JUMP_TARGET_ARG, offset);
+}
+
+
+// Returns the index of the next jump instruction in a jump list, or 0 if this
+// is the end of the jump list.
+uint32_t jmp_next(Function *fn, uint32_t jump) {
+	return instr_arg(fn->bytecode[jump], JUMP_LIST_ARG);
+}
+
+
+// Returns the index of the last jump in a jump list.
+uint32_t jmp_last(Function *fn, uint32_t jump) {
+	uint32_t current = jump;
+	uint32_t next = jmp_next(fn, current);
+	while (next != JUMP_LIST_END) {
+		current = next;
+		next = jmp_next(fn, current);
+	}
+	return current;
+}
+
+
+// Points `jump`'s jump list to `target`.
+void jmp_point(Function *fn, uint32_t jump, uint32_t target) {
+	uint16_t offset = jmp_offset(jump, target);
+	uint64_t instr = fn->bytecode[jump];
+	fn->bytecode[jump] = instr_set(instr, JUMP_LIST_ARG, offset);
 }

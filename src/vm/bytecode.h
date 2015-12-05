@@ -117,6 +117,17 @@ uint32_t jmp_new(Function *fn);
 
 // Sets the target of the jump instruction at `index` within the function's
 // bytecode.
-void jmp_set(Function *fn, uint32_t index, uint32_t target);
+void jmp_target(Function *fn, uint32_t jump, uint32_t target);
+
+
+// Returns the index of the next jump instruction in a jump list, or 0 if this
+// is the end of the jump list.
+uint32_t jmp_next(Function *fn, uint32_t jump);
+
+// Returns the index of the last jump in a jump list.
+uint32_t jmp_last(Function *fn, uint32_t jump);
+
+// Points `jump`'s jump list to `target`.
+void jmp_point(Function *fn, uint32_t jump, uint32_t target);
 
 #endif

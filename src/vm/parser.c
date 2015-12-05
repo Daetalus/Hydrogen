@@ -276,7 +276,7 @@ typedef struct {
 		uint16_t number;
 		uint16_t string;
 		uint16_t primitive;
-		uint16_t local;
+		uint16_t slot;
 		uint16_t value;
 
 		uint32_t jump;
@@ -588,7 +588,7 @@ Operand fold_order(Parser *parser, Token operator, Operand left, Operand right) 
 	operand.type = OP_NONE;
 
 	if (left.type == OP_LOCAL && right.type == OP_LOCAL &&
-			left.local == right.local) {
+			left.slot == right.slot) {
 		// Two identical locals
 		operand.type = OP_PRIMITIVE;
 		operand.primitive = compare_locals(operator);
@@ -709,7 +709,7 @@ Operand operand_to_jump(Parser *parser, Operand operand) {
 	result.type = OP_JUMP;
 
 	// Emit a comparison and empty jump instruction
-	emit(parser->fn, instr_new(IS_TRUE_L, operand.local, 0, 0));
+	emit(parser->fn, instr_new(IS_TRUE_L, operand.slot, 0, 0));
 	result.jump = jmp_new(parser->fn);
 	return operand;
 }
@@ -774,11 +774,10 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 	if (operator >= TOKEN_ADD && operator <= TOKEN_CONCAT) {
 		// Arithmetic
 		operand.type = OP_LOCAL;
-		operand.local = slot;
+		operand.slot = slot;
 
 		// Emit the operation
-		emit(parser->fn, instr_new(opcode, operand.local, left.value,
-			right.value));
+		emit(parser->fn, instr_new(opcode, slot, left.value, right.value));
 	} else if (operator >= TOKEN_EQ && operator <= TOKEN_GE) {
 		// Comparison
 		operand.type = OP_JUMP;
@@ -850,10 +849,10 @@ Operand expr_unary(Parser *parser, Opcode opcode, Operand right) {
 	// Allocate a temporary local on the stack
 	operand.type = OP_LOCAL;
 	scope_new(parser);
-	local_new(parser, &operand.local);
+	local_new(parser, &operand.slot);
 
 	// Emit operation
-	emit(parser->fn, instr_new(opcode, operand.local, right.value, 0));
+	emit(parser->fn, instr_new(opcode, operand.slot, right.value, 0));
 
 	// Return a the local in which we stored the result of the operation
 	return operand;
@@ -867,8 +866,8 @@ void expr_discharge(Parser *parser, Operand operand) {
 
 	if (operand.type == OP_LOCAL) {
 		// Copy a local if isn't in a deallocated scope
-		if (operand.local < parser->locals_count) {
-			emit(parser->fn, instr_new(MOV_LL, slot, operand.local, 0));
+		if (operand.slot < parser->locals_count) {
+			emit(parser->fn, instr_new(MOV_LL, slot, operand.slot, 0));
 		}
 	} else if (operand.type == OP_JUMP) {
 		// Emit false case, jump over true case, and true case
@@ -876,8 +875,8 @@ void expr_discharge(Parser *parser, Operand operand) {
 		emit(parser->fn, instr_new(JMP, 2, 0, 0));
 		uint32_t target = emit(parser->fn, instr_new(MOV_LP, slot, TRUE_TAG, 0));
 
-		// Point the jump instruction to the true case
-		jmp_set(parser->fn, operand.jump, target);
+		// Target the jump instruction at the true case
+		jmp_target(parser->fn, operand.jump, target);
 	} else {
 		// Calculate the instruction to use
 		Opcode opcode = MOV_LL + operand.type;
@@ -922,7 +921,7 @@ Operand expr_operand(Parser *parser) {
 		}
 
 		operand.type = OP_LOCAL;
-		operand.local = slot;
+		operand.slot = slot;
 		break;
 	}
 
