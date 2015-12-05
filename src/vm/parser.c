@@ -330,27 +330,49 @@ Precedence binary_prec(Token operator) {
 }
 
 
-// Returns the opcode for a binary operator. Either `left` or `right` must be a
-// local. Both must be valid operands for the operator.
-Opcode binary_opcode(Token operator, OperandType left, OperandType right) {
-	if (operator >= TOKEN_ADD && operator <= TOKEN_CONCAT) {
+// Returns the opcode for an arithmetic operation (including concatenation).
+// Either left or right must be a local.
+Opcode arithmetic_opcode(Token operator, OperandType left, OperandType right) {
+	if (operator == TOKEN_CONCAT) {
+		// Concatenation
+		int offset = (right == OP_STRING ? 1 : (left == OP_STRING ? 2 : 0));
+		return CONCAT_LL + offset;
+	} else {
 		// Arithmetic
 		int base = ADD_LL + (operator - TOKEN_ADD) * 5;
 		return base + (left == OP_LOCAL ? right : left + 2);
-	} else if (operator == TOKEN_CONCAT) {
-		// Concatenation
-		return CONCAT_LL + (left - OP_LOCAL) + (right - OP_LOCAL) * 2;
-	} else if (operator == TOKEN_EQ || operator == TOKEN_NEQ) {
-		// Comparison
-		int base = EQ_LL + (operator - TOKEN_EQ) * 5;
-		return base + (left == OP_LOCAL ? right : left);
-	} else if (operator >= TOKEN_LT && operator <= TOKEN_GE) {
-		// Ordering
-		int base = LT_LL + (operator - TOKEN_LT) * 3;
-		return base + (left == OP_LOCAL ? right : left);
+	}
+}
+
+
+// Returns the inverted opcode for a comparison operation. Either left or right
+// must be a local.
+Opcode comparison_opcode(Token operator, OperandType left, OperandType right) {
+	Opcode base;
+	switch (operator) {
+	case TOKEN_EQ:
+		base = NEQ_LL;
+		break;
+	case TOKEN_NEQ:
+		base = EQ_LL;
+		break;
+	case TOKEN_LT:
+		base = GE_LL;
+		break;
+	case TOKEN_LE:
+		base = GT_LL;
+		break;
+	case TOKEN_GT:
+		base = LE_LL;
+		break;
+	case TOKEN_GE:
+		base = LT_LL;
+		break;
+	default:
+		return NO_OP;
 	}
 
-	return NO_OP;
+	return base + (left == OP_LOCAL ? right : left);
 }
 
 
@@ -721,7 +743,7 @@ Operand operand_to_jump(Parser *parser, Operand operand) {
 
 // Emits bytecode for an `and` operation. The left operand is expected to
 // have the jump operand type.
-Operand expr_binary_and(Parser *parser, Operand left, Operand right) {
+Operand expr_and(Parser *parser, Operand left, Operand right) {
 	// Convert right into a jump
 	if (right.type != OP_JUMP) {
 		right = operand_to_jump(parser, right);
@@ -729,27 +751,6 @@ Operand expr_binary_and(Parser *parser, Operand left, Operand right) {
 
 	Function *fn = parser->fn;
 
-	// Point the end of right's jump list to left
-	uint32_t last = jmp_last(fn, right.jump);
-	jmp_point(fn, last, left.jump);
-
-	// Invert left's condition
-	jmp_invert_condition(fn, left.jump);
-
-	// Point all elements in left's jump list to after right
-	uint32_t current = left.jump;
-	do {
-		if (jmp_type(fn, current) == JUMP_OR && current != left.jump) {
-			// Point to start of right's jump list
-			jmp_set_target(fn, current, last - 1);
-		} else {
-			// Point to after right
-			jmp_set_target(fn, current, right.jump + 1);
-		}
-
-		// Get next element
-		current = jmp_next(fn, current);
-	} while (current != JUMP_LIST_END);
 
 	// Make both operands part of an `and` operation
 	if (jmp_type(fn, left.jump) == JUMP_NONE) {
@@ -765,7 +766,7 @@ Operand expr_binary_and(Parser *parser, Operand left, Operand right) {
 
 // Emits bytecode for an `or` operation. The left operand is expected to
 // have the jump operand type.
-Operand expr_binary_or(Parser *parser, Operand left, Operand right) {
+Operand expr_or(Parser *parser, Operand left, Operand right) {
 	// Convert right into a jump
 	if (right.type != OP_JUMP) {
 		right = operand_to_jump(parser, right);
@@ -773,9 +774,6 @@ Operand expr_binary_or(Parser *parser, Operand left, Operand right) {
 
 	Function *fn = parser->fn;
 
-	// Point end of right's jump list to left
-	uint32_t last = jmp_last(fn, right.jump);
-	jmp_point(fn, last, left.jump);
 
 	// Make both operands part of an `or` operation
 	if (jmp_type(fn, left.jump) == JUMP_NONE) {
@@ -809,13 +807,11 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 
 	// Handle conditional operations
 	if (operator == TOKEN_AND) {
-		return expr_binary_and(parser, left, right);
+		return expr_and(parser, left, right);
 	} else if (operator == TOKEN_OR) {
-		return expr_binary_or(parser, left, right);
+		return expr_or(parser, left, right);
 	}
 
-	// Calculate the opcode for the instruction to emit
-	Opcode opcode = binary_opcode(operator, left.type, right.type);
 
 	if (operator >= TOKEN_ADD && operator <= TOKEN_CONCAT) {
 		// Arithmetic
@@ -823,12 +819,14 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 		operand.slot = slot;
 
 		// Emit the operation
+		Opcode opcode = arithmetic_opcode(operator, left.type, right.type);
 		emit(parser->fn, instr_new(opcode, slot, left.value, right.value));
 	} else if (operator >= TOKEN_EQ && operator <= TOKEN_GE) {
 		// Comparison
 		operand.type = OP_JUMP;
 
 		// Emit the comparison and the empty jump instruction following it
+		Opcode opcode = comparison_opcode(operator, left.type, right.type);
 		emit(parser->fn, instr_new(opcode, left.value, right.value, 0));
 		operand.jump = jmp_new(parser->fn);
 	}
@@ -919,30 +917,12 @@ void expr_discharge(Parser *parser, Operand operand) {
 		Function *fn = parser->fn;
 
 		// Emit false case, jump over true case, and true case
-		emit(fn, instr_new(MOV_LP, slot, FALSE_TAG, 0));
+		emit(fn, instr_new(MOV_LP, slot, TRUE_TAG, 0));
 		emit(fn, instr_new(JMP, 2, 0, 0));
-		uint32_t true_case = emit(fn, instr_new(MOV_LP, slot, TRUE_TAG, 0));
+		uint32_t false_case = emit(fn, instr_new(MOV_LP, slot, FALSE_TAG, 0));
 
-		// Iterate over jump list and point each jump to the true case
-		uint32_t previous = 0;
-		uint32_t current = operand.jump;
-		while (current != JUMP_LIST_END) {
-			JumpType type = jmp_type(fn, current);
-			if (type == JUMP_OR && jmp_target(fn, current) == 0) {
-				// Point this jump to the true case
-				jmp_set_target(fn, current, true_case);
-			} else if (type == JUMP_AND && jmp_target(fn, current) == 0) {
-				// Point to true case
-				jmp_set_target(fn, current, true_case);
-			}
-
-			// Get the next element in the jump list
-			previous = current;
-			current = jmp_next(fn, current);
-		}
-
-		// Point the operand to the true case
-		jmp_set_target(fn, operand.jump, true_case);
+		// Point the operand to the false case
+		jmp_set_target(fn, operand.jump, false_case);
 	} else {
 		// Calculate the instruction to use
 		Opcode opcode = MOV_LL + operand.type;
