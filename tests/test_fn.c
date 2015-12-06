@@ -76,12 +76,37 @@ TEST(call) {
 
 
 TEST(call_arg) {
+	COMPILER("fn test(arg1) {\nlet a = arg1\n}\ntest(2)");
 
+	SELECT_FN(0);
+	debug_print_bytecode(fn);
+	ASSERT_INSTRUCTION(MOV_LF, 0, 1, 0);
+	ASSERT_INSTRUCTION(MOV_LI, 2, 2, 0);
+	ASSERT_CALL(1, 0, 2, 1);
+	ASSERT_RET0();
+
+	SELECT_FN(1);
+	ASSERT_INSTRUCTION(MOV_LL, 1, 0, 0);
+	ASSERT_RET0();
 }
 
 
 TEST(call_multiple_args) {
+	COMPILER("fn test(arg1, arg2, arg3) {\nlet a = arg1 + arg2 + arg3\n}\n"
+		"test(1, 2, 3)\n");
 
+	SELECT_FN(0);
+	ASSERT_INSTRUCTION(MOV_LF, 0, 1, 0);
+	ASSERT_INSTRUCTION(MOV_LI, 2, 1, 0);
+	ASSERT_INSTRUCTION(MOV_LI, 3, 2, 0);
+	ASSERT_INSTRUCTION(MOV_LI, 4, 3, 0);
+	ASSERT_CALL(3, 0, 2, 1);
+	ASSERT_RET0();
+
+	SELECT_FN(1);
+	ASSERT_INSTRUCTION(ADD_LL, 3, 0, 1);
+	ASSERT_INSTRUCTION(ADD_LL, 3, 3, 2);
+	ASSERT_RET0();
 }
 
 
@@ -112,6 +137,9 @@ MAIN() {
 	RUN(return_value);
 	RUN(arguments_and_return);
 	RUN(call);
+	RUN(call_arg);
+	RUN(call_multiple_args);
+	RUN(call_return_value);
 	RUN(multiple_definitions);
 	RUN(inner_call);
 	RUN(recursion);
