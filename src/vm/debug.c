@@ -13,7 +13,7 @@
 #define MAX_NAME_LENGTH 50
 
 // The number of opcodes.
-#define OPCODE_COUNT 64
+#define OPCODE_COUNT 65
 
 
 // The name of every opcode.
@@ -23,6 +23,7 @@ char OPCODE_NAMES[OPCODE_COUNT][MAX_NAME_LENGTH] = {
 	"MOV_LN",
 	"MOV_LS",
 	"MOV_LP",
+	"MOV_LF",
 	"ADD_LL",
 	"ADD_LI",
 	"ADD_LN",
@@ -79,19 +80,20 @@ char OPCODE_NAMES[OPCODE_COUNT][MAX_NAME_LENGTH] = {
 	"JMP",
 	"LOOP",
 	"CALL",
-	"RET1",
 	"RET0",
+	"RET1",
 	"NO_OP",
 };
 
 
 // The number of arguments for each opcode.
 int ARGUMENT_COUNT[OPCODE_COUNT] = {
-	3, // MOV_LL
-	3, // MOV_LI
-	3, // MOV_LN
-	3, // MOV_LS
-	3, // MOV_LP
+	2, // MOV_LL
+	2, // MOV_LI
+	2, // MOV_LN
+	2, // MOV_LS
+	2, // MOV_LP
+	2, // MOV_LF
 	3, // ADD_LL
 	3, // ADD_LI
 	3, // ADD_LN
@@ -147,9 +149,9 @@ int ARGUMENT_COUNT[OPCODE_COUNT] = {
 	2, // GE_LN
 	1, // JMP
 	1, // LOOP
-	3, // CALL
-	1, // RET1
+	4, // CALL
 	0, // RET0
+	1, // RET1
 	0, // NO_OP
 };
 
@@ -166,8 +168,9 @@ void debug_print_instruction(int i, uint64_t instruction) {
 
 	// Arguments
 	int argument_count = ARGUMENT_COUNT[opcode];
-	for (int i = 1; i <= argument_count; i++) {
-		uint16_t arg = instr_arg(instruction, i);
+	for (int i = 0; i < argument_count; i++) {
+		int index = (argument_count == 4) ? i : i + 1;
+		uint16_t arg = instr_arg(instruction, index);
 		printf("%-6u ", arg);
 	}
 

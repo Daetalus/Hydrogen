@@ -62,6 +62,30 @@ TEST(arguments_and_return) {
 
 
 TEST(call) {
+	COMPILER("fn test() {\nlet a = 1\n}\ntest()");
+
+	SELECT_FN(0);
+	ASSERT_INSTRUCTION(MOV_LF, 0, 1, 0);
+	ASSERT_CALL(0, 0, 0, 1);
+	ASSERT_RET0();
+
+	SELECT_FN(1);
+	ASSERT_INSTRUCTION(MOV_LI, 0, 1, 0);
+	ASSERT_RET0();
+}
+
+
+TEST(call_arg) {
+
+}
+
+
+TEST(call_multiple_args) {
+
+}
+
+
+TEST(call_return_value) {
 
 }
 

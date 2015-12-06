@@ -126,6 +126,18 @@
 }
 
 
+// Asserts a function call.
+#define ASSERT_CALL(arity, fn_index, arg_start, return_slot) { \
+	NEQ(index, fn->bytecode_count);                            \
+	uint64_t instruction = fn->bytecode[index++];              \
+	EQ(instr_opcode(instruction), CALL);                       \
+	EQ(instr_arg(instruction, 0), arity);                      \
+	EQ(instr_arg(instruction, 1), fn_index);                   \
+	EQ(instr_arg(instruction, 2), arg_start);                  \
+	EQ(instr_arg(instruction, 3), return_slot);                \
+}
+
+
 // Asserts a jump instruction.
 #define ASSERT_JMP(amount) {                      \
 	NEQ(index, fn->bytecode_count);               \

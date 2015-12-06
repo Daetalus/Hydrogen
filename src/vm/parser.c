@@ -1208,35 +1208,6 @@ void parse_assignment(Parser *parser, Identifier var) {
 }
 
 
-// Parses an assignment or function call. Returns true if it was able to parse
-// either.
-bool parse_call_or_assignment(Parser *parser) {
-	Lexer *lexer = parser->lexer;
-
-	// Check for an identifier
-	if (lexer->token != TOKEN_IDENTIFIER) {
-		return false;
-	}
-
-	// Skip the identifier
-	Identifier identifier = lexer->value.identifier;
-	lexer_next(lexer);
-
-	// Check the next character
-	if (lexer->token == TOKEN_OPEN_PARENTHESIS) {
-		// Function call
-		// TODO
-		return true;
-	} else if (lexer->token == TOKEN_ASSIGN || lexer->token == TOKEN_COMMA) {
-		// Assignment
-		parse_assignment(parser, identifier);
-		return true;
-	} else {
-		return false;
-	}
-}
-
-
 
 //
 //  If Statements
@@ -1538,28 +1509,21 @@ void parse_fn_call_slot(Parser *parser, uint16_t return_slot, Identifier name) {
 			name.start);
 	}
 
-	// Save the starting slot of the first argument and the number of arguments
-	// being passed to the function call
-	uint16_t arg_start = 0;
-	uint8_t arity = 0;
+	// Create a new scope for the function arguments
+	scope_new(parser);
 
 	// Parse function arguments into consecutive local slots
-	scope_new(parser);
+	uint8_t arity = 0;
 	while (!vm_has_error(parser->vm) &&
 			lexer->token != TOKEN_CLOSE_PARENTHESIS) {
 		// Create local for the argument
 		uint16_t slot;
 		local_new(parser, &slot);
 
-		// Check we haven't got more than 255 arguments
+		// Increment the number of arguments we have
 		if (arity >= 255) {
 			ERROR("Cannot pass more than 255 arguments to function call");
 			return;
-		}
-
-		// Save the first argument
-		if (arity == 0) {
-			arg_start = slot;
 		}
 		arity++;
 
@@ -1576,13 +1540,16 @@ void parse_fn_call_slot(Parser *parser, uint16_t return_slot, Identifier name) {
 			return;
 		}
 	}
+
+	// Free the scope created for the arguments
 	scope_free(parser);
+	uint16_t arg_start = (arity == 0) ? 0 : parser->locals_count;
 
 	// Skip the closing parenthesis
 	lexer_next(lexer);
 
 	// Call the function
-	emit(parser->fn, instr_new(CALL, arity, fn_index, return_slot, arg_start));
+	emit(parser->fn, instr_new(CALL, arity, fn_index, arg_start, return_slot));
 }
 
 
@@ -1594,6 +1561,35 @@ void parse_fn_call(Parser *parser, Identifier name) {
 	local_new(parser, &slot);
 	parse_fn_call_slot(parser, slot, name);
 	scope_free(parser);
+}
+
+
+// Parses an assignment or function call. Returns true if it was able to parse
+// either.
+bool parse_call_or_assignment(Parser *parser) {
+	Lexer *lexer = parser->lexer;
+
+	// Check for an identifier
+	if (lexer->token != TOKEN_IDENTIFIER) {
+		return false;
+	}
+
+	// Skip the identifier
+	Identifier identifier = lexer->value.identifier;
+	lexer_next(lexer);
+
+	// Check the next character
+	if (lexer->token == TOKEN_OPEN_PARENTHESIS) {
+		// Function call
+		parse_fn_call(parser, identifier);
+		return true;
+	} else if (lexer->token == TOKEN_ASSIGN || lexer->token == TOKEN_COMMA) {
+		// Assignment
+		parse_assignment(parser, identifier);
+		return true;
+	}
+
+	return false;
 }
 
 
