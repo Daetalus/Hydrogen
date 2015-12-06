@@ -198,8 +198,15 @@ void parse_imports(Parser *parser) {
 //  Local Variables
 //
 
-// Creates a new local variable at the top of the locals stack.
+// Creates a new local variable at the top of the locals stack. Returns NULL if
+// a local couldn't be allocated.
 Local * local_new(Parser *parser, uint16_t *slot) {
+	// Check we haven't exceeded the maximum number of allowed locals
+	if (parser->locals_count >= MAX_LOCALS) {
+		ERROR("Cannot have more than %d variables in a scope", MAX_LOCALS);
+		return NULL;
+	}
+
 	uint16_t index = parser->locals_count++;
 	if (slot != NULL) {
 		*slot = index;
@@ -1223,6 +1230,9 @@ void parse_initial_assignment(Parser *parser) {
 	// Create a new local
 	uint16_t slot;
 	Local *local = local_new(parser, &slot);
+	if (local == NULL) {
+		return;
+	}
 
 	// Expect an expression
 	Operand result = expr(parser, slot);
@@ -1311,6 +1321,14 @@ void parse_if(Parser *parser) {
 
 	// Parse following else if statements
 	while (!vm_has_error(parser->vm) && lexer->token == TOKEN_ELSE_IF) {
+		// Check that we haven't exceeded the maximum number of allowed else
+		// ifs
+		if (jumps_count >= MAX_ELSE_IFS) {
+			ERROR("Cannot have more than %d else ifs following an if",
+				MAX_ELSE_IFS);
+			return;
+		}
+
 		// Insert a jump at the end of the previous if body
 		jumps[jumps_count++] = jmp_new(parser->fn);
 
@@ -1451,6 +1469,13 @@ void parse_break(Parser *parser) {
 		return;
 	}
 
+	// Check we haven't exceeded the maximum number of allowed break statements
+	if (parser->loop->breaks_count >= MAX_BREAK_STATEMENTS) {
+		ERROR("Cannot have more than %d break statements in a loop",
+			MAX_BREAK_STATEMENTS);
+		return;
+	}
+
 	// Emit a jump instruction and add it to the innermost loop's break
 	// statements list
 	parser->loop->breaks[parser->loop->breaks_count++] = jmp_new(parser->fn);
@@ -1546,6 +1571,9 @@ void parse_fn_definition(Parser *parser) {
 	// Create a new local to store the function in
 	uint16_t slot;
 	Local *local = local_new(parser, &slot);
+	if (local == NULL) {
+		return;
+	}
 	local->name = name;
 	local->length = length;
 
@@ -1615,8 +1643,6 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 // Parses a function call, storing the return value into the given slot.
 void parse_fn_call_name(Parser *parser, char *name, size_t length,
 		uint16_t return_slot) {
-	Lexer *lexer = parser->lexer;
-
 	// Find a local with the given name
 	uint16_t fn_index;
 	if (local_find(parser, name, length, &fn_index) == NULL) {

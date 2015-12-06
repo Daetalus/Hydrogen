@@ -32,7 +32,8 @@
 
 
 // Defines the main function.
-#define MAIN() int main(int argc, char *argv[])
+#define MAIN() int main(int argc __attribute__ ((unused)), \
+	char *argv[] __attribute__ ((unused)))
 
 
 // Runs a test case.
