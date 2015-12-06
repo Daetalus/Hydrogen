@@ -73,8 +73,8 @@ uint64_t instr_set(uint64_t instruction, int arg, uint16_t value) {
 
 // Emits an instruction for a function. Returns the index of the instruction in
 // the bytecode.
-uint32_t emit(Function *fn, uint64_t instruction) {
-	uint32_t index = fn->bytecode_count++;
+int emit(Function *fn, uint64_t instruction) {
+	int index = fn->bytecode_count++;
 	ARRAY_REALLOC(fn->bytecode, uint64_t);
 	fn->bytecode[index] = instruction;
 	return index;
@@ -82,22 +82,17 @@ uint32_t emit(Function *fn, uint64_t instruction) {
 
 
 // Emits an empty jump instruction. Returns the index of the jump instruction.
-uint32_t jmp_new(Function *fn) {
+int jmp_new(Function *fn) {
 	return emit(fn, instr_new(JMP, 0, 0, 0, 0));
 }
 
 
-// Returns the jump offset between two indices in a function's bytecode.
-uint16_t jmp_offset(uint32_t jump, uint32_t target) {
-	return (uint16_t) (jump - target);
-}
-
-
-// Returns the target of the jump instruction.
-uint32_t jmp_target(Function *fn, uint32_t jump) {
+// Returns the target of the jump instruction. Returns `jump` if no jump target
+// has been set.
+int jmp_target(Function *fn, int jump) {
 	uint16_t offset = instr_arg(fn->bytecode[jump], JUMP_TARGET_ARG);
 	if (offset == 0) {
-		return 0;
+		return -1;
 	} else {
 		return jump + offset;
 	}
@@ -106,30 +101,40 @@ uint32_t jmp_target(Function *fn, uint32_t jump) {
 
 // Sets the target of the jump instruction at `index` within the function's
 // bytecode.
-void jmp_set_target(Function *fn, uint32_t jump, uint32_t target) {
+void jmp_set_target(Function *fn, int jump, int target) {
 	uint16_t offset = target - jump;
 	uint64_t instr = fn->bytecode[jump];
 	fn->bytecode[jump] = instr_set(instr, JUMP_TARGET_ARG, offset);
 }
 
 
-// Returns the index of the next jump instruction in a jump list, or 0 if this
-// is the end of the jump list.
-uint32_t jmp_next(Function *fn, uint32_t jump) {
+// Points every element in a jump list to the same location.
+void jmp_set_target_all(Function *fn, int jump, int target) {
+	int current = jump;
+	while (current != -1) {
+		jmp_set_target(fn, current, target);
+		current = jmp_next(fn, current);
+	}
+}
+
+
+// Returns the index of the next jump instruction in a jump list. Returns `jump`
+// if this is the last element in the jump list.
+int jmp_next(Function *fn, int jump) {
 	uint16_t offset = instr_arg(fn->bytecode[jump], JUMP_LIST_ARG);
 	if (offset == 0) {
-		return 0;
+		return -1;
 	} else {
-		return jump - (uint32_t) offset;
+		return jump - offset;
 	}
 }
 
 
 // Returns the index of the last jump in a jump list.
-uint32_t jmp_last(Function *fn, uint32_t jump) {
-	uint32_t current = jump;
-	uint32_t next = jmp_next(fn, current);
-	while (next != JUMP_LIST_END) {
+int jmp_last(Function *fn, int jump) {
+	int current = jump;
+	int next = jmp_next(fn, current);
+	while (next != -1) {
 		current = next;
 		next = jmp_next(fn, current);
 	}
@@ -138,22 +143,22 @@ uint32_t jmp_last(Function *fn, uint32_t jump) {
 
 
 // Points `jump`'s jump list to `target`.
-void jmp_point(Function *fn, uint32_t jump, uint32_t target) {
-	uint16_t offset = jmp_offset(jump, target);
+void jmp_point(Function *fn, int jump, int target) {
+	uint16_t offset = jump - target;
 	uint64_t instr = fn->bytecode[jump];
 	fn->bytecode[jump] = instr_set(instr, JUMP_LIST_ARG, offset);
 }
 
 
 // Returns the type of a jump instruction.
-JumpType jmp_type(Function *fn, uint32_t jump) {
+JumpType jmp_type(Function *fn, int jump) {
 	uint16_t arg = instr_arg(fn->bytecode[jump], JUMP_TYPE_ARG);
 	return (JumpType) arg;
 }
 
 
 // Sets which type of condition a jump instruction belongs to.
-void jmp_set_type(Function *fn, uint32_t jump, JumpType type) {
+void jmp_set_type(Function *fn, int jump, JumpType type) {
 	uint64_t instr = fn->bytecode[jump];
 	fn->bytecode[jump] = instr_set(instr, JUMP_TYPE_ARG, (uint16_t) type);
 }
@@ -184,23 +189,23 @@ Opcode invert_condition(Opcode opcode) {
 
 
 // Inverts the condition of a conditional jump.
-void jmp_invert_condition(Function *fn, uint32_t jump) {
-	uint64_t condition = fn->bytecode[jump - 1];
+void jmp_invert_condition(Function *fn, int index) {
+	uint64_t condition = fn->bytecode[index];
 	Opcode current = (Opcode) instr_opcode(condition);
 	Opcode inverted = invert_condition(current);
-	fn->bytecode[jump - 1] = instr_set_opcode(condition, inverted);
+	fn->bytecode[index] = instr_set_opcode(condition, inverted);
 }
 
 
 // Finalises a jump condition, assuming the true case is directly after the
 // instructions used to evaluate the condition, and the false case is at the
 // given index.
-void jmp_patch(Function *fn, uint32_t jump, uint32_t false_case) {
+void jmp_patch(Function *fn, int jump, int false_case) {
 	// Iterate over jump list
-	uint32_t current = jump;
-	while (current != JUMP_LIST_END) {
+	int current = jump;
+	while (current != -1) {
 		// If the jump's target hasn't already been set
-		if (jmp_target(fn, current) == 0) {
+		if (jmp_target(fn, current) == -1) {
 			// Point the jump to the false case
 			jmp_set_target(fn, current, false_case);
 		}

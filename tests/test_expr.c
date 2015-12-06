@@ -140,6 +140,7 @@ TEST(and) {
 
 	ASSERT_INSTRUCTION(MOV_LI, 0, 3, 0);
 	ASSERT_INSTRUCTION(MOV_LI, 1, 4, 0);
+	debug_print_bytecode(fn);
 
 	// a == 3 && b == 4
 	ASSERT_INSTRUCTION(NEQ_LI, 0, 3, 0);

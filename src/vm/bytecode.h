@@ -8,9 +8,6 @@
 
 #include "vm.h"
 
-// The value of a jump list argument that signals the end of the jump list.
-#define JUMP_LIST_END 0
-
 
 // All bytecode operation codes. Opcodes are stored in the first byte of an
 // instruction, so there cannot be more than 256 opcodes.
@@ -129,17 +126,21 @@ uint64_t instr_set(uint64_t instruction, int arg, uint16_t value);
 
 // Emits an instruction for a function. Returns the index of the instruction in
 // the bytecode.
-uint32_t emit(Function *fn, uint64_t instruction);
+int emit(Function *fn, uint64_t instruction);
 
 // Emits an empty jump instruction. Returns the index of the jump instruction.
-uint32_t jmp_new(Function *fn);
+int jmp_new(Function *fn);
 
-// Returns the target of the jump instruction.
-uint32_t jmp_target(Function *fn, uint32_t jump);
+// Returns the target of the jump instruction. Returns -1 if the jump has no
+// target set.
+int jmp_target(Function *fn, int jump);
 
 // Sets the target of the jump instruction at `index` within the function's
 // bytecode.
-void jmp_set_target(Function *fn, uint32_t jump, uint32_t target);
+void jmp_set_target(Function *fn, int jump, int target);
+
+// Points every element in a jump list to the same location.
+void jmp_set_target_all(Function *fn, int jump, int target);
 
 
 // The type of conditions a jump instruction can belong to.
@@ -149,28 +150,28 @@ typedef enum {
 	JUMP_OR,
 } JumpType;
 
-// Returns the index of the next jump instruction in a jump list, or 0 if this
-// is the end of the jump list.
-uint32_t jmp_next(Function *fn, uint32_t jump);
+// Returns the index of the next jump instruction in a jump list. Returns `jump`
+// if this is the last element in the jump list.
+int jmp_next(Function *fn, int jump);
 
 // Returns the index of the last jump in a jump list.
-uint32_t jmp_last(Function *fn, uint32_t jump);
+int jmp_last(Function *fn, int jump);
 
 // Points `jump`'s jump list to `target`.
-void jmp_point(Function *fn, uint32_t jump, uint32_t target);
+void jmp_point(Function *fn, int jump, int target);
 
 // Returns the type of a jump instruction.
-JumpType jmp_type(Function *fn, uint32_t jump);
+JumpType jmp_type(Function *fn, int jump);
 
 // Sets which type of condition a jump instruction belongs to.
-void jmp_set_type(Function *fn, uint32_t jump, JumpType type);
+void jmp_set_type(Function *fn, int jump, JumpType type);
 
 // Inverts the condition of a conditional jump.
-void jmp_invert_condition(Function *fn, uint32_t jump);
+void jmp_invert_condition(Function *fn, int jump);
 
 // Finalises a jump condition, assuming the true case is directly after the
 // instructions used to evaluate the condition, and the false case is at the
 // given index.
-void jmp_patch(Function *fn, uint32_t jump, uint32_t false_case);
+void jmp_patch(Function *fn, int jump, int false_case);
 
 #endif

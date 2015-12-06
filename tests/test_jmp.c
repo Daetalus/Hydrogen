@@ -20,13 +20,13 @@ TEST(next) {
 		RET0, 0, 0, 0
 	);
 
-	uint32_t jump = 5;
+	int jump = 5;
 	jump = jmp_next(&fn, jump);
 	EQ(jump, 3);
 	jump = jmp_next(&fn, jump);
 	EQ(jump, 1);
 	jump = jmp_next(&fn, jump);
-	EQ(jump, JUMP_LIST_END);
+	EQ(jump, -1);
 }
 
 

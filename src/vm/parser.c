@@ -37,10 +37,10 @@ typedef struct {
 
 // A loop.
 typedef struct loop {
-	// The position of all break statements that need to be patched to the end
-	// of the loop once it's been compiled.
-	uint32_t breaks[MAX_BREAK_STATEMENTS];
-	int breaks_count;
+	// The index of the last break statement's jump instruction in the bytecode.
+	// Used to form a jump list which can be patched after the loop has finished
+	// being compiled. -1 if no break statements are used.
+	int32_t jump;
 
 	// The next loop in the linked list.
 	struct loop *outer;
@@ -796,7 +796,7 @@ Operand expr_and(Parser *parser, Operand left, Operand right) {
 	Function *fn = parser->fn;
 
 	// Point end of right's jump list to left
-	uint32_t last = jmp_last(fn, right.jump);
+	int last = jmp_last(fn, right.jump);
 	jmp_point(fn, last, left.jump);
 
 	// Make both operands part of an `and` operation
@@ -822,23 +822,20 @@ Operand expr_or(Parser *parser, Operand left, Operand right) {
 	Function *fn = parser->fn;
 
 	// Point end of right's jump list to left
-	uint32_t last = jmp_last(fn, right.jump);
+	int last = jmp_last(fn, right.jump);
 	jmp_point(fn, last, left.jump);
 
 	// Invert left's condition
-	jmp_invert_condition(fn, left.jump);
-
-	// Point left to after right
-	jmp_set_target(fn, left.jump, right.jump + 1);
+	jmp_invert_condition(fn, left.jump - 1);
 
 	// Iterate over left's jump list
-	uint32_t current = jmp_next(fn, left.jump);
-	while (current != JUMP_LIST_END) {
+	int current = left.jump;
+	while (current != -1) {
 		// Point to after right by default
-		uint32_t target = right.jump + 1;
+		int target = right.jump + 1;
 
 		// For conditions part of AND statements
-		if (jmp_type(fn, current) == JUMP_AND && current != left.jump) {
+		if (jmp_type(fn, current) == JUMP_AND) {
 			// Point to last element in right's jump list
 			target = last - 1;
 		}
@@ -849,6 +846,9 @@ Operand expr_or(Parser *parser, Operand left, Operand right) {
 		// Get next element in jump list
 		current = jmp_next(fn, current);
 	}
+
+	// Point left to after right
+	jmp_set_target(fn, left.jump, right.jump + 1);
 
 	// Make both operands part of an `or` operation
 	if (jmp_type(fn, left.jump) == JUMP_NONE) {
@@ -886,7 +886,6 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 	} else if (operator == TOKEN_OR) {
 		return expr_or(parser, left, right);
 	}
-
 
 	if (operator >= TOKEN_ADD && operator <= TOKEN_CONCAT) {
 		// Arithmetic
@@ -1381,7 +1380,7 @@ void parse_infinite_loop(Parser *parser) {
 
 	// Add the loop to the parser's linked list
 	Loop loop;
-	loop.breaks_count = 0;
+	loop.jump = -1;
 	loop.outer = parser->loop;
 	parser->loop = &loop;
 
@@ -1401,9 +1400,8 @@ void parse_infinite_loop(Parser *parser) {
 	emit(parser->fn, instr_new(LOOP, 0, offset, 0, 0));
 
 	// Patch break statements to here
-	uint32_t after = parser->fn->bytecode_count;
-	for (int i = 0; i < loop.breaks_count; i++) {
-		jmp_set_target(parser->fn, loop.breaks[i], after);
+	if (loop.jump >= 0) {
+		jmp_set_target_all(parser->fn, loop.jump, parser->fn->bytecode_count);
 	}
 }
 
@@ -1427,7 +1425,7 @@ void parse_while(Parser *parser) {
 
 	// Add a loop to the linked list
 	Loop loop;
-	loop.breaks_count = 0;
+	loop.jump = -1;
 	loop.outer = parser->loop;
 	parser->loop = &loop;
 
@@ -1450,8 +1448,8 @@ void parse_while(Parser *parser) {
 	jmp_patch(parser->fn, condition.jump, after);
 
 	// Point all break statements here
-	for (int i = 0; i < loop.breaks_count; i++) {
-		jmp_set_target(parser->fn, loop.breaks[i], after);
+	if (loop.jump >= 0) {
+		jmp_set_target_all(parser->fn, loop.jump, after);
 	}
 }
 
@@ -1469,16 +1467,17 @@ void parse_break(Parser *parser) {
 		return;
 	}
 
-	// Check we haven't exceeded the maximum number of allowed break statements
-	if (parser->loop->breaks_count >= MAX_BREAK_STATEMENTS) {
-		ERROR("Cannot have more than %d break statements in a loop",
-			MAX_BREAK_STATEMENTS);
-		return;
-	}
+	// Emit a jump instruction
+	uint32_t jump = jmp_new(parser->fn);
 
-	// Emit a jump instruction and add it to the innermost loop's break
-	// statements list
-	parser->loop->breaks[parser->loop->breaks_count++] = jmp_new(parser->fn);
+	// Add it to the loop's jump list
+	Loop *loop = parser->loop;
+	if (loop->jump == -1) {
+		loop->jump = jump;
+	} else {
+		uint32_t last = jmp_last(parser->fn, loop->jump);
+		jmp_point(parser->fn, last, jump);
+	}
 }
 
 
