@@ -17,12 +17,6 @@
 // The maximum number of locals that can be allocated on the stack at once.
 #define MAX_LOCALS 512
 
-// The maximum number of else ifs that can be placed after an if statement.
-#define MAX_ELSE_IFS 64
-
-// The maximum number of break statements inside a loop.
-#define MAX_BREAK_STATEMENTS 128
-
 
 // A local variable.
 typedef struct {
@@ -1310,26 +1304,22 @@ void parse_if(Parser *parser) {
 	// Skip the `if` token
 	lexer_next(lexer);
 
-	// Keep track of all jumps that need to be patched to after the whole if
-	// statement
-	uint32_t jumps[MAX_ELSE_IFS + 1];
-	int jumps_count = 0;
-
 	// Parse if statement
 	parse_if_body(parser);
 
+	// Save the first jump of the jump list
+	int jump = -1;
+
 	// Parse following else if statements
 	while (!vm_has_error(parser->vm) && lexer->token == TOKEN_ELSE_IF) {
-		// Check that we haven't exceeded the maximum number of allowed else
-		// ifs
-		if (jumps_count >= MAX_ELSE_IFS) {
-			ERROR("Cannot have more than %d else ifs following an if",
-				MAX_ELSE_IFS);
-			return;
-		}
-
 		// Insert a jump at the end of the previous if body
-		jumps[jumps_count++] = jmp_new(parser->fn);
+		int new_jump = jmp_new(parser->fn);
+		if (jump == -1) {
+			jump = new_jump;
+		} else {
+			jmp_point(parser->fn, new_jump, jump);
+			jump = new_jump;
+		}
 
 		// Skip the else if token
 		lexer_next(lexer);
@@ -1340,8 +1330,14 @@ void parse_if(Parser *parser) {
 
 	// Check for an else statement
 	if (lexer->token == TOKEN_ELSE) {
-		// Jump for previous if body
-		jumps[jumps_count++] = jmp_new(parser->fn);
+		// Insert a jump at the end of the previous if body
+		int new_jump = jmp_new(parser->fn);
+		if (jump == -1) {
+			jump = new_jump;
+		} else {
+			jmp_point(parser->fn, new_jump, jump);
+			jump = new_jump;
+		}
 
 		// Skip `else` token
 		lexer_next(lexer);
@@ -1355,10 +1351,7 @@ void parse_if(Parser *parser) {
 	}
 
 	// Patch jumps to after if statement
-	uint32_t target = parser->fn->bytecode_count;
-	for (int i = 0; i < jumps_count; i++) {
-		jmp_set_target(parser->fn, jumps[i], target);
-	}
+	jmp_set_target_all(parser->fn, jump, parser->fn->bytecode_count);
 }
 
 
