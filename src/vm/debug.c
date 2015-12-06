@@ -13,7 +13,7 @@
 #define MAX_NAME_LENGTH 50
 
 // The number of opcodes.
-#define OPCODE_COUNT 65
+#define OPCODE_COUNT 66
 
 
 // The name of every opcode.
@@ -79,7 +79,8 @@ char OPCODE_NAMES[OPCODE_COUNT][MAX_NAME_LENGTH] = {
 	"GE_LN",
 	"JMP",
 	"LOOP",
-	"CALL",
+	"CALL_L",
+	"CALL_F",
 	"RET0",
 	"RET1",
 	"NO_OP",
@@ -149,7 +150,8 @@ int ARGUMENT_COUNT[OPCODE_COUNT] = {
 	2, // GE_LN
 	1, // JMP
 	1, // LOOP
-	4, // CALL
+	4, // CALL_L
+	4, // CALL_F
 	0, // RET0
 	1, // RET1
 	0, // NO_OP

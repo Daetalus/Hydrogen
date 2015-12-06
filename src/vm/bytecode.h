@@ -97,8 +97,10 @@ typedef enum {
 	LOOP, // target offset (backwards)
 
 	// Function calls
-	CALL, // arity, slot with function as local, slot with first argument,
-		  // slot for return value
+	CALL_L, // arity, slot with function as local, slot with first argument,
+	        // slot for return value
+	CALL_F, // arity, function index, slot with first argument, slot for return
+	        // value
 	RET0, // none
 	RET1, // slot return value was stored in
 

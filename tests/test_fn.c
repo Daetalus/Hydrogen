@@ -102,7 +102,7 @@ TEST(call) {
 
 	SELECT_FN(0);
 	ASSERT_INSTRUCTION(MOV_LF, 0, 1, 0);
-	ASSERT_CALL(0, 0, 0, 1);
+	ASSERT_CALL(CALL_L, 0, 0, 0, 1);
 	ASSERT_RET0();
 
 	SELECT_FN(1);
@@ -117,7 +117,7 @@ TEST(call_arg) {
 	SELECT_FN(0);
 	ASSERT_INSTRUCTION(MOV_LF, 0, 1, 0);
 	ASSERT_INSTRUCTION(MOV_LI, 2, 2, 0);
-	ASSERT_CALL(1, 0, 2, 1);
+	ASSERT_CALL(CALL_L, 1, 0, 2, 1);
 	ASSERT_RET0();
 
 	SELECT_FN(1);
@@ -135,7 +135,7 @@ TEST(call_multiple_args) {
 	ASSERT_INSTRUCTION(MOV_LI, 2, 1, 0);
 	ASSERT_INSTRUCTION(MOV_LI, 3, 2, 0);
 	ASSERT_INSTRUCTION(MOV_LI, 4, 3, 0);
-	ASSERT_CALL(3, 0, 2, 1);
+	ASSERT_CALL(CALL_L, 3, 0, 2, 1);
 	ASSERT_RET0();
 
 	SELECT_FN(1);
@@ -150,7 +150,7 @@ TEST(call_return_value) {
 
 	SELECT_FN(0);
 	ASSERT_INSTRUCTION(MOV_LF, 0, 1, 0);
-	ASSERT_CALL(0, 0, 0, 1);
+	ASSERT_CALL(CALL_L, 0, 0, 0, 1);
 	ASSERT_INSTRUCTION(MUL_LI, 1, 1, 2);
 	ASSERT_RET0();
 
@@ -185,13 +185,44 @@ TEST(inner_call) {
 	SELECT_FN(0);
 	ASSERT_INSTRUCTION(MOV_LF, 0, 1, 0);
 	ASSERT_INSTRUCTION(MOV_LI, 3, 1, 0);
-	ASSERT_CALL(1, 0, 3, 2);
-	ASSERT_CALL(1, 0, 2, 1);
+	ASSERT_CALL(CALL_L, 1, 0, 3, 2);
+	ASSERT_CALL(CALL_L, 1, 0, 2, 1);
 	ASSERT_RET0();
 
 	SELECT_FN(1);
 	ASSERT_INSTRUCTION(ADD_LI, 1, 0, 1);
 	ASSERT_INSTRUCTION(RET1, 1, 0, 0);
+}
+
+
+TEST(anonymous_fn) {
+	COMPILER("let test = fn(arg1, arg2) {\nreturn arg1 + arg2\n}\ntest(1, 2)");
+
+	SELECT_FN(0);
+	ASSERT_INSTRUCTION(MOV_LF, 0, 1, 0);
+	ASSERT_INSTRUCTION(MOV_LI, 2, 1, 0);
+	ASSERT_INSTRUCTION(MOV_LI, 3, 2, 0);
+	ASSERT_CALL(CALL_L, 2, 0, 2, 1);
+	ASSERT_RET0();
+
+	SELECT_FN(1);
+	ASSERT_INSTRUCTION(ADD_LL, 2, 0, 1);
+	ASSERT_INSTRUCTION(RET1, 2, 0, 0);
+}
+
+
+TEST(call_anonymous_fn) {
+	COMPILER("let tree = (fn(arg1, arg2) {\nreturn arg1 + arg2\n})(1, 2)");
+
+	SELECT_FN(0);
+	ASSERT_INSTRUCTION(MOV_LI, 1, 1, 0);
+	ASSERT_INSTRUCTION(MOV_LI, 2, 2, 0);
+	ASSERT_CALL(CALL_F, 2, 1, 1, 0);
+	ASSERT_RET0();
+
+	SELECT_FN(1);
+	ASSERT_INSTRUCTION(ADD_LL, 2, 0, 1);
+	ASSERT_INSTRUCTION(RET1, 2, 0, 0);
 }
 
 
@@ -208,4 +239,6 @@ MAIN() {
 	RUN(call_return_value);
 	RUN(multiple_definitions);
 	RUN(inner_call);
+	RUN(anonymous_fn);
+	RUN(call_anonymous_fn);
 }

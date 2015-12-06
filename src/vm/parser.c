@@ -78,8 +78,17 @@ Parser parser_new(Parser *parent);
 // Parses a block of statements, terminated by the given character.
 void parse_block(Parser *parser, Token terminator);
 
+// Parses a function call to the function in `slot`, storing the return value in
+// `return_slot`.
+void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
+	uint16_t return_slot);
+
 // Parses a function call, storing the return value into the given slot.
-void parse_fn_call_slot(Parser *parser, uint16_t return_slot, Identifier name);
+void parse_fn_call_name(Parser *parser, char *name, size_t length,
+	uint16_t return_slot);
+
+// Parses a function definition body (starting at the arguments list).
+uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length);
 
 
 
@@ -285,8 +294,8 @@ typedef enum {
 	OP_NUMBER,
 	OP_STRING,
 	OP_PRIMITIVE,
-	OP_JUMP,
 	OP_FN,
+	OP_JUMP,
 	OP_NONE,
 } OperandType;
 
@@ -427,8 +436,8 @@ bool binary_valid(Token operator, OperandType left, OperandType right) {
 			(right >= OP_LOCAL && right <= OP_PRIMITIVE);
 	case TOKEN_AND:
 	case TOKEN_OR:
-		return (left >= OP_LOCAL && left <= OP_JUMP) &&
-			(right >= OP_LOCAL && right <= OP_JUMP);
+		return ((left >= OP_LOCAL && left <= OP_PRIMITIVE) || left == OP_JUMP) &&
+			((right >= OP_LOCAL && right <= OP_PRIMITIVE) || right == OP_JUMP);
 	default:
 		return false;
 	}
@@ -1014,26 +1023,19 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 	}
 
 	case TOKEN_IDENTIFIER: {
-		Identifier ident = lexer->value.identifier;
-		lexer_next(lexer);
-		operand.type = OP_LOCAL;
-
-		if (lexer->token == TOKEN_OPEN_PARENTHESIS) {
-			// Function call
-			parse_fn_call_slot(parser, slot, ident);
-			operand.slot = slot;
-		} else {
-			// Find an existing variable with the given name
-			uint16_t var;
-			if (local_find(parser, ident.start, ident.length, &var) == NULL) {
-				// Variable doesn't exist
-				ERROR("Undefined variable `%.*s` in expression",
-					ident.length, ident.start);
-				break;
-			}
-
-			operand.slot = var;
+		// Find an existing variable with the given name
+		uint16_t var;
+		char *name = lexer->value.identifier.start;
+		size_t length = lexer->value.identifier.length;
+		if (local_find(parser, name, length, &var) == NULL) {
+			// Variable doesn't exist
+			ERROR("Undefined variable `%.*s` in expression", length, name);
+			break;
 		}
+
+		operand.type = OP_LOCAL;
+		operand.slot = var;
+		lexer_next(lexer);
 		break;
 	}
 
@@ -1071,6 +1073,15 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 		lexer_next(lexer);
 		break;
 
+	case TOKEN_FN:
+		// Skip the `fn` token
+		lexer_next(lexer);
+
+		// Parse an anonymous function definition
+		operand.type = OP_FN;
+		operand.fn_index = parse_fn_definition_body(parser, NULL, 0);
+		break;
+
 	default:
 		UNEXPECTED("Expected operand in expression");
 		operand.type = OP_NONE;
@@ -1078,6 +1089,29 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 	}
 
 	return operand;
+}
+
+
+// Parses postfix operators after an operand.
+Operand expr_postfix(Parser *parser, Operand operand, uint16_t return_slot) {
+	Lexer *lexer = parser->lexer;
+	Operand result = operand;
+
+	if (lexer->token == TOKEN_OPEN_PARENTHESIS) {
+		// Function call
+		if (operand.type == OP_LOCAL) {
+			parse_fn_call_slot(parser, CALL_L, operand.slot, return_slot);
+		} else if (operand.type == OP_FN) {
+			parse_fn_call_slot(parser, CALL_F, operand.fn_index, return_slot);
+		} else {
+			ERROR("Attempt to call non-function");
+		}
+
+		result.type = OP_LOCAL;
+		result.slot = return_slot;
+	}
+
+	return result;
 }
 
 
@@ -1099,7 +1133,10 @@ Operand expr_left(Parser *parser, uint16_t slot) {
 		return expr_unary(parser, opcode, right);
 	} else {
 		// Parse an operand
-		return expr_operand(parser, slot);
+		Operand operand = expr_operand(parser, slot);
+
+		// Check for postfix operators (eg. function calls)
+		return expr_postfix(parser, operand, slot);
 	}
 }
 
@@ -1425,28 +1462,23 @@ void parse_break(Parser *parser) {
 //  Function Definitions
 //
 
-// Parses a function definition.
-void parse_fn_definition(Parser *parser) {
+// Parses a function definition body (starting at the arguments list).
+uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length) {
 	Lexer *lexer = parser->lexer;
 
-	// Skip the `fn` token
-	lexer_next(lexer);
-
-	// Expect an identifier (the name of the function)
-	EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `fn`");
-	char *name = lexer->value.identifier.start;
-	size_t length = lexer->value.identifier.length;
-	lexer_next(lexer);
-
 	// Expect an opening parenthesis
-	EXPECT(TOKEN_OPEN_PARENTHESIS,
-		"Expected `(` after function name to begin arguments list");
+	if (lexer->token != TOKEN_OPEN_PARENTHESIS) {
+		ERROR("Expected `(` after function name to begin arguments list");
+		return 0;
+	}
 	lexer_next(lexer);
 
 	// Create the new child parser
 	uint16_t fn_index;
 	Parser child = parser_new(parser);
 	child.fn = fn_new(parser->vm, parser->fn->package, &fn_index);
+	child.fn->name = name;
+	child.fn->length = length;
 
 	// Parse the arguments list into the child parser's locals list
 	while (lexer->token == TOKEN_IDENTIFIER) {
@@ -1465,22 +1497,17 @@ void parse_fn_definition(Parser *parser) {
 	}
 
 	// Expect a closing parenthesis
-	EXPECT(TOKEN_CLOSE_PARENTHESIS,
-		"Expected `)` to close function arguments list");
+	if (lexer->token != TOKEN_CLOSE_PARENTHESIS) {
+		ERROR("Expected `)` to close function arguments list");
+		return 0;
+	}
 	lexer_next(lexer);
 
-	// Create a new local to store the function in
-	uint16_t slot;
-	Local *local = local_new(parser, &slot);
-	local->name = name;
-	local->length = length;
-
-	// Emit bytecode to store the function into the created local
-	emit(parser->fn, instr_new(MOV_LF, 0, slot, fn_index, 0));
-
 	// Expect an opening brace to begin the function block
-	EXPECT(TOKEN_OPEN_BRACE,
-		"Expected `{` after arguments list to open function block");
+	if (lexer->token != TOKEN_OPEN_BRACE) {
+		ERROR("Expected `{` after arguments list to open function block");
+		return 0;
+	}
 	lexer_next(lexer);
 
 	// Parse the function body
@@ -1490,8 +1517,40 @@ void parse_fn_definition(Parser *parser) {
 	emit(child.fn, instr_new(RET0, 0, 0, 0, 0));
 
 	// Expect a closing brace
-	EXPECT(TOKEN_CLOSE_BRACE, "Expected `}` to close function block");
+	if (lexer->token != TOKEN_CLOSE_BRACE) {
+		ERROR("Expected `}` to close function block");
+		return 0;
+	}
 	lexer_next(lexer);
+
+	return fn_index;
+}
+
+
+// Parses a function definition.
+void parse_fn_definition(Parser *parser) {
+	Lexer *lexer = parser->lexer;
+
+	// Skip the `fn` token
+	lexer_next(lexer);
+
+	// Expect an identifier (the name of the function)
+	EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `fn`");
+	char *name = lexer->value.identifier.start;
+	size_t length = lexer->value.identifier.length;
+	lexer_next(lexer);
+
+	// Parse the remainder of the function
+	uint16_t fn_index = parse_fn_definition_body(parser, name, length);
+
+	// Create a new local to store the function in
+	uint16_t slot;
+	Local *local = local_new(parser, &slot);
+	local->name = name;
+	local->length = length;
+
+	// Emit bytecode to store the function into the created local
+	emit(parser->fn, instr_new(MOV_LF, 0, slot, fn_index, 0));
 }
 
 
@@ -1500,20 +1559,14 @@ void parse_fn_definition(Parser *parser) {
 //  Function Calls
 //
 
-// Parses a function call, storing the return value into the given slot.
-void parse_fn_call_slot(Parser *parser, uint16_t return_slot, Identifier name) {
+// Parses a function call to the function in `slot`, storing the return value in
+// `return_slot`.
+void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
+		uint16_t return_slot) {
 	Lexer *lexer = parser->lexer;
 
 	// Skip the opening parenthesis
 	lexer_next(lexer);
-
-	// Find a local with the given name
-	uint16_t fn_index;
-	if (local_find(parser, name.start, name.length, &fn_index) == NULL) {
-		// Undefined function
-		ERROR("Attempt to call undefined function `%.*s`", name.length,
-			name.start);
-	}
 
 	// Create a new scope for the function arguments
 	scope_new(parser);
@@ -1555,7 +1608,23 @@ void parse_fn_call_slot(Parser *parser, uint16_t return_slot, Identifier name) {
 	lexer_next(lexer);
 
 	// Call the function
-	emit(parser->fn, instr_new(CALL, arity, fn_index, arg_start, return_slot));
+	emit(parser->fn, instr_new(call, arity, slot, arg_start, return_slot));
+}
+
+
+// Parses a function call, storing the return value into the given slot.
+void parse_fn_call_name(Parser *parser, char *name, size_t length,
+		uint16_t return_slot) {
+	Lexer *lexer = parser->lexer;
+
+	// Find a local with the given name
+	uint16_t fn_index;
+	if (local_find(parser, name, length, &fn_index) == NULL) {
+		// Undefined function
+		ERROR("Attempt to call undefined function `%.*s`", length, name);
+	}
+
+	parse_fn_call_slot(parser, CALL_L, fn_index, return_slot);
 }
 
 
@@ -1565,7 +1634,7 @@ void parse_fn_call(Parser *parser, Identifier name) {
 	uint16_t slot;
 	scope_new(parser);
 	local_new(parser, &slot);
-	parse_fn_call_slot(parser, slot, name);
+	parse_fn_call_name(parser, name.start, name.length, slot);
 	scope_free(parser);
 }
 
@@ -1642,7 +1711,7 @@ void parse_statement(Parser *parser) {
 	switch (lexer->token) {
 		// Trigger a special error for misplaced imports
 	case TOKEN_IMPORT:
-		ERROR("Imports must be at the top of the file");
+		ERROR("Imports must be placed at the top of the file");
 		break;
 
 	case TOKEN_LET:
