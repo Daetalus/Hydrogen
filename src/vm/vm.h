@@ -24,6 +24,9 @@ typedef struct {
 	char *name;
 	size_t length;
 
+	// The number of arguments expected by the function.
+	uint32_t arity;
+
 	// The compiled bytecode for the function.
 	ARRAY(uint64_t, bytecode);
 

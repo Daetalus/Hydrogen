@@ -13,7 +13,7 @@
 #define MAX_NAME_LENGTH 50
 
 // The number of opcodes.
-#define OPCODE_COUNT 62
+#define OPCODE_COUNT 64
 
 
 // The name of every opcode.
@@ -78,8 +78,10 @@ char OPCODE_NAMES[OPCODE_COUNT][MAX_NAME_LENGTH] = {
 	"GE_LN",
 	"JMP",
 	"LOOP",
-	"NO_OP",
+	"CALL",
+	"RET1",
 	"RET0",
+	"NO_OP",
 };
 
 
@@ -145,8 +147,10 @@ int ARGUMENT_COUNT[OPCODE_COUNT] = {
 	2, // GE_LN
 	1, // JMP
 	1, // LOOP
-	0, // NO_OP
+	3, // CALL
+	1, // RET1
 	0, // RET0
+	0, // NO_OP
 };
 
 
@@ -156,7 +160,7 @@ void debug_print_instruction(int i, uint64_t instruction) {
 	printf("%4d: ", i);
 
 	// Opcode
-	uint16_t opcode = instr_arg(instruction, 0);
+	uint16_t opcode = instr_opcode(instruction);
 	char *name = &OPCODE_NAMES[opcode][0];
 	printf("%-10s ", name);
 

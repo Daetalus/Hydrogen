@@ -80,17 +80,17 @@
 
 
 // Creates a function with the given bytecode.
-#define FUNCTION(...)                                             \
-	uint16_t bytecode[] = {__VA_ARGS__};                          \
-	int count = sizeof(bytecode) / sizeof(uint16_t);              \
-	Function fn;                                                  \
-	fn.name = NULL;                                               \
-	fn.length = 0;                                                \
-	ARRAY_INIT(fn.bytecode, uint64_t, count / 4);                 \
-	fn.package = NULL;                                            \
-	for (int i = 0; i < count; i += 4) {                          \
-		fn.bytecode[fn.bytecode_count++] = instr_new(bytecode[i], \
-			bytecode[i + 1], bytecode[i + 2], bytecode[i + 3]);   \
+#define FUNCTION(...)                                              \
+	uint16_t bytecode[] = {__VA_ARGS__};                           \
+	int count = sizeof(bytecode) / sizeof(uint16_t);               \
+	Function fn;                                                   \
+	fn.name = NULL;                                                \
+	fn.length = 0;                                                 \
+	ARRAY_INIT(fn.bytecode, uint64_t, count / 4);                  \
+	fn.package = NULL;                                             \
+	for (int i = 0; i < count; i += 4) {                           \
+		fn.bytecode[fn.bytecode_count++] = instr_new(bytecode[i],  \
+			0, bytecode[i + 1], bytecode[i + 2], bytecode[i + 3]); \
 	}
 
 
@@ -109,11 +109,17 @@
 	size_t index = 0;
 
 
+// Select a different function after creating a compiler.
+#define SELECT_FN(fn_index)          \
+	fn = &vm->functions[(fn_index)]; \
+	index = 0;
+
+
 // Asserts the next instruction.
 #define ASSERT_INSTRUCTION(opcode, arg1, arg2, arg3) { \
 	NEQ(index, fn->bytecode_count);                    \
 	uint64_t instruction = fn->bytecode[index++];      \
-	EQ(instr_arg(instruction, 0), opcode);             \
+	EQ(instr_opcode(instruction), opcode);             \
 	EQ(instr_arg(instruction, 1), arg1);               \
 	EQ(instr_arg(instruction, 2), arg2);               \
 	EQ(instr_arg(instruction, 3), arg3);               \
@@ -124,7 +130,7 @@
 #define ASSERT_JMP(amount) {                      \
 	NEQ(index, fn->bytecode_count);               \
 	uint64_t instruction = fn->bytecode[index++]; \
-	EQ(instr_arg(instruction, 0), JMP);           \
+	EQ(instr_opcode(instruction), JMP);           \
 	EQ(instr_arg(instruction, 1), amount);        \
 }
 

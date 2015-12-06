@@ -12,19 +12,21 @@
 #define JUMP_LIST_END 0
 
 
-// All bytecode operation codes.
+// All bytecode operation codes. Opcodes are stored in the first byte of an
+// instruction, so there cannot be more than 256 opcodes.
 typedef enum {
 	// Storage instructions
-	MOV_LL,
-	MOV_LI,
-	MOV_LN,
-	MOV_LS,
-	MOV_LP,
+	MOV_LL, // destination, slot
+	MOV_LI, // destination, integer
+	MOV_LN, // destination, number index
+	MOV_LS, // destination, string index
+	MOV_LP, // destination, primitive tag
+	MOV_LF, // destination, function index
 
 	// Math instructions
-	ADD_LL,
-	ADD_LI,
-	ADD_LN,
+	ADD_LL, // destination, slot, slot
+	ADD_LI, // destination, slot, integer
+	ADD_LN, // ...
 	ADD_IL,
 	ADD_NL,
 
@@ -59,12 +61,12 @@ typedef enum {
 	NEG_L,
 
 	// Comparison
-	IS_TRUE_L,
-	IS_FALSE_L,
+	IS_TRUE_L, // slot
+	IS_FALSE_L, // slot
 
-	EQ_LL,
-	EQ_LI,
-	EQ_LN,
+	EQ_LL, // slot, slot
+	EQ_LI, // slot, integer
+	EQ_LN, // ...
 	EQ_LS,
 	EQ_LP,
 
@@ -91,23 +93,34 @@ typedef enum {
 	GE_LN,
 
 	// Control flow
-	JMP,
-	LOOP,
+	JMP, // target offset (forwards)
+	LOOP, // target offset (backwards)
+
+	// Function calls
+	CALL, // function index, return value slot, arguments start slot, argument count
+	RET1, // slot return value was stored in
+	RET0, // none
 
 	// No operation
-	NO_OP,
-
-	// Return
-	RET0,
+	NO_OP, // none
 } Opcode;
 
 // Creates an instruction from an opcode and arguments.
-uint64_t instr_new(Opcode opcode, uint16_t arg1, uint16_t arg2, uint16_t arg3);
+uint64_t instr_new(Opcode opcode, uint8_t arg0, uint16_t arg1, uint16_t arg2,
+	uint16_t arg3);
 
-// Returns an argument to an instruction, where argument 0 is the opcode.
+// Returns the opcode of an instruction.
+Opcode instr_opcode(uint64_t instruction);
+
+// Sets the opcode for an instruction.
+uint64_t instr_set_opcode(uint64_t instruction, Opcode opcode);
+
+// Returns an argument to an instruction. Arguments 0 to 3 can be fetched.
+// Argument 0 is only 8 bits (1 byte), the other 3 are 16 bits (2 bytes).
 uint16_t instr_arg(uint64_t instruction, int arg);
 
-// Modifies an argument to an instruction.
+// Modifies an argument to an instruction. Arguments 0 to 3 can be set.
+// Argument 0 is only 8 bits (1 byte), the other 3 are 16 bits (2 bytes).
 uint64_t instr_set(uint64_t instruction, int arg, uint16_t value);
 
 

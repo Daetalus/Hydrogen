@@ -18,30 +18,56 @@
 
 
 // Creates an instruction from an opcode and arguments.
-uint64_t instr_new(Opcode opcode, uint16_t arg1, uint16_t arg2, uint16_t arg3) {
+uint64_t instr_new(Opcode opcode, uint8_t arg0, uint16_t arg1, uint16_t arg2,
+		uint16_t arg3) {
 	return ((uint64_t) opcode) |
+		(((uint64_t) arg0) << 8) |
 		(((uint64_t) arg1) << 16) |
 		(((uint64_t) arg2) << 32) |
 		(((uint64_t) arg3) << 48);
 }
 
 
-// Returns an argument to an instruction, where argument 0 is the opcode.
+// Returns the opcode in an instruction.
+Opcode instr_opcode(uint64_t instruction) {
+	// Extract first byte
+	return (Opcode) (instruction & 0xff);
+}
+
+
+// Sets the opcode for an instruction.
+uint64_t instr_set_opcode(uint64_t instruction, Opcode opcode) {
+	// Set first byte
+	uint64_t cleared = instruction & ((uint64_t) 0xffffffffffffff00);
+	return cleared | ((uint8_t) opcode);
+}
+
+
+// Returns an argument to an instruction.
 uint16_t instr_arg(uint64_t instruction, int arg) {
-	int offset = arg * 16;
-	uint64_t and = ((uint64_t) 0xffff) << offset;
-	uint64_t offset_arg = instruction & and;
-	return (uint16_t) (offset_arg >> offset);
+	if (arg == 0) {
+		return (uint16_t) ((instruction & 0xff00) >> 8);
+	} else {
+		int offset = arg * 16;
+		uint64_t and = ((uint64_t) 0xffff) << offset;
+		uint64_t offset_arg = instruction & and;
+		return (uint16_t) (offset_arg >> offset);
+	}
 }
 
 
 // Modifies an argument to an instruction.
 uint64_t instr_set(uint64_t instruction, int arg, uint16_t value) {
-	int offset = arg * 16;
-	uint64_t xor = ((uint64_t) 0xffff) << offset;
-	uint64_t cleared = instruction & (((uint64_t) 0xffffffffffffffff) ^ xor);
-	uint64_t offset_value = ((uint64_t) value) << offset;
-	return cleared | offset_value;
+	if (arg == 0) {
+		uint64_t cleared = instruction & ((uint64_t) 0xffffffffffff00ff);
+		return cleared | (((uint64_t) value) << 8);
+	} else {
+		int offset = arg * 16;
+		uint64_t xor = ((uint64_t) 0xffff) << offset;
+		uint64_t cleared = instruction & (((uint64_t) 0xffffffffffffffff) ^ xor);
+		uint64_t offset_value = ((uint64_t) value) << offset;
+		return cleared | offset_value;
+	}
 }
 
 
@@ -57,7 +83,7 @@ uint32_t emit(Function *fn, uint64_t instruction) {
 
 // Emits an empty jump instruction. Returns the index of the jump instruction.
 uint32_t jmp_new(Function *fn) {
-	return emit(fn, instr_new(JMP, 0, 0, 0));
+	return emit(fn, instr_new(JMP, 0, 0, 0, 0));
 }
 
 
@@ -160,9 +186,9 @@ Opcode invert_condition(Opcode opcode) {
 // Inverts the condition of a conditional jump.
 void jmp_invert_condition(Function *fn, uint32_t jump) {
 	uint64_t condition = fn->bytecode[jump - 1];
-	Opcode current = (Opcode) instr_arg(condition, 0);
+	Opcode current = (Opcode) instr_opcode(condition);
 	Opcode inverted = invert_condition(current);
-	fn->bytecode[jump - 1] = instr_set(condition, 0, (uint16_t) inverted);
+	fn->bytecode[jump - 1] = instr_set_opcode(condition, inverted);
 }
 
 

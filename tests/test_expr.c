@@ -23,7 +23,6 @@ TEST(addition) {
 	COMPILER("let a = 3\nlet b = 4\nlet c = a + b\nlet d = a * c\n"
 		"let e = a - 3\nlet f = 5 / b");
 
-	debug_print_bytecode(fn);
 	ASSERT_INSTRUCTION(MOV_LI, 0, 3, 0);
 	ASSERT_INSTRUCTION(MOV_LI, 1, 4, 0);
 	ASSERT_INSTRUCTION(ADD_LL, 2, 0, 1);
@@ -175,6 +174,7 @@ TEST(or) {
 	ASSERT_INSTRUCTION(MOV_LI, 1, 4, 0);
 
 	// a == 3 || b == 4
+	debug_print_bytecode(fn);
 	ASSERT_INSTRUCTION(EQ_LI, 0, 3, 0);
 	ASSERT_JMP(3);
 	ASSERT_INSTRUCTION(NEQ_LI, 1, 4, 0);

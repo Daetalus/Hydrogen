@@ -78,6 +78,9 @@ Parser parser_new(Parser *parent);
 // Parses a block of statements, terminated by the given character.
 void parse_block(Parser *parser, Token terminator);
 
+// Parses a function call, storing the return value into the given slot.
+void parse_fn_call_slot(Parser *parser, uint16_t return_slot, Identifier name);
+
 
 
 //
@@ -283,6 +286,7 @@ typedef enum {
 	OP_STRING,
 	OP_PRIMITIVE,
 	OP_JUMP,
+	OP_FN,
 	OP_NONE,
 } OperandType;
 
@@ -300,6 +304,7 @@ typedef struct {
 		uint16_t string;
 		uint16_t primitive;
 		uint16_t slot;
+		uint16_t fn_index;
 		uint16_t value;
 
 		uint32_t jump;
@@ -758,7 +763,7 @@ Operand operand_to_jump(Parser *parser, Operand operand) {
 	result.type = OP_JUMP;
 
 	// Emit a comparison and empty jump instruction
-	emit(parser->fn, instr_new(IS_FALSE_L, operand.slot, 0, 0));
+	emit(parser->fn, instr_new(IS_FALSE_L, 0, operand.slot, 0, 0));
 	result.jump = jmp_new(parser->fn);
 	return operand;
 }
@@ -874,14 +879,14 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 
 		// Emit the operation
 		Opcode opcode = arithmetic_opcode(operator, left.type, right.type);
-		emit(parser->fn, instr_new(opcode, slot, left.value, right.value));
+		emit(parser->fn, instr_new(opcode, 0, slot, left.value, right.value));
 	} else if (operator >= TOKEN_EQ && operator <= TOKEN_GE) {
 		// Comparison
 		operand.type = OP_JUMP;
 
 		// Emit the comparison and the empty jump instruction following it
 		Opcode opcode = comparison_opcode(operator, left.type, right.type);
-		emit(parser->fn, instr_new(opcode, left.value, right.value, 0));
+		emit(parser->fn, instr_new(opcode, 0, left.value, right.value, 0));
 		operand.jump = jmp_new(parser->fn);
 	}
 
@@ -950,7 +955,7 @@ Operand expr_unary(Parser *parser, Opcode opcode, Operand right) {
 	local_new(parser, &operand.slot);
 
 	// Emit operation
-	emit(parser->fn, instr_new(opcode, operand.slot, right.value, 0));
+	emit(parser->fn, instr_new(opcode, 0, operand.slot, right.value, 0));
 
 	// Return a the local in which we stored the result of the operation
 	return operand;
@@ -962,22 +967,22 @@ void expr_discharge(Parser *parser, uint16_t slot, Operand operand) {
 	if (operand.type == OP_LOCAL) {
 		// Copy a local if isn't in a deallocated scope
 		if (operand.slot != slot && operand.slot < parser->locals_count) {
-			emit(parser->fn, instr_new(MOV_LL, slot, operand.slot, 0));
+			emit(parser->fn, instr_new(MOV_LL, 0, slot, operand.slot, 0));
 		}
 	} else if (operand.type == OP_JUMP) {
 		Function *fn = parser->fn;
 
 		// Emit true case, jump over false case, and false case
-		emit(fn, instr_new(MOV_LP, slot, TRUE_TAG, 0));
-		emit(fn, instr_new(JMP, 2, 0, 0));
-		uint32_t false_case = emit(fn, instr_new(MOV_LP, slot, FALSE_TAG, 0));
+		emit(fn, instr_new(MOV_LP, 0, slot, TRUE_TAG, 0));
+		emit(fn, instr_new(JMP, 0, 2, 0, 0));
+		uint32_t false_case = emit(fn, instr_new(MOV_LP, 0, slot, FALSE_TAG, 0));
 
 		// Finish the condition now that we know the location of the false case
 		jmp_patch(fn, operand.jump, false_case);
 	} else {
-		// Calculate the instruction to use
+		// Emit a store instruction for the appropriate type
 		Opcode opcode = MOV_LL + operand.type;
-		emit(parser->fn, instr_new(opcode, slot, operand.value, 0));
+		emit(parser->fn, instr_new(opcode, 0, slot, operand.value, 0));
 	}
 }
 
@@ -991,50 +996,63 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 	case TOKEN_INTEGER:
 		operand.type = OP_INTEGER;
 		operand.integer = lexer->value.integer;
+		lexer_next(lexer);
 		break;
 
 	case TOKEN_NUMBER:
 		operand.type = OP_NUMBER;
 		operand.number = vm_add_number(parser->vm, lexer->value.number);
+		lexer_next(lexer);
 		break;
 
 	case TOKEN_STRING: {
 		char *string = lexer_extract_string(lexer->value.identifier);
 		operand.type = OP_STRING;
 		operand.string = vm_add_string(parser->vm, string);
+		lexer_next(lexer);
 		break;
 	}
 
 	case TOKEN_IDENTIFIER: {
-		char *name = lexer->value.identifier.start;
-		size_t length = lexer->value.identifier.length;
-
-		// Find an existing variable with the given name
-		uint16_t ident_slot;
-		if (local_find(parser, name, length, &ident_slot) == NULL) {
-			// Variable doesn't exist
-			ERROR("Undefined variable `%.*s` in expression", length, name);
-			break;
-		}
-
+		Identifier ident = lexer->value.identifier;
+		lexer_next(lexer);
 		operand.type = OP_LOCAL;
-		operand.slot = ident_slot;
+
+		if (lexer->token == TOKEN_OPEN_PARENTHESIS) {
+			// Function call
+			parse_fn_call_slot(parser, slot, ident);
+			operand.slot = slot;
+		} else {
+			// Find an existing variable with the given name
+			uint16_t var;
+			if (local_find(parser, ident.start, ident.length, &var) == NULL) {
+				// Variable doesn't exist
+				ERROR("Undefined variable `%.*s` in expression",
+					ident.length, ident.start);
+				break;
+			}
+
+			operand.slot = var;
+		}
 		break;
 	}
 
 	case TOKEN_TRUE:
 		operand.type = OP_PRIMITIVE;
 		operand.primitive = TRUE_TAG;
+		lexer_next(lexer);
 		break;
 
 	case TOKEN_FALSE:
 		operand.type = OP_PRIMITIVE;
 		operand.primitive = FALSE_TAG;
+		lexer_next(lexer);
 		break;
 
 	case TOKEN_NIL:
 		operand.type = OP_PRIMITIVE;
 		operand.primitive = NIL_TAG;
+		lexer_next(lexer);
 		break;
 
 	case TOKEN_OPEN_PARENTHESIS:
@@ -1050,6 +1068,7 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 			operand.type = OP_NONE;
 			break;
 		}
+		lexer_next(lexer);
 		break;
 
 	default:
@@ -1058,7 +1077,6 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 		break;
 	}
 
-	lexer_next(lexer);
 	return operand;
 }
 
@@ -1344,7 +1362,7 @@ void parse_infinite_loop(Parser *parser) {
 
 	// Insert a jump statement to return to the start of the loop
 	uint32_t offset = parser->fn->bytecode_count - start;
-	emit(parser->fn, instr_new(LOOP, offset, 0, 0));
+	emit(parser->fn, instr_new(LOOP, 0, offset, 0, 0));
 
 	// Patch break statements to here
 	uint32_t after = parser->fn->bytecode_count;
@@ -1389,7 +1407,7 @@ void parse_while(Parser *parser) {
 
 	// Insert a jump statement to return to the start of the loop
 	uint32_t offset = parser->fn->bytecode_count - start;
-	emit(parser->fn, instr_new(LOOP, offset, 0, 0));
+	emit(parser->fn, instr_new(LOOP, 0, offset, 0, 0));
 
 	// Point the condition's false case here
 	uint32_t after = parser->fn->bytecode_count;
@@ -1445,8 +1463,9 @@ void parse_fn_definition(Parser *parser) {
 	lexer_next(lexer);
 
 	// Create the new child parser
+	uint16_t fn_index;
 	Parser child = parser_new(parser);
-	child.fn = fn_new(parser->vm, parser->fn->package, NULL);
+	child.fn = fn_new(parser->vm, parser->fn->package, &fn_index);
 
 	// Parse the arguments list into the child parser's locals list
 	while (lexer->token == TOKEN_IDENTIFIER) {
@@ -1456,6 +1475,7 @@ void parse_fn_definition(Parser *parser) {
 		local->length = lexer->value.identifier.length;
 		local->scope_depth = 0;
 		lexer_next(lexer);
+		child.fn->arity++;
 
 		// Skip a comma
 		if (lexer->token == TOKEN_COMMA) {
@@ -1468,8 +1488,14 @@ void parse_fn_definition(Parser *parser) {
 		"Expected `)` to close function arguments list");
 	lexer_next(lexer);
 
-	// TODO: Add bytecode to parent parser which creates a new local storing
-	// the child function
+	// Create a new local to store the function in
+	uint16_t slot;
+	Local *local = local_new(parser, &slot);
+	local->name = name;
+	local->length = length;
+
+	// Emit bytecode to store the function into the created local
+	emit(parser->fn, instr_new(MOV_LF, 0, slot, fn_index, 0));
 
 	// Expect an opening brace to begin the function block
 	EXPECT(TOKEN_OPEN_BRACE,
@@ -1479,9 +1505,95 @@ void parse_fn_definition(Parser *parser) {
 	// Parse the function body
 	parse_block(&child, TOKEN_CLOSE_BRACE);
 
+	// Emit a return statement at the end of the body, if one doesn't already
+	// exist
+	Opcode last = instr_opcode(child.fn->bytecode[child.fn->bytecode_count - 1]);
+	if (last != RET0 && last != RET1) {
+		emit(child.fn, instr_new(RET0, 0, 0, 0, 0));
+	}
+
 	// Expect a closing brace
 	EXPECT(TOKEN_CLOSE_BRACE, "Expected `}` to close function block");
 	lexer_next(lexer);
+}
+
+
+
+//
+//  Function Calls
+//
+
+// Parses a function call, storing the return value into the given slot.
+void parse_fn_call_slot(Parser *parser, uint16_t return_slot, Identifier name) {
+	Lexer *lexer = parser->lexer;
+
+	// Skip the opening parenthesis
+	lexer_next(lexer);
+
+	// Find a local with the given name
+	uint16_t fn_index;
+	if (local_find(parser, name.start, name.length, &fn_index) == NULL) {
+		// Undefined function
+		ERROR("Attempt to call undefined function `%.*s`", name.length,
+			name.start);
+	}
+
+	// Save the starting slot of the first argument and the number of arguments
+	// being passed to the function call
+	uint16_t arg_start = 0;
+	uint8_t arity = 0;
+
+	// Parse function arguments into consecutive local slots
+	scope_new(parser);
+	while (!vm_has_error(parser->vm) &&
+			lexer->token != TOKEN_CLOSE_PARENTHESIS) {
+		// Create local for the argument
+		uint16_t slot;
+		local_new(parser, &slot);
+
+		// Check we haven't got more than 255 arguments
+		if (arity >= 255) {
+			ERROR("Cannot pass more than 255 arguments to function call");
+			return;
+		}
+
+		// Save the first argument
+		if (arity == 0) {
+			arg_start = slot;
+		}
+		arity++;
+
+		// Expect an expression
+		Operand arg = expr(parser, slot);
+		expr_discharge(parser, slot, arg);
+
+		// Expect a comma or closing parenthesis
+		if (lexer->token == TOKEN_COMMA) {
+			lexer_next(lexer);
+		} else if (lexer->token != TOKEN_CLOSE_PARENTHESIS) {
+			// Unexpected token
+			UNEXPECTED("Expected `)` to close arguments list in function call");
+			return;
+		}
+	}
+	scope_free(parser);
+
+	// Skip the closing parenthesis
+	lexer_next(lexer);
+
+	// Call the function
+	emit(parser->fn, instr_new(CALL, arity, fn_index, return_slot, arg_start));
+}
+
+
+// Parses a function call.
+void parse_fn_call(Parser *parser, Identifier name) {
+	// Parse a function call into a temporary slot
+	uint16_t slot;
+	scope_new(parser);
+	local_new(parser, &slot);
+	parse_fn_call_slot(parser, slot, name);
+	scope_free(parser);
 }
 
 
@@ -1584,6 +1696,8 @@ void parse_package(VirtualMachine *vm, Package *package) {
 	parser.vm = vm;
 	parser.lexer = &lexer;
 	parser.fn = fn_new(vm, package, &package->main_fn);
+	parser.fn->arity = 0;
+	parser.fn->package = package;
 
 	// Parse the import statements at the top of the file
 	parse_imports(&parser);
@@ -1592,5 +1706,5 @@ void parse_package(VirtualMachine *vm, Package *package) {
 	parse_block(&parser, TOKEN_EOF);
 
 	// Append a return instruction
-	emit(parser.fn, instr_new(RET0, 0, 0, 0));
+	emit(parser.fn, instr_new(RET0, 0, 0, 0, 0));
 }
