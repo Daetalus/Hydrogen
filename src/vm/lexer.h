@@ -75,6 +75,7 @@ typedef enum {
 	TOKEN_FOR,
 	TOKEN_LET,
 	TOKEN_FN,
+	TOKEN_RETURN,
 	TOKEN_IMPORT,
 
 	// Other

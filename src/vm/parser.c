@@ -1145,6 +1145,16 @@ Operand expr(Parser *parser, uint16_t slot) {
 }
 
 
+// Returns true if the given token can begin an expression.
+bool expr_exists(Token token) {
+	return token == TOKEN_IDENTIFIER || token == TOKEN_STRING ||
+		token == TOKEN_INTEGER || token == TOKEN_NUMBER ||
+		token == TOKEN_TRUE || token == TOKEN_FALSE || token == TOKEN_NIL ||
+		token == TOKEN_FN || token == TOKEN_SUB || token == TOKEN_NOT ||
+		token == TOKEN_BIT_NOT;
+}
+
+
 
 //
 //  Variable Assignment
@@ -1476,12 +1486,8 @@ void parse_fn_definition(Parser *parser) {
 	// Parse the function body
 	parse_block(&child, TOKEN_CLOSE_BRACE);
 
-	// Emit a return statement at the end of the body, if one doesn't already
-	// exist
-	Opcode last = instr_opcode(child.fn->bytecode[child.fn->bytecode_count - 1]);
-	if (last != RET0 && last != RET1) {
-		emit(child.fn, instr_new(RET0, 0, 0, 0, 0));
-	}
+	// Emit a return statement at the end of the body
+	emit(child.fn, instr_new(RET0, 0, 0, 0, 0));
 
 	// Expect a closing brace
 	EXPECT(TOKEN_CLOSE_BRACE, "Expected `}` to close function block");
@@ -1595,6 +1601,37 @@ bool parse_call_or_assignment(Parser *parser) {
 
 
 //
+//  Function Returns
+//
+
+// Parses a return statement.
+void parse_return(Parser *parser) {
+	Lexer *lexer = parser->lexer;
+
+	// Skip the `return` token
+	lexer_next(lexer);
+
+	// Check for a return value
+	if (!expr_exists(lexer->token)) {
+		// No return value
+		emit(parser->fn, instr_new(RET0, 0, 0, 0, 0));
+	} else {
+		// Parse expression into a new local
+		uint16_t slot;
+		scope_new(parser);
+		local_new(parser, &slot);
+		Operand operand = expr(parser, slot);
+		expr_discharge(parser, slot, operand);
+		scope_free(parser);
+
+		// Emit return instruction
+		emit(parser->fn, instr_new(RET1, 0, slot, 0, 0));
+	}
+}
+
+
+
+//
 //  Statements
 //
 
@@ -1630,6 +1667,10 @@ void parse_statement(Parser *parser) {
 
 	case TOKEN_FN:
 		parse_fn_definition(parser);
+		break;
+
+	case TOKEN_RETURN:
+		parse_return(parser);
 		break;
 
 	default:

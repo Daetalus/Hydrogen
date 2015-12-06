@@ -286,6 +286,7 @@ Token lexer_keyword_identifier(Lexer *lexer) {
 	KEYWORD("break", TOKEN_BREAK)
 	KEYWORD("let", TOKEN_LET)
 	KEYWORD("fn", TOKEN_FN)
+	KEYWORD("return", TOKEN_RETURN)
 	KEYWORD("import", TOKEN_IMPORT)
 	KEYWORD("true", TOKEN_TRUE)
 	KEYWORD("false", TOKEN_FALSE)
