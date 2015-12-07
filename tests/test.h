@@ -81,17 +81,17 @@
 
 
 // Creates a function with the given bytecode.
-#define FUNCTION(...)                                              \
-	uint16_t bytecode[] = {__VA_ARGS__};                           \
-	int count = sizeof(bytecode) / sizeof(uint16_t);               \
-	Function fn;                                                   \
-	fn.name = NULL;                                                \
-	fn.length = 0;                                                 \
-	ARRAY_INIT(fn.bytecode, uint64_t, count / 4);                  \
-	fn.package = NULL;                                             \
-	for (int i = 0; i < count; i += 4) {                           \
-		fn.bytecode[fn.bytecode_count++] = instr_new(bytecode[i],  \
-			0, bytecode[i + 1], bytecode[i + 2], bytecode[i + 3]); \
+#define FUNCTION(...)                                             \
+	uint16_t bytecode[] = {__VA_ARGS__};                          \
+	int count = sizeof(bytecode) / sizeof(uint16_t);              \
+	Function fn;                                                  \
+	fn.name = NULL;                                               \
+	fn.length = 0;                                                \
+	ARRAY_INIT(fn.bytecode, uint64_t, count / 4);                 \
+	fn.package = NULL;                                            \
+	for (int i = 0; i < count; i += 4) {                          \
+		fn.bytecode[fn.bytecode_count++] = instr_new(bytecode[i], \
+			bytecode[i + 1], bytecode[i + 2], bytecode[i + 3]);   \
 	}
 
 
@@ -121,9 +121,9 @@
 	NEQ(index, fn->bytecode_count);                    \
 	uint64_t instruction = fn->bytecode[index++];      \
 	EQ(instr_opcode(instruction), opcode);             \
-	EQ(instr_arg(instruction, 1), arg1);               \
-	EQ(instr_arg(instruction, 2), arg2);               \
-	EQ(instr_arg(instruction, 3), arg3);               \
+	EQ(instr_argument(instruction, 1), arg1);          \
+	EQ(instr_argument(instruction, 2), arg2);          \
+	EQ(instr_argument(instruction, 3), arg3);          \
 }
 
 
@@ -132,10 +132,10 @@
 	NEQ(index, fn->bytecode_count);                                    \
 	uint64_t instruction = fn->bytecode[index++];                      \
 	EQ(instr_opcode(instruction), opcode);                             \
-	EQ(instr_arg(instruction, 0), arity);                              \
-	EQ(instr_arg(instruction, 1), fn_index);                           \
-	EQ(instr_arg(instruction, 2), arg_start);                          \
-	EQ(instr_arg(instruction, 3), return_slot);                        \
+	EQ(instr_argument(instruction, 0), arity);                         \
+	EQ(instr_argument(instruction, 1), fn_index);                      \
+	EQ(instr_argument(instruction, 2), arg_start);                     \
+	EQ(instr_argument(instruction, 3), return_slot);                   \
 }
 
 
@@ -144,12 +144,12 @@
 	NEQ(index, fn->bytecode_count);               \
 	uint64_t instruction = fn->bytecode[index++]; \
 	EQ(instr_opcode(instruction), JMP);           \
-	EQ(instr_arg(instruction, 1), amount);        \
+	EQ(instr_argument(instruction, 1), amount);   \
 }
 
 
 // Asserts an empty return.
-#define ASSERT_RET0() ASSERT_INSTRUCTION(RET0, 0, 0, 0)
+#define ASSERT_RET() ASSERT_INSTRUCTION(RET, 0, 0, 0)
 
 
 // Frees a compiler.

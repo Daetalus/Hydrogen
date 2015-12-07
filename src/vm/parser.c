@@ -767,13 +767,46 @@ Operand fold_binary(Parser *parser, Token operator, Operand left,
 }
 
 
+// Returns the inverted condition for `opcode`.
+Opcode inverted_conditional_opcode(Opcode opcode) {
+	if (opcode == IS_TRUE_L) {
+		return IS_FALSE_L;
+	} else if (opcode == IS_FALSE_L) {
+		return IS_TRUE_L;
+	} else if (opcode >= EQ_LL && opcode <= EQ_LP) {
+		return NEQ_LL + (opcode - EQ_LL);
+	} else if (opcode >= NEQ_LL && opcode <= NEQ_LP) {
+		return EQ_LL + (opcode - NEQ_LL);
+	} else if (opcode >= LT_LL && opcode <= LT_LN) {
+		return GE_LL + (opcode - LT_LL);
+	} else if (opcode >= LE_LL && opcode <= LE_LN) {
+		return GT_LL + (opcode - LE_LL);
+	} else if (opcode >= GT_LL && opcode <= GT_LN) {
+		return LE_LL + (opcode - GT_LL);
+	} else if (opcode >= GE_LL && opcode <= GE_LN) {
+		return LT_LL + (opcode - GE_LL);
+	} else {
+		return NO_OP;
+	}
+}
+
+
+// Inverts the condition of a conditional instruction.
+void invert_condition(Function *fn, int index) {
+	uint64_t condition = fn->bytecode[index];
+	Opcode current = (Opcode) instr_opcode(condition);
+	Opcode inverted = inverted_conditional_opcode(current);
+	fn->bytecode[index] = instr_modify_opcode(condition, inverted);
+}
+
+
 // Emits bytecode to convert a local operand into a jump.
 Operand operand_to_jump(Parser *parser, Operand operand) {
 	Operand result;
 	result.type = OP_JUMP;
 
 	// Emit a comparison and empty jump instruction
-	emit(parser->fn, instr_new(IS_FALSE_L, 0, operand.slot, 0, 0));
+	emit(parser->fn, instr_new(IS_FALSE_L, operand.slot, 0, 0));
 	result.jump = jmp_new(parser->fn);
 	return operand;
 }
@@ -791,7 +824,7 @@ Operand expr_and(Parser *parser, Operand left, Operand right) {
 
 	// Point end of right's jump list to left
 	int last = jmp_last(fn, right.jump);
-	jmp_point(fn, last, left.jump);
+	jmp_append(fn, last, left.jump);
 
 	// Make both operands part of an `and` operation
 	if (jmp_type(fn, left.jump) == JUMP_NONE) {
@@ -817,10 +850,11 @@ Operand expr_or(Parser *parser, Operand left, Operand right) {
 
 	// Point end of right's jump list to left
 	int last = jmp_last(fn, right.jump);
-	jmp_point(fn, last, left.jump);
+	jmp_append
+		(fn, last, left.jump);
 
 	// Invert left's condition
-	jmp_invert_condition(fn, left.jump - 1);
+	invert_condition(fn, left.jump - 1);
 
 	// Iterate over left's jump list
 	int current = left.jump;
@@ -835,14 +869,14 @@ Operand expr_or(Parser *parser, Operand left, Operand right) {
 		}
 
 		// Set jump target
-		jmp_set_target(fn, current, target);
+		jmp_target(fn, current, target);
 
 		// Get next element in jump list
 		current = jmp_next(fn, current);
 	}
 
 	// Point left to after right
-	jmp_set_target(fn, left.jump, right.jump + 1);
+	jmp_target(fn, left.jump, right.jump + 1);
 
 	// Make both operands part of an `or` operation
 	if (jmp_type(fn, left.jump) == JUMP_NONE) {
@@ -888,14 +922,14 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 
 		// Emit the operation
 		Opcode opcode = arithmetic_opcode(operator, left.type, right.type);
-		emit(parser->fn, instr_new(opcode, 0, slot, left.value, right.value));
+		emit(parser->fn, instr_new(opcode, slot, left.value, right.value));
 	} else if (operator >= TOKEN_EQ && operator <= TOKEN_GE) {
 		// Comparison
 		operand.type = OP_JUMP;
 
 		// Emit the comparison and the empty jump instruction following it
 		Opcode opcode = comparison_opcode(operator, left.type, right.type);
-		emit(parser->fn, instr_new(opcode, 0, left.value, right.value, 0));
+		emit(parser->fn, instr_new(opcode, left.value, right.value, 0));
 		operand.jump = jmp_new(parser->fn);
 	}
 
@@ -964,10 +998,25 @@ Operand expr_unary(Parser *parser, Opcode opcode, Operand right) {
 	local_new(parser, &operand.slot);
 
 	// Emit operation
-	emit(parser->fn, instr_new(opcode, 0, operand.slot, right.value, 0));
+	emit(parser->fn, instr_new(opcode, operand.slot, right.value, 0));
 
 	// Return a the local in which we stored the result of the operation
 	return operand;
+}
+
+
+// Modifies the targets of the jump instructions in a conditional expression
+// to update the location of the false case.
+void expr_patch_false_case(Parser *parser, Operand operand, int false_case) {
+	// Iterate over jump list
+	int current = operand.jump;
+	while (current != -1) {
+		jmp_lazy_target(parser->fn, current, false_case);
+		current = jmp_next(parser->fn, current);
+	}
+
+	// Point the operand to the false case
+	jmp_target(parser->fn, operand.jump, false_case);
 }
 
 
@@ -976,22 +1025,22 @@ void expr_discharge(Parser *parser, uint16_t slot, Operand operand) {
 	if (operand.type == OP_LOCAL) {
 		// Copy a local if isn't in a deallocated scope
 		if (operand.slot != slot && operand.slot < parser->locals_count) {
-			emit(parser->fn, instr_new(MOV_LL, 0, slot, operand.slot, 0));
+			emit(parser->fn, instr_new(MOV_LL, slot, operand.slot, 0));
 		}
 	} else if (operand.type == OP_JUMP) {
 		Function *fn = parser->fn;
 
 		// Emit true case, jump over false case, and false case
-		emit(fn, instr_new(MOV_LP, 0, slot, TRUE_TAG, 0));
-		emit(fn, instr_new(JMP, 0, 2, 0, 0));
-		uint32_t false_case = emit(fn, instr_new(MOV_LP, 0, slot, FALSE_TAG, 0));
+		emit(fn, instr_new(MOV_LP, slot, TRUE_TAG, 0));
+		emit(fn, instr_new(JMP, 2, 0, 0));
+		uint32_t false_case = emit(fn, instr_new(MOV_LP, slot, FALSE_TAG, 0));
 
 		// Finish the condition now that we know the location of the false case
-		jmp_patch(fn, operand.jump, false_case);
+		expr_patch_false_case(parser, operand, false_case);
 	} else {
 		// Emit a store instruction for the appropriate type
 		Opcode opcode = MOV_LL + operand.type;
-		emit(parser->fn, instr_new(opcode, 0, slot, operand.value, 0));
+		emit(parser->fn, instr_new(opcode, slot, operand.value, 0));
 	}
 }
 
@@ -1293,7 +1342,7 @@ void parse_if_body(Parser *parser) {
 	}
 
 	// Set the false case of the condition
-	jmp_patch(parser->fn, condition.jump, false_case);
+	expr_patch_false_case(parser, condition, false_case);
 }
 
 
@@ -1317,7 +1366,8 @@ void parse_if(Parser *parser) {
 		if (jump == -1) {
 			jump = new_jump;
 		} else {
-			jmp_point(parser->fn, new_jump, jump);
+
+			jmp_append(parser->fn, new_jump, jump);
 			jump = new_jump;
 		}
 
@@ -1335,7 +1385,8 @@ void parse_if(Parser *parser) {
 		if (jump == -1) {
 			jump = new_jump;
 		} else {
-			jmp_point(parser->fn, new_jump, jump);
+
+			jmp_append(parser->fn, new_jump, jump);
 			jump = new_jump;
 		}
 
@@ -1351,7 +1402,7 @@ void parse_if(Parser *parser) {
 	}
 
 	// Patch jumps to after if statement
-	jmp_set_target_all(parser->fn, jump, parser->fn->bytecode_count);
+	jmp_target_all(parser->fn, jump, parser->fn->bytecode_count);
 }
 
 
@@ -1390,11 +1441,11 @@ void parse_infinite_loop(Parser *parser) {
 
 	// Insert a jump statement to return to the start of the loop
 	uint32_t offset = parser->fn->bytecode_count - start;
-	emit(parser->fn, instr_new(LOOP, 0, offset, 0, 0));
+	emit(parser->fn, instr_new(LOOP, offset, 0, 0));
 
 	// Patch break statements to here
 	if (loop.jump >= 0) {
-		jmp_set_target_all(parser->fn, loop.jump, parser->fn->bytecode_count);
+		jmp_target_all(parser->fn, loop.jump, parser->fn->bytecode_count);
 	}
 }
 
@@ -1434,15 +1485,15 @@ void parse_while(Parser *parser) {
 
 	// Insert a jump statement to return to the start of the loop
 	uint32_t offset = parser->fn->bytecode_count - start;
-	emit(parser->fn, instr_new(LOOP, 0, offset, 0, 0));
+	emit(parser->fn, instr_new(LOOP, offset, 0, 0));
 
 	// Point the condition's false case here
 	uint32_t after = parser->fn->bytecode_count;
-	jmp_patch(parser->fn, condition.jump, after);
+	expr_patch_false_case(parser, condition, after);
 
 	// Point all break statements here
 	if (loop.jump >= 0) {
-		jmp_set_target_all(parser->fn, loop.jump, after);
+		jmp_target_all(parser->fn, loop.jump, after);
 	}
 }
 
@@ -1469,7 +1520,7 @@ void parse_break(Parser *parser) {
 		loop->jump = jump;
 	} else {
 		uint32_t last = jmp_last(parser->fn, loop->jump);
-		jmp_point(parser->fn, last, jump);
+		jmp_append(parser->fn, last, jump);
 	}
 }
 
@@ -1531,7 +1582,7 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length) {
 	parse_block(&child, TOKEN_CLOSE_BRACE);
 
 	// Emit a return statement at the end of the body
-	emit(child.fn, instr_new(RET0, 0, 0, 0, 0));
+	emit(child.fn, instr_new(RET, 0, 0, 0));
 
 	// Expect a closing brace
 	if (lexer->token != TOKEN_CLOSE_BRACE) {
@@ -1570,7 +1621,7 @@ void parse_fn_definition(Parser *parser) {
 	local->length = length;
 
 	// Emit bytecode to store the function into the created local
-	emit(parser->fn, instr_new(MOV_LF, 0, slot, fn_index, 0));
+	emit(parser->fn, instr_new(MOV_LF, slot, fn_index, 0));
 }
 
 
@@ -1628,7 +1679,7 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 	lexer_next(lexer);
 
 	// Call the function
-	emit(parser->fn, instr_new(call, arity, slot, arg_start, return_slot));
+	emit(parser->fn, instr_new_4(call, arity, slot, arg_start, return_slot));
 }
 
 
@@ -1701,18 +1752,18 @@ void parse_return(Parser *parser) {
 	// Check for a return value
 	if (!expr_exists(lexer->token)) {
 		// No return value
-		emit(parser->fn, instr_new(RET0, 0, 0, 0, 0));
+		emit(parser->fn, instr_new(RET, 0, 0, 0));
 	} else {
 		// Parse expression into a new local
 		uint16_t slot;
 		scope_new(parser);
 		local_new(parser, &slot);
 		Operand operand = expr(parser, slot);
-		expr_discharge(parser, slot, operand);
 		scope_free(parser);
 
 		// Emit return instruction
-		emit(parser->fn, instr_new(RET1, 0, slot, 0, 0));
+		Opcode opcode = RET_L + operand.type;
+		emit(parser->fn, instr_new(opcode, operand.value, 0, 0));
 	}
 }
 
@@ -1830,5 +1881,5 @@ void parse_package(VirtualMachine *vm, Package *package) {
 	parse_block(&parser, TOKEN_EOF);
 
 	// Append a return instruction
-	emit(parser.fn, instr_new(RET0, 0, 0, 0, 0));
+	emit(parser.fn, instr_new(RET, 0, 0, 0));
 }

@@ -13,7 +13,7 @@
 #define MAX_NAME_LENGTH 50
 
 // The number of opcodes.
-#define OPCODE_COUNT 66
+#define OPCODE_COUNT 71
 
 
 // The name of every opcode.
@@ -81,8 +81,13 @@ char OPCODE_NAMES[OPCODE_COUNT][MAX_NAME_LENGTH] = {
 	"LOOP",
 	"CALL_L",
 	"CALL_F",
-	"RET0",
-	"RET1",
+	"RET",
+	"RET_L",
+	"RET_I",
+	"RET_N",
+	"RET_S",
+	"RET_P",
+	"RET_F",
 	"NO_OP",
 };
 
@@ -152,8 +157,13 @@ int ARGUMENT_COUNT[OPCODE_COUNT] = {
 	1, // LOOP
 	4, // CALL_L
 	4, // CALL_F
-	0, // RET0
-	1, // RET1
+	0, // RET
+	1, // RET_L
+	1, // RET_I
+	1, // RET_N
+	1, // RET_S
+	1, // RET_P
+	1, // RET_F
 	0, // NO_OP
 };
 
@@ -172,13 +182,13 @@ void debug_print_instruction(int i, uint64_t instruction) {
 	int argument_count = ARGUMENT_COUNT[opcode];
 	for (int i = 0; i < argument_count; i++) {
 		int index = (argument_count == 4) ? i : i + 1;
-		uint16_t arg = instr_arg(instruction, index);
+		uint16_t arg = instr_argument(instruction, index);
 		printf("%-6u ", arg);
 	}
 
 	// Jump destination
 	if (opcode == JMP) {
-		uint32_t destination = i + instr_arg(instruction, 1);
+		uint32_t destination = i + instr_argument(instruction, 1);
 		printf("==> %d", destination);
 	}
 

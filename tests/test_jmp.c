@@ -17,7 +17,7 @@ TEST(next) {
 		MOV_LP, 4, FALSE_TAG, 0,
 		JMP, 2, 0, JUMP_NONE,
 		MOV_LP, 4, TRUE_TAG, 0,
-		RET0, 0, 0, 0
+		RET, 0, 0, 0
 	);
 
 	int jump = 5;
@@ -41,7 +41,7 @@ TEST(last) {
 		MOV_LP, 4, FALSE_TAG, 0,
 		JMP, 2, 0, JUMP_NONE,
 		MOV_LP, 4, TRUE_TAG, 0,
-		RET0, 0, 0, 0
+		RET, 0, 0, 0
 	);
 
 	EQ(jmp_last(&fn, 5), 1);

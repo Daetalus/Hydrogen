@@ -9,21 +9,47 @@
 #include "vm.h"
 
 
-// All bytecode operation codes. Opcodes are stored in the first byte of an
-// instruction, so there cannot be more than 256 opcodes.
-typedef enum {
-	// Storage instructions
-	MOV_LL, // destination, slot
-	MOV_LI, // destination, integer
-	MOV_LN, // destination, number index
-	MOV_LS, // destination, string index
-	MOV_LP, // destination, primitive tag
-	MOV_LF, // destination, function index
+// * A function's bytecode is a list of instructions
+// * Each instruction is a 64 bit unsigned integer
+// * Each instruction has an operation code (opcode) and 4 arguments
+// * The opcode is stored in the lowest 1 byte
+// * The 0th argument is stored in the next lowest byte
+// * The 1st argument is stored in the next 2 bytes
+// * The 2nd and 3rd arguments are each 2 bytes
+//
+// * There are a maximum of 256 opcodes (since it must fit in 1 byte)
 
-	// Math instructions
-	ADD_LL, // destination, slot, slot
-	ADD_LI, // destination, slot, integer
-	ADD_LN, // ...
+
+// Instruction operation codes.
+//
+// Postfixes:
+// * L: local
+// * I: integer
+// * N: number
+// * S: string
+// * P: primitive (true, false, nil)
+// * F: function
+typedef enum {
+
+	//
+	//  Storage
+	//
+
+	MOV_LL,
+	MOV_LI,
+	MOV_LN,
+	MOV_LS,
+	MOV_LP,
+	MOV_LF,
+
+
+	//
+	//  Math
+	//
+
+	ADD_LL,
+	ADD_LI,
+	ADD_LN,
 	ADD_IL,
 	ADD_NL,
 
@@ -57,13 +83,21 @@ typedef enum {
 
 	NEG_L,
 
-	// Comparison
-	IS_TRUE_L, // slot
-	IS_FALSE_L, // slot
 
-	EQ_LL, // slot, slot
-	EQ_LI, // slot, integer
-	EQ_LN, // ...
+	//
+	//  Comparison
+	//
+
+	// * A comparison instruction must be followed by a JMP instruction
+	// * The following JMP instruction will only be executed if the comparison
+	//   is true
+
+	IS_TRUE_L,
+	IS_FALSE_L,
+
+	EQ_LL,
+	EQ_LI,
+	EQ_LN,
 	EQ_LS,
 	EQ_LP,
 
@@ -89,89 +123,143 @@ typedef enum {
 	GE_LI,
 	GE_LN,
 
-	// Control flow
-	JMP, // target offset (forwards)
-	LOOP, // target offset (backwards)
 
-	// Function calls
-	CALL_L, // arity, slot with function as local, slot with first argument,
-	        // slot for return value
-	CALL_F, // arity, function index, slot with first argument, slot for return
-	        // value
-	RET0, // none
-	RET1, // slot return value was stored in
+	//
+	//  Control flow
+	//
 
-	// No operation
-	NO_OP, // none
+	// Jumps forwards by `amount` instructions.
+	JMP,
+
+	// Jumps backwards by `amount` instructions (used for loops).
+	LOOP,
+
+
+	//
+	//  Functions
+	//
+
+	// Calls a function, where the index into the VM's function list is
+	// specified by the contents of a local. Arguments to the function must be
+	// placed in consecutive positions on the stack.
+	//
+	// Arguments: `arity`, `slot`, `argument_start`, `return_slot`
+	// * `arity`: number of arguments given to the function call
+	// * `slot`: the local the function's index is taken from
+	// * `argument_start`: the stack slot of the first argument
+	// * `return_slot`: the stack slot to store the return value of the
+	//   function into
+	CALL_L,
+
+	// Calls a function, where the index is specified in the instruction
+	// itself.
+	CALL_F,
+
+	// Returns nothing from a function (moves nil into the return slot).
+	RET,
+
+	// Returns a value from a function.
+	RET_L,
+	RET_I,
+	RET_N,
+	RET_S,
+	RET_P,
+	RET_F,
+
+
+	//
+	//  No operation
+	//
+
+	NO_OP,
 } Opcode;
 
-// Creates an instruction from an opcode and arguments.
-uint64_t instr_new(Opcode opcode, uint8_t arg0, uint16_t arg1, uint16_t arg2,
+
+//
+//  Instructions
+//
+
+// Creates an instruction from an opcode and 3 arguments. Sets the 0th argument
+// to 0.
+uint64_t instr_new(Opcode opcode, uint16_t arg1, uint16_t arg2, uint16_t arg3);
+
+// Creates an instruction from an opcode and 4 arguments.
+uint64_t instr_new_4(Opcode opcode, uint8_t arg0, uint16_t arg1, uint16_t arg2,
 	uint16_t arg3);
 
-// Returns the opcode of an instruction.
+// Returns an instruction's opcode.
 Opcode instr_opcode(uint64_t instruction);
 
-// Sets the opcode for an instruction.
-uint64_t instr_set_opcode(uint64_t instruction, Opcode opcode);
+// Returns the `n`th argument of an instruction.
+uint16_t instr_argument(uint64_t instruction, int n);
 
-// Returns an argument to an instruction. Arguments 0 to 3 can be fetched.
-// Argument 0 is only 8 bits (1 byte), the other 3 are 16 bits (2 bytes).
-uint16_t instr_arg(uint64_t instruction, int arg);
+// Returns `instruction` with a modified opcode.
+uint64_t instr_modify_opcode(uint64_t instruction, Opcode new_opcode);
 
-// Modifies an argument to an instruction. Arguments 0 to 3 can be set.
-// Argument 0 is only 8 bits (1 byte), the other 3 are 16 bits (2 bytes).
-uint64_t instr_set(uint64_t instruction, int arg, uint16_t value);
+// Returns `instruction` with the `n`th argument modified.
+uint64_t instr_modify_argument(uint64_t instruction, int n,
+	uint16_t new_argument);
 
 
-// Emits an instruction for a function. Returns the index of the instruction in
-// the bytecode.
+//
+//  Bytecode
+//
+
+// Appends an instruction to the end of a function's bytecode. Returns the index
+// of the instruction in the function's bytecode.
 int emit(Function *fn, uint64_t instruction);
 
-// Emits an empty jump instruction. Returns the index of the jump instruction.
+// Appends an empty jump instruction (with no target set) to the end of a
+// function's bytecode. Returns the index of the jump instruction.
 int jmp_new(Function *fn);
 
-// Returns the target of the jump instruction. Returns -1 if the jump has no
-// target set.
-int jmp_target(Function *fn, int jump);
 
-// Sets the target of the jump instruction at `index` within the function's
-// bytecode.
-void jmp_set_target(Function *fn, int jump, int target);
+//
+//  Jumps
+//
 
-// Points every element in a jump list to the same location.
-void jmp_set_target_all(Function *fn, int jump, int target);
+// * A jump list is a collection of jump instructions that are chained together
+//   in a linked list fashion
+// * Each jump instruction points to the jump before it in the list
 
-
-// The type of conditions a jump instruction can belong to.
+// The different types of conditions a jump instruction can belong to.
 typedef enum {
 	JUMP_NONE,
 	JUMP_AND,
 	JUMP_OR,
 } JumpType;
 
-// Returns the index of the next jump instruction in a jump list. Returns `jump`
-// if this is the last element in the jump list.
+// Sets the target of the jump instruction at `jump` inside `fn`'s bytecode to
+// `target`.
+void jmp_target(Function *fn, int jump, int target);
+
+// Sets the target of the jump instruction at `jump` inside `fn`'s bytecode to
+// `target`, if the jump instruction doesn't already have a target set.
+void jmp_lazy_target(Function *fn, int jump, int target);
+
+// Iterates over the jump list of the jump instruction at `jump` inside `fn`'s
+// bytecode, setting the target of each jump instruction in the list to
+// `target`.
+void jmp_target_all(Function *fn, int jump, int target);
+
+// Returns the index of the next jump instruction in the jump list starting at
+// `jump` in `fn`'s bytecode.
 int jmp_next(Function *fn, int jump);
 
-// Returns the index of the last jump in a jump list.
+// Returns the index of the last jump instruction in the jump list starting at
+// `jump` in `fn`'s bytecode.
 int jmp_last(Function *fn, int jump);
 
-// Points `jump`'s jump list to `target`.
-void jmp_point(Function *fn, int jump, int target);
+// Adds the jump instruction at index `target` to a jump list, after the jump
+// at `jump`.
+void jmp_append(Function *fn, int jump, int target);
 
-// Returns the type of a jump instruction.
+// Returns the type of conditional the jump instruction at `jump` in `fn`'s
+// bytecode belongs to.
 JumpType jmp_type(Function *fn, int jump);
 
-// Sets which type of condition a jump instruction belongs to.
+// Sets the type of conditional the jump instruction at `jump` in `fn`'s
+// bytecode belongs to.
 void jmp_set_type(Function *fn, int jump, JumpType type);
-
-// Inverts the condition of a conditional jump.
-void jmp_invert_condition(Function *fn, int jump);
-
-// Finalises a jump condition, assuming the true case is directly after the
-// instructions used to evaluate the condition, and the false case is at the
-// given index.
-void jmp_patch(Function *fn, int jump, int false_case);
 
 #endif
