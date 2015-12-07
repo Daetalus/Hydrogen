@@ -103,6 +103,9 @@ Package * package_find(VirtualMachine *vm, char *name, size_t length);
 // the package is NULL.
 Function * fn_new(VirtualMachine *vm, Package *package, uint16_t *index);
 
+// Frees resources allocated by a function.
+void fn_free(Function *fn);
+
 // Finds a function with the given name. Returns NULL if the function doesn't
 // exist.
 Function * fn_find(VirtualMachine *vm, char *name, size_t length,

@@ -34,7 +34,7 @@ typedef struct loop {
 	// The index of the last break statement's jump instruction in the bytecode.
 	// Used to form a jump list which can be patched after the loop has finished
 	// being compiled. -1 if no break statements are used.
-	int32_t jump;
+	int jump;
 
 	// The next loop in the linked list.
 	struct loop *outer;

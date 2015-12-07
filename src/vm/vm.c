@@ -36,6 +36,17 @@ void hy_free(HyVM *vm) {
 		package_free(package);
 	}
 
+	// Strings
+	for (uint32_t i = 0; i < vm->strings_count; i++) {
+		free(vm->strings[i]);
+	}
+
+	// Functions
+	for (uint32_t i = 0; i < vm->functions_count; i++) {
+		Function *fn = &vm->functions[i];
+		fn_free(fn);
+	}
+
 	// Arrays
 	free(vm->packages);
 	free(vm->functions);
@@ -176,6 +187,12 @@ Function * fn_new(VirtualMachine *vm, Package *package, uint16_t *index) {
 	package->functions[package_index] = fn;
 
 	return fn;
+}
+
+
+// Frees resources allocated by a function.
+void fn_free(Function *fn) {
+	free(fn->bytecode);
 }
 
 
