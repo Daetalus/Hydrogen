@@ -11,7 +11,8 @@
 #include "vm.h"
 #include "lexer.h"
 
-// Parses a package into bytecode. Sets the main function index on the package.
+// Creates a new function on `vm`, used as `package`'s main function, and
+// populates the function's bytecode based on `package`'s source code.
 void parse_package(VirtualMachine *vm, Package *package);
 
 #endif

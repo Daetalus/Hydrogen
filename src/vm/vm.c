@@ -178,6 +178,7 @@ Function * fn_new(VirtualMachine *vm, Package *package, uint16_t *index) {
 	Function *fn = &vm->functions[fn_index];
 	fn->name = NULL;
 	fn->length = 0;
+	fn->arity = 0;
 	fn->package = NULL;
 	ARRAY_INIT(fn->bytecode, uint64_t, 64);
 

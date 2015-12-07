@@ -14,6 +14,22 @@
 #include "value.h"
 
 
+// * The parser converts lexed source code into bytecode
+// * A `Parser` struct is used for each function
+// * The top level source of a file (not inside a function) is treated as the
+//   package's main function
+// * A function has a main block and arguments
+// * A block consists of a series of statements
+// * A statement itself may have another block (eg. while loops), which is
+//   parsed recursively
+//
+// * Variables (locals) are stored in a stack in the order they were defined
+// * Each local stores the scope depth at which it was defined
+// * A new scope is defined at the start of each block and freed at the end of
+//   the block
+// * When a scope is freed, all variables defined in that scope are freed
+
+
 // The maximum number of locals that can be allocated on the stack at once.
 #define MAX_LOCALS 512
 
@@ -75,10 +91,6 @@ void parse_block(Parser *parser, Token terminator);
 // Parses a function call to the function in `slot`, storing the return value in
 // `return_slot`.
 void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
-	uint16_t return_slot);
-
-// Parses a function call, storing the return value into the given slot.
-void parse_fn_call_name(Parser *parser, char *name, size_t length,
 	uint16_t return_slot);
 
 // Parses a function definition body (starting at the arguments list).
@@ -1684,27 +1696,25 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 }
 
 
-// Parses a function call, storing the return value into the given slot.
-void parse_fn_call_name(Parser *parser, char *name, size_t length,
-		uint16_t return_slot) {
-	// Find a local with the given name
-	uint16_t fn_index;
-	if (local_find(parser, name, length, &fn_index) == NULL) {
+// Parses a function call.
+void parse_fn_call(Parser *parser, Identifier ident) {
+	// Parse the result of the function call into a temporary slot
+	uint16_t return_slot;
+	scope_new(parser);
+	local_new(parser, &return_slot);
+
+	// Find a local with the name of the function
+	uint16_t slot;
+	char *name = ident.start;
+	size_t length = ident.length;
+	if (local_find(parser, name, length, &slot) == NULL) {
 		// Undefined function
 		ERROR("Attempt to call undefined function `%.*s`", length, name);
 	}
 
-	parse_fn_call_slot(parser, CALL_L, fn_index, return_slot);
-}
+	parse_fn_call_slot(parser, CALL_L, slot, return_slot);
 
-
-// Parses a function call.
-void parse_fn_call(Parser *parser, Identifier name) {
-	// Parse a function call into a temporary slot
-	uint16_t slot;
-	scope_new(parser);
-	local_new(parser, &slot);
-	parse_fn_call_name(parser, name.start, name.length, slot);
+	// Free the slot the function call's return value was stored into
 	scope_free(parser);
 }
 
@@ -1771,14 +1781,12 @@ void parse_return(Parser *parser) {
 
 
 //
-//  Statements
+//  Blocks
 //
 
 // Parses a single statement.
 void parse_statement(Parser *parser) {
-	Lexer *lexer = parser->lexer;
-
-	switch (lexer->token) {
+	switch (parser->lexer->token) {
 		// Trigger a special error for misplaced imports
 	case TOKEN_IMPORT:
 		ERROR("Imports must be placed at the top of the file");
@@ -1825,15 +1833,22 @@ void parse_statement(Parser *parser) {
 }
 
 
-// Parses a block of statements, terminated by the given character.
+// Parses a block of statements, terminated by `terminator`.
 void parse_block(Parser *parser, Token terminator) {
 	Lexer *lexer = parser->lexer;
 
-	// Continually parse statements
-	while (!vm_has_error(parser->vm) && lexer->token != TOKEN_EOF &&
-			lexer->token != terminator) {
+	// Create a new scope for the block
+	scope_new(parser);
+
+	// Continually parse statements until an error is triggered, we reach the
+	// end of the file, or we reach the terminating token
+	while (!vm_has_error(parser->vm) &&
+			lexer->token != TOKEN_EOF && lexer->token != terminator) {
 		parse_statement(parser);
 	}
+
+	// Destroy the scope we created for the block
+	scope_free(parser);
 }
 
 
@@ -1861,9 +1876,10 @@ Parser parser_new(Parser *parent) {
 }
 
 
-// Parses a package into bytecode. Sets the main function index on the package.
+// Creates a new function on `vm`, used as `package`'s main function, and
+// populates the function's bytecode based on `package`'s source code.
 void parse_package(VirtualMachine *vm, Package *package) {
-	// Create the lexer used for all parent and child parsers
+	// Create a lexer on the stack for all child parsers
 	Lexer lexer = lexer_new(package->source);
 	lexer_next(&lexer);
 
@@ -1872,10 +1888,9 @@ void parse_package(VirtualMachine *vm, Package *package) {
 	parser.vm = vm;
 	parser.lexer = &lexer;
 	parser.fn = fn_new(vm, package, &package->main_fn);
-	parser.fn->arity = 0;
 	parser.fn->package = package;
 
-	// Parse the import statements at the top of the file
+	// Parse import statements at the top of the file
 	parse_imports(&parser);
 
 	// Parse the rest of the file
