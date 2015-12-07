@@ -92,7 +92,7 @@ char OPCODE_NAMES[OPCODE_COUNT][MAX_NAME_LENGTH] = {
 };
 
 
-// The number of arguments for each opcode.
+// The number of arguments each opcode requires.
 int ARGUMENT_COUNT[OPCODE_COUNT] = {
 	2, // MOV_LL
 	2, // MOV_LI
@@ -168,9 +168,9 @@ int ARGUMENT_COUNT[OPCODE_COUNT] = {
 };
 
 
-// Prints a single instruction.
+// Pretty prints `instruction` to the standard output.
 void debug_print_instruction(int i, uint64_t instruction) {
-	// Number
+	// Index
 	printf("%4d: ", i);
 
 	// Opcode
@@ -196,7 +196,8 @@ void debug_print_instruction(int i, uint64_t instruction) {
 }
 
 
-// Prints out a function's bytecode.
+// Pretty prints all instructions in a function's bytecode to the standard
+// output.
 void debug_print_bytecode(Function *fn) {
 	for (uint32_t i = 0; i < fn->bytecode_count; i++) {
 		debug_print_instruction(i, fn->bytecode[i]);

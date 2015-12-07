@@ -92,12 +92,13 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length);
 
 // Triggers a custom error.
 #define ERROR(...) \
-	err_new(&parser->vm->err, lexer_line(parser->lexer), __VA_ARGS__);
+	parser->vm->err = err_new(lexer_line(parser->lexer), __VA_ARGS__);
 
 
 // Triggers an unexpected token error.
-#define UNEXPECTED(...) \
-	err_unexpected(&parser->vm->err, parser->lexer, __VA_ARGS__);
+#define UNEXPECTED(...)                                         \
+	parser->vm->err = err_unexpected(lexer_line(parser->lexer), \
+		parser->lexer->token, parser->lexer->value, __VA_ARGS__);
 
 
 // Triggers an unexpected token error if the current token does not match the

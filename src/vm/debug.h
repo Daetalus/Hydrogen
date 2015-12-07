@@ -8,7 +8,8 @@
 
 #include "vm.h"
 
-// Prints out a function's bytecode.
+// Pretty prints all instructions in a function's bytecode to the standard
+// output.
 void debug_print_bytecode(Function *fn);
 
 #endif
