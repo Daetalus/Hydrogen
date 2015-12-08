@@ -19,7 +19,7 @@
 // * The top level source of a file (not inside a function) is treated as the
 //   package's main function
 // * A function has a main block and arguments
-// * A block consists of a series of statements
+// * A block consists of a series of statements (eg. if, while, loop, for, etc.)
 // * A statement itself may have another block (eg. while loops), which is
 //   parsed recursively
 //
@@ -205,8 +205,8 @@ void parse_imports(Parser *parser) {
 //  Local Variables
 //
 
-// Creates a new local variable at the top of the locals stack. Returns NULL if
-// a local couldn't be allocated.
+// Creates a new local at the top of the locals stack. Returns NULL if a local
+// couldn't be allocated.
 Local * local_new(Parser *parser, uint16_t *slot) {
 	// Check we haven't exceeded the maximum number of allowed locals
 	if (parser->locals_count >= MAX_LOCALS) {
@@ -227,8 +227,8 @@ Local * local_new(Parser *parser, uint16_t *slot) {
 }
 
 
-// Returns a pointer to the local with the given name, or NULL if no local with
-// that name could be found.
+// Returns a pointer to the local called `name`, or NULL if no local with that
+// name could be found.
 Local * local_find(Parser *parser, char *name, size_t length, uint16_t *slot) {
 	// Iterate over the locals backwards, as locals are more likely to be used
 	// right after they've been defined (maybe)
@@ -780,7 +780,8 @@ Operand fold_binary(Parser *parser, Token operator, Operand left,
 }
 
 
-// Returns the inverted condition for `opcode`.
+// Returns the complementary conditional operation to that specified by
+// `opcode`.
 Opcode inverted_conditional_opcode(Opcode opcode) {
 	if (opcode == IS_TRUE_L) {
 		return IS_FALSE_L;
@@ -1019,7 +1020,7 @@ Operand expr_unary(Parser *parser, Opcode opcode, Operand right) {
 
 
 // Modifies the targets of the jump instructions in a conditional expression
-// to update the location of the false case.
+// to update the location of the false case to `false_case`.
 void expr_patch_false_case(Parser *parser, Operand operand, int false_case) {
 	// Iterate over jump list
 	int current = operand.jump;
@@ -1033,7 +1034,7 @@ void expr_patch_false_case(Parser *parser, Operand operand, int false_case) {
 }
 
 
-// Places an operand in the next available local slot.
+// Stores the value of an operand into `slot`.
 void expr_discharge(Parser *parser, uint16_t slot, Operand operand) {
 	if (operand.type == OP_LOCAL) {
 		// Copy a local if isn't in a deallocated scope
@@ -1058,7 +1059,7 @@ void expr_discharge(Parser *parser, uint16_t slot, Operand operand) {
 }
 
 
-// Parses an operand.
+// Parses an operand into `slot`.
 Operand expr_operand(Parser *parser, uint16_t slot) {
 	Lexer *lexer = parser->lexer;
 	Operand operand;
@@ -1154,10 +1155,11 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 }
 
 
-// Parses postfix operators after an operand.
+// Parses a postfix operator after an operand.
 Operand expr_postfix(Parser *parser, Operand operand, uint16_t return_slot) {
 	Lexer *lexer = parser->lexer;
-	Operand result = operand;
+	Operand result;
+	result.type = OP_NONE;
 
 	if (lexer->token == TOKEN_OPEN_PARENTHESIS) {
 		// Function call
@@ -1177,7 +1179,8 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t return_slot) {
 }
 
 
-// Parses the left hand side of a binary operator.
+// Parses the left hand side of a binary operation, including unary operators,
+// an operand, and postfix operators.
 Operand expr_left(Parser *parser, uint16_t slot) {
 	Lexer *lexer = parser->lexer;
 
@@ -1197,14 +1200,20 @@ Operand expr_left(Parser *parser, uint16_t slot) {
 		// Parse an operand
 		Operand operand = expr_operand(parser, slot);
 
-		// Check for postfix operators (eg. function calls)
-		return expr_postfix(parser, operand, slot);
+		// Check for multiple postfix operators
+		Operand postfix = expr_postfix(parser, operand, slot);
+		while (postfix.type != OP_NONE) {
+			operand = postfix;
+			postfix = expr_postfix(parser, operand, slot);
+		}
+
+		return operand;
 	}
 }
 
 
-// Parses an expression, stopping when we reach a binary operator of lower
-// precedence than the given precedence.
+// Parses an expression into `slot`, stopping when we reach a binary operator
+// of lower precedence than `limit`.
 Operand expr_prec(Parser *parser, uint16_t slot, Precedence limit) {
 	Lexer *lexer = parser->lexer;
 
@@ -1238,13 +1247,22 @@ Operand expr_prec(Parser *parser, uint16_t slot, Precedence limit) {
 }
 
 
-// Parses an expression, returning the final result.
+// Parses an expression into `slot`, returning the value of the expression.
+// For some expressions, nothing may need to be stored (ie. expressions
+// consisting of only a constant), so `slot` will remain unused.
 Operand expr(Parser *parser, uint16_t slot) {
 	return expr_prec(parser, slot, PREC_NONE);
 }
 
 
-// Returns true if the given token can begin an expression.
+// Parses an expression, storing the result into `slot`.
+void expr_emit(Parser *parser, uint16_t slot) {
+	Operand operand = expr(parser, slot);
+	expr_discharge(parser, slot, operand);
+}
+
+
+// Returns true if `token` can begin an expression.
 bool expr_exists(Token token) {
 	return token == TOKEN_IDENTIFIER || token == TOKEN_STRING ||
 		token == TOKEN_INTEGER || token == TOKEN_NUMBER ||
@@ -1290,8 +1308,7 @@ void parse_initial_assignment(Parser *parser) {
 	}
 
 	// Expect an expression
-	Operand result = expr(parser, slot);
-	expr_discharge(parser, slot, result);
+	expr_emit(parser, slot);
 
 	// Save the local's name
 	local->name = name;
@@ -1315,8 +1332,7 @@ void parse_assignment(Parser *parser, Identifier var) {
 	}
 
 	// Parse an expression
-	Operand result = expr(parser, slot);
-	expr_discharge(parser, slot, result);
+	expr_emit(parser, slot);
 }
 
 
@@ -1543,7 +1559,8 @@ void parse_break(Parser *parser) {
 //  Function Definitions
 //
 
-// Parses a function definition body (starting at the arguments list).
+// Parses a function definition body (starting at the arguments list) for a
+// function with the name `name`.
 uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length) {
 	Lexer *lexer = parser->lexer;
 
@@ -1643,8 +1660,8 @@ void parse_fn_definition(Parser *parser) {
 //  Function Calls
 //
 
-// Parses a function call to the function in `slot`, storing the return value in
-// `return_slot`.
+// Parses a call to the function in `slot`, storing the return value in
+// `return_slot`. Starts at the opening parenthesis of the arguments list.
 void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 		uint16_t return_slot) {
 	Lexer *lexer = parser->lexer;
@@ -1665,14 +1682,15 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 
 		// Increment the number of arguments we have
 		if (arity >= 255) {
+			// Since the arity of the function call must be stored in a single
+			// byte in the instruction, it cannot be greater than 255
 			ERROR("Cannot pass more than 255 arguments to function call");
 			return;
 		}
 		arity++;
 
 		// Expect an expression
-		Operand arg = expr(parser, slot);
-		expr_discharge(parser, slot, arg);
+		expr_emit(parser, slot);
 
 		// Expect a comma or closing parenthesis
 		if (lexer->token == TOKEN_COMMA) {
@@ -1686,22 +1704,24 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 
 	// Free the scope created for the arguments
 	scope_free(parser);
-	uint16_t arg_start = (arity == 0) ? 0 : parser->locals_count;
 
 	// Skip the closing parenthesis
 	lexer_next(lexer);
 
 	// Call the function
+	uint16_t arg_start = (arity == 0) ? 0 : parser->locals_count;
 	emit(parser->fn, instr_new_4(call, arity, slot, arg_start, return_slot));
 }
 
 
-// Parses a function call.
+// Parses a function call, starting at the opening parenthesis of the arguments
+// list. `ident` is the name of the function to call.
 void parse_fn_call(Parser *parser, Identifier ident) {
 	// Parse the result of the function call into a temporary slot
 	uint16_t return_slot;
 	scope_new(parser);
 	local_new(parser, &return_slot);
+	scope_free(parser);
 
 	// Find a local with the name of the function
 	uint16_t slot;
@@ -1713,14 +1733,11 @@ void parse_fn_call(Parser *parser, Identifier ident) {
 	}
 
 	parse_fn_call_slot(parser, CALL_L, slot, return_slot);
-
-	// Free the slot the function call's return value was stored into
-	scope_free(parser);
 }
 
 
-// Parses an assignment or function call. Returns true if it was able to parse
-// either.
+// Parses an assignment or function call. Returns false if neither could be
+// parsed.
 bool parse_call_or_assignment(Parser *parser) {
 	Lexer *lexer = parser->lexer;
 
@@ -1738,7 +1755,7 @@ bool parse_call_or_assignment(Parser *parser) {
 		// Function call
 		parse_fn_call(parser, identifier);
 		return true;
-	} else if (lexer->token == TOKEN_ASSIGN || lexer->token == TOKEN_COMMA) {
+	} else if (lexer->token == TOKEN_ASSIGN) {
 		// Assignment
 		parse_assignment(parser, identifier);
 		return true;
