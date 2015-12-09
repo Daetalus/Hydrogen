@@ -270,6 +270,43 @@ int upvalue_find(VirtualMachine *vm, char *name, size_t length) {
 
 
 //
+//  Struct Definitions
+//
+
+// Creates a new struct definition.
+StructDefinition * struct_new(VirtualMachine *vm) {
+	int index = vm->structs_count++;
+	ARRAY_REALLOC(vm->structs, StructDefinition);
+
+	// Initialise the struct definition
+	StructDefinition *def = &vm->structs[index];
+	def->name = NULL;
+	def->length = 0;
+	ARRAY_INIT(def->fields, Identifier, 2);
+	return def;
+}
+
+
+// Frees a struct.
+void struct_free(StructDefinition *def) {
+	free(def->fields);
+}
+
+
+// Creates a new field on a struct definition.
+Identifier * struct_new_field(StructDefinition *def) {
+	int index = def->fields_count++;
+	ARRAY_REALLOC(def->fields, Identifier);
+
+	Identifier *field = &def->fields[index];
+	field->start = NULL;
+	field->length = 0;
+	return field;
+}
+
+
+
+//
 //  Execution
 //
 

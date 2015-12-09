@@ -77,6 +77,7 @@ typedef enum {
 	TOKEN_FN,
 	TOKEN_RETURN,
 	TOKEN_IMPORT,
+	TOKEN_STRUCT,
 
 	// Other
 	TOKEN_EOF,               // 49

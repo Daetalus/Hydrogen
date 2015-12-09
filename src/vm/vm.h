@@ -12,6 +12,7 @@
 #include <hydrogen.h>
 
 #include "util.h"
+#include "lexer.h"
 
 
 // A package.
@@ -76,6 +77,17 @@ struct package {
 };
 
 
+// A struct definition.
+typedef struct {
+	// The name of the struct.
+	char *name;
+	size_t length;
+
+	// The names of the struct's fields.
+	ARRAY(Identifier, fields);
+} StructDefinition;
+
+
 // A virtual machine, storing the interpreter's state.
 typedef struct vm {
 	// A list of compiled functions.
@@ -93,6 +105,9 @@ typedef struct vm {
 	// Upvalues found during compilation.
 	ARRAY(Upvalue, upvalues);
 
+	// Struct definitions encountered during compilation.
+	ARRAY(StructDefinition, structs);
+
 	// The most recent error triggered on the VM.
 	HyError err;
 } VirtualMachine;
@@ -105,9 +120,6 @@ uint16_t vm_add_string(VirtualMachine *vm, char *string);
 // Adds a number to the VM's numbers list. Returns the index of the added
 // number.
 uint16_t vm_add_number(VirtualMachine *vm, double number);
-
-// Frees the current error on the VM.
-void vm_free_error(VirtualMachine *vm);
 
 // Returns true when an error has occurred.
 bool vm_has_error(VirtualMachine *vm);
@@ -143,6 +155,16 @@ Upvalue * upvalue_new(VirtualMachine *vm, int *index);
 // Returns the index of the upvalue called `name`, or -1 if no such upvalue
 // exists.
 int upvalue_find(VirtualMachine *vm, char *name, size_t length);
+
+
+// Creates a new struct definition.
+StructDefinition * struct_new(VirtualMachine *vm);
+
+// Frees a struct.
+void struct_free(StructDefinition *def);
+
+// Creates a new field on a struct definition.
+Identifier * struct_new_field(StructDefinition *def);
 
 
 // Executes a compiled function on the virtual machine.

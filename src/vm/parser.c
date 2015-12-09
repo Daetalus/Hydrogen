@@ -1710,6 +1710,7 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length) {
 		local->name = lexer->value.identifier.start;
 		local->length = lexer->value.identifier.length;
 		local->scope_depth = 0;
+		local->upvalue_index = -1;
 		lexer_next(lexer);
 		child.fn->arity++;
 
@@ -1941,6 +1942,55 @@ void parse_return(Parser *parser) {
 
 
 //
+//  Struct Definitions
+//
+
+// Parses a struct definition.
+void parse_struct_definition(Parser *parser) {
+	Lexer *lexer = parser->lexer;
+
+	// Skip the `struct` token
+	lexer_next(lexer);
+
+	// Expect the name of the struct
+	EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `struct`");
+	char *name = lexer->value.identifier.start;
+	size_t length = lexer->value.identifier.length;
+	lexer_next(lexer);
+
+	// Create the struct definition
+	StructDefinition *def = struct_new(parser->vm);
+	def->name = name;
+	def->length = length;
+
+	// Check for an optional brace
+	if (lexer->token == TOKEN_OPEN_BRACE) {
+		// Skip the opening brace
+		lexer_next(lexer);
+
+		// Parse struct fields
+		while (!vm_has_error(parser->vm) && lexer->token == TOKEN_IDENTIFIER) {
+			Identifier *field = struct_new_field(def);
+			*field = lexer->value.identifier;
+			lexer_next(lexer);
+
+			// Expect a comma or closing brace
+			if (lexer->token == TOKEN_COMMA) {
+				lexer_next(lexer);
+			} else if (lexer->token != TOKEN_CLOSE_BRACE) {
+				UNEXPECTED("Expected `}` to close struct fields list");
+			}
+		}
+
+		// Expect a closing brace
+		EXPECT(TOKEN_CLOSE_BRACE, "Expected `}` to close struct fields list");
+		lexer_next(lexer);
+	}
+}
+
+
+
+//
 //  Blocks
 //
 
@@ -1978,6 +2028,10 @@ void parse_statement(Parser *parser) {
 
 	case TOKEN_RETURN:
 		parse_return(parser);
+		break;
+
+	case TOKEN_STRUCT:
+		parse_struct_definition(parser);
 		break;
 
 	default:
