@@ -78,6 +78,7 @@ typedef enum {
 	TOKEN_RETURN,
 	TOKEN_IMPORT,
 	TOKEN_STRUCT,
+	TOKEN_NEW,
 
 	// Other
 	TOKEN_EOF,               // 49

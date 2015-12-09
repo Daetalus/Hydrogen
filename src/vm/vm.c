@@ -282,6 +282,7 @@ StructDefinition * struct_new(VirtualMachine *vm) {
 	StructDefinition *def = &vm->structs[index];
 	def->name = NULL;
 	def->length = 0;
+	def->constructor = -1;
 	ARRAY_INIT(def->fields, Identifier, 2);
 	return def;
 }
@@ -302,6 +303,27 @@ Identifier * struct_new_field(StructDefinition *def) {
 	field->start = NULL;
 	field->length = 0;
 	return field;
+}
+
+
+// Returns a struct definition called `name`, or NULL if no such struct exists.
+StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
+		uint16_t *index) {
+	for (int i = vm->structs_count - 1; i >= 0; i--) {
+		StructDefinition *def = &vm->structs[i];
+		if (def->length == length && strncmp(def->name, name, length) == 0) {
+			// Set requested index
+			if (index != NULL) {
+				*index = i;
+			}
+
+			// Found requested struct
+			return def;
+		}
+	}
+
+	// Couldn't find the struct
+	return NULL;
 }
 
 

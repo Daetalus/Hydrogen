@@ -295,6 +295,7 @@ Token lexer_keyword_identifier(Lexer *lexer) {
 	KEYWORD("false", TOKEN_FALSE)
 	KEYWORD("nil", TOKEN_NIL)
 	KEYWORD("struct", TOKEN_STRUCT)
+	KEYWORD("new", TOKEN_NEW)
 
 	// If we didn't match a keyword, try and parse an identifier
 	return lexer_identifier(lexer);

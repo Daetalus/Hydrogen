@@ -175,7 +175,21 @@ typedef enum {
 	//  Upvalues
 	//
 
-	CLOSE_U,
+	UPVALUE_CLOSE,
+
+
+	//
+	//  Structs
+	//
+
+	// Creates a new struct described by `struct_index` in `slot`.
+	//
+	// Arguments:
+	// * `slot`: where to store the new struct on the stack
+	// * `struct_index`: the index of the struct's definition in the VM's list
+	STRUCT_NEW,
+
+	STRUCT_FIELD,
 
 
 	//

@@ -83,6 +83,10 @@ typedef struct {
 	char *name;
 	size_t length;
 
+	// The index of the struct's constructor function, or -1 if the struct
+	// doesn't have a constructor.
+	int constructor;
+
 	// The names of the struct's fields.
 	ARRAY(Identifier, fields);
 } StructDefinition;
@@ -165,6 +169,10 @@ void struct_free(StructDefinition *def);
 
 // Creates a new field on a struct definition.
 Identifier * struct_new_field(StructDefinition *def);
+
+// Returns a struct definition called `name`, or NULL if no such struct exists.
+StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
+	uint16_t *index);
 
 
 // Executes a compiled function on the virtual machine.

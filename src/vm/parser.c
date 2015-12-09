@@ -100,6 +100,9 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 // Parses a function definition body (starting at the arguments list).
 uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length);
 
+// Parses a struct instantiation, storing the resulting struct into `slot`.
+void parse_struct_instantiation(Parser *parser, uint16_t slot);
+
 
 
 //
@@ -341,10 +344,10 @@ Variable local_capture(Parser *parser, char *name, size_t length) {
 void local_close_upvalues(Parser *parser) {
 	// Emit in reverse order
 	for (int i = parser->locals_count; i >= 0; i--) {
-		Local *local = &parser->locals[i];
-		if (local->upvalue_index >= 0) {
+		int upvalue = parser->locals[i].upvalue_index;
+		if (upvalue >= 0) {
 			// Emit close upvalue instruction
-			emit(parser->fn, instr_new(CLOSE_U, local->upvalue_index, 0, 0));
+			emit(parser->fn, instr_new(UPVALUE_CLOSE, upvalue, 0, 0));
 		}
 	}
 }
@@ -366,17 +369,16 @@ void scope_free(Parser *parser) {
 	// continually decrease the size of the array until we hit a local in a
 	// scope that is still active
 	int i = parser->locals_count - 1;
-	Local *local = &parser->locals[i];
-	while (i >= 0 && local->scope_depth > parser->scope_depth) {
+	while (i >= 0 && parser->locals[i].scope_depth > parser->scope_depth) {
 		// Check if the local was used as an upvalue
-		if (local->upvalue_index >= 0) {
+		int upvalue = parser->locals[i].upvalue_index;
+		if (upvalue >= 0) {
 			// Close the upvalue
-			emit(parser->fn, instr_new(CLOSE_U, local->upvalue_index, 0, 0));
+			emit(parser->fn, instr_new(UPVALUE_CLOSE, upvalue, 0, 0));
 		}
 
 		parser->locals_count--;
 		i--;
-		local = &parser->locals[i];
 	}
 }
 
@@ -1260,6 +1262,12 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 		operand.fn_index = parse_fn_definition_body(parser, NULL, 0);
 		break;
 
+	case TOKEN_NEW:
+		parse_struct_instantiation(parser, slot);
+		operand.type = OP_LOCAL;
+		operand.slot = slot;
+		break;
+
 	default:
 		UNEXPECTED("Expected operand in expression");
 		operand.type = OP_NONE;
@@ -1942,7 +1950,7 @@ void parse_return(Parser *parser) {
 
 
 //
-//  Struct Definitions
+//  Structs
 //
 
 // Parses a struct definition.
@@ -1957,6 +1965,12 @@ void parse_struct_definition(Parser *parser) {
 	char *name = lexer->value.identifier.start;
 	size_t length = lexer->value.identifier.length;
 	lexer_next(lexer);
+
+	// Check the struct doesn't already exist
+	if (struct_find(parser->vm, name, length, NULL) != NULL) {
+		ERROR("Struct `%.*s` is already defined", length, name);
+		return;
+	}
 
 	// Create the struct definition
 	StructDefinition *def = struct_new(parser->vm);
@@ -1984,6 +1998,54 @@ void parse_struct_definition(Parser *parser) {
 
 		// Expect a closing brace
 		EXPECT(TOKEN_CLOSE_BRACE, "Expected `}` to close struct fields list");
+		lexer_next(lexer);
+	}
+}
+
+
+// Parses a struct instantiation, storing the resulting struct into `slot`.
+void parse_struct_instantiation(Parser *parser, uint16_t slot) {
+	Lexer *lexer = parser->lexer;
+
+	// Skip the `new` token
+	lexer_next(lexer);
+
+	// Expect the name of a struct
+	EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `new`");
+	char *name = lexer->value.identifier.start;
+	size_t length = lexer->value.identifier.length;
+	lexer_next(lexer);
+
+	// Find a struct with the given name
+	uint16_t index;
+	StructDefinition *def = struct_find(parser->vm, name, length, &index);
+	if (def == NULL) {
+		// Struct is undefined
+		ERROR("Undefined struct `%.*s` in instantiation", length, name);
+		return;
+	}
+
+	// Emit bytecode to create the struct
+	emit(parser->fn, instr_new(STRUCT_NEW, slot, index, 0));
+
+	// Call the constructor, if it exists
+	if (def->constructor != -1) {
+		// Create a new temporary slot for the return value
+		uint16_t return_slot;
+		scope_new(parser);
+		local_new(parser, &return_slot);
+		scope_free(parser);
+
+		// Call the constructor
+		parse_fn_call_slot(parser, CALL_F, def->constructor, return_slot);
+	} else {
+		// Expect an opening and closing parenthesis
+		EXPECT(TOKEN_OPEN_PARENTHESIS,
+			"Expected `(` after struct name in instantiation");
+		lexer_next(lexer);
+		EXPECT(TOKEN_CLOSE_PARENTHESIS,
+			"Expected no arguments to struct instantiation, as struct has no"
+			"constructor");
 		lexer_next(lexer);
 	}
 }
