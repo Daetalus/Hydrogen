@@ -348,6 +348,45 @@ Variable local_capture(Parser *parser, char *name, size_t length) {
 }
 
 
+// Returns true if a local exists in a parent compiler.
+bool local_exists_all(Parser *parser, char *name, size_t length) {
+	if (parser == NULL) {
+		// Reached top level compiler, variable must be unique
+		return false;
+	}
+
+	return (local_find(parser, name, length) >= 0) ||
+		local_exists_all(parser->parent, name, length);
+}
+
+
+// Returns true if a variable name already exists
+bool local_exists(Parser *parser, char *name, size_t length) {
+	// Parser locals
+	if (local_find(parser, name, length) >= 0) {
+		return true;
+	}
+
+	// Existing upvalues
+	if (upvalue_find(parser->vm, name, length) >= 0) {
+		return true;
+	}
+
+	// Parent locals
+	if (local_exists_all(parser->parent, name, length)) {
+		return true;
+	}
+
+	// Structs
+	if (struct_find(parser->vm, name, length, NULL) != NULL) {
+		return true;
+	}
+
+	return false;
+}
+
+
+
 // Emits close upvalue instructions for all locals that have been used in
 // closures.
 void local_close_upvalues(Parser *parser) {
@@ -1457,8 +1496,7 @@ void parse_initial_assignment(Parser *parser) {
 	lexer_next(lexer);
 
 	// Check the variable isn't already defined
-	Variable var = local_capture(parser, name, length);
-	if (var.type != VAR_UNDEFINED) {
+	if (local_exists(parser, name, length)) {
 		ERROR("Variable `%.*s` is already defined", length, name);
 		return;
 	}
