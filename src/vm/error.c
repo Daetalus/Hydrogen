@@ -183,7 +183,7 @@ char * token_string(Token token, TokenValue value) {
 
 	// Unrecognised token
 	default: {
-		char *message = "Unrecognised token";
+		char *message = "unrecognised token";
 		char *result = malloc((strlen(message) + 1) * sizeof(char));
 		strcpy(result, message);
 		return result;

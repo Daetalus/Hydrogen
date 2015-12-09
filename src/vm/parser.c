@@ -34,6 +34,10 @@
 #define MAX_LOCALS 512
 
 
+// Used for the `self` local added to methods.
+char method_self_name[4] = "self";
+
+
 // A local variable.
 typedef struct {
 	// The name of the local.
@@ -98,7 +102,8 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 	uint16_t return_slot);
 
 // Parses a function definition body (starting at the arguments list).
-uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length);
+uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
+	bool is_method);
 
 // Parses a struct instantiation, storing the resulting struct into `slot`.
 void parse_struct_instantiation(Parser *parser, uint16_t slot);
@@ -1259,7 +1264,7 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 
 		// Parse an anonymous function definition
 		operand.type = OP_FN;
-		operand.fn_index = parse_fn_definition_body(parser, NULL, 0);
+		operand.fn_index = parse_fn_definition_body(parser, NULL, 0, false);
 		break;
 
 	case TOKEN_NEW:
@@ -1292,8 +1297,35 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t return_slot) {
 			parse_fn_call_slot(parser, CALL_F, operand.fn_index, return_slot);
 		} else {
 			ERROR("Attempt to call non-function");
+			return result;
 		}
 
+		result.type = OP_LOCAL;
+		result.slot = return_slot;
+	} else if (lexer->token == TOKEN_DOT) {
+		// Struct field access
+		if (operand.type != OP_LOCAL) {
+			// Attempting to index the field on an operand that isn't a local
+			ERROR("Attempt to index non-local");
+			return result;
+		}
+
+		// Skip the dot
+		lexer_next(lexer);
+
+		// Expect an identifier
+		if (lexer->token != TOKEN_IDENTIFIER) {
+			UNEXPECTED("Expected identifier after `.`");
+			return result;
+		}
+
+		// Emit field access
+		uint16_t index = vm_add_field(parser->vm, lexer->value.identifier);
+		emit(parser->fn, instr_new(STRUCT_FIELD, return_slot, operand.slot,
+			index));
+		lexer_next(lexer);
+
+		// Set the return local
 		result.type = OP_LOCAL;
 		result.slot = return_slot;
 	}
@@ -1325,7 +1357,7 @@ Operand expr_left(Parser *parser, uint16_t slot) {
 
 		// Check for multiple postfix operators
 		Operand postfix = expr_postfix(parser, operand, slot);
-		while (postfix.type != OP_NONE) {
+		while (!vm_has_error(parser->vm) && postfix.type != OP_NONE) {
 			operand = postfix;
 			postfix = expr_postfix(parser, operand, slot);
 		}
@@ -1693,8 +1725,11 @@ void parse_break(Parser *parser) {
 //
 
 // Parses a function definition body (starting at the arguments list) for a
-// function with the name `name`.
-uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length) {
+// function with the name `name`. `is_method` should be true if this function
+// is a method on a struct. In this case, `self` will be added as the first
+// local on the child function's local stack.
+uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
+		bool is_method) {
 	Lexer *lexer = parser->lexer;
 
 	// Expect an opening parenthesis
@@ -1710,6 +1745,16 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length) {
 	child.fn = fn_new(parser->vm, parser->fn->package, &fn_index);
 	child.fn->name = name;
 	child.fn->length = length;
+
+	// Add `self` if this is a method
+	if (is_method) {
+		Local *local = &child.locals[child.locals_count++];
+		local->name = method_self_name;
+		local->length = 4;
+		local->scope_depth = 0;
+		local->upvalue_index = -1;
+		child.fn->arity++;
+	}
 
 	// Parse the arguments list into the child parser's locals list
 	while (lexer->token == TOKEN_IDENTIFIER) {
@@ -1782,6 +1827,7 @@ void parse_method_definition(Parser *parser) {
 
 	// Expect a closing parenthesis
 	EXPECT(TOKEN_CLOSE_PARENTHESIS, "Expected `)` after struct name");
+	lexer_next(lexer);
 
 	// Check if this is a constructor
 	if (lexer->token == TOKEN_NEW) {
@@ -1789,7 +1835,7 @@ void parse_method_definition(Parser *parser) {
 		lexer_next(lexer);
 
 		// Parse the remainder of the function and set the struct's constructor
-		def->constructor = parse_fn_definition_body(parser, name, length);
+		def->constructor = parse_fn_definition_body(parser, name, length, true);
 		return;
 	}
 
@@ -1800,7 +1846,7 @@ void parse_method_definition(Parser *parser) {
 	lexer_next(lexer);
 
 	// Parse the remainder of the function
-	uint16_t fn_index = parse_fn_definition_body(parser, name, length);
+	uint16_t fn_index = parse_fn_definition_body(parser, name, length, true);
 
 	// Create a new field to store the method in
 	int index = struct_new_field(def);
@@ -1833,7 +1879,7 @@ void parse_fn_definition(Parser *parser) {
 	lexer_next(lexer);
 
 	// Parse the remainder of the function
-	uint16_t fn_index = parse_fn_definition_body(parser, name, length);
+	uint16_t fn_index = parse_fn_definition_body(parser, name, length, false);
 
 	// Create a new local to store the function in
 	uint16_t slot;

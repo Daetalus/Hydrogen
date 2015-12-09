@@ -115,6 +115,9 @@ typedef struct vm {
 	// Struct definitions encountered during compilation.
 	ARRAY(StructDefinition, structs);
 
+	// Struct field names encountered during compilation.
+	ARRAY(Identifier, fields);
+
 	// The most recent error triggered on the VM.
 	HyError err;
 } VirtualMachine;
@@ -127,6 +130,10 @@ uint16_t vm_add_string(VirtualMachine *vm, char *string);
 // Adds a number to the VM's numbers list. Returns the index of the added
 // number.
 uint16_t vm_add_number(VirtualMachine *vm, double number);
+
+// Adds a field name to the VM's struct field names list. Returns the index of
+// the added name.
+uint16_t vm_add_field(VirtualMachine *vm, Identifier field);
 
 // Returns true when an error has occurred.
 bool vm_has_error(VirtualMachine *vm);

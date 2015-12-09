@@ -13,7 +13,7 @@
 #define MAX_NAME_LENGTH 50
 
 // The number of opcodes.
-#define OPCODE_COUNT 74
+#define OPCODE_COUNT 82
 
 
 // The name of every opcode.
@@ -90,7 +90,15 @@ char OPCODE_NAMES[OPCODE_COUNT][MAX_NAME_LENGTH] = {
 	"RET_S",
 	"RET_P",
 	"RET_F",
-	"CLOSE_U",
+	"UPVALUE_CLOSE",
+	"STRUCT_NEW",
+	"STRUCT_FIELD",
+	"STRUCT_SET_L",
+	"STRUCT_SET_I",
+	"STRUCT_SET_N",
+	"STRUCT_SET_S",
+	"STRUCT_SET_P",
+	"STRUCT_SET_F",
 	"NO_OP",
 };
 
@@ -169,7 +177,15 @@ int ARGUMENT_COUNT[OPCODE_COUNT] = {
 	1, // RET_S
 	1, // RET_P
 	1, // RET_F
-	1, // CLOSE_U
+	1, // UPVALUE_CLOSE
+	2, // STRUCT_NEW
+	2, // STRUCT_FIELD
+	3, // STRUCT_SET_L
+	3, // STRUCT_SET_I
+	3, // STRUCT_SET_N
+	3, // STRUCT_SET_S
+	3, // STRUCT_SET_P
+	3, // STRUCT_SET_F
 	0, // NO_OP
 };
 

@@ -24,6 +24,8 @@ HyVM * hy_new(void) {
 	ARRAY_INIT(vm->numbers, double, 16);
 	ARRAY_INIT(vm->strings, char *, 16);
 	ARRAY_INIT(vm->upvalues, Upvalue, 4);
+	ARRAY_INIT(vm->structs, StructDefinition, 2);
+	ARRAY_INIT(vm->fields, Identifier, 4);
 
 	return (HyVM *) vm;
 }
@@ -48,12 +50,20 @@ void hy_free(HyVM *vm) {
 		fn_free(fn);
 	}
 
+	// Structs
+	for (uint32_t i = 0; i < vm->structs_count; i++) {
+		StructDefinition *def = &vm->structs[i];
+		struct_free(def);
+	}
+
 	// Arrays
 	free(vm->packages);
 	free(vm->functions);
 	free(vm->numbers);
 	free(vm->strings);
 	free(vm->upvalues);
+	free(vm->structs);
+	free(vm->fields);
 
 	// Error
 	err_free(&vm->err);
@@ -110,6 +120,16 @@ uint16_t vm_add_number(VirtualMachine *vm, double number) {
 	uint16_t index = vm->numbers_count++;
 	ARRAY_REALLOC(vm->numbers, double);
 	vm->numbers[index] = number;
+	return index;
+}
+
+
+// Adds a field name to the VM's struct field names list. Returns the index of
+// the added name.
+uint16_t vm_add_field(VirtualMachine *vm, Identifier field) {
+	uint16_t index = vm->fields_count++;
+	ARRAY_REALLOC(vm->fields, Identifier);
+	vm->fields[index] = field;
 	return index;
 }
 
@@ -284,6 +304,7 @@ StructDefinition * struct_new(VirtualMachine *vm) {
 	def->length = 0;
 	def->constructor = -1;
 	ARRAY_INIT(def->fields, Identifier, 2);
+	ARRAY_INIT(def->values, uint64_t, 2);
 	return def;
 }
 
@@ -297,7 +318,9 @@ void struct_free(StructDefinition *def) {
 // Creates a new field on a struct definition, returning its index.
 int struct_new_field(StructDefinition *def) {
 	int index = def->fields_count++;
+	def->values_count++;
 	ARRAY_REALLOC(def->fields, Identifier);
+	ARRAY_REALLOC(def->values, uint64_t);
 
 	Identifier *field = &def->fields[index];
 	field->start = NULL;

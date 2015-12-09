@@ -6,6 +6,8 @@
 #ifndef VALUE_H
 #define VALUE_H
 
+#include <stdlib.h>
+
 // Integer tags for primitive values.
 #define NIL_TAG   0
 #define FALSE_TAG 1

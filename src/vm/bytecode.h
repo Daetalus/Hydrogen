@@ -189,7 +189,21 @@ typedef enum {
 	// * `struct_index`: the index of the struct's definition in the VM's list
 	STRUCT_NEW,
 
+	// Moves the contents of a struct's field into a local slot
+	//
+	// Arguments:
+	// * `slot`: where to store the contents of the field
+	// * `struct_slot`: the slot the struct is in
+	// * `field_name`: an index into the compiler's struct field array
+	//   specifying the name of the field
 	STRUCT_FIELD,
+
+	STRUCT_SET_L,
+	STRUCT_SET_I,
+	STRUCT_SET_N,
+	STRUCT_SET_S,
+	STRUCT_SET_P,
+	STRUCT_SET_F,
 
 
 	//
