@@ -89,6 +89,9 @@ typedef struct {
 
 	// The names of the struct's fields.
 	ARRAY(Identifier, fields);
+
+	// The default values for the struct's fields.
+	ARRAY(uint64_t, values);
 } StructDefinition;
 
 
@@ -167,8 +170,8 @@ StructDefinition * struct_new(VirtualMachine *vm);
 // Frees a struct.
 void struct_free(StructDefinition *def);
 
-// Creates a new field on a struct definition.
-Identifier * struct_new_field(StructDefinition *def);
+// Creates a new field on a struct definition, returning its index.
+int struct_new_field(StructDefinition *def);
 
 // Returns a struct definition called `name`, or NULL if no such struct exists.
 StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,

@@ -294,15 +294,15 @@ void struct_free(StructDefinition *def) {
 }
 
 
-// Creates a new field on a struct definition.
-Identifier * struct_new_field(StructDefinition *def) {
+// Creates a new field on a struct definition, returning its index.
+int struct_new_field(StructDefinition *def) {
 	int index = def->fields_count++;
 	ARRAY_REALLOC(def->fields, Identifier);
 
 	Identifier *field = &def->fields[index];
 	field->start = NULL;
 	field->length = 0;
-	return field;
+	return index;
 }
 
 

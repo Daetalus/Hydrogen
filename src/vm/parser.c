@@ -1759,12 +1759,62 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length) {
 }
 
 
+// Parses a method definition.
+void parse_method_definition(Parser *parser) {
+	Lexer *lexer = parser->lexer;
+
+	// Skip the opening parenthesis
+	lexer_next(lexer);
+
+	// Expect the name of a struct
+	EXPECT(TOKEN_IDENTIFIER, "Expected struct name in method definition");
+	char *name = lexer->value.identifier.start;
+	size_t length = lexer->value.identifier.length;
+	lexer_next(lexer);
+
+	// Find a struct with the given name
+	StructDefinition *def = struct_find(parser->vm, name, length, NULL);
+	if (def == NULL) {
+		ERROR("Attempt to define method on undefined struct `%.*s`", length,
+			name);
+		return;
+	}
+
+	// Expect a closing parenthesis
+	EXPECT(TOKEN_CLOSE_PARENTHESIS, "Expected `)` after struct name");
+
+	// Expect the name of the method
+	EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `fn`");
+	name = lexer->value.identifier.start;
+	length = lexer->value.identifier.length;
+	lexer_next(lexer);
+
+	// Parse the remainder of the function
+	uint16_t fn_index = parse_fn_definition_body(parser, name, length);
+
+	// Create a new field to store the method in
+	int index = struct_new_field(def);
+	Identifier *field = &def->fields[index];
+	field->start = name;
+	field->length = length;
+
+	// Set the default value of the struct field
+	def->values[index] = VALUE_FROM_FN(fn_index);
+}
+
+
 // Parses a function definition.
 void parse_fn_definition(Parser *parser) {
 	Lexer *lexer = parser->lexer;
 
 	// Skip the `fn` token
 	lexer_next(lexer);
+
+	// Check if we're parsing a method definition or not
+	if (lexer->token == TOKEN_OPEN_PARENTHESIS) {
+		parse_method_definition(parser);
+		return;
+	}
 
 	// Expect an identifier (the name of the function)
 	EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `fn`");
@@ -1984,8 +2034,9 @@ void parse_struct_definition(Parser *parser) {
 
 		// Parse struct fields
 		while (!vm_has_error(parser->vm) && lexer->token == TOKEN_IDENTIFIER) {
-			Identifier *field = struct_new_field(def);
-			*field = lexer->value.identifier;
+			int index = struct_new_field(def);
+			def->fields[index] = lexer->value.identifier;
+			def->values[index] = NIL_VALUE;
 			lexer_next(lexer);
 
 			// Expect a comma or closing brace
