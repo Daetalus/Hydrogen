@@ -198,6 +198,12 @@ typedef enum {
 	//   specifying the name of the field
 	STRUCT_FIELD,
 
+	// Sets the contents of a struct's field.
+	//
+	// Arguments:
+	// * `slot`: the stack slot of the struct
+	// * `field_name`: an index into the compiler's struct field array
+	// * `value`: the value to set the field to
 	STRUCT_SET_L,
 	STRUCT_SET_I,
 	STRUCT_SET_N,

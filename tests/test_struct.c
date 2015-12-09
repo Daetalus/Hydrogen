@@ -53,10 +53,15 @@ TEST(field_access) {
 
 
 TEST(field_set) {
-	COMPILER("struct Test {\nfield1\n}\nlet a = new Test()\na.field1 = 3\n");
+	COMPILER("struct Test {\nfield1\n}\nlet a = new Test()\na.field1 = 3\n"
+		"a.field1.test.hello = 10");
 
 	ASSERT_INSTRUCTION(STRUCT_NEW, 0, 0, 0);
 	ASSERT_INSTRUCTION(STRUCT_SET_I, 0, 0, 3);
+	ASSERT_INSTRUCTION(MOV_LL, 1, 0, 0);
+	ASSERT_INSTRUCTION(STRUCT_FIELD, 1, 1, 1);
+	ASSERT_INSTRUCTION(STRUCT_FIELD, 1, 1, 2);
+	ASSERT_INSTRUCTION(STRUCT_SET_I, 1, 3, 10);
 	ASSERT_RET();
 }
 
@@ -132,7 +137,7 @@ MAIN() {
 	RUN(definition);
 	RUN(instantiation);
 	RUN(field_access);
-	// RUN(field_set);
+	RUN(field_set);
 	RUN(method_definition);
 	RUN(method_access);
 	RUN(self_access);
