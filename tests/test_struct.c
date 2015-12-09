@@ -124,12 +124,31 @@ TEST(method_call) {
 
 
 TEST(constructor_definition) {
+	COMPILER("struct Test\nfn (Test) new(arg) {\nself.a = arg\n}");
 
+	SELECT_FN(0);
+	ASSERT_RET();
+
+	SELECT_FN(1);
+	ASSERT_INSTRUCTION(STRUCT_SET_L, 0, 0, 1);
+	ASSERT_RET();
 }
 
 
 TEST(constructor_call) {
+	COMPILER("struct Test\nfn (Test) new(arg) {\nself.a = arg\n}\n"
+		"let a = new Test(3)");
 
+	SELECT_FN(0);
+	ASSERT_INSTRUCTION(STRUCT_NEW, 0, 0, 0);
+	ASSERT_INSTRUCTION(MOV_LL, 1, 0, 0);
+	ASSERT_INSTRUCTION(MOV_LI, 2, 3, 0);
+	ASSERT_CALL(CALL_F, 2, 1, 1, 1);
+	ASSERT_RET();
+
+	SELECT_FN(1);
+	ASSERT_INSTRUCTION(STRUCT_SET_L, 0, 0, 1);
+	ASSERT_RET();
 }
 
 
@@ -142,6 +161,6 @@ MAIN() {
 	RUN(method_access);
 	RUN(self_access);
 	RUN(method_call);
-	// RUN(constructor_definition);
-	// RUN(constructor_call);
+	RUN(constructor_definition);
+	RUN(constructor_call);
 }
