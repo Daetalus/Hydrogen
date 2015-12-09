@@ -29,6 +29,7 @@
 // * S: string
 // * P: primitive (true, false, nil)
 // * F: function
+// * U: upvalue
 typedef enum {
 
 	//
@@ -41,6 +42,9 @@ typedef enum {
 	MOV_LS,
 	MOV_LP,
 	MOV_LF,
+
+	MOV_LU,
+	MOV_UL,
 
 
 	//
@@ -165,6 +169,13 @@ typedef enum {
 	RET_S,
 	RET_P,
 	RET_F,
+
+
+	//
+	//  Upvalues
+	//
+
+	CLOSE_U,
 
 
 	//

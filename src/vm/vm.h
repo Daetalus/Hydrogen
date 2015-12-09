@@ -35,6 +35,28 @@ typedef struct {
 } Function;
 
 
+// An upvalue.
+typedef struct {
+	// The name of the upvalue.
+	char *name;
+	size_t length;
+
+	// Whether or not the upvalue is currently open.
+	bool open;
+
+	// The function the local the upvalue closes over was defined in.
+	Function *defining_fn;
+
+	union {
+		// The stack position of the upvalue, used when it is open.
+		uint16_t slot;
+
+		// The value of the upvalue, used once its been closed.
+		uint64_t value;
+	};
+} Upvalue;
+
+
 // A package (collection of functions, global variables, and constants),
 // contained in a single file.
 struct package {
@@ -62,11 +84,14 @@ typedef struct vm {
 	// All imported packages.
 	ARRAY(Package, packages);
 
-	// All numbers encountered during compilation.
+	// Numbers encountered during compilation.
 	ARRAY(double, numbers);
 
-	// All strings encountered during compilation.
+	// Strings encountered during compilation.
 	ARRAY(char *, strings);
+
+	// Upvalues found during compilation.
+	ARRAY(Upvalue, upvalues);
 
 	// The most recent error triggered on the VM.
 	HyError err;
@@ -110,6 +135,14 @@ void fn_free(Function *fn);
 // exist.
 Function * fn_find(VirtualMachine *vm, char *name, size_t length,
 	uint16_t *index);
+
+
+// Creates a new upvalue.
+Upvalue * upvalue_new(VirtualMachine *vm, int *index);
+
+// Returns the index of the upvalue called `name`, or -1 if no such upvalue
+// exists.
+int upvalue_find(VirtualMachine *vm, char *name, size_t length);
 
 
 // Executes a compiled function on the virtual machine.

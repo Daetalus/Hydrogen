@@ -23,6 +23,7 @@ HyVM * hy_new(void) {
 	ARRAY_INIT(vm->packages, Package, 4);
 	ARRAY_INIT(vm->numbers, double, 16);
 	ARRAY_INIT(vm->strings, char *, 16);
+	ARRAY_INIT(vm->upvalues, Upvalue, 4);
 
 	return (HyVM *) vm;
 }
@@ -52,6 +53,7 @@ void hy_free(HyVM *vm) {
 	free(vm->functions);
 	free(vm->numbers);
 	free(vm->strings);
+	free(vm->upvalues);
 
 	// Error
 	err_free(&vm->err);
@@ -179,7 +181,7 @@ Function * fn_new(VirtualMachine *vm, Package *package, uint16_t *index) {
 	fn->name = NULL;
 	fn->length = 0;
 	fn->arity = 0;
-	fn->package = NULL;
+	fn->package = package;
 	ARRAY_INIT(fn->bytecode, uint64_t, 64);
 
 	// Add the function to the package's function list
@@ -202,7 +204,7 @@ void fn_free(Function *fn) {
 Function * fn_find(VirtualMachine *vm, char *name, size_t length,
 		uint16_t *index) {
 	// Functions that are defined recently are more likely to be used sooner
-	// (maybe), so search the array in reverse order
+	// (maybe?), so search the array in reverse order
 	for (int i = vm->functions_count; i >= 0; i--) {
 		Function *fn = &vm->functions[i];
 
@@ -219,6 +221,50 @@ Function * fn_find(VirtualMachine *vm, char *name, size_t length,
 
 	// Couldn't find a function with the given name
 	return NULL;
+}
+
+
+
+//
+//  Upvalues
+//
+
+// Creates a new upvalue.
+Upvalue * upvalue_new(VirtualMachine *vm, int *requested_index) {
+	// Get the index of the new upvalue
+	uint32_t index = vm->upvalues_count++;
+	ARRAY_REALLOC(vm->upvalues, Upvalue);
+
+	// Set the requested index
+	if (requested_index != NULL) {
+		*requested_index = index;
+	}
+
+	// Initialise the upvalue
+	Upvalue *upvalue = &vm->upvalues[index];
+	upvalue->name = NULL;
+	upvalue->length = 0;
+	upvalue->open = true;
+	upvalue->value = 0;
+	return upvalue;
+}
+
+
+// Returns the index of the upvalue called `name`, or -1 if no such upvalue
+// exists.
+int upvalue_find(VirtualMachine *vm, char *name, size_t length) {
+	// Iterate in reverse order
+	for (int i = vm->upvalues_count - 1; i >= 0; i--) {
+		Upvalue *upvalue = &vm->upvalues[i];
+		if (upvalue->length == length &&
+				strncmp(upvalue->name, name, length) == 0) {
+			// Found the upvalue
+			return i;
+		}
+	}
+
+	// Couldn't find the upvalue
+	return -1;
 }
 
 

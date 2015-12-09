@@ -42,6 +42,10 @@ typedef struct {
 
 	// The scope depth the local was defined at.
 	uint32_t scope_depth;
+
+	// The index of the upvalue in the VM's upvalue list, or -1 if this local
+	// wasn't used in a closure.
+	int upvalue_index;
 } Local;
 
 
@@ -223,13 +227,14 @@ Local * local_new(Parser *parser, uint16_t *slot) {
 	local->name = NULL;
 	local->length = 0;
 	local->scope_depth = parser->scope_depth;
+	local->upvalue_index = -1;
 	return local;
 }
 
 
-// Returns a pointer to the local called `name`, or NULL if no local with that
-// name could be found.
-Local * local_find(Parser *parser, char *name, size_t length, uint16_t *slot) {
+// Searches a parser's locals list for a local called `name`, returning its
+// stack slot index, or -1 if the local doesn't exist.
+int local_find(Parser *parser, char *name, size_t length) {
 	// Iterate over the locals backwards, as locals are more likely to be used
 	// right after they've been defined (maybe)
 	for (int i = parser->locals_count - 1; i >= 0; i--) {
@@ -238,15 +243,110 @@ Local * local_find(Parser *parser, char *name, size_t length, uint16_t *slot) {
 		// Check if this is the correct local
 		if (local->length == length && strncmp(local->name, name, length) == 0) {
 			// Return the slot the local is in
-			if (slot != NULL) {
-				*slot = i;
-			}
-
-			return local;
+			return i;
 		}
 	}
 
-	return NULL;
+	return -1;
+}
+
+
+// Searches parent compiler locals recursively for a local called `name`,
+// returning the index of a new upvalue created from the local, or -1 if no such
+// local could be found.
+int local_find_all(Parser *parser, char *name, size_t length) {
+	if (parser == NULL) {
+		// No more parent compilers, local is undefined
+		return -1;
+	}
+
+	int slot = local_find(parser, name, length);
+	if (slot >= 0) {
+		// Create an upvalue from the local
+		int index;
+		Upvalue *upvalue = upvalue_new(parser->vm, &index);
+		upvalue->name = name;
+		upvalue->length = length;
+		upvalue->defining_fn = parser->fn;
+		upvalue->slot = slot;
+
+		// Set the local as an upvalue
+		Local *local = &parser->locals[slot];
+		local->upvalue_index = index;
+
+		return index;
+	} else {
+		// Search parent compiler
+		return local_find_all(parser->parent, name, length);
+	}
+}
+
+
+// The type of a variable.
+typedef enum {
+	VAR_UNDEFINED,
+	VAR_LOCAL,
+	VAR_UPVALUE,
+} VariableType;
+
+
+// A variable (upvalue or local).
+typedef struct {
+	// The type of the variable.
+	VariableType type;
+
+	// The slot position of the local or upvalue (index into the VM's upvalues
+	// list).
+	uint16_t slot;
+} Variable;
+
+
+// Returns a local or upvalue with the given name. First searches the parser's
+// locals list, then the existing upvalues, then parent parsers' locals.
+Variable local_capture(Parser *parser, char *name, size_t length) {
+	Variable result;
+	int slot;
+
+	// Search parser locals
+	slot = local_find(parser, name, length);
+	if (slot >= 0) {
+		result.type = VAR_LOCAL;
+		result.slot = slot;
+		return result;
+	}
+
+	// Search existing upvalues
+	slot = upvalue_find(parser->vm, name, length);
+	if (slot >= 0) {
+		result.type = VAR_UPVALUE;
+		result.slot = slot;
+		return result;
+	}
+
+	// Search parent locals
+	slot = local_find_all(parser->parent, name, length);
+	if (slot >= 0) {
+		result.type = VAR_UPVALUE;
+		result.slot = slot;
+		return result;
+	}
+
+	result.type = VAR_UNDEFINED;
+	return result;
+}
+
+
+// Emits close upvalue instructions for all locals that have been used in
+// closures.
+void local_close_upvalues(Parser *parser) {
+	// Emit in reverse order
+	for (int i = parser->locals_count; i >= 0; i--) {
+		Local *local = &parser->locals[i];
+		if (local->upvalue_index >= 0) {
+			// Emit close upvalue instruction
+			emit(parser->fn, instr_new(CLOSE_U, local->upvalue_index, 0, 0));
+		}
+	}
 }
 
 
@@ -266,9 +366,17 @@ void scope_free(Parser *parser) {
 	// continually decrease the size of the array until we hit a local in a
 	// scope that is still active
 	int i = parser->locals_count - 1;
-	while (i >= 0 && parser->locals[i].scope_depth > parser->scope_depth) {
+	Local *local = &parser->locals[i];
+	while (i >= 0 && local->scope_depth > parser->scope_depth) {
+		// Check if the local was used as an upvalue
+		if (local->upvalue_index >= 0) {
+			// Close the upvalue
+			emit(parser->fn, instr_new(CLOSE_U, local->upvalue_index, 0, 0));
+		}
+
 		parser->locals_count--;
 		i--;
+		local = &parser->locals[i];
 	}
 }
 
@@ -912,7 +1020,7 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 
 	// Ensure the operands are valid for the operator
 	if (!binary_valid(operator, left.type, right.type)) {
-		ERROR("Invalid operand to binary operator");
+		UNEXPECTED("Invalid operand to binary operator");
 		return operand;
 	}
 
@@ -996,7 +1104,7 @@ Operand expr_unary(Parser *parser, Opcode opcode, Operand right) {
 
 	// Ensure the operand is valid for the operator
 	if (!unary_valid(opcode, right.type)) {
-		ERROR("Invalid operand to unary operator");
+		UNEXPECTED("Invalid operand to unary operator");
 		return operand;
 	}
 
@@ -1087,17 +1195,24 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 
 	case TOKEN_IDENTIFIER: {
 		// Find an existing variable with the given name
-		uint16_t var;
 		char *name = lexer->value.identifier.start;
 		size_t length = lexer->value.identifier.length;
-		if (local_find(parser, name, length, &var) == NULL) {
-			// Variable doesn't exist
+		Variable var = local_capture(parser, name, length);
+
+		if (var.type == VAR_LOCAL) {
+			operand.type = OP_LOCAL;
+			operand.slot = var.slot;
+		} else if (var.type == VAR_UPVALUE) {
+			// Store the upvalue into a local slot
+			emit(parser->fn, instr_new(MOV_LU, slot, var.slot, 0));
+			operand.type = OP_LOCAL;
+			operand.slot = slot;
+		} else {
+			// Undefined
 			ERROR("Undefined variable `%.*s` in expression", length, name);
 			break;
 		}
 
-		operand.type = OP_LOCAL;
-		operand.slot = var;
 		lexer_next(lexer);
 		break;
 	}
@@ -1129,7 +1244,7 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 
 		// Expect a closing parenthesis
 		if (lexer->token != TOKEN_CLOSE_PARENTHESIS) {
-			ERROR("Expected `)` to close `(` in expression");
+			UNEXPECTED("Expected `)` to close `(` in expression");
 			operand.type = OP_NONE;
 			break;
 		}
@@ -1291,7 +1406,8 @@ void parse_initial_assignment(Parser *parser) {
 	lexer_next(lexer);
 
 	// Check the variable isn't already defined
-	if (local_find(parser, name, length, NULL) != NULL) {
+	Variable var = local_capture(parser, name, length);
+	if (var.type != VAR_UNDEFINED) {
 		ERROR("Variable `%.*s` is already defined", length, name);
 		return;
 	}
@@ -1317,7 +1433,7 @@ void parse_initial_assignment(Parser *parser) {
 
 
 // Parses an assignment.
-void parse_assignment(Parser *parser, Identifier var) {
+void parse_assignment(Parser *parser, Identifier name) {
 	Lexer *lexer = parser->lexer;
 
 	// Consume the assignment operator
@@ -1325,14 +1441,23 @@ void parse_assignment(Parser *parser, Identifier var) {
 	lexer_next(lexer);
 
 	// Check the variable is already defined
-	uint16_t slot;
-	if (local_find(parser, var.start, var.length, &slot) == NULL) {
-		ERROR("Assigning to undefined variable `%.*s`", var.length, var.start);
-		return;
-	}
+	Variable var = local_capture(parser, name.start, name.length);
+	if (var.type == VAR_LOCAL) {
+		// Parse an expression
+		expr_emit(parser, var.slot);
+	} else if (var.type == VAR_UPVALUE) {
+		// Parse an expression into an empty local slot
+		scope_new(parser);
+		uint16_t slot;
+		local_new(parser, &slot);
+		expr_emit(parser, slot);
+		scope_free(parser);
 
-	// Parse an expression
-	expr_emit(parser, slot);
+		// Store the local into an upvalue
+		emit(parser->fn, instr_new(MOV_UL, var.slot, slot, 0));
+	} else {
+		ERROR("Assigning to undefined variable `%.*s`", name.length, name.start);
+	}
 }
 
 
@@ -1566,7 +1691,7 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length) {
 
 	// Expect an opening parenthesis
 	if (lexer->token != TOKEN_OPEN_PARENTHESIS) {
-		ERROR("Expected `(` after function name to begin arguments list");
+		UNEXPECTED("Expected `(` after function name to begin arguments list");
 		return 0;
 	}
 	lexer_next(lexer);
@@ -1596,14 +1721,14 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length) {
 
 	// Expect a closing parenthesis
 	if (lexer->token != TOKEN_CLOSE_PARENTHESIS) {
-		ERROR("Expected `)` to close function arguments list");
+		UNEXPECTED("Expected `)` to close function arguments list");
 		return 0;
 	}
 	lexer_next(lexer);
 
 	// Expect an opening brace to begin the function block
 	if (lexer->token != TOKEN_OPEN_BRACE) {
-		ERROR("Expected `{` after arguments list to open function block");
+		UNEXPECTED("Expected `{` after arguments list to open function block");
 		return 0;
 	}
 	lexer_next(lexer);
@@ -1611,12 +1736,12 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length) {
 	// Parse the function body
 	parse_block(&child, TOKEN_CLOSE_BRACE);
 
-	// Emit a return statement at the end of the body
+	// Emit a return instruction at the end of the body
 	emit(child.fn, instr_new(RET, 0, 0, 0));
 
 	// Expect a closing brace
 	if (lexer->token != TOKEN_CLOSE_BRACE) {
-		ERROR("Expected `}` to close function block");
+		UNEXPECTED("Expected `}` to close function block");
 		return 0;
 	}
 	lexer_next(lexer);
@@ -1724,15 +1849,27 @@ void parse_fn_call(Parser *parser, Identifier ident) {
 	scope_free(parser);
 
 	// Find a local with the name of the function
-	uint16_t slot;
 	char *name = ident.start;
 	size_t length = ident.length;
-	if (local_find(parser, name, length, &slot) == NULL) {
+	Variable var = local_capture(parser, name, length);
+	if (var.type == VAR_LOCAL) {
+		parse_fn_call_slot(parser, CALL_L, var.slot, return_slot);
+	} else if (var.type == VAR_UPVALUE) {
+		// Store the upvalue into a temporary local
+		uint16_t slot;
+		scope_new(parser);
+		local_new(parser, &slot);
+		emit(parser->fn, instr_new(MOV_LU, slot, var.slot, 0));
+
+		// Call the function
+		parse_fn_call_slot(parser, CALL_L, slot, return_slot);
+
+		// Free the temporary local
+		scope_free(parser);
+	} else {
 		// Undefined function
 		ERROR("Attempt to call undefined function `%.*s`", length, name);
 	}
-
-	parse_fn_call_slot(parser, CALL_L, slot, return_slot);
 }
 
 
@@ -1779,6 +1916,9 @@ void parse_return(Parser *parser) {
 
 	// Check for a return value
 	if (!expr_exists(lexer->token)) {
+		// Emit close upvalue instructions for all locals in this function
+		local_close_upvalues(parser);
+
 		// No return value
 		emit(parser->fn, instr_new(RET, 0, 0, 0));
 	} else {
@@ -1788,6 +1928,9 @@ void parse_return(Parser *parser) {
 		local_new(parser, &slot);
 		Operand operand = expr(parser, slot);
 		scope_free(parser);
+
+		// Emit close upvalue instructions for all locals in this function
+		local_close_upvalues(parser);
 
 		// Emit return instruction
 		Opcode opcode = RET_L + operand.type;

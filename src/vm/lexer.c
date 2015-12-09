@@ -110,6 +110,7 @@ int lexer_number_base(Lexer *lexer) {
 	// Base prefixes begin with a 0
 	if (CURRENT() == '0') {
 		// Skip over the 0
+		int saved = lexer->cursor;
 		CONSUME();
 
 		switch (CURRENT()) {
@@ -119,8 +120,10 @@ int lexer_number_base(Lexer *lexer) {
 		case 'o': return 8;
 		// Hexadecimal
 		case 'x': return 16;
-		// Invalid
-		default: return -1;
+		// Not a base prefix
+		default:
+			lexer->cursor = saved;
+			return 10;
 		}
 	}
 	return 10;
