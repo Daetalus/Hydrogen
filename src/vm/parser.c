@@ -99,7 +99,7 @@ void parse_block(Parser *parser, Token terminator);
 // Parses a function call to the function in `slot`, storing the return value in
 // `return_slot`.
 void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
-	uint16_t return_slot);
+	uint16_t return_slot, int self_slot);
 
 // Parses a function definition body (starting at the arguments list).
 uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
@@ -434,6 +434,12 @@ typedef struct {
 	// The type of the operand.
 	OperandType type;
 
+	// If this operand was created by indexing a struct, this will store the
+	// stack slot of the struct that was indexed, or -1 otherwise. Used when
+	// calling this local as a function, so we know which value to push as
+	// `self`.
+	int struct_slot;
+
 	// The value of the operand. Numbers and strings are stored as indices into
 	// the VM's number/string list.
 	union {
@@ -631,6 +637,15 @@ bool unary_valid(Opcode operator, OperandType operand) {
 }
 
 
+// Creates a new, empty operand.
+Operand operand_new(void) {
+	Operand operand;
+	operand.type = OP_NONE;
+	operand.struct_slot = -1;
+	return operand;
+}
+
+
 // Converts an integer or number operand into a double value.
 double operand_to_number(Parser *parser, Operand operand) {
 	if (operand.type == OP_NUMBER) {
@@ -649,8 +664,7 @@ bool operand_to_boolean(Operand operand) {
 
 // Attempts to fold an `and` or `or` operation.
 Operand fold_condition(Token operator, Operand left, Operand right) {
-	Operand operand;
-	operand.type = OP_NONE;
+	Operand operand = operand_new();
 
 	// Don't fold if both are locals
 	if (IS_JUMP_OR_LOCAL(left.type) && IS_JUMP_OR_LOCAL(right.type)) {
@@ -700,8 +714,7 @@ Operand fold_condition(Token operator, Operand left, Operand right) {
 
 // Attempts to fold an equality test.
 Operand fold_equal(Parser *parser, Token operator, Operand left, Operand right) {
-	Operand operand;
-	operand.type = OP_NONE;
+	Operand operand = operand_new();
 
 	// Only fold if types are equal
 	if (left.type != right.type) {
@@ -776,8 +789,7 @@ uint16_t compare_numbers(Token operator, double left, double right) {
 
 // Attempts to fold an order operation.
 Operand fold_order(Parser *parser, Token operator, Operand left, Operand right) {
-	Operand operand;
-	operand.type = OP_NONE;
+	Operand operand = operand_new();
 
 	if (left.type == OP_LOCAL && right.type == OP_LOCAL &&
 			left.slot == right.slot) {
@@ -801,8 +813,7 @@ Operand fold_order(Parser *parser, Token operator, Operand left, Operand right) 
 
 // Attempts to fold a concatenation operation.
 Operand fold_concat(Parser *parser, Operand left, Operand right) {
-	Operand operand;
-	operand.type = OP_NONE;
+	Operand operand = operand_new();
 
 	// Only fold if both are strings
 	if (left.type != OP_STRING || right.type != OP_STRING) {
@@ -828,8 +839,7 @@ Operand fold_concat(Parser *parser, Operand left, Operand right) {
 // Attempts to fold an arithmetic operation.
 Operand fold_arithmetic(Parser *parser, Token operator, Operand left,
 		Operand right) {
-	Operand operand;
-	operand.type = OP_NONE;
+	Operand operand = operand_new();
 
 	// Only fold if both are numbers
 	if (!IS_NUMBER(left.type) || !IS_NUMBER(right.type)) {
@@ -870,8 +880,7 @@ Operand fold_arithmetic(Parser *parser, Token operator, Operand left,
 // operation.
 Operand fold_binary(Parser *parser, Token operator, Operand left,
 		Operand right) {
-	Operand operand;
-	operand.type = OP_NONE;
+	Operand operand = operand_new();
 
 	if (operator == TOKEN_CONCAT) {
 		// Concatenation
@@ -1022,8 +1031,7 @@ Operand expr_or(Parser *parser, Operand left, Operand right) {
 // Emits bytecode for a binary operator.
 Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 		Operand left, Operand right) {
-	Operand operand;
-	operand.type = OP_NONE;
+	Operand operand = operand_new();
 
 	// Ensure the operands are valid for the operator
 	if (!binary_valid(operator, left.type, right.type)) {
@@ -1082,8 +1090,7 @@ Operand expr_binary_left(Parser *parser, Token operator, Operand left) {
 
 // Attempts to fold a unary operation.
 Operand fold_unary(Parser *parser, Opcode opcode, Operand right) {
-	Operand operand;
-	operand.type = OP_NONE;
+	Operand operand = operand_new();
 
 	// Can only fold negation
 	if (opcode != NEG_L) {
@@ -1106,8 +1113,7 @@ Operand fold_unary(Parser *parser, Opcode opcode, Operand right) {
 
 // Emits bytecode for a unary operator.
 Operand expr_unary(Parser *parser, Opcode opcode, Operand right) {
-	Operand operand;
-	operand.type = OP_NONE;
+	Operand operand = operand_new();
 
 	// Ensure the operand is valid for the operator
 	if (!unary_valid(opcode, right.type)) {
@@ -1177,7 +1183,7 @@ void expr_discharge(Parser *parser, uint16_t slot, Operand operand) {
 // Parses an operand into `slot`.
 Operand expr_operand(Parser *parser, uint16_t slot) {
 	Lexer *lexer = parser->lexer;
-	Operand operand;
+	Operand operand = operand_new();
 
 	switch (lexer->token) {
 	case TOKEN_INTEGER:
@@ -1275,7 +1281,6 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 
 	default:
 		UNEXPECTED("Expected operand in expression");
-		operand.type = OP_NONE;
 		break;
 	}
 
@@ -1286,15 +1291,16 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 // Parses a postfix operator after an operand.
 Operand expr_postfix(Parser *parser, Operand operand, uint16_t return_slot) {
 	Lexer *lexer = parser->lexer;
-	Operand result;
-	result.type = OP_NONE;
+	Operand result = operand_new();
 
 	if (lexer->token == TOKEN_OPEN_PARENTHESIS) {
 		// Function call
 		if (operand.type == OP_LOCAL) {
-			parse_fn_call_slot(parser, CALL_L, operand.slot, return_slot);
+			parse_fn_call_slot(parser, CALL_L, operand.slot, return_slot,
+				operand.struct_slot);
 		} else if (operand.type == OP_FN) {
-			parse_fn_call_slot(parser, CALL_F, operand.fn_index, return_slot);
+			parse_fn_call_slot(parser, CALL_F, operand.fn_index, return_slot,
+				operand.struct_slot);
 		} else {
 			ERROR("Attempt to call non-function");
 			return result;
@@ -1328,6 +1334,7 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t return_slot) {
 		// Set the return local
 		result.type = OP_LOCAL;
 		result.slot = return_slot;
+		result.struct_slot = operand.slot;
 	}
 
 	return result;
@@ -1902,8 +1909,10 @@ void parse_fn_definition(Parser *parser) {
 
 // Parses a call to the function in `slot`, storing the return value in
 // `return_slot`. Starts at the opening parenthesis of the arguments list.
+// If we're calling a method on a struct, the `self` argument is supplied in
+// the stack slot specified by `self_slot`.
 void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
-		uint16_t return_slot) {
+		uint16_t return_slot, int self_slot) {
 	Lexer *lexer = parser->lexer;
 
 	// Skip the opening parenthesis
@@ -1912,8 +1921,19 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 	// Create a new scope for the function arguments
 	scope_new(parser);
 
-	// Parse function arguments into consecutive local slots
+	// Add the `self` argument
 	uint8_t arity = 0;
+	if (self_slot >= 0) {
+		// Create a local for the argument
+		uint16_t slot;
+		local_new(parser, &slot);
+
+		// Move the `self` value into this slot
+		emit(parser->fn, instr_new(MOV_LL, slot, self_slot, 0));
+		arity++;
+	}
+
+	// Parse function arguments into consecutive local slots
 	while (!vm_has_error(parser->vm) &&
 			lexer->token != TOKEN_CLOSE_PARENTHESIS) {
 		// Create local for the argument
@@ -1968,7 +1988,7 @@ void parse_fn_call(Parser *parser, Identifier ident) {
 	size_t length = ident.length;
 	Variable var = local_capture(parser, name, length);
 	if (var.type == VAR_LOCAL) {
-		parse_fn_call_slot(parser, CALL_L, var.slot, return_slot);
+		parse_fn_call_slot(parser, CALL_L, var.slot, return_slot, -1);
 	} else if (var.type == VAR_UPVALUE) {
 		// Store the upvalue into a temporary local
 		uint16_t slot;
@@ -1977,7 +1997,7 @@ void parse_fn_call(Parser *parser, Identifier ident) {
 		emit(parser->fn, instr_new(MOV_LU, slot, var.slot, 0));
 
 		// Call the function
-		parse_fn_call_slot(parser, CALL_L, slot, return_slot);
+		parse_fn_call_slot(parser, CALL_L, slot, return_slot, -1);
 
 		// Free the temporary local
 		scope_free(parser);
@@ -2144,7 +2164,7 @@ void parse_struct_instantiation(Parser *parser, uint16_t slot) {
 		scope_free(parser);
 
 		// Call the constructor
-		parse_fn_call_slot(parser, CALL_F, def->constructor, return_slot);
+		parse_fn_call_slot(parser, CALL_F, def->constructor, return_slot, slot);
 	} else {
 		// Expect an opening and closing parenthesis
 		EXPECT(TOKEN_OPEN_PARENTHESIS,

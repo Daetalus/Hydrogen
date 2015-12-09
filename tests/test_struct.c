@@ -108,8 +108,8 @@ TEST(method_call) {
 	SELECT_FN(0);
 	ASSERT_INSTRUCTION(STRUCT_NEW, 0, 0, 0);
 	ASSERT_INSTRUCTION(STRUCT_FIELD, 1, 0, 0);
-	ASSERT_INSTRUCTION(MOV_LI, 0, 2, 0);
-	ASSERT_CALL(CALL_L, 0, 1, 2, 2);
+	ASSERT_INSTRUCTION(MOV_LL, 2, 0, 0);
+	ASSERT_CALL(CALL_L, 1, 1, 2, 1);
 	ASSERT_RET();
 
 	SELECT_FN(1);
@@ -136,7 +136,7 @@ MAIN() {
 	RUN(method_definition);
 	RUN(method_access);
 	RUN(self_access);
-	// RUN(method_call);
+	RUN(method_call);
 	// RUN(constructor_definition);
 	// RUN(constructor_call);
 }
