@@ -1783,6 +1783,16 @@ void parse_method_definition(Parser *parser) {
 	// Expect a closing parenthesis
 	EXPECT(TOKEN_CLOSE_PARENTHESIS, "Expected `)` after struct name");
 
+	// Check if this is a constructor
+	if (lexer->token == TOKEN_NEW) {
+		// Skip the `new` token
+		lexer_next(lexer);
+
+		// Parse the remainder of the function and set the struct's constructor
+		def->constructor = parse_fn_definition_body(parser, name, length);
+		return;
+	}
+
 	// Expect the name of the method
 	EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `fn`");
 	name = lexer->value.identifier.start;
