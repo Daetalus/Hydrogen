@@ -786,8 +786,8 @@ Operand fold_equal(Parser *parser, Token operator, Operand left, Operand right) 
 		break;
 	}
 	case OP_STRING: {
-		char *first = parser->vm->strings[left.string];
-		char *second = parser->vm->strings[right.string];
+		char *first = value_to_ptr(parser->vm->strings[left.string]);
+		char *second = value_to_ptr(parser->vm->strings[right.string]);
 		operand.primitive = (strcmp(first, second) == 0) ? TRUE_TAG : FALSE_TAG;
 		break;
 	}
@@ -864,8 +864,8 @@ Operand fold_concat(Parser *parser, Operand left, Operand right) {
 	}
 
 	// Extract both strings from the VM
-	char *left_str = parser->vm->strings[left.string];
-	char *right_str = parser->vm->strings[right.string];
+	char *left_str = value_to_ptr(parser->vm->strings[left.string]);
+	char *right_str = value_to_ptr(parser->vm->strings[right.string]);
 	size_t left_length = strlen(left_str);
 
 	// Combine both strings
@@ -1964,7 +1964,7 @@ void parse_method_definition(Parser *parser) {
 	field->length = length;
 
 	// Set the default value of the struct field
-	def->values[index] = VALUE_FROM_FN(fn_index);
+	def->values[index] = VALUE_FROM_TAG(fn_index, FN_TAG);
 }
 
 

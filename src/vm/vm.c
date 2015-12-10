@@ -3,11 +3,14 @@
 //  Virtual Machine
 //
 
+#include <math.h>
 #include <string.h>
 
 #include "vm.h"
 #include "parser.h"
 #include "error.h"
+#include "value.h"
+#include "debug.h"
 
 
 // Create a new interpreter state.
@@ -21,8 +24,8 @@ HyVM * hy_new(void) {
 	// Allocate memory for arrays
 	ARRAY_INIT(vm->functions, Function, 4);
 	ARRAY_INIT(vm->packages, Package, 4);
-	ARRAY_INIT(vm->numbers, double, 16);
-	ARRAY_INIT(vm->strings, char *, 16);
+	ARRAY_INIT(vm->numbers, uint64_t, 16);
+	ARRAY_INIT(vm->strings, uint64_t, 16);
 	ARRAY_INIT(vm->upvalues, Upvalue, 4);
 	ARRAY_INIT(vm->structs, StructDefinition, 2);
 	ARRAY_INIT(vm->fields, Identifier, 4);
@@ -41,7 +44,7 @@ void hy_free(HyVM *vm) {
 
 	// Strings
 	for (uint32_t i = 0; i < vm->strings_count; i++) {
-		free(vm->strings[i]);
+		free(value_to_ptr(vm->strings[i]));
 	}
 
 	// Functions
@@ -108,8 +111,8 @@ HyError * hy_error(HyVM *vm) {
 // string.
 uint16_t vm_add_string(VirtualMachine *vm, char *string) {
 	uint16_t index = vm->strings_count++;
-	ARRAY_REALLOC(vm->strings, char *);
-	vm->strings[index] = string;
+	ARRAY_REALLOC(vm->strings, uint64_t);
+	vm->strings[index] = ptr_to_value(string);
 	return index;
 }
 
@@ -118,8 +121,8 @@ uint16_t vm_add_string(VirtualMachine *vm, char *string) {
 // number.
 uint16_t vm_add_number(VirtualMachine *vm, double number) {
 	uint16_t index = vm->numbers_count++;
-	ARRAY_REALLOC(vm->numbers, double);
-	vm->numbers[index] = number;
+	ARRAY_REALLOC(vm->numbers, uint64_t);
+	vm->numbers[index] = number_to_value(number);
 	return index;
 }
 
@@ -312,6 +315,7 @@ StructDefinition * struct_new(VirtualMachine *vm) {
 // Frees a struct.
 void struct_free(StructDefinition *def) {
 	free(def->fields);
+	free(def->values);
 }
 
 
@@ -355,7 +359,240 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 //  Execution
 //
 
+// The maximum number of locals that can be defined on the stack.
+#define MAX_STACK_SIZE 2048
+
+// The maximum number of function frames that can exist on the call stack. This
+// is the recursion depth limit.
+#define MAX_CALL_STACK_SIZE 1024
+
+
+// Evaluates to the opcode of an instruction.
+#define INSTR_OPCODE(instr) ((instr) & 0xff)
+
+// Evaluates to the `n`th argument of an instruction.
+#define INSTR_ARG0(instr) (((instr) & (uint64_t) 0xff00) >> 8)
+#define INSTR_ARG1(instr) (((instr) & (uint64_t) 0xffff0000) >> 16)
+#define INSTR_ARG2(instr) (((instr) & (uint64_t) 0xffff00000000) >> 32)
+#define INSTR_ARG3(instr) (((instr) & (uint64_t) 0xffff000000000000) >> 48)
+
+// Shortcut for the `n`th argument of the current instruction.
+#define ARG0 INSTR_ARG0(*ip)
+#define ARG1 INSTR_ARG1(*ip)
+#define ARG2 INSTR_ARG2(*ip)
+#define ARG3 INSTR_ARG3(*ip)
+
+// Shortcut for the `n`th argument, treating it as a local.
+#define ARG1_L (stack_start + ARG1)
+#define ARG2_L (stack_start + ARG2)
+#define ARG3_L (stack_start + ARG3)
+
+
+// Converts an argument (uint16) to a number (double).
+#define INTEGER_TO_DOUBLE(integer) \
+	number_to_value((double) uint16_to_int16(integer))
+
+
+// Triggers an error if an argument is not a number.
+#define ENSURE_NUMBER(arg)              \
+	if (!IS_NUMBER_VALUE(arg)) {        \
+		err = ERR_OPERATOR_NON_NUMBERS; \
+		goto error;                     \
+	}
+
+#define ENSURE_NUMBERS(arg1, arg2)                          \
+	if (!IS_NUMBER_VALUE(arg1) || !IS_NUMBER_VALUE(arg2)) { \
+		err = ERR_OPERATOR_NON_NUMBERS;                     \
+		goto error;                                         \
+	}
+
+
+// Shorthand for defining a set of arithmetic operations.
+#define ARITHMETIC_OPERATION(prefix, op)                                  \
+	prefix ## _LL:                                                        \
+		ENSURE_NUMBERS(stack[ARG2_L], stack[ARG3_L]);                     \
+		stack[ARG1_L] = number_to_value(value_to_number(stack[ARG2_L]) op \
+			value_to_number(stack[ARG3_L]));                              \
+		goto instruction;                                                 \
+	prefix ## _LI:                                                        \
+		ENSURE_NUMBER(stack[ARG2_L]);                                     \
+		stack[ARG1_L] = number_to_value(value_to_number(stack[ARG2_L]) op \
+			INTEGER_TO_DOUBLE(ARG3));                                     \
+		goto instruction;                                                 \
+	prefix ## _LN:                                                        \
+		ENSURE_NUMBER(stack[ARG2_L]);                                     \
+		stack[ARG1_L] = number_to_value(value_to_number(stack[ARG2_L]) op \
+			numbers[ARG3]);                                               \
+		goto instruction;                                                 \
+	prefix ## _IL:                                                        \
+		ENSURE_NUMBER(stack[ARG3_L]);                                     \
+		stack[ARG1_L] = number_to_value(INTEGER_TO_DOUBLE(ARG2) op        \
+			value_to_number(stack[ARG3_L]));                              \
+		goto instruction;                                                 \
+	prefix ## _NL:                                                        \
+		ENSURE_NUMBER(stack[ARG3_L]);                                     \
+		stack[ARG1_L] = number_to_value(numbers[ARG2] op                  \
+			value_to_number(stack[ARG3_L]));                              \
+		goto instruction;
+
+
+// Push a new function onto the call frame stack.
+#define PUSH_FRAME(index, start)                    \
+	if (frames_count > 0) {                         \
+		frames[frames_count - 1].ip = ip;           \
+	}                                               \
+	fn = &functions[(index)];                       \
+	ip = fn->bytecode;                              \
+	frames[frames_count - 1].stack_start = (start); \
+	stack_start = (start);
+
+
+
+// A function frame on the call stack.
+typedef struct {
+	// The start of the function's locals on the stack.
+	uint32_t stack_start;
+
+	// The saved instruction pointer, pointing to the next bytecode instruction
+	// to be executed in this function.
+	uint64_t *ip;
+} Frame;
+
+
+// Possible runtime errors.
+typedef enum {
+	ERR_OPERATOR_NON_NUMBERS,
+} RuntimeError;
+
+
 // Executes a compiled function on the virtual machine.
-HyResult fn_exec(VirtualMachine *vm, uint16_t fn_index) {
+HyResult fn_exec(VirtualMachine *vm, uint16_t main_fn) {
+	Function *fn = &vm->functions[main_fn];
+	debug_print_bytecode(fn);
+
+	// The variable stack
+	uint64_t *stack = malloc(sizeof(uint64_t) * MAX_STACK_SIZE);
+
+	// The function frame stack
+	Frame *frames = malloc(sizeof(Frame) * MAX_CALL_STACK_SIZE);
+	int frames_count = 0;
+
+	// Cache from the VM
+	uint64_t *numbers = vm->numbers;
+	uint64_t *strings = vm->strings;
+	Upvalue *upvalues = vm->upvalues;
+	Function *functions = vm->functions;
+
+	// The instruction pointer for the currently executing function (the top
+	// most on the call frame stack)
+	uint64_t *ip = NULL;
+
+	// The start of the currently executing function's locals on the stack
+	uint32_t stack_start = 0;
+
+	// The type of a runtime error, if one is triggered
+	RuntimeError err;
+
+	// Push the main function's call frame
+	PUSH_FRAME(main_fn, 0);
+
+	// Main execution loop
+instruction:
+	ip++;
+	switch (INSTR_OPCODE(*ip)) {
+
+	//
+	//  Storage
+	//
+
+	MOV_LL:
+		stack[ARG1_L] = stack[ARG2_L];
+		goto instruction;
+	MOV_LI:
+		stack[ARG1_L] = INTEGER_TO_DOUBLE(ARG2);
+		goto instruction;
+	MOV_LN:
+		stack[ARG1_L] = numbers[ARG2];
+		goto instruction;
+	MOV_LS:
+		stack[ARG1_L] = strings[ARG2];
+		goto instruction;
+	MOV_LP:
+		stack[ARG1_L] = VALUE_FROM_TAG(0, ARG2);
+		goto instruction;
+	MOV_LF:
+		stack[ARG1_L] = VALUE_FROM_TAG(ARG2, FN_TAG);
+		goto instruction;
+	MOV_LU:
+		// TODO
+		goto instruction;
+	MOV_UL:
+		// TODO
+		goto instruction;
+
+
+	//
+	//  Math
+	//
+
+	ARITHMETIC_OPERATION(ADD, +)
+	ARITHMETIC_OPERATION(SUB, -)
+	ARITHMETIC_OPERATION(MUL, *)
+	ARITHMETIC_OPERATION(DIV, / )
+
+	MOD_LL:
+		ENSURE_NUMBERS(stack[ARG2_L], stack[ARG3_L]);
+		stack[ARG1_L] = number_to_value(fmod(value_to_number(stack[ARG2_L]),
+			value_to_number(stack[ARG3_L])));
+		goto instruction;
+	MOD_LI:
+		ENSURE_NUMBER(stack[ARG2_L]);
+		stack[ARG1_L] = number_to_value(fmod(value_to_number(stack[ARG2_L]),
+			INTEGER_TO_DOUBLE(ARG3)));
+		goto instruction;
+	MOD_LN:
+		ENSURE_NUMBER(stack[ARG2_L]);
+		stack[ARG1_L] = number_to_value(fmod(value_to_number(stack[ARG2_L]),
+			numbers[ARG3]));
+		goto instruction;
+	MOD_IL:
+		ENSURE_NUMBER(stack[ARG3_L]);
+		stack[ARG1_L] = number_to_value(fmod(INTEGER_TO_DOUBLE(ARG2),
+			value_to_number(stack[ARG3_L])));
+		goto instruction;
+	MOD_NL:
+		ENSURE_NUMBER(stack[ARG3_L]);
+		stack[ARG1_L] = number_to_value(fmod(numbers[ARG2],
+			value_to_number(stack[ARG3_L])));
+		goto instruction;
+
+	CONCAT_LL:
+		// TODO
+		goto instruction;
+	CONCAT_LS:
+		// TODO
+		goto instruction;
+	CONCAT_SL:
+		// TODO
+		goto instruction;
+	NEG_L:
+		// TODO
+		goto instruction;
+
+
+	//
+	//  Functions
+	//
+
+	RET:
+		goto finish;
+	}
+
+finish:
+	printf("YAYYYYYYYYYYYYYYYYYYYY!!!\n");
 	return HY_SUCCESS;
+
+error:
+	printf("FAILED! %d\n", err);
+	return HY_RUNTIME_ERROR;
 }

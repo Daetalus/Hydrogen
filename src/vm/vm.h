@@ -104,10 +104,10 @@ typedef struct vm {
 	ARRAY(Package, packages);
 
 	// Numbers encountered during compilation.
-	ARRAY(double, numbers);
+	ARRAY(uint64_t, numbers);
 
 	// Strings encountered during compilation.
-	ARRAY(char *, strings);
+	ARRAY(uint64_t, strings);
 
 	// Upvalues found during compilation.
 	ARRAY(Upvalue, upvalues);
@@ -186,6 +186,6 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 
 
 // Executes a compiled function on the virtual machine.
-HyResult fn_exec(VirtualMachine *vm, uint16_t fn_index);
+HyResult fn_exec(VirtualMachine *vm, uint16_t main_fn);
 
 #endif

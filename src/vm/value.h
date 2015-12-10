@@ -9,9 +9,9 @@
 #include <stdlib.h>
 
 // Integer tags for primitive values.
-#define NIL_TAG   0
-#define FALSE_TAG 1
-#define TRUE_TAG  2
+#define NIL_TAG   1
+#define FALSE_TAG 2
+#define TRUE_TAG  3
 
 // The sign bit. Only set if the value is a pointer.
 #define SIGN ((uint64_t) 1 << 63)
@@ -20,13 +20,12 @@
 #define QUIET_NAN ((uint64_t) 0x7ffc000000000000)
 
 // Static values.
-#define NIL_VALUE   (QUIET_NAN | 1)
-#define FALSE_VALUE (QUIET_NAN | 2)
-#define TRUE_VALUE  (QUIET_NAN | 3)
+#define NIL_VALUE   (QUIET_NAN | NIL_TAG)
+#define FALSE_VALUE (QUIET_NAN | FALSE_TAG)
+#define TRUE_VALUE  (QUIET_NAN | TRUE_TAG)
 
-// Mask used to indicate a value is a function. Function indices are stored in
-// the first 2 bytes of a value, so set the first bit above those two bytes to
-// indicate a value is a function.
+// Masks used to indicate a value is of a particular type. Values are stored in
+// the first 2 bytes, so set the first bit above those two bytes.
 #define FN_TAG 0x10000
 
 // Evaluates to true when `value` is a number, when not all of the quiet NaN
@@ -44,10 +43,10 @@
 	(((value) & (QUIET_NAN | FN_TAG)) == (QUIET_NAN | FN_TAG))
 
 // Creates a function value from a function index.
-#define VALUE_FROM_FN(index) (((uint64_t) (index)) | QUIET_NAN | FN_TAG)
+#define VALUE_FROM_TAG(index, tag) (((uint64_t) (index)) | QUIET_NAN | (tag))
 
 // Evaluates to a function index from a function value.
-#define FN_FROM_VALUE(value) ((uint16_t) ((value) ^ (QUIET_NAN | FN_TAG)))
+#define TAG_FROM_VALUE(value, tag) ((uint16_t) ((value) ^ (QUIET_NAN | (tag))))
 
 // Converts a value into a number.
 double value_to_number(uint64_t value);
