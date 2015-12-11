@@ -503,6 +503,28 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 		goto instruction;
 
 
+// Shorthand for defining an order operation.
+#define ORDER_OPERATION(prefix, operator)                     \
+	prefix ## _LL:                                            \
+		ENSURE_NUMBERS(ARG1_L, ARG2_L);                       \
+		if (ARG1_L operator ARG2_L) {                         \
+			ip++;                                             \
+		}                                                     \
+		goto instruction;                                     \
+	prefix ## _LI:                                            \
+		ENSURE_NUMBER(ARG1_L);                                \
+		if (ARG1_L operator (double) uint16_to_int16(ARG2)) { \
+			ip++;                                             \
+		}                                                     \
+		goto instruction;                                     \
+	prefix ## _LN:                                            \
+		ENSURE_NUMBER(ARG1_L);                                \
+		if (ARG1_L operator numbers[ARG2]) {                  \
+			ip++;                                             \
+		}                                                     \
+		goto instruction;
+
+
 // Push a new function onto the call frame stack.
 #define PUSH_FRAME(index, start)                    \
 	if (frames_count > 0) {                         \
@@ -696,6 +718,11 @@ instruction:
 
 	EQUALITY_OPERATION(EQ, !=, !)
 	EQUALITY_OPERATION(NEQ, ==, )
+	ORDER_OPERATION(LT, >=)
+	ORDER_OPERATION(LE, >)
+	ORDER_OPERATION(GT, <=)
+	ORDER_OPERATION(GE, <)
+
 
 	//
 	//  Functions
