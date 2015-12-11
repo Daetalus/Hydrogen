@@ -9,6 +9,7 @@
 #include "vm.h"
 #include "parser.h"
 #include "error.h"
+#include "bytecode.h"
 #include "value.h"
 #include "debug.h"
 
@@ -434,27 +435,27 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 
 // Shorthand for defining a set of arithmetic operations.
 #define ARITHMETIC_OPERATION(prefix, op)                    \
-	prefix ## _LL:                                          \
+	case prefix ## _LL:                                     \
 		ENSURE_NUMBERS(ARG2_L, ARG3_L);                     \
 		ARG1_L = number_to_value(value_to_number(ARG2_L) op \
 			value_to_number(ARG3_L));                       \
 		goto instruction;                                   \
-	prefix ## _LI:                                          \
+	case prefix ## _LI:                                     \
 		ENSURE_NUMBER(ARG2_L);                              \
 		ARG1_L = number_to_value(value_to_number(ARG2_L) op \
 			INTEGER_TO_DOUBLE(ARG3));                       \
 		goto instruction;                                   \
-	prefix ## _LN:                                          \
+	case prefix ## _LN:                                     \
 		ENSURE_NUMBER(ARG2_L);                              \
 		ARG1_L = number_to_value(value_to_number(ARG2_L) op \
 			numbers[ARG3]);                                 \
 		goto instruction;                                   \
-	prefix ## _IL:                                          \
+	case prefix ## _IL:                                     \
 		ENSURE_NUMBER(ARG3_L);                              \
 		ARG1_L = number_to_value(INTEGER_TO_DOUBLE(ARG2) op \
 			value_to_number(ARG3_L));                       \
 		goto instruction;                                   \
-	prefix ## _NL:                                          \
+	case prefix ## _NL:                                     \
 		ENSURE_NUMBER(ARG3_L);                              \
 		ARG1_L = number_to_value(numbers[ARG2] op           \
 			value_to_number(ARG3_L));                       \
@@ -463,7 +464,7 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 
 // Shorthand for defining a set of equality operations.
 #define EQUALITY_OPERATION(prefix, binary, unary)                            \
-	prefix ## _LL:                                                           \
+	case prefix ## _LL:                                                      \
 		if ((ARG1_L binary ARG2_L) ||                                        \
 				unary (IS_STRING_VALUE(ARG1_L) && IS_STRING_VALUE(ARG2_L) && \
 					strcmp(TO_STR(ARG1_L), TO_STR(ARG2_L)) == 0) ||          \
@@ -474,28 +475,28 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 			ip++;                                                            \
 		}                                                                    \
 		goto instruction;                                                    \
-	prefix ## _LI:                                                           \
+	case prefix ## _LI:                                                      \
 		if (ARG1_L binary (double) uint16_to_int16(ARG2)) {                  \
 			ip++;                                                            \
 		}                                                                    \
 		goto instruction;                                                    \
-	prefix ## _LN:                                                           \
+	case prefix ## _LN:                                                      \
 		if (ARG1_L binary numbers[ARG2]) {                                   \
 			ip++;                                                            \
 		}                                                                    \
 		goto instruction;                                                    \
-	prefix ## _LS:                                                           \
+	case prefix ## _LS:                                                      \
 		if (unary (IS_STRING_VALUE(ARG1_L) &&                                \
 				strcmp(TO_STR(ARG2_L), TO_STR(strings[ARG3])) == 0)) {       \
 			ip++;                                                            \
 		}                                                                    \
 		goto instruction;                                                    \
-	prefix ## _LP:                                                           \
+	case prefix ## _LP:                                                      \
 		if (ARG1_L binary PRIMITIVE_FROM_TAG(ARG2)) {                        \
 			ip++;                                                            \
 		}                                                                    \
 		goto instruction;                                                    \
-	prefix ## _LF:                                                           \
+	case prefix ## _LF:                                                      \
 		if (unary (IS_FN_VALUE(ARG1_L) &&                                    \
 				VALUE_TO_INDEX(ARG1_L, FN_TAG) == ARG2)) {                   \
 			ip++;                                                            \
@@ -505,19 +506,19 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 
 // Shorthand for defining an order operation.
 #define ORDER_OPERATION(prefix, operator)                     \
-	prefix ## _LL:                                            \
+	case prefix ## _LL:                                       \
 		ENSURE_NUMBERS(ARG1_L, ARG2_L);                       \
 		if (ARG1_L operator ARG2_L) {                         \
 			ip++;                                             \
 		}                                                     \
 		goto instruction;                                     \
-	prefix ## _LI:                                            \
+	case prefix ## _LI:                                       \
 		ENSURE_NUMBER(ARG1_L);                                \
 		if (ARG1_L operator (double) uint16_to_int16(ARG2)) { \
 			ip++;                                             \
 		}                                                     \
 		goto instruction;                                     \
-	prefix ## _LN:                                            \
+	case prefix ## _LN:                                       \
 		ENSURE_NUMBER(ARG1_L);                                \
 		if (ARG1_L operator numbers[ARG2]) {                  \
 			ip++;                                             \
@@ -537,7 +538,7 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 
 
 // Concatenates two strings.
-inline char * concat_str(char *left, char *right) {
+char * concat_str(char *left, char *right) {
 	int length = strlen(left);
 	char *str = malloc(sizeof(char) * (length + strlen(right) + 1));
 	strcpy(str, left);
@@ -595,35 +596,34 @@ HyResult fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 
 	// Main execution loop
 instruction:
-	ip++;
-	switch (INSTR_OPCODE(*ip)) {
+	switch (INSTR_OPCODE(*(ip++))) {
 
 	//
 	//  Storage
 	//
 
-	MOV_LL:
+	case MOV_LL:
 		ARG1_L = ARG2_L;
 		goto instruction;
-	MOV_LI:
+	case MOV_LI:
 		ARG1_L = INTEGER_TO_DOUBLE(ARG2);
 		goto instruction;
-	MOV_LN:
+	case MOV_LN:
 		ARG1_L = numbers[ARG2];
 		goto instruction;
-	MOV_LS:
+	case MOV_LS:
 		ARG1_L = strings[ARG2];
 		goto instruction;
-	MOV_LP:
+	case MOV_LP:
 		ARG1_L = PRIMITIVE_FROM_TAG(ARG2);
 		goto instruction;
-	MOV_LF:
+	case MOV_LF:
 		ARG1_L = INDEX_TO_VALUE(ARG2, FN_TAG);
 		goto instruction;
-	MOV_LU:
+	case MOV_LU:
 		// TODO
 		goto instruction;
-	MOV_UL:
+	case MOV_UL:
 		// TODO
 		goto instruction;
 
@@ -637,27 +637,27 @@ instruction:
 	ARITHMETIC_OPERATION(MUL, *)
 	ARITHMETIC_OPERATION(DIV, / )
 
-	MOD_LL:
+	case MOD_LL:
 		ENSURE_NUMBERS(ARG2_L, ARG3_L);
 		ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
 			value_to_number(ARG3_L)));
 		goto instruction;
-	MOD_LI:
+	case MOD_LI:
 		ENSURE_NUMBER(ARG2_L);
 		ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
 			INTEGER_TO_DOUBLE(ARG3)));
 		goto instruction;
-	MOD_LN:
+	case MOD_LN:
 		ENSURE_NUMBER(ARG2_L);
 		ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
 			numbers[ARG3]));
 		goto instruction;
-	MOD_IL:
+	case MOD_IL:
 		ENSURE_NUMBER(ARG3_L);
 		ARG1_L = number_to_value(fmod(INTEGER_TO_DOUBLE(ARG2),
 			value_to_number(ARG3_L)));
 		goto instruction;
-	MOD_NL:
+	case MOD_NL:
 		ENSURE_NUMBER(ARG3_L);
 		ARG1_L = number_to_value(fmod(
 			numbers[ARG2],
@@ -665,7 +665,7 @@ instruction:
 		));
 		goto instruction;
 
-	CONCAT_LL: {
+	case CONCAT_LL: {
 		ENSURE_STRS(ARG2_L, ARG3_L);
 		ARG1_L = ptr_to_value(concat_str(
 			value_to_ptr(ARG2_L),
@@ -673,7 +673,7 @@ instruction:
 		));
 		goto instruction;
 	}
-	CONCAT_LS: {
+	case CONCAT_LS: {
 		ENSURE_STR(ARG2_L);
 		ARG1_L = ptr_to_value(concat_str(
 			value_to_ptr(ARG2_L),
@@ -681,7 +681,7 @@ instruction:
 		));
 		goto instruction;
 	}
-	CONCAT_SL: {
+	case CONCAT_SL: {
 		ENSURE_STR(ARG2_L);
 		ARG1_L = ptr_to_value(concat_str(
 			TO_STR(strings[ARG2]),
@@ -690,7 +690,7 @@ instruction:
 		goto instruction;
 	}
 
-	NEG_L:
+	case NEG_L:
 		ENSURE_NUMBER(ARG1_L);
 		ARG1_L = number_to_value(-value_to_number(ARG1_L));
 		goto instruction;
@@ -705,12 +705,12 @@ instruction:
 	// the jump instruction (by incrementing the instruction pointer), if the
 	// comparison is false.
 
-	IS_TRUE_L:
+	case IS_TRUE_L:
 		if (ARG1_L != TRUE_VALUE) {
 			ip++;
 		}
 		goto instruction;
-	IS_FALSE_L:
+	case IS_FALSE_L:
 		if (ARG1_L == TRUE_VALUE) {
 			ip++;
 		}
@@ -725,10 +725,22 @@ instruction:
 
 
 	//
+	//  Control Flow
+	//
+
+	case JMP:
+		ip += ARG2 - 1;
+		goto instruction;
+	case LOOP:
+		ip -= ARG2 + 1;
+		goto instruction;
+
+
+	//
 	//  Functions
 	//
 
-	RET:
+	case RET:
 		goto finish;
 	}
 
