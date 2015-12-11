@@ -433,33 +433,41 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 	}
 
 
+// Triggers an error if an argument isn't a function.
+#define ENSURE_FN(arg)        \
+	if (!IS_FN_VALUE(arg)) {  \
+		err = ERR_INVALID_FN; \
+		goto error;           \
+	}
+
+
 // Shorthand for defining a set of arithmetic operations.
 #define ARITHMETIC_OPERATION(prefix, op)                    \
 	case prefix ## _LL:                                     \
 		ENSURE_NUMBERS(ARG2_L, ARG3_L);                     \
 		ARG1_L = number_to_value(value_to_number(ARG2_L) op \
 			value_to_number(ARG3_L));                       \
-		goto instruction;                                   \
+		NEXT();                                   \
 	case prefix ## _LI:                                     \
 		ENSURE_NUMBER(ARG2_L);                              \
 		ARG1_L = number_to_value(value_to_number(ARG2_L) op \
 			INTEGER_TO_DOUBLE(ARG3));                       \
-		goto instruction;                                   \
+		NEXT();                                   \
 	case prefix ## _LN:                                     \
 		ENSURE_NUMBER(ARG2_L);                              \
 		ARG1_L = number_to_value(value_to_number(ARG2_L) op \
 			numbers[ARG3]);                                 \
-		goto instruction;                                   \
+		NEXT();                                   \
 	case prefix ## _IL:                                     \
 		ENSURE_NUMBER(ARG3_L);                              \
 		ARG1_L = number_to_value(INTEGER_TO_DOUBLE(ARG2) op \
 			value_to_number(ARG3_L));                       \
-		goto instruction;                                   \
+		NEXT();                                   \
 	case prefix ## _NL:                                     \
 		ENSURE_NUMBER(ARG3_L);                              \
 		ARG1_L = number_to_value(numbers[ARG2] op           \
 			value_to_number(ARG3_L));                       \
-		goto instruction;
+		NEXT();
 
 
 // Shorthand for defining a set of equality operations.
@@ -474,34 +482,34 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 						FIELDS_COUNT(ARG1_L) * sizeof(uint64_t)) == 0)) {    \
 			ip++;                                                            \
 		}                                                                    \
-		goto instruction;                                                    \
+		NEXT();                                                    \
 	case prefix ## _LI:                                                      \
 		if (ARG1_L binary (double) uint16_to_int16(ARG2)) {                  \
 			ip++;                                                            \
 		}                                                                    \
-		goto instruction;                                                    \
+		NEXT();                                                    \
 	case prefix ## _LN:                                                      \
 		if (ARG1_L binary numbers[ARG2]) {                                   \
 			ip++;                                                            \
 		}                                                                    \
-		goto instruction;                                                    \
+		NEXT();                                                    \
 	case prefix ## _LS:                                                      \
 		if (unary (IS_STRING_VALUE(ARG1_L) &&                                \
 				strcmp(TO_STR(ARG2_L), TO_STR(strings[ARG3])) == 0)) {       \
 			ip++;                                                            \
 		}                                                                    \
-		goto instruction;                                                    \
+		NEXT();                                                    \
 	case prefix ## _LP:                                                      \
 		if (ARG1_L binary PRIMITIVE_FROM_TAG(ARG2)) {                        \
 			ip++;                                                            \
 		}                                                                    \
-		goto instruction;                                                    \
+		NEXT();                                                    \
 	case prefix ## _LF:                                                      \
 		if (unary (IS_FN_VALUE(ARG1_L) &&                                    \
 				VALUE_TO_INDEX(ARG1_L, FN_TAG) == ARG2)) {                   \
 			ip++;                                                            \
 		}                                                                    \
-		goto instruction;
+		NEXT();
 
 
 // Shorthand for defining an order operation.
@@ -511,30 +519,51 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 		if (ARG1_L operator ARG2_L) {                         \
 			ip++;                                             \
 		}                                                     \
-		goto instruction;                                     \
+		NEXT();                                     \
 	case prefix ## _LI:                                       \
 		ENSURE_NUMBER(ARG1_L);                                \
 		if (ARG1_L operator (double) uint16_to_int16(ARG2)) { \
 			ip++;                                             \
 		}                                                     \
-		goto instruction;                                     \
+		NEXT();                                     \
 	case prefix ## _LN:                                       \
 		ENSURE_NUMBER(ARG1_L);                                \
 		if (ARG1_L operator numbers[ARG2]) {                  \
 			ip++;                                             \
 		}                                                     \
-		goto instruction;
+		NEXT();
 
 
-// Push a new function onto the call frame stack.
-#define PUSH_FRAME(index, start)                    \
-	if (frames_count > 0) {                         \
-		frames[frames_count - 1].ip = ip;           \
-	}                                               \
-	fn = &functions[(index)];                       \
-	ip = fn->bytecode;                              \
-	frames[frames_count - 1].stack_start = (start); \
-	stack_start = (start);
+// Call a function.
+#define CALL(fn_index, call_arity, argument_start, fn_return_slot)         \
+	frames[frames_count - 1].ip = ip;                                      \
+	fn = &functions[fn_index];                                             \
+	if (fn->arity != (call_arity)) {                                       \
+		err = ERR_INCORRECT_ARITY;                                         \
+		goto error;                                                        \
+	}                                                                      \
+	frames_count++;                                                        \
+	ip = fn->bytecode;                                                     \
+	frames[frames_count - 1].stack_start = stack_start + (argument_start); \
+	frames[frames_count - 1].return_slot = stack_start + (fn_return_slot); \
+	stack_start += (argument_start);
+
+
+// Return from a function.
+#define RETURN(value)                                   \
+	frames_count--;                                     \
+	if (frames_count == 0) {                            \
+		goto finish;                                    \
+	}                                                   \
+	ip = frames[frames_count - 1].ip;                   \
+	stack_start = frames[frames_count - 1].stack_start; \
+	stack[frames[frames_count - 1].return_slot] = (value);
+
+
+// Goes to the next instruction.
+#define NEXT() \
+	ip++;      \
+	goto instruction;
 
 
 // Concatenates two strings.
@@ -549,8 +578,12 @@ char * concat_str(char *left, char *right) {
 
 // A function frame on the call stack.
 typedef struct {
-	// The start of the function's locals on the stack.
+	// The start of the function's locals on the stack (absolute stack position)
 	uint32_t stack_start;
+
+	// The absolute position on the stack where the function's return value
+	// should be stored.
+	uint32_t return_slot;
 
 	// The saved instruction pointer, pointing to the next bytecode instruction
 	// to be executed in this function.
@@ -561,6 +594,8 @@ typedef struct {
 // Possible runtime errors.
 typedef enum {
 	ERR_INVALID_OPERAND,
+	ERR_INVALID_FN,
+	ERR_INCORRECT_ARITY,
 } RuntimeError;
 
 
@@ -574,7 +609,7 @@ HyResult fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 
 	// The function frame stack
 	Frame *frames = malloc(sizeof(Frame) * MAX_CALL_STACK_SIZE);
-	int frames_count = 0;
+	uint32_t frames_count = 0;
 
 	// Cache from the VM
 	uint64_t *numbers = vm->numbers;
@@ -592,11 +627,13 @@ HyResult fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	RuntimeError err;
 
 	// Push the main function's call frame
-	PUSH_FRAME(main_fn, 0);
+	frames_count++;
+	ip = fn->bytecode;
+	frames[frames_count - 1].stack_start = 0;
 
 	// Main execution loop
 instruction:
-	switch (INSTR_OPCODE(*(ip++))) {
+	switch (INSTR_OPCODE(*ip)) {
 
 	//
 	//  Storage
@@ -604,28 +641,28 @@ instruction:
 
 	case MOV_LL:
 		ARG1_L = ARG2_L;
-		goto instruction;
+		NEXT();
 	case MOV_LI:
 		ARG1_L = INTEGER_TO_DOUBLE(ARG2);
-		goto instruction;
+		NEXT();
 	case MOV_LN:
 		ARG1_L = numbers[ARG2];
-		goto instruction;
+		NEXT();
 	case MOV_LS:
 		ARG1_L = strings[ARG2];
-		goto instruction;
+		NEXT();
 	case MOV_LP:
 		ARG1_L = PRIMITIVE_FROM_TAG(ARG2);
-		goto instruction;
+		NEXT();
 	case MOV_LF:
 		ARG1_L = INDEX_TO_VALUE(ARG2, FN_TAG);
-		goto instruction;
+		NEXT();
 	case MOV_LU:
 		// TODO
-		goto instruction;
+		NEXT();
 	case MOV_UL:
 		// TODO
-		goto instruction;
+		NEXT();
 
 
 	//
@@ -641,29 +678,29 @@ instruction:
 		ENSURE_NUMBERS(ARG2_L, ARG3_L);
 		ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
 			value_to_number(ARG3_L)));
-		goto instruction;
+		NEXT();
 	case MOD_LI:
 		ENSURE_NUMBER(ARG2_L);
 		ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
 			INTEGER_TO_DOUBLE(ARG3)));
-		goto instruction;
+		NEXT();
 	case MOD_LN:
 		ENSURE_NUMBER(ARG2_L);
 		ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
 			numbers[ARG3]));
-		goto instruction;
+		NEXT();
 	case MOD_IL:
 		ENSURE_NUMBER(ARG3_L);
 		ARG1_L = number_to_value(fmod(INTEGER_TO_DOUBLE(ARG2),
 			value_to_number(ARG3_L)));
-		goto instruction;
+		NEXT();
 	case MOD_NL:
 		ENSURE_NUMBER(ARG3_L);
 		ARG1_L = number_to_value(fmod(
 			numbers[ARG2],
 			value_to_number(ARG3_L)
 		));
-		goto instruction;
+		NEXT();
 
 	case CONCAT_LL: {
 		ENSURE_STRS(ARG2_L, ARG3_L);
@@ -671,7 +708,7 @@ instruction:
 			value_to_ptr(ARG2_L),
 			value_to_ptr(ARG3_L)
 		));
-		goto instruction;
+		NEXT();
 	}
 	case CONCAT_LS: {
 		ENSURE_STR(ARG2_L);
@@ -679,7 +716,7 @@ instruction:
 			value_to_ptr(ARG2_L),
 			TO_STR(strings[ARG3])
 		));
-		goto instruction;
+		NEXT();
 	}
 	case CONCAT_SL: {
 		ENSURE_STR(ARG2_L);
@@ -687,13 +724,13 @@ instruction:
 			TO_STR(strings[ARG2]),
 			value_to_ptr(ARG3_L)
 		));
-		goto instruction;
+		NEXT();
 	}
 
 	case NEG_L:
 		ENSURE_NUMBER(ARG1_L);
 		ARG1_L = number_to_value(-value_to_number(ARG1_L));
-		goto instruction;
+		NEXT();
 
 
 	//
@@ -709,12 +746,12 @@ instruction:
 		if (ARG1_L != TRUE_VALUE) {
 			ip++;
 		}
-		goto instruction;
+		NEXT();
 	case IS_FALSE_L:
 		if (ARG1_L == TRUE_VALUE) {
 			ip++;
 		}
-		goto instruction;
+		NEXT();
 
 	EQUALITY_OPERATION(EQ, !=, !)
 	EQUALITY_OPERATION(NEQ, ==, )
@@ -729,19 +766,46 @@ instruction:
 	//
 
 	case JMP:
-		ip += ARG2 - 1;
-		goto instruction;
+		ip += ARG2;
+		NEXT();
 	case LOOP:
-		ip -= ARG2 + 1;
-		goto instruction;
+		ip -= ARG2;
+		NEXT();
 
 
 	//
 	//  Functions
 	//
 
+	case CALL_L:
+		ENSURE_FN(ARG1_L);
+		CALL(ARG0, VALUE_TO_INDEX(ARG1_L, FN_TAG), ARG2, ARG3);
+		NEXT();
+	case CALL_F:
+		CALL(ARG0, ARG1, ARG2, ARG3);
+		NEXT();
+
 	case RET:
-		goto finish;
+		RETURN(NIL_VALUE);
+		NEXT();
+	case RET_L:
+		RETURN(ARG1_L);
+		NEXT();
+	case RET_I:
+		RETURN(INTEGER_TO_DOUBLE(ARG1));
+		NEXT();
+	case RET_N:
+		RETURN(numbers[ARG1]);
+		NEXT();
+	case RET_S:
+		RETURN(strings[ARG1]);
+		NEXT();
+	case RET_P:
+		RETURN(PRIMITIVE_FROM_TAG(ARG1));
+		NEXT();
+	case RET_F:
+		RETURN(INDEX_TO_VALUE(ARG1, FN_TAG));
+		NEXT();
 	}
 
 finish:
