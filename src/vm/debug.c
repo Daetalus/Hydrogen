@@ -13,7 +13,7 @@
 #define MAX_NAME_LENGTH 50
 
 // The number of opcodes.
-#define OPCODE_COUNT 82
+#define OPCODE_COUNT 84
 
 
 // The name of every opcode.
@@ -62,11 +62,13 @@ char OPCODE_NAMES[OPCODE_COUNT][MAX_NAME_LENGTH] = {
 	"EQ_LN",
 	"EQ_LS",
 	"EQ_LP",
+	"EQ_LF",
 	"NEQ_LL",
 	"NEQ_LI",
 	"NEQ_LN",
 	"NEQ_LS",
 	"NEQ_LP",
+	"NEQ_LF",
 	"LT_LL",
 	"LT_LI",
 	"LT_LN",
@@ -149,11 +151,13 @@ int ARGUMENT_COUNT[OPCODE_COUNT] = {
 	2, // EQ_LN
 	2, // EQ_LS
 	2, // EQ_LP
+	2, // EQ_LF
 	2, // NEQ_LL
 	2, // NEQ_LI
 	2, // NEQ_LN
 	2, // NEQ_LS
 	2, // NEQ_LP
+	2, // NEQ_LF
 	2, // LT_LL
 	2, // LT_LI
 	2, // LT_LN

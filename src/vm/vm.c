@@ -112,8 +112,19 @@ HyError * hy_error(HyVM *vm) {
 uint16_t vm_add_string(VirtualMachine *vm, char *string) {
 	uint16_t index = vm->strings_count++;
 	ARRAY_REALLOC(vm->strings, uint64_t);
-	vm->strings[index] = ptr_to_value(string);
+
+	Object *obj = malloc(sizeof(Object) + sizeof(char) * (strlen(string) + 1));
+	obj->type = OBJ_STRING;
+	strcpy(&obj->string[0], string);
+	vm->strings[index] = ptr_to_value(obj);
 	return index;
+}
+
+
+// Returns the string at `index` in the VM's strings list.
+char * vm_string(VirtualMachine *vm, int index) {
+	Object *obj = value_to_ptr(vm->strings[index]);
+	return &obj->string[0];
 }
 
 
@@ -383,9 +394,9 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 #define ARG3 INSTR_ARG3(*ip)
 
 // Shortcut for the `n`th argument, treating it as a local.
-#define ARG1_L (stack_start + ARG1)
-#define ARG2_L (stack_start + ARG2)
-#define ARG3_L (stack_start + ARG3)
+#define ARG1_L (stack[stack_start + ARG1])
+#define ARG2_L (stack[stack_start + ARG2])
+#define ARG3_L (stack[stack_start + ARG3])
 
 
 // Converts an argument (uint16) to a number (double).
@@ -394,45 +405,101 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 
 
 // Triggers an error if an argument is not a number.
-#define ENSURE_NUMBER(arg)              \
-	if (!IS_NUMBER_VALUE(arg)) {        \
-		err = ERR_OPERATOR_NON_NUMBERS; \
-		goto error;                     \
+#define ENSURE_NUMBER(arg)            \
+	if (!IS_NUMBER_VALUE(arg)) {      \
+		err = ERR_INVALID_OPERAND; \
+		goto error;                   \
 	}
 
 #define ENSURE_NUMBERS(arg1, arg2)                          \
 	if (!IS_NUMBER_VALUE(arg1) || !IS_NUMBER_VALUE(arg2)) { \
-		err = ERR_OPERATOR_NON_NUMBERS;                     \
+		err = ERR_INVALID_OPERAND;                          \
 		goto error;                                         \
 	}
 
 
+// Triggers an error if an argument is not a string.
+#define ENSURE_STR(arg)            \
+	if (!IS_STRING_VALUE(arg)) {   \
+		err = ERR_INVALID_OPERAND; \
+		goto error;                \
+	}
+
+#define ENSURE_STRS(arg1, arg2)                              \
+	if  (!IS_STRING_VALUE(arg1) || !IS_STRING_VALUE(arg2)) { \
+		err = ERR_INVALID_OPERAND;                           \
+		goto error;                                          \
+	}
+
+
 // Shorthand for defining a set of arithmetic operations.
-#define ARITHMETIC_OPERATION(prefix, op)                                  \
-	prefix ## _LL:                                                        \
-		ENSURE_NUMBERS(stack[ARG2_L], stack[ARG3_L]);                     \
-		stack[ARG1_L] = number_to_value(value_to_number(stack[ARG2_L]) op \
-			value_to_number(stack[ARG3_L]));                              \
-		goto instruction;                                                 \
-	prefix ## _LI:                                                        \
-		ENSURE_NUMBER(stack[ARG2_L]);                                     \
-		stack[ARG1_L] = number_to_value(value_to_number(stack[ARG2_L]) op \
-			INTEGER_TO_DOUBLE(ARG3));                                     \
-		goto instruction;                                                 \
-	prefix ## _LN:                                                        \
-		ENSURE_NUMBER(stack[ARG2_L]);                                     \
-		stack[ARG1_L] = number_to_value(value_to_number(stack[ARG2_L]) op \
-			numbers[ARG3]);                                               \
-		goto instruction;                                                 \
-	prefix ## _IL:                                                        \
-		ENSURE_NUMBER(stack[ARG3_L]);                                     \
-		stack[ARG1_L] = number_to_value(INTEGER_TO_DOUBLE(ARG2) op        \
-			value_to_number(stack[ARG3_L]));                              \
-		goto instruction;                                                 \
-	prefix ## _NL:                                                        \
-		ENSURE_NUMBER(stack[ARG3_L]);                                     \
-		stack[ARG1_L] = number_to_value(numbers[ARG2] op                  \
-			value_to_number(stack[ARG3_L]));                              \
+#define ARITHMETIC_OPERATION(prefix, op)                    \
+	prefix ## _LL:                                          \
+		ENSURE_NUMBERS(ARG2_L, ARG3_L);                     \
+		ARG1_L = number_to_value(value_to_number(ARG2_L) op \
+			value_to_number(ARG3_L));                       \
+		goto instruction;                                   \
+	prefix ## _LI:                                          \
+		ENSURE_NUMBER(ARG2_L);                              \
+		ARG1_L = number_to_value(value_to_number(ARG2_L) op \
+			INTEGER_TO_DOUBLE(ARG3));                       \
+		goto instruction;                                   \
+	prefix ## _LN:                                          \
+		ENSURE_NUMBER(ARG2_L);                              \
+		ARG1_L = number_to_value(value_to_number(ARG2_L) op \
+			numbers[ARG3]);                                 \
+		goto instruction;                                   \
+	prefix ## _IL:                                          \
+		ENSURE_NUMBER(ARG3_L);                              \
+		ARG1_L = number_to_value(INTEGER_TO_DOUBLE(ARG2) op \
+			value_to_number(ARG3_L));                       \
+		goto instruction;                                   \
+	prefix ## _NL:                                          \
+		ENSURE_NUMBER(ARG3_L);                              \
+		ARG1_L = number_to_value(numbers[ARG2] op           \
+			value_to_number(ARG3_L));                       \
+		goto instruction;
+
+
+// Shorthand for defining a set of equality operations.
+#define EQUALITY_OPERATION(prefix, binary, unary)                            \
+	prefix ## _LL:                                                           \
+		if ((ARG1_L binary ARG2_L) ||                                        \
+				unary (IS_STRING_VALUE(ARG1_L) && IS_STRING_VALUE(ARG2_L) && \
+					strcmp(TO_STR(ARG1_L), TO_STR(ARG2_L)) == 0) ||          \
+				unary (IS_PTR_VALUE(ARG1_L) && IS_PTR_VALUE(ARG1_L) &&       \
+					FIELDS_COUNT(ARG1_L) == FIELDS_COUNT(ARG2_L) &&          \
+					memcmp(TO_FIELDS(ARG1_L), TO_FIELDS(ARG2_L),             \
+						FIELDS_COUNT(ARG1_L) * sizeof(uint64_t)) == 0)) {    \
+			ip++;                                                            \
+		}                                                                    \
+		goto instruction;                                                    \
+	prefix ## _LI:                                                           \
+		if (ARG1_L binary (double) uint16_to_int16(ARG2)) {                  \
+			ip++;                                                            \
+		}                                                                    \
+		goto instruction;                                                    \
+	prefix ## _LN:                                                           \
+		if (ARG1_L binary numbers[ARG2]) {                                   \
+			ip++;                                                            \
+		}                                                                    \
+		goto instruction;                                                    \
+	prefix ## _LS:                                                           \
+		if (unary (IS_STRING_VALUE(ARG1_L) &&                                \
+				strcmp(TO_STR(ARG2_L), TO_STR(strings[ARG3])) == 0)) {       \
+			ip++;                                                            \
+		}                                                                    \
+		goto instruction;                                                    \
+	prefix ## _LP:                                                           \
+		if (ARG1_L binary PRIMITIVE_FROM_TAG(ARG2)) {                        \
+			ip++;                                                            \
+		}                                                                    \
+		goto instruction;                                                    \
+	prefix ## _LF:                                                           \
+		if (unary (IS_FN_VALUE(ARG1_L) &&                                    \
+				VALUE_TO_INDEX(ARG1_L, FN_TAG) == ARG2)) {                   \
+			ip++;                                                            \
+		}                                                                    \
 		goto instruction;
 
 
@@ -446,6 +513,15 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 	frames[frames_count - 1].stack_start = (start); \
 	stack_start = (start);
 
+
+// Concatenates two strings.
+inline char * concat_str(char *left, char *right) {
+	int length = strlen(left);
+	char *str = malloc(sizeof(char) * (length + strlen(right) + 1));
+	strcpy(str, left);
+	strcpy(&str[length], right);
+	return str;
+}
 
 
 // A function frame on the call stack.
@@ -461,7 +537,7 @@ typedef struct {
 
 // Possible runtime errors.
 typedef enum {
-	ERR_OPERATOR_NON_NUMBERS,
+	ERR_INVALID_OPERAND,
 } RuntimeError;
 
 
@@ -480,7 +556,6 @@ HyResult fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	// Cache from the VM
 	uint64_t *numbers = vm->numbers;
 	uint64_t *strings = vm->strings;
-	Upvalue *upvalues = vm->upvalues;
 	Function *functions = vm->functions;
 
 	// The instruction pointer for the currently executing function (the top
@@ -506,22 +581,22 @@ instruction:
 	//
 
 	MOV_LL:
-		stack[ARG1_L] = stack[ARG2_L];
+		ARG1_L = ARG2_L;
 		goto instruction;
 	MOV_LI:
-		stack[ARG1_L] = INTEGER_TO_DOUBLE(ARG2);
+		ARG1_L = INTEGER_TO_DOUBLE(ARG2);
 		goto instruction;
 	MOV_LN:
-		stack[ARG1_L] = numbers[ARG2];
+		ARG1_L = numbers[ARG2];
 		goto instruction;
 	MOV_LS:
-		stack[ARG1_L] = strings[ARG2];
+		ARG1_L = strings[ARG2];
 		goto instruction;
 	MOV_LP:
-		stack[ARG1_L] = VALUE_FROM_TAG(0, ARG2);
+		ARG1_L = PRIMITIVE_FROM_TAG(ARG2);
 		goto instruction;
 	MOV_LF:
-		stack[ARG1_L] = VALUE_FROM_TAG(ARG2, FN_TAG);
+		ARG1_L = INDEX_TO_VALUE(ARG2, FN_TAG);
 		goto instruction;
 	MOV_LU:
 		// TODO
@@ -541,44 +616,86 @@ instruction:
 	ARITHMETIC_OPERATION(DIV, / )
 
 	MOD_LL:
-		ENSURE_NUMBERS(stack[ARG2_L], stack[ARG3_L]);
-		stack[ARG1_L] = number_to_value(fmod(value_to_number(stack[ARG2_L]),
-			value_to_number(stack[ARG3_L])));
+		ENSURE_NUMBERS(ARG2_L, ARG3_L);
+		ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
+			value_to_number(ARG3_L)));
 		goto instruction;
 	MOD_LI:
-		ENSURE_NUMBER(stack[ARG2_L]);
-		stack[ARG1_L] = number_to_value(fmod(value_to_number(stack[ARG2_L]),
+		ENSURE_NUMBER(ARG2_L);
+		ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
 			INTEGER_TO_DOUBLE(ARG3)));
 		goto instruction;
 	MOD_LN:
-		ENSURE_NUMBER(stack[ARG2_L]);
-		stack[ARG1_L] = number_to_value(fmod(value_to_number(stack[ARG2_L]),
+		ENSURE_NUMBER(ARG2_L);
+		ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
 			numbers[ARG3]));
 		goto instruction;
 	MOD_IL:
-		ENSURE_NUMBER(stack[ARG3_L]);
-		stack[ARG1_L] = number_to_value(fmod(INTEGER_TO_DOUBLE(ARG2),
-			value_to_number(stack[ARG3_L])));
+		ENSURE_NUMBER(ARG3_L);
+		ARG1_L = number_to_value(fmod(INTEGER_TO_DOUBLE(ARG2),
+			value_to_number(ARG3_L)));
 		goto instruction;
 	MOD_NL:
-		ENSURE_NUMBER(stack[ARG3_L]);
-		stack[ARG1_L] = number_to_value(fmod(numbers[ARG2],
-			value_to_number(stack[ARG3_L])));
+		ENSURE_NUMBER(ARG3_L);
+		ARG1_L = number_to_value(fmod(
+			numbers[ARG2],
+			value_to_number(ARG3_L)
+		));
 		goto instruction;
 
-	CONCAT_LL:
-		// TODO
+	CONCAT_LL: {
+		ENSURE_STRS(ARG2_L, ARG3_L);
+		ARG1_L = ptr_to_value(concat_str(
+			value_to_ptr(ARG2_L),
+			value_to_ptr(ARG3_L)
+		));
 		goto instruction;
-	CONCAT_LS:
-		// TODO
+	}
+	CONCAT_LS: {
+		ENSURE_STR(ARG2_L);
+		ARG1_L = ptr_to_value(concat_str(
+			value_to_ptr(ARG2_L),
+			TO_STR(strings[ARG3])
+		));
 		goto instruction;
-	CONCAT_SL:
-		// TODO
+	}
+	CONCAT_SL: {
+		ENSURE_STR(ARG2_L);
+		ARG1_L = ptr_to_value(concat_str(
+			TO_STR(strings[ARG2]),
+			value_to_ptr(ARG3_L)
+		));
 		goto instruction;
+	}
+
 	NEG_L:
-		// TODO
+		ENSURE_NUMBER(ARG1_L);
+		ARG1_L = number_to_value(-value_to_number(ARG1_L));
 		goto instruction;
 
+
+	//
+	//  Comparison
+	//
+
+	// Since all comparisons are followed by a jump instruction, and the jump
+	// instruction must be executed only if the comparison is true, just skip
+	// the jump instruction (by incrementing the instruction pointer), if the
+	// comparison is false.
+
+	IS_TRUE_L:
+		if (ARG1_L != TRUE_VALUE) {
+			ip++;
+		}
+		goto instruction;
+	IS_FALSE_L:
+		if (ARG1_L == TRUE_VALUE) {
+			ip++;
+		}
+		goto instruction;
+
+	EQUALITY_OPERATION(EQ, !=, !)
+	EQUALITY_OPERATION(NEQ, ==, )
 
 	//
 	//  Functions

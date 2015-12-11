@@ -104,12 +104,14 @@ typedef enum {
 	EQ_LN,
 	EQ_LS,
 	EQ_LP,
+	EQ_LF,
 
 	NEQ_LL,
 	NEQ_LI,
 	NEQ_LN,
 	NEQ_LS,
 	NEQ_LP,
+	NEQ_LF,
 
 	LT_LL,
 	LT_LI,

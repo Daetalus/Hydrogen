@@ -127,6 +127,9 @@ typedef struct vm {
 // string.
 uint16_t vm_add_string(VirtualMachine *vm, char *string);
 
+// Returns the string at `index` in the VM's strings list.
+char * vm_string(VirtualMachine *vm, int index);
+
 // Adds a number to the VM's numbers list. Returns the index of the added
 // number.
 uint16_t vm_add_number(VirtualMachine *vm, double number);

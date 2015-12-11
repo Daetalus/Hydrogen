@@ -37,16 +37,62 @@
 #define IS_PTR_VALUE(value) \
 	(((value) & (QUIET_NAN | SIGN)) == (QUIET_NAN | SIGN))
 
+// Evaluates to true if `value` is a string.
+#define IS_STRING_VALUE(value) \
+	(IS_PTR_VALUE(value) && ((Object *) value_to_ptr(value))->type == OBJ_STRING)
+
 // Evaluates to true if `value` is a function, when all quiet NaN bits and the
 // closure mask (not the sign bit) are set.
 #define IS_FN_VALUE(value) \
 	(((value) & (QUIET_NAN | FN_TAG)) == (QUIET_NAN | FN_TAG))
 
 // Creates a function value from a function index.
-#define VALUE_FROM_TAG(index, tag) (((uint64_t) (index)) | QUIET_NAN | (tag))
+#define INDEX_TO_VALUE(index, tag) (((uint64_t) (index)) | QUIET_NAN | (tag))
 
 // Evaluates to a function index from a function value.
-#define TAG_FROM_VALUE(value, tag) ((uint16_t) ((value) ^ (QUIET_NAN | (tag))))
+#define VALUE_TO_INDEX(value, tag) ((uint16_t) ((value) ^ (QUIET_NAN | (tag))))
+
+// Creates a value from a primitive tag.
+#define PRIMITIVE_FROM_TAG(tag) (((uint64_t) (tag)) | QUIET_NAN)
+
+// Evaluates to a string from a value.
+#define TO_STR(value) \
+	(&(((Object *) value_to_ptr((value)))->string[0]))
+
+// Evaluates to a struct's fields array.
+#define TO_FIELDS(value) \
+	(&(((Object *) value_to_ptr((value)))->fields[0]))
+
+// Evaluates to the number of fields in a struct.
+#define FIELDS_COUNT(value) \
+	(((Object *) value_to_ptr((value)))->fields_count)
+
+
+// The type of an object.
+typedef enum {
+	OBJ_STRING,
+	OBJ_STRUCT,
+} ObjectType;
+
+
+// Used to represent all structs and strings during runtime.
+typedef struct {
+	// The type of this object (a struct or string).
+	ObjectType type;
+
+	// The number of fields this object has (if it's a struct). Unused for a
+	// string.
+	uint32_t fields_count;
+
+	union {
+		// The fields of the struct.
+		uint64_t fields[0];
+
+		// The contents of a string.
+		char string[0];
+	};
+} Object;
+
 
 // Converts a value into a number.
 double value_to_number(uint64_t value);

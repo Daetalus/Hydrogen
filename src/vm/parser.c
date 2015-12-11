@@ -614,8 +614,7 @@ bool binary_valid(Token operator, OperandType left, OperandType right) {
 			(right >= OP_LOCAL && right <= OP_PRIMITIVE);
 	case TOKEN_AND:
 	case TOKEN_OR:
-		return ((left >= OP_LOCAL && left <= OP_PRIMITIVE) || left == OP_JUMP) &&
-			((right >= OP_LOCAL && right <= OP_PRIMITIVE) || right == OP_JUMP);
+		return left != OP_NONE && right != OP_NONE;
 	default:
 		return false;
 	}
@@ -786,8 +785,8 @@ Operand fold_equal(Parser *parser, Token operator, Operand left, Operand right) 
 		break;
 	}
 	case OP_STRING: {
-		char *first = value_to_ptr(parser->vm->strings[left.string]);
-		char *second = value_to_ptr(parser->vm->strings[right.string]);
+		char *first = vm_string(parser->vm, left.string);
+		char *second = vm_string(parser->vm, right.string);
 		operand.primitive = (strcmp(first, second) == 0) ? TRUE_TAG : FALSE_TAG;
 		break;
 	}
@@ -864,14 +863,14 @@ Operand fold_concat(Parser *parser, Operand left, Operand right) {
 	}
 
 	// Extract both strings from the VM
-	char *left_str = value_to_ptr(parser->vm->strings[left.string]);
-	char *right_str = value_to_ptr(parser->vm->strings[right.string]);
-	size_t left_length = strlen(left_str);
+	char *first = vm_string(parser->vm, left.string);
+	char *second = vm_string(parser->vm, right.string);
+	size_t length = strlen(first);
 
 	// Combine both strings
-	char *result = malloc(sizeof(char) * (left_length + strlen(right_str) + 1));
-	strcpy(result, left_str);
-	strcpy(&result[left_length], right_str);
+	char *result = malloc(sizeof(char) * (length + strlen(second) + 1));
+	strcpy(result, first);
+	strcpy(&result[length], second);
 
 	operand.type = OP_STRING;
 	operand.string = vm_add_string(parser->vm, result);
@@ -1093,9 +1092,7 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 		return expr_and(parser, left, right);
 	} else if (operator == TOKEN_OR) {
 		return expr_or(parser, left, right);
-	}
-
-	if (operator >= TOKEN_ADD && operator <= TOKEN_CONCAT) {
+	} else if (operator >= TOKEN_ADD && operator <= TOKEN_CONCAT) {
 		// Arithmetic
 		operand.type = OP_LOCAL;
 		operand.slot = slot;
@@ -1964,7 +1961,7 @@ void parse_method_definition(Parser *parser) {
 	field->length = length;
 
 	// Set the default value of the struct field
-	def->values[index] = VALUE_FROM_TAG(fn_index, FN_TAG);
+	def->values[index] = INDEX_TO_VALUE(fn_index, FN_TAG);
 }
 
 
