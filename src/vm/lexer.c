@@ -324,7 +324,7 @@ void lexer_next(Lexer *lexer) {
 	case '-': DOUBLE(TOKEN_SUB, '=', TOKEN_SUB_ASSIGN);
 	case '*': DOUBLE(TOKEN_MUL, '=', TOKEN_MUL_ASSIGN);
 	case '/': DOUBLE(TOKEN_DIV, '=', TOKEN_DIV_ASSIGN);
-	case '%': DOUBLE(TOKEN_MOD, '=', TOKEN_MOD_ASSIGN);
+	case '%': SINGLE(TOKEN_MOD);
 	case '=': DOUBLE(TOKEN_ASSIGN, '=', TOKEN_EQ);
 	case '!': DOUBLE(TOKEN_NOT, '=', TOKEN_NEQ);
 	case '<': DOUBLE(TOKEN_LT, '=', TOKEN_LE);

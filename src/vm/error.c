@@ -112,7 +112,6 @@ char * token_string(Token token, TokenValue value) {
 	SYMBOL(TOKEN_SUB_ASSIGN, "-=")
 	SYMBOL(TOKEN_MUL_ASSIGN, "*=")
 	SYMBOL(TOKEN_DIV_ASSIGN, "/=")
-	SYMBOL(TOKEN_MOD_ASSIGN, "%=")
 
 	// Boolean operators
 	SYMBOL(TOKEN_AND, "&&")

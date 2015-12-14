@@ -12,7 +12,7 @@
 // All possible token types.
 typedef enum {
 	// Mathematical operators
-	TOKEN_ADD,               // 0
+	TOKEN_ADD,
 	TOKEN_SUB,
 	TOKEN_MUL,
 	TOKEN_DIV,
@@ -20,7 +20,7 @@ typedef enum {
 	TOKEN_CONCAT,
 
 	// Comparison operators
-	TOKEN_EQ,                // 6
+	TOKEN_EQ,
 	TOKEN_NEQ,
 	TOKEN_LT,
 	TOKEN_LE,
@@ -28,26 +28,25 @@ typedef enum {
 	TOKEN_GE,
 
 	// Assignment operators
-	TOKEN_ASSIGN,            // 12
+	TOKEN_ASSIGN,
 	TOKEN_ADD_ASSIGN,
 	TOKEN_SUB_ASSIGN,
 	TOKEN_MUL_ASSIGN,
 	TOKEN_DIV_ASSIGN,
-	TOKEN_MOD_ASSIGN,
 
 	// Boolean operators
-	TOKEN_AND,               // 18
+	TOKEN_AND,
 	TOKEN_OR,
 	TOKEN_NOT,
 
 	// Bitwise operators
-	TOKEN_BIT_AND,           // 21
+	TOKEN_BIT_AND,
 	TOKEN_BIT_OR,
 	TOKEN_BIT_XOR,
 	TOKEN_BIT_NOT,
 
 	// Syntax
-	TOKEN_OPEN_PARENTHESIS,  // 25
+	TOKEN_OPEN_PARENTHESIS,
 	TOKEN_CLOSE_PARENTHESIS,
 	TOKEN_OPEN_BRACKET,
 	TOKEN_CLOSE_BRACKET,
@@ -57,7 +56,7 @@ typedef enum {
 	TOKEN_DOT,
 
 	// Values
-	TOKEN_IDENTIFIER,        // 33
+	TOKEN_IDENTIFIER,
 	TOKEN_STRING,
 	TOKEN_INTEGER,
 	TOKEN_NUMBER,
@@ -66,7 +65,7 @@ typedef enum {
 	TOKEN_NIL,
 
 	// Keywords
-	TOKEN_IF,                // 40
+	TOKEN_IF,
 	TOKEN_ELSE_IF,
 	TOKEN_ELSE,
 	TOKEN_WHILE,
@@ -81,7 +80,7 @@ typedef enum {
 	TOKEN_NEW,
 
 	// Other
-	TOKEN_EOF,               // 49
+	TOKEN_EOF,
 	TOKEN_UNRECOGNISED,
 } Token;
 

@@ -1464,6 +1464,29 @@ void expr_emit(Parser *parser, uint16_t slot) {
 }
 
 
+// Parses an expression, storing the result into the local with the given name.
+// Triggers an error if the local doesn't exist.
+void expr_emit_local(Parser *parser, char *name, size_t length) {
+	Variable var = local_capture(parser, name, length);
+	if (var.type == VAR_LOCAL) {
+		// Parse an expression
+		expr_emit(parser, var.slot);
+	} else if (var.type == VAR_UPVALUE) {
+		// Parse an expression into an empty local slot
+		scope_new(parser);
+		uint16_t slot;
+		local_new(parser, &slot);
+		expr_emit(parser, slot);
+		scope_free(parser);
+
+		// Store the local into an upvalue
+		emit(parser->fn, instr_new(MOV_UL, var.slot, slot, 0));
+	} else {
+		ERROR("Assigning to undefined variable `%.*s`", length, name);
+	}
+}
+
+
 // Returns true if `token` can begin an expression.
 bool expr_exists(Token token) {
 	return token == TOKEN_IDENTIFIER || token == TOKEN_STRING ||
@@ -1536,29 +1559,16 @@ void parse_assignment(Parser *parser, Identifier name) {
 	}
 
 	// Expect an assignment operator
-	EXPECT(TOKEN_ASSIGN, "Expected `=` after identifier in assignment");
+	if (lexer->token < TOKEN_ASSIGN || lexer->token > TOKEN_DIV_ASSIGN) {
+		UNEXPECTED("Expected `=` after identifier in assignment");
+		return;
+	}
+	Token assign = lexer->token;
 	lexer_next(lexer);
 
 	// If we're only assigning to a single variable
 	if (count == 0) {
-		Variable var = local_capture(parser, name.start, name.length);
-		if (var.type == VAR_LOCAL) {
-			// Parse an expression
-			expr_emit(parser, var.slot);
-		} else if (var.type == VAR_UPVALUE) {
-			// Parse an expression into an empty local slot
-			scope_new(parser);
-			uint16_t slot;
-			local_new(parser, &slot);
-			expr_emit(parser, slot);
-			scope_free(parser);
-
-			// Store the local into an upvalue
-			emit(parser->fn, instr_new(MOV_UL, var.slot, slot, 0));
-		} else {
-			ERROR("Assigning to undefined variable `%.*s`", name.length,
-				name.start);
-		}
+		expr_emit_local(parser, name.start, name.length);
 		return;
 	}
 
@@ -1567,15 +1577,17 @@ void parse_assignment(Parser *parser, Identifier name) {
 
 	// Move the first element in the left variable list into a local
 	Variable var = local_capture(parser, name.start, name.length);
+	uint16_t previous = var.slot;
 	uint16_t slot = var.slot;
 	if (var.type == VAR_LOCAL && count > 1) {
 		// If this is a local and we have to replace this local with one of its
-		// fields in the next step, move the local into a temporary slot
+		// fields in the next step, allocate a new stack position for this local
+		previous = var.slot;
 		local_new(parser, &slot);
-		emit(parser->fn, instr_new(MOV_LL, slot, var.slot, 0));
 	} else if (var.type == VAR_UPVALUE) {
 		// Store the upvalue into a new local
 		local_new(parser, &slot);
+		previous = slot;
 		emit(parser->fn, instr_new(MOV_LU, slot, var.slot, 0));
 	} else if (var.type == VAR_UNDEFINED) {
 		ERROR("Assigning to undefined variable `%.*s`", name.length, name.start);
@@ -1586,7 +1598,8 @@ void parse_assignment(Parser *parser, Identifier name) {
 	for (int i = 0; i < count - 1; i++) {
 		// Replace the struct that's in the slot at the moment
 		uint16_t index = vm_add_field(parser->vm, left[i]);
-		emit(parser->fn, instr_new(STRUCT_FIELD, slot, slot, index));
+		emit(parser->fn, instr_new(STRUCT_FIELD, slot, previous, index));
+		previous = slot;
 	}
 
 	// Parse an expression into a temporary local
