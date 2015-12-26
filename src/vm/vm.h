@@ -15,8 +15,37 @@
 #include "lexer.h"
 
 
+// The maximum number of upvalues that can be defined in a function.
+#define MAX_UPVALUES_IN_FN 64
+
+
 // A package.
 typedef struct package Package;
+
+
+// An upvalue.
+typedef struct {
+	// The name of the upvalue.
+	char *name;
+	size_t length;
+
+	// Whether or not the upvalue is currently open.
+	bool open;
+
+	// The position on the stack of the first local of function the upvalue was
+	// defined in. Set when the function this upvalue is defined in is called.
+	uint32_t fn_stack_start;
+
+	union {
+		// The stack position of the upvalue, relative to the function the
+		// local the upvalue closes over was defined in, used when the upvalue
+		// is open.
+		uint16_t slot;
+
+		// The value of the upvalue, used once its been closed.
+		uint64_t value;
+	};
+} Upvalue;
 
 
 // A user-defined function.
@@ -33,29 +62,12 @@ typedef struct {
 
 	// The package the function was defined in.
 	Package *package;
+
+	// A list of upvalues defined in this function. Used when the function is
+	// called, in order to set the stack start of each of the upvalues.
+	Upvalue *defined_upvalues[MAX_UPVALUES_IN_FN];
+	uint32_t defined_upvalues_count;
 } Function;
-
-
-// An upvalue.
-typedef struct {
-	// The name of the upvalue.
-	char *name;
-	size_t length;
-
-	// Whether or not the upvalue is currently open.
-	bool open;
-
-	// The function the local the upvalue closes over was defined in.
-	Function *defining_fn;
-
-	union {
-		// The stack position of the upvalue, used when it is open.
-		uint16_t slot;
-
-		// The value of the upvalue, used once its been closed.
-		uint64_t value;
-	};
-} Upvalue;
 
 
 // A package (collection of functions, global variables, and constants),

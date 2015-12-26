@@ -274,13 +274,15 @@ int local_find_all(Parser *parser, char *name, size_t length) {
 
 	int slot = local_find(parser, name, length);
 	if (slot >= 0) {
+		Function *fn = parser->fn;
+
 		// Create an upvalue from the local
 		int index;
 		Upvalue *upvalue = upvalue_new(parser->vm, &index);
 		upvalue->name = name;
 		upvalue->length = length;
-		upvalue->defining_fn = parser->fn;
 		upvalue->slot = slot;
+		fn->defined_upvalues[fn->defined_upvalues_count++] = upvalue;
 
 		// Set the local as an upvalue
 		Local *local = &parser->locals[slot];
@@ -1528,9 +1530,6 @@ void parse_initial_assignment(Parser *parser) {
 	// Create a new local
 	uint16_t slot;
 	Local *local = local_new(parser, &slot);
-	if (local == NULL) {
-		return;
-	}
 
 	// Expect an expression
 	expr_emit(parser, slot);

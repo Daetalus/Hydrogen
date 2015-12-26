@@ -5,6 +5,7 @@
 
 #include <math.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "vm.h"
 #include "parser.h"
@@ -93,6 +94,14 @@ HyResult hy_exec_string(HyVM *vm, char *source) {
 	Package *main = package_new(vm);
 	main->source = source;
 	parse_package(vm, main);
+
+	// Check for compilation error
+	// TODO return error
+	if (vm_has_error(vm)) {
+		printf("Error: %s\n", vm->err.description);
+		return HY_COMPILE_ERROR;
+	}
+
 	return fn_exec(vm, main->main_fn);
 }
 
@@ -217,6 +226,7 @@ Function * fn_new(VirtualMachine *vm, Package *package, uint16_t *index) {
 	fn->length = 0;
 	fn->arity = 0;
 	fn->package = package;
+	fn->defined_upvalues_count = 0;
 	ARRAY_INIT(fn->bytecode, uint64_t, 64);
 
 	// Add the function to the package's function list
@@ -280,6 +290,7 @@ Upvalue * upvalue_new(VirtualMachine *vm, int *requested_index) {
 	upvalue->name = NULL;
 	upvalue->length = 0;
 	upvalue->open = true;
+	upvalue->fn_stack_start = 0;
 	upvalue->value = 0;
 	return upvalue;
 }
@@ -546,7 +557,10 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 	ip = fn->bytecode;                                                     \
 	frames[frames_count - 1].stack_start = stack_start + (argument_start); \
 	frames[frames_count - 1].return_slot = stack_start + (fn_return_slot); \
-	stack_start += (argument_start);
+	stack_start = frames[frames_count - 1].stack_start;                    \
+	for (uint32_t i = 0; i < fn->defined_upvalues_count; i++) {            \
+		fn->defined_upvalues[i]->fn_stack_start = stack_start;             \
+	}
 
 
 // Return from a function.
@@ -564,6 +578,11 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 #define NEXT() \
 	ip++;      \
 	goto instruction;
+
+
+// The stack slot of an open upvalue.
+#define UPVALUE_STACK_SLOT(index) \
+	(upvalues[index].fn_stack_start + upvalues[index].slot)
 
 
 // Concatenates two strings.
@@ -612,6 +631,7 @@ HyResult fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	uint32_t frames_count = 0;
 
 	// Cache from the VM
+	Upvalue *upvalues = vm->upvalues;
 	uint64_t *numbers = vm->numbers;
 	uint64_t *strings = vm->strings;
 	Function *functions = vm->functions;
@@ -658,10 +678,18 @@ instruction:
 		ARG1_L = INDEX_TO_VALUE(ARG2, FN_TAG);
 		NEXT();
 	case MOV_LU:
-		// TODO
+		if (upvalues[ARG2].open) {
+			ARG1_L = stack[UPVALUE_STACK_SLOT(ARG2)];
+		} else {
+			ARG1_L = upvalues[ARG2].value;
+		}
 		NEXT();
 	case MOV_UL:
-		// TODO
+		if (upvalues[ARG1].open) {
+			stack[UPVALUE_STACK_SLOT(ARG1)] = ARG2_L;
+		} else {
+			upvalues[ARG1].value = ARG2_L;
+		}
 		NEXT();
 
 
@@ -780,10 +808,10 @@ instruction:
 	case CALL_L:
 		ENSURE_FN(ARG1_L);
 		CALL(ARG0, VALUE_TO_INDEX(ARG1_L, FN_TAG), ARG2, ARG3);
-		NEXT();
+		goto instruction;
 	case CALL_F:
 		CALL(ARG0, ARG1, ARG2, ARG3);
-		NEXT();
+		goto instruction;
 
 	case RET:
 		RETURN(NIL_VALUE);
@@ -805,6 +833,16 @@ instruction:
 		NEXT();
 	case RET_F:
 		RETURN(INDEX_TO_VALUE(ARG1, FN_TAG));
+		NEXT();
+
+
+	//
+	//  Upvalues
+	//
+
+	case UPVALUE_CLOSE:
+		upvalues[ARG1].open = false;
+		upvalues[ARG1].value = stack[UPVALUE_STACK_SLOT(ARG1)];
 		NEXT();
 	}
 
