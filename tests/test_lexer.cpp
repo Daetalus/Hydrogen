@@ -7,55 +7,57 @@
 
 
 // Creates a new lexer.
-#define LEXER(source) Lexer lexer = lexer_new((source));
+#define LEXER(code)              \
+	const char *source = (code); \
+	Lexer lexer = lexer_new((char *) source);
 
 
-// Reads the next token from the lexer and ensures it
-// matches the given type.
+// Reads the next token from the lexer and ensures it matches the given type.
 #define ASSERT_TOKEN(type) \
 	lexer_next(&lexer);    \
-	EQ(lexer.token, type);
+	ASSERT_EQ(lexer.token, type);
 
 
-// Ensures the next token matches the given identifier.
-#define ASSERT_IDENTIFIER(contents) {                                  \
-	lexer_next(&lexer);                                                \
-	EQ(lexer.token, TOKEN_IDENTIFIER);                                 \
-	EQ(lexer.value.identifier.length, strlen(contents));               \
-	EQ_STRN(lexer.value.identifier.start, contents, strlen(contents)); \
+// Ensures the next token is an identifier with the given name.
+#define ASSERT_IDENTIFIER(contents) {                        \
+	Identifier *ident = &lexer.value.identifier;             \
+	lexer_next(&lexer);                                      \
+	ASSERT_EQ(lexer.token, TOKEN_IDENTIFIER);                \
+	ASSERT_EQ(ident->length, strlen(contents));              \
+	ASSERT_STREQN(ident->start, contents, strlen(contents)); \
 }
 
 
 // Ensures the next token matches the given string.
-#define ASSERT_STRING(contents, parsed) {                              \
-	lexer_next(&lexer);                                                \
-	EQ(lexer.token, TOKEN_STRING);                                     \
-	EQ(lexer.value.identifier.length, strlen(contents));               \
-	EQ_STRN(lexer.value.identifier.start, contents, strlen(contents)); \
-	char *extracted = lexer_extract_string(lexer.value.identifier);    \
-	NEQ(extracted, NULL);                                              \
-	EQ_STR(extracted, parsed);                                         \
-	free(extracted);                                                   \
+#define ASSERT_STRING(contents, parsed) {                    \
+	Identifier *ident = &lexer.value.identifier;             \
+	lexer_next(&lexer);                                      \
+	ASSERT_EQ(lexer.token, TOKEN_STRING);                    \
+	ASSERT_EQ(ident->length, strlen(contents));              \
+	ASSERT_STREQN(ident->start, contents, strlen(contents)); \
+	char *extracted = lexer_extract_string(*ident);          \
+	ASSERT_NE(extracted, (char *) NULL);                     \
+	ASSERT_STREQ(extracted, parsed);                         \
+	free(extracted);                                         \
 }
 
 
 // Ensures the next token matches the given number.
-#define ASSERT_NUMBER(expected) {     \
-	lexer_next(&lexer);               \
-	EQ(lexer.token, TOKEN_NUMBER);    \
-	EQ(lexer.value.number, expected); \
-}
+#define ASSERT_NUMBER(expected)              \
+	lexer_next(&lexer);                      \
+	ASSERT_EQ(lexer.token, TOKEN_NUMBER);    \
+	ASSERT_EQ(lexer.value.number, expected); \
 
 
 // Ensures the next token matches the given integer.
-#define ASSERT_INTEGER(expected) {     \
-	lexer_next(&lexer);                \
-	EQ(lexer.token, TOKEN_INTEGER);    \
-	EQ(lexer.value.integer, expected); \
-}
+#define ASSERT_INTEGER(expected)              \
+	lexer_next(&lexer);                       \
+	ASSERT_EQ(lexer.token, TOKEN_INTEGER);    \
+	ASSERT_EQ(lexer.value.integer, expected); \
 
 
-TEST(mathematical) {
+// Tests all mathematical tokens.
+TEST(Lexer, Math) {
 	LEXER("+ - *\t \t  \n/ %");
 	ASSERT_TOKEN(TOKEN_ADD);
 	ASSERT_TOKEN(TOKEN_SUB);
@@ -66,7 +68,8 @@ TEST(mathematical) {
 }
 
 
-TEST(comparison) {
+// Tests all comparison tokens.
+TEST(Lexer, Comparison) {
 	LEXER("== != > < >= <=");
 	ASSERT_TOKEN(TOKEN_EQ);
 	ASSERT_TOKEN(TOKEN_NEQ);
@@ -78,7 +81,8 @@ TEST(comparison) {
 }
 
 
-TEST(assignment) {
+// Tests all assignment tokens.
+TEST(Lexer, Assignment) {
 	LEXER("= += -= *= /=");
 	ASSERT_TOKEN(TOKEN_ASSIGN);
 	ASSERT_TOKEN(TOKEN_ADD_ASSIGN);
@@ -89,7 +93,8 @@ TEST(assignment) {
 }
 
 
-TEST(boolean) {
+// Tests all boolean operator tokens.
+TEST(Lexer, Boolean) {
 	LEXER("&& || !");
 	ASSERT_TOKEN(TOKEN_AND);
 	ASSERT_TOKEN(TOKEN_OR);
@@ -98,17 +103,21 @@ TEST(boolean) {
 }
 
 
-TEST(bitwise) {
-	LEXER("& | ~ ^");
+// Tests all bitwise operator tokens.
+TEST(Lexer, Bitwise) {
+	LEXER("& | ~ ^ << >>");
 	ASSERT_TOKEN(TOKEN_BIT_AND);
 	ASSERT_TOKEN(TOKEN_BIT_OR);
 	ASSERT_TOKEN(TOKEN_BIT_NOT);
 	ASSERT_TOKEN(TOKEN_BIT_XOR);
+	ASSERT_TOKEN(TOKEN_LEFT_SHIFT);
+	ASSERT_TOKEN(TOKEN_RIGHT_SHIFT);
 	ASSERT_TOKEN(TOKEN_EOF);
 }
 
 
-TEST(syntax) {
+// Tests all syntax tokens.
+TEST(Lexer, Syntax) {
 	LEXER("() [] {} ,.");
 	ASSERT_TOKEN(TOKEN_OPEN_PARENTHESIS);
 	ASSERT_TOKEN(TOKEN_CLOSE_PARENTHESIS);
@@ -122,7 +131,8 @@ TEST(syntax) {
 }
 
 
-TEST(numbers) {
+// Tests integer and decimal number parsing.
+TEST(Lexer, Numbers) {
 	LEXER("0 3 4 256 65589 3.1415926535 1.612 100.100 1.0");
 	ASSERT_INTEGER(0);
 	ASSERT_INTEGER(3);
@@ -137,8 +147,14 @@ TEST(numbers) {
 }
 
 
-TEST(strings) {
-	LEXER("'hello!' 'this is a \\n\\r\\ttest \"\"str\\\"ing' '\\'' \"he''ll\\\"o\"");
+// Tests string literal parsing.
+TEST(Lexer, Strings) {
+	LEXER(
+		"'hello!' "
+		"'this is a \\n\\r\\ttest \"\"str\\\"ing' '\\'' "
+		"\"he''ll\\\"o\""
+	);
+
 	ASSERT_STRING("hello!", "hello!");
 	ASSERT_STRING("this is a \\n\\r\\ttest \"\"str\\\"ing",
 		"this is a \n\r\ttest \"\"str\"ing");
@@ -148,7 +164,8 @@ TEST(strings) {
 }
 
 
-TEST(identifiers) {
+// Tests identifier parsing.
+TEST(Lexer, Identifiers) {
 	LEXER("this is a test _for identifiers _te231__wfes");
 	ASSERT_IDENTIFIER("this");
 	ASSERT_IDENTIFIER("is");
@@ -161,7 +178,8 @@ TEST(identifiers) {
 }
 
 
-TEST(keywords) {
+// Tests keyword parsing.
+TEST(Lexer, Keywords) {
 	LEXER("true false nil if else\n\t\r\n if else while for fn");
 	ASSERT_TOKEN(TOKEN_TRUE);
 	ASSERT_TOKEN(TOKEN_FALSE);
@@ -173,18 +191,4 @@ TEST(keywords) {
 	ASSERT_TOKEN(TOKEN_FOR);
 	ASSERT_TOKEN(TOKEN_FN);
 	ASSERT_TOKEN(TOKEN_EOF);
-}
-
-
-MAIN() {
-	RUN(mathematical);
-	RUN(comparison);
-	RUN(assignment);
-	RUN(boolean);
-	RUN(bitwise);
-	RUN(syntax);
-	RUN(numbers);
-	RUN(strings);
-	RUN(identifiers);
-	RUN(keywords);
 }

@@ -11,47 +11,49 @@ IF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 	SET(CMAKE_BUILD_TYPE Release)
 ENDIF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 
-set(CMAKE_C_FLAGS_DEBUG "-Wall -Wextra -Wno-unused-label -O0 -g")
-set(CMAKE_C_FLAGS_RELEASE "-Wall -Wextra -Wno-unused-label -O3")
+# Debug and release flags
+set(CMAKE_C_FLAGS_DEBUG "-Wall -Wextra -O0 -g")
+set(CMAKE_C_FLAGS_RELEASE "-Wall -Wextra -O3")
 
-
-
-#
 # Library
-#
-
 include_directories(include)
 file(GLOB VM_SOURCES src/vm/*.c)
 add_library(hydrogen STATIC ${VM_SOURCES})
 
-
-
-#
-#  Command Line Executable
-#
-
+# Command line executable
 file(GLOB CLI_SOURCES src/cli/*.c)
 add_executable(cli ${CLI_SOURCES})
 target_link_libraries(cli hydrogen)
 
-
-
-#
-#  Tests
-#
-
+# Enable testing using Google's testing framework
+add_subdirectory(gtest/googletest)
 enable_testing()
 
+# Macro for adding a test program
 macro(test name)
-	include_directories(src/vm)
-	add_executable(test_${name} tests/test_${name}.c)
-	target_link_libraries(test_${name} hydrogen)
+	# Add required include directories
+	include_directories(
+		# Hydrogen
+		include src/vm
+		# Google test framework
+		${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR}
+	)
+
+	# Create the testing executable
+	add_executable(test_${name} tests/test_${name}.cpp)
+
+	# Link against hydrogen and google test libraries
+	target_link_libraries(test_${name} hydrogen gtest gtest_main)
+
+	# Tell CMake about the test
 	add_test(test_${name} test_${name})
 endmacro()
 
+# Add tests
 test(lexer)
 test(bytecode)
 test(jmp)
+test(assign)
 test(expr)
 test(if)
 test(loop)

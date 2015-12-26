@@ -1,18 +1,25 @@
 
 //
-//  Testing Framework
+//  Test Case Includes
 //
+
+extern "C" {
+#include <hydrogen.h>
+#include <bytecode.h>
+#include <debug.h>
+#include <error.h>
+#include <lexer.h>
+#include <parser.h>
+#include <util.h>
+#include <value.h>
+#include <vm.h>
+}
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <lexer.h>
-#include <vm.h>
-#include <parser.h>
-#include <bytecode.h>
-#include <value.h>
-#include <debug.h>
+#include <gtest/gtest.h>
 
 
 // Color codes.
@@ -27,130 +34,98 @@
 #define BOLD    "\x1B[1m"
 
 
-// Creates a new test case.
-#define TEST(name) void test_ ## name (void)
-
-
-// Defines the main function.
-#define MAIN() int main(int argc __attribute__ ((unused)), \
-	char *argv[] __attribute__ ((unused)))
-
-
-// Runs a test case.
-#define RUN(name)                                            \
-	printf(BOLD BLUE "Running " WHITE #name "...\n" NORMAL); \
-	test_ ## name ();                                        \
-	printf(BOLD GREEN "Passed!\n" NORMAL);
-
-
-// Prints an error message stating the two given values
-// are not equal, and crashes the program.
-#define ERROR(a, b, message)                                 \
-	printf(BOLD RED "Assertion failed: " WHITE "line %d:\n"  \
-		"    " #a " " message " " #b NORMAL "\n", __LINE__); \
-	exit(1);
-
-
-// Errors if two values are not equal to each other.
-#define EQ(a, b)            \
-	if ((a) != (b)) {       \
-		ERROR(a, b, "!=");  \
-	}
-
-
-// Errors if two values are equal to each other.
-#define NEQ(a, b)          \
-	if ((a) == (b)) {      \
-		ERROR(a, b, "=="); \
-	}
-
-
-// Errors if two strings are not equal to each other.
-#define EQ_STR(a, b)             \
-	if (strcmp((a), (b)) != 0) { \
-		ERROR(a, b, "!=");       \
-	}
-
-
-// Errors if two strings are not equal to each other, only
-// checking up to the given length.
-#define EQ_STRN(a, b, length)               \
-	if (strncmp((a), (b), (length)) != 0) { \
-		ERROR(a, b, "!=");                  \
-	}
+// Asserts two strings are equal up to the given length (since this function is
+// annoyingly missing from the Google test framework).
+#define ASSERT_STREQN(first, second, length) { \
+	char first_str[length + 1];                \
+	char second_str[length + 1];               \
+	strncpy(first_str, (first), length);       \
+	strncpy(second_str, (second), length);     \
+	first_str[length] = '\0';                  \
+	second_str[length] = '\0';                 \
+	ASSERT_STREQ(first_str, second_str);       \
+}
 
 
 // Creates a function with the given bytecode.
-#define FUNCTION(...)                                             \
-	uint16_t bytecode[] = {__VA_ARGS__};                          \
-	int count = sizeof(bytecode) / sizeof(uint16_t);              \
-	Function fn;                                                  \
-	fn.name = NULL;                                               \
-	fn.length = 0;                                                \
-	ARRAY_INIT(fn.bytecode, uint64_t, count / 4);                 \
-	fn.package = NULL;                                            \
-	for (int i = 0; i < count; i += 4) {                          \
-		fn.bytecode[fn.bytecode_count++] = instr_new(bytecode[i], \
-			bytecode[i + 1], bytecode[i + 2], bytecode[i + 3]);   \
+#define FUNCTION(...)                                                      \
+	uint16_t bytecode[] = {__VA_ARGS__};                                   \
+	int count = sizeof(bytecode) / sizeof(uint16_t);                       \
+	Function fn;                                                           \
+	fn.name = NULL;                                                        \
+	fn.length = 0;                                                         \
+	ARRAY_INIT(fn.bytecode, uint64_t, count / 4);                          \
+	fn.package = NULL;                                                     \
+	for (int i = 0; i < count; i += 4) {                                   \
+		fn.bytecode[fn.bytecode_count++] = instr_new((Opcode) bytecode[i], \
+			bytecode[i + 1], bytecode[i + 2], bytecode[i + 3]);            \
 	}
 
 
-// Creates a compiler.
-#define COMPILER(code)                                 \
-	VirtualMachine *vm = hy_new();                     \
-	Package *package = package_new(vm);                \
-	package->source = (code);                          \
-	parse_package(vm, package);                        \
-	if (vm_has_error(vm)) {                            \
-		printf(BOLD RED "Error: " WHITE "%s\n" NORMAL, \
-			vm->err.description);                      \
-		exit(1);                                       \
-	}                                                  \
-	Function *fn = &vm->functions[package->main_fn];   \
+// Creates a mock compiler with the given source code.
+#define COMPILER(code)                                                       \
+	VirtualMachine *vm = hy_new();                                           \
+	Package *package = package_new(vm);                                      \
+	package->source = (char *) (code);                                       \
+	parse_package(vm, package);                                              \
+	if (vm_has_error(vm)) {                                                  \
+		printf(BOLD RED "Error: " WHITE "%s\n" NORMAL, vm->err.description); \
+		exit(1);                                                             \
+	}                                                                        \
+	Function *fn = &vm->functions[package->main_fn];                         \
 	size_t index = 0;
 
 
-// Select a different function after creating a compiler.
-#define SELECT_FN(fn_index)          \
+// Frees a compiler.
+#define COMPILER_FREE() hy_free(vm);
+
+
+// Begins asserting instructions at the start of another function's bytecode.
+#define FN(fn_index)                 \
 	fn = &vm->functions[(fn_index)]; \
 	index = 0;
 
 
-// Asserts the next instruction.
-#define ASSERT_INSTRUCTION(opcode, arg1, arg2, arg3) { \
-	NEQ(index, fn->bytecode_count);                    \
+// Asserts the next instruction's opcode and arguments are equal to the given
+// values.
+#define ASSERT_INSTR(opcode, arg1, arg2, arg3) {     \
+	ASSERT_NE(index, fn->bytecode_count);            \
+	uint64_t instruction = fn->bytecode[index++];    \
+	ASSERT_EQ(instr_opcode(instruction), opcode);    \
+	ASSERT_EQ(instr_argument(instruction, 1), arg1); \
+	ASSERT_EQ(instr_argument(instruction, 2), arg2); \
+	ASSERT_EQ(instr_argument(instruction, 3), arg3); \
+}
+
+
+// Asserts the next instruction is an empty return.
+#define ASSERT_RET() ASSERT_INSTR(RET, 0, 0, 0)
+
+
+// Asserts the next instruction is a jump, and that it will jump forward by
+// `amount`.
+#define ASSERT_JMP(amount) {                           \
+	ASSERT_NE(index, fn->bytecode_count);              \
 	uint64_t instruction = fn->bytecode[index++];      \
-	EQ(instr_opcode(instruction), opcode);             \
-	EQ(instr_argument(instruction, 1), arg1);          \
-	EQ(instr_argument(instruction, 2), arg2);          \
-	EQ(instr_argument(instruction, 3), arg3);          \
+	ASSERT_EQ(instr_opcode(instruction), JMP);         \
+	ASSERT_EQ(instr_argument(instruction, 1), amount); \
 }
 
 
-// Asserts a function call.
-#define ASSERT_CALL(opcode, arity, fn_index, arg_start, return_slot) { \
-	NEQ(index, fn->bytecode_count);                                    \
+// Asserts the next instruction is a function call.
+#define ASSERT_CALL(opcode, fn_index, arg_start, arity, return_slot) { \
+	ASSERT_NE(index, fn->bytecode_count);                              \
 	uint64_t instruction = fn->bytecode[index++];                      \
-	EQ(instr_opcode(instruction), opcode);                             \
-	EQ(instr_argument(instruction, 0), arity);                         \
-	EQ(instr_argument(instruction, 1), fn_index);                      \
-	EQ(instr_argument(instruction, 2), arg_start);                     \
-	EQ(instr_argument(instruction, 3), return_slot);                   \
+	ASSERT_EQ(instr_opcode(instruction), opcode);                      \
+	ASSERT_EQ(instr_argument(instruction, 0), arity);                  \
+	ASSERT_EQ(instr_argument(instruction, 1), fn_index);               \
+	ASSERT_EQ(instr_argument(instruction, 2), arg_start);              \
+	ASSERT_EQ(instr_argument(instruction, 3), return_slot);            \
 }
 
 
-// Asserts a jump instruction.
-#define ASSERT_JMP(amount) {                      \
-	NEQ(index, fn->bytecode_count);               \
-	uint64_t instruction = fn->bytecode[index++]; \
-	EQ(instr_opcode(instruction), JMP);           \
-	EQ(instr_argument(instruction, 1), amount);   \
+// Main entry point for a test case.
+int main(int argc, char *argv[]) {
+	::testing::InitGoogleTest(&argc, argv);
+	return RUN_ALL_TESTS();
 }
-
-
-// Asserts an empty return.
-#define ASSERT_RET() ASSERT_INSTRUCTION(RET, 0, 0, 0)
-
-
-// Frees a compiler.
-#define FREE_COMPILER() hy_free(vm);

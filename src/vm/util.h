@@ -33,7 +33,7 @@ uint16_t int16_to_uint16(int16_t value);
 #define ARRAY_INIT(array, type, initial_capacity) \
 	array ## _count = 0;                          \
 	array ## _capacity = (initial_capacity);      \
-	array = malloc(array ## _capacity * sizeof(type));
+	array = (type *) malloc(array ## _capacity * sizeof(type));
 
 
 // Increases the capacity of the array if its size is larger than it's capacity.

@@ -1563,6 +1563,8 @@ void parse_assignment(Parser *parser, Identifier name) {
 		UNEXPECTED("Expected `=` after identifier in assignment");
 		return;
 	}
+
+	// Save the token used to perform the assignment
 	Token assign = lexer->token;
 	lexer_next(lexer);
 
@@ -2139,7 +2141,8 @@ bool parse_call_or_assignment(Parser *parser) {
 		// Function call
 		parse_fn_call(parser, identifier);
 		return true;
-	} else if (lexer->token == TOKEN_ASSIGN || lexer->token == TOKEN_DOT) {
+	} else if ((lexer->token >= TOKEN_ASSIGN &&
+			lexer->token <= TOKEN_DIV_ASSIGN) || lexer->token == TOKEN_DOT) {
 		// Assignment
 		parse_assignment(parser, identifier);
 		return true;

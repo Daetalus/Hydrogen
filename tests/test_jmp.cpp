@@ -6,7 +6,8 @@
 #include "test.h"
 
 
-TEST(next) {
+// Tests we can get the next instruction in a jump list.
+TEST(Jump, Next) {
 	FUNCTION(
 		NEQ_LL, 0, 3, 0,
 		JMP, 5, 0, JUMP_AND,
@@ -22,15 +23,16 @@ TEST(next) {
 
 	int jump = 5;
 	jump = jmp_next(&fn, jump);
-	EQ(jump, 3);
+	ASSERT_EQ(jump, 3);
 	jump = jmp_next(&fn, jump);
-	EQ(jump, 1);
+	ASSERT_EQ(jump, 1);
 	jump = jmp_next(&fn, jump);
-	EQ(jump, -1);
+	ASSERT_EQ(jump, -1);
 }
 
 
-TEST(last) {
+// Tests we can get the last instruction in a jump list.
+TEST(Jump, Last) {
 	FUNCTION(
 		NEQ_LL, 0, 3, 0,
 		JMP, 5, 0, JUMP_AND,
@@ -44,12 +46,6 @@ TEST(last) {
 		RET, 0, 0, 0
 	);
 
-	EQ(jmp_last(&fn, 5), 1);
-	EQ(jmp_last(&fn, 3), 1);
-}
-
-
-MAIN() {
-	RUN(next);
-	RUN(last);
+	ASSERT_EQ(jmp_last(&fn, 5), 1);
+	ASSERT_EQ(jmp_last(&fn, 3), 1);
 }

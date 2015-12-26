@@ -51,19 +51,35 @@
 #define IS_EOF() (CURRENT() == '\0')
 
 
-// Consumes a character and returns the given token.
-#define SINGLE(single)     \
-	CONSUME();             \
-	lexer->token = single; \
-	break;
+// Defines the mappings:
+//   ch1: token1
+#define SINGLE(ch1, token1)      \
+	case ch1:                    \
+		CONSUME();               \
+		lexer->token = (token1); \
+		break;
 
 
-// Consumes a character, and if the next character matches the given character,
-// returns the second option, else returns the first.
-#define DOUBLE(first, condition, second)                                   \
-	CONSUME();                                                             \
-	lexer->token = CURRENT() == (condition) ? (CONSUME(), second) : first; \
-	break;
+// Defines the mappings:
+//   ch1 ch2: token2
+//   ch1: token1
+#define DOUBLE(ch1, token1, ch2, token2)                                        \
+	case ch1:                                                                   \
+		CONSUME();                                                              \
+		lexer->token = (CURRENT() == (ch2)) ? (CONSUME(), (token2)) : (token1); \
+		break;
+
+
+// Defines the mappings:
+//   ch1 ch2: token2
+//   ch1 ch3: token3
+//   ch1: token1
+#define TRIPLE(ch1, token1, ch2, token2, ch3, token3)                 \
+	case ch1:                                                         \
+		CONSUME();                                                    \
+		lexer->token = (CURRENT() == (ch2)) ? (CONSUME(), (token2)) : \
+			(CURRENT() == (ch3)) ? (CONSUME(), (token3)) : (token1);  \
+		break;
 
 
 // Convenience method for defining a keyword.
@@ -320,27 +336,27 @@ void lexer_next(Lexer *lexer) {
 		break;
 
 	// Operators
-	case '+': DOUBLE(TOKEN_ADD, '=', TOKEN_ADD_ASSIGN);
-	case '-': DOUBLE(TOKEN_SUB, '=', TOKEN_SUB_ASSIGN);
-	case '*': DOUBLE(TOKEN_MUL, '=', TOKEN_MUL_ASSIGN);
-	case '/': DOUBLE(TOKEN_DIV, '=', TOKEN_DIV_ASSIGN);
-	case '%': SINGLE(TOKEN_MOD);
-	case '=': DOUBLE(TOKEN_ASSIGN, '=', TOKEN_EQ);
-	case '!': DOUBLE(TOKEN_NOT, '=', TOKEN_NEQ);
-	case '<': DOUBLE(TOKEN_LT, '=', TOKEN_LE);
-	case '>': DOUBLE(TOKEN_GT, '=', TOKEN_GE);
-	case '&': DOUBLE(TOKEN_BIT_AND, '&', TOKEN_AND);
-	case '|': DOUBLE(TOKEN_BIT_OR, '|', TOKEN_OR);
-	case '.': DOUBLE(TOKEN_DOT, '.', TOKEN_CONCAT);
-	case '^': SINGLE(TOKEN_BIT_XOR);
-	case '~': SINGLE(TOKEN_BIT_NOT);
-	case '(': SINGLE(TOKEN_OPEN_PARENTHESIS);
-	case ')': SINGLE(TOKEN_CLOSE_PARENTHESIS);
-	case '[': SINGLE(TOKEN_OPEN_BRACKET);
-	case ']': SINGLE(TOKEN_CLOSE_BRACKET);
-	case '{': SINGLE(TOKEN_OPEN_BRACE);
-	case '}': SINGLE(TOKEN_CLOSE_BRACE);
-	case ',': SINGLE(TOKEN_COMMA);
+	DOUBLE('+', TOKEN_ADD, '=', TOKEN_ADD_ASSIGN);
+	DOUBLE('-', TOKEN_SUB, '=', TOKEN_SUB_ASSIGN);
+	DOUBLE('*', TOKEN_MUL, '=', TOKEN_MUL_ASSIGN);
+	DOUBLE('/', TOKEN_DIV, '=', TOKEN_DIV_ASSIGN);
+	SINGLE('%', TOKEN_MOD);
+	DOUBLE('=', TOKEN_ASSIGN, '=', TOKEN_EQ);
+	DOUBLE('!', TOKEN_NOT, '=', TOKEN_NEQ);
+	TRIPLE('<', TOKEN_LT, '=', TOKEN_LE, '<', TOKEN_LEFT_SHIFT);
+	TRIPLE('>', TOKEN_GT, '=', TOKEN_GE, '>', TOKEN_RIGHT_SHIFT);
+	DOUBLE('&', TOKEN_BIT_AND, '&', TOKEN_AND);
+	DOUBLE('|', TOKEN_BIT_OR, '|', TOKEN_OR);
+	DOUBLE('.', TOKEN_DOT, '.', TOKEN_CONCAT);
+	SINGLE('^', TOKEN_BIT_XOR);
+	SINGLE('~', TOKEN_BIT_NOT);
+	SINGLE('(', TOKEN_OPEN_PARENTHESIS);
+	SINGLE(')', TOKEN_CLOSE_PARENTHESIS);
+	SINGLE('[', TOKEN_OPEN_BRACKET);
+	SINGLE(']', TOKEN_CLOSE_BRACKET);
+	SINGLE('{', TOKEN_OPEN_BRACE);
+	SINGLE('}', TOKEN_CLOSE_BRACE);
+	SINGLE(',', TOKEN_COMMA);
 
 	// Numbers
 	case '0':
