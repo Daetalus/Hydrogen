@@ -8,6 +8,9 @@
 
 #include <stdlib.h>
 
+#include "vm.h"
+
+
 // Integer tags for primitive values.
 #define NIL_TAG   1
 #define FALSE_TAG 2
@@ -61,11 +64,11 @@
 
 // Evaluates to a struct's fields array.
 #define TO_FIELDS(value) \
-	(&(((Object *) value_to_ptr((value)))->fields[0]))
+	(&(((Object *) value_to_ptr((value)))->obj.fields[0]))
 
 // Evaluates to the number of fields in a struct.
 #define FIELDS_COUNT(value) \
-	(((Object *) value_to_ptr((value)))->fields_count)
+	(((Object *) value_to_ptr((value)))->obj.definition->fields_count)
 
 
 // The type of an object.
@@ -80,13 +83,14 @@ typedef struct {
 	// The type of this object (a struct or string).
 	ObjectType type;
 
-	// The number of fields this object has (if it's a struct). Unused for a
-	// string.
-	uint32_t fields_count;
-
 	union {
-		// The fields of the struct.
-		uint64_t fields[0];
+		struct {
+			// A pointer to the struct definition.
+			StructDefinition *definition;
+
+			// The fields of the struct.
+			uint64_t fields[0];
+		} obj;
 
 		// The contents of a string.
 		char string[0];

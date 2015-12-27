@@ -452,28 +452,37 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 	}
 
 
+// Triggers an error if an argument isn't an object.
+#define ENSURE_OBJECT(arg)                                        \
+	if (!IS_PTR_VALUE(arg) ||                                     \
+			((Object *) value_to_ptr(arg))->type != OBJ_STRUCT) { \
+		err = ERR_INVALID_FIELD_ACCESS;                           \
+		goto error;                                               \
+	}
+
+
 // Shorthand for defining a set of arithmetic operations.
 #define ARITHMETIC_OPERATION(prefix, op)                    \
 	case prefix ## _LL:                                     \
 		ENSURE_NUMBERS(ARG2_L, ARG3_L);                     \
 		ARG1_L = number_to_value(value_to_number(ARG2_L) op \
 			value_to_number(ARG3_L));                       \
-		NEXT();                                   \
+		NEXT();                                             \
 	case prefix ## _LI:                                     \
 		ENSURE_NUMBER(ARG2_L);                              \
 		ARG1_L = number_to_value(value_to_number(ARG2_L) op \
 			INTEGER_TO_DOUBLE(ARG3));                       \
-		NEXT();                                   \
+		NEXT();                                             \
 	case prefix ## _LN:                                     \
 		ENSURE_NUMBER(ARG2_L);                              \
 		ARG1_L = number_to_value(value_to_number(ARG2_L) op \
 			numbers[ARG3]);                                 \
-		NEXT();                                   \
+		NEXT();                                             \
 	case prefix ## _IL:                                     \
 		ENSURE_NUMBER(ARG3_L);                              \
 		ARG1_L = number_to_value(INTEGER_TO_DOUBLE(ARG2) op \
 			value_to_number(ARG3_L));                       \
-		NEXT();                                   \
+		NEXT();                                             \
 	case prefix ## _NL:                                     \
 		ENSURE_NUMBER(ARG3_L);                              \
 		ARG1_L = number_to_value(numbers[ARG2] op           \
@@ -493,28 +502,28 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 						FIELDS_COUNT(ARG1_L) * sizeof(uint64_t)) == 0)) {    \
 			ip++;                                                            \
 		}                                                                    \
-		NEXT();                                                    \
+		NEXT();                                                              \
 	case prefix ## _LI:                                                      \
 		if (ARG1_L binary (double) uint16_to_int16(ARG2)) {                  \
 			ip++;                                                            \
 		}                                                                    \
-		NEXT();                                                    \
+		NEXT();                                                              \
 	case prefix ## _LN:                                                      \
 		if (ARG1_L binary numbers[ARG2]) {                                   \
 			ip++;                                                            \
 		}                                                                    \
-		NEXT();                                                    \
+		NEXT();                                                              \
 	case prefix ## _LS:                                                      \
 		if (unary (IS_STRING_VALUE(ARG1_L) &&                                \
 				strcmp(TO_STR(ARG2_L), TO_STR(strings[ARG3])) == 0)) {       \
 			ip++;                                                            \
 		}                                                                    \
-		NEXT();                                                    \
+		NEXT();                                                              \
 	case prefix ## _LP:                                                      \
 		if (ARG1_L binary PRIMITIVE_FROM_TAG(ARG2)) {                        \
 			ip++;                                                            \
 		}                                                                    \
-		NEXT();                                                    \
+		NEXT();                                                              \
 	case prefix ## _LF:                                                      \
 		if (unary (IS_FN_VALUE(ARG1_L) &&                                    \
 				VALUE_TO_INDEX(ARG1_L, FN_TAG) == ARG2)) {                   \
@@ -530,13 +539,13 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 		if (ARG1_L operator ARG2_L) {                         \
 			ip++;                                             \
 		}                                                     \
-		NEXT();                                     \
+		NEXT();                                               \
 	case prefix ## _LI:                                       \
 		ENSURE_NUMBER(ARG1_L);                                \
 		if (ARG1_L operator (double) uint16_to_int16(ARG2)) { \
 			ip++;                                             \
 		}                                                     \
-		NEXT();                                     \
+		NEXT();                                               \
 	case prefix ## _LN:                                       \
 		ENSURE_NUMBER(ARG1_L);                                \
 		if (ARG1_L operator numbers[ARG2]) {                  \
@@ -572,6 +581,24 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 	ip = frames[frames_count - 1].ip;                   \
 	stack_start = frames[frames_count - 1].stack_start; \
 	stack[frames[frames_count - 1].return_slot] = (value);
+
+
+// Sets the field of a struct.
+#define STRUCT_SET_FIELD(value) {                                             \
+	ENSURE_OBJECT(ARG1_L);                                                    \
+	Identifier *ident = &struct_fields[ARG2];                                 \
+	Object *obj = (Object *) value_to_ptr(ARG1_L);                            \
+	StructDefinition *def = obj->obj.definition;                              \
+	for (uint32_t i = 0; i < def->fields_count; i++) {                        \
+		if (ident->length == def->fields[i].length &&                         \
+				strncmp(ident->start, def->fields[i].start, ident->length)) { \
+			obj->obj.fields[i] = (value);                                     \
+			NEXT();                                                           \
+		}                                                                     \
+	}                                                                         \
+	err = ERR_NO_SUCH_FIELD;                                                  \
+	goto error;                                                               \
+}
 
 
 // Goes to the next instruction.
@@ -615,6 +642,8 @@ typedef enum {
 	ERR_INVALID_OPERAND,
 	ERR_INVALID_FN,
 	ERR_INCORRECT_ARITY,
+	ERR_INVALID_FIELD_ACCESS,
+	ERR_NO_SUCH_FIELD,
 } RuntimeError;
 
 
@@ -635,6 +664,8 @@ HyResult fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	uint64_t *numbers = vm->numbers;
 	uint64_t *strings = vm->strings;
 	Function *functions = vm->functions;
+	StructDefinition *structs = vm->structs;
+	Identifier *struct_fields = vm->fields;
 
 	// The instruction pointer for the currently executing function (the top
 	// most on the call frame stack)
@@ -844,6 +875,56 @@ instruction:
 		upvalues[ARG1].open = false;
 		upvalues[ARG1].value = stack[UPVALUE_STACK_SLOT(ARG1)];
 		NEXT();
+
+
+	//
+	//  Structs
+	//
+
+	case STRUCT_NEW: {
+		StructDefinition *def = &structs[ARG2];
+		Object *obj = malloc(sizeof(Object) + sizeof(uint64_t) *
+			def->fields_count);
+		obj->type = OBJ_STRUCT;
+		obj->obj.definition = def;
+		memcpy(obj->obj.fields, def->values,
+			sizeof(uint64_t) * def->fields_count);
+		ARG1_L = ptr_to_value(obj);
+		NEXT();
+	}
+
+	case STRUCT_FIELD: {
+		ENSURE_OBJECT(ARG2_L);
+		Identifier *ident = &struct_fields[ARG3];
+		Object *obj = (Object *) value_to_ptr(ARG2_L);
+		StructDefinition *def = obj->obj.definition;
+
+		// Look for the field
+		for (uint32_t i = 0; i < def->fields_count; i++) {
+			if (ident->length == def->fields[i].length &&
+					strncmp(ident->start, def->fields[i].start, ident->length)) {
+				ARG1_L = obj->obj.fields[i];
+				NEXT();
+			}
+		}
+
+		// Couldn't find the field on the struct
+		err = ERR_NO_SUCH_FIELD;
+		goto error;
+	}
+
+	case STRUCT_SET_L:
+		STRUCT_SET_FIELD(ARG3_L);
+	case STRUCT_SET_I:
+		STRUCT_SET_FIELD(INTEGER_TO_DOUBLE(ARG3));
+	case STRUCT_SET_N:
+		STRUCT_SET_FIELD(numbers[ARG3]);
+	case STRUCT_SET_S:
+		STRUCT_SET_FIELD(strings[ARG3]);
+	case STRUCT_SET_P:
+		STRUCT_SET_FIELD(PRIMITIVE_FROM_TAG(ARG3));
+	case STRUCT_SET_F:
+		STRUCT_SET_FIELD(INDEX_TO_VALUE(ARG3, FN_TAG));
 	}
 
 finish:
