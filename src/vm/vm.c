@@ -18,10 +18,7 @@
 // Create a new interpreter state.
 HyVM * hy_new(void) {
 	VirtualMachine *vm = malloc(sizeof(VirtualMachine));
-
-	// Error
-	vm->err.description = NULL;
-	vm->err.line = 0;
+	vm->err = NULL;
 
 	// Allocate memory for arrays
 	ARRAY_INIT(vm->functions, Function, 4);
@@ -75,37 +72,31 @@ void hy_free(HyVM *vm) {
 }
 
 
-// Returns true when an error has occurred.
-bool vm_has_error(VirtualMachine *vm) {
-	return vm->err.description != NULL;
-}
-
-
 
 //
 //  Execution
 //
 
-// Runs the given source code string.
-HyResult hy_exec_string(HyVM *vm, char *source) {
+// Runs the given source code string, returning a pointer to an error object
+// if an error occurred, or NULL otherwise. The returned error object must be
+// freed.
+HyError * hy_run(HyVM *vm, char *source) {
 	Package *main = package_new(vm);
 	main->source = source;
-	parse_package(vm, main);
 
-	// Check for compilation error
-	// TODO return error
-	if (vm_has_error(vm)) {
-		printf("Error: %s\n", vm->err.description);
-		return HY_COMPILE_ERROR;
+	if (setjmp(vm->error_jump) == 0) {
+		// Compile the source
+		parse_package(vm, main);
+		return NULL;
+	} else {
+		// Check for a compile error
+		if (vm->err != NULL) {
+			return vm->err;
+		}
+
+		// Execute the compiled bytecode
+		return fn_exec(vm, main->main_fn);
 	}
-
-	return fn_exec(vm, main->main_fn);
-}
-
-
-// Returns the most recent error that has occurred.
-HyError * hy_error(HyVM *vm) {
-	return &vm->err;
 }
 
 
@@ -646,7 +637,7 @@ typedef enum {
 
 
 // Executes a compiled function on the virtual machine.
-HyResult fn_exec(VirtualMachine *vm, uint16_t main_fn) {
+HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	Function *fn = &vm->functions[main_fn];
 	debug_print_bytecode(fn);
 
@@ -927,9 +918,9 @@ instruction:
 
 finish:
 	printf("YAYYYYYYYYYYYYYYYYYYYY!!!\n");
-	return HY_SUCCESS;
+	return NULL;
 
 error:
 	printf("FAILED! %d\n", err);
-	return HY_RUNTIME_ERROR;
+	return NULL;
 }

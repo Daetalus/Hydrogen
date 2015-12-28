@@ -93,7 +93,7 @@ void lexer_consume_whitespace(Lexer *lexer) {
 
 
 // Creates a new lexer. The file name is used for error messages.
-Lexer lexer_new(char *file, char *source) {
+Lexer lexer_new(char *file, char *package, char *source) {
 	Lexer lexer;
 	lexer.source = source;
 	lexer.cursor = source;
@@ -101,6 +101,7 @@ Lexer lexer_new(char *file, char *source) {
 	lexer.token.column = 1;
 	lexer.token.line_start = source;
 	lexer.token.file = file;
+	lexer.token.package = package;
 	return lexer;
 }
 

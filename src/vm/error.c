@@ -8,88 +8,127 @@
 
 #include "error.h"
 
+// The maximum length of an error description string.
+#define MAX_DESCRIPTION_LENGTH 512
 
-// The maximum number of characters the description of an error can be.
-#define MAX_ERROR_LENGTH 1024
+
+// Allocate the error on the VM.
+void err_init(VirtualMachine *vm, Token *token) {
+	if (vm->err != NULL) {
+		// Somehow this happened, because the longjmp should've prevented it
+		// Oh well, just free it and allocate it again
+		hy_err_free(vm->err);
+	}
+
+	vm->err = malloc(sizeof(HyError));
+	vm->err->description = malloc(sizeof(char) * MAX_DESCRIPTION_LENGTH);
+	vm->err->line = token->line;
+	vm->err->column = token->column;
+
+	// Copy across the file into a heap allocated string, since we don't
+	// know the lifetime of the one provided by the package
+	if (token->file != NULL) {
+		vm->err->file = malloc(sizeof(char) * strlen(token->file));
+		strcpy(vm->err->file, token->file);
+	} else {
+		vm->err->file = NULL;
+	}
+
+	// Copy across the package name into a heap allocated string, similar to
+	// the file name
+	if (token->package != NULL) {
+		vm->err->package = malloc(sizeof(char) * strlen(token->package));
+		strcpy(vm->err->package, token->package);
+	} else {
+		vm->err->package = NULL;
+	}
+}
 
 
-// Returns a new, custom error.
-HyError err_new(Token *token, char *fmt, ...) {
-	HyError err;
-	err.line = token->line;
-	err.column = token->column;
-	err.package = NULL;
-	err.file = NULL;
-	err.description = malloc(sizeof(char) * MAX_ERROR_LENGTH);
+// Triggers a custom error.
+void err_new(VirtualMachine *vm, Token *token, char *fmt, ...) {
+	err_init(vm, token);
 
 	// Write to the description
 	va_list args;
 	va_start(args, fmt);
-	vsnprintf(err.description, MAX_ERROR_LENGTH, fmt, args);
+	vsnprintf(vm->err->description, MAX_DESCRIPTION_LENGTH, fmt, args);
 	va_end(args);
 
-	return err;
+	// Jump to the error handler
+	longjmp(vm->error_jump, 1);
 }
 
 
-// Returns an unexpected token error.
-// TODO: Ensure we don't cause a buffer overflow from `fmt` being too long
-HyError err_unexpected(Token *token, char *fmt, ...) {
-	HyError err;
-	err.line = token->line;
-	err.column = token->column;
-	err.package = NULL;
-	err.file = NULL;
+// Writes a value to a string safely.
+size_t str_write(char **string, size_t capacity, char *value, size_t length) {
+	if (length > capacity) {
+		// No more room in the string
+		return 0;
+	}
 
-	// Create the description
-	err.description = malloc(MAX_ERROR_LENGTH * sizeof(char));
-	char *description = err.description;
+	strncpy(*string, value, length);
+	*string = &((*string)[length]);
+	return capacity - length;
+}
+
+
+// Prints a token into a string.
+size_t print_token(char **string, size_t capacity, Token *token) {
+	if (token->length > 0) {
+		return str_write(string, capacity, token->start, token->length);
+	}
+
+	if (token->type == TOKEN_UNRECOGNISED) {
+		if (*token->start == '\0') {
+			// Can't print any of the token
+			return str_write(string, capacity, "unrecognised token", 18);
+		}
+
+		// Print up to the first 8 characters
+		char *current = token->start;
+		while (*current != '\0' && current - token->start <= 8) {
+			current++;
+		}
+
+		size_t length = current - token->start;
+		capacity = str_write(string, capacity, token->start, length);
+		return str_write(string, capacity, "...", 3);
+	} else if (token->type == TOKEN_EOF) {
+		return str_write(string, capacity, "end of file", 11);
+	} else {
+		return str_write(string, capacity, "<unable to print token>", 23);
+	}
+}
+
+
+// Triggers an unexpected token error.
+void err_unexpected(VirtualMachine *vm, Token *token, char *fmt, ...) {
+	err_init(vm, token);
+
+	char *desc = vm->err->description;
+	size_t capacity = MAX_DESCRIPTION_LENGTH;
 
 	// `fmt` and arguments
 	va_list args;
 	va_start(args, fmt);
-	int length = vsnprintf(description, MAX_ERROR_LENGTH, fmt, args);
+	size_t length = vsnprintf(desc, MAX_DESCRIPTION_LENGTH, fmt, args);
 	va_end(args);
-	description = &description[length];
+	desc = &desc[length];
+	capacity -= length;
 
-	// `, found ...`
-	length = sprintf(description, ", found `");
-	description = &description[length];
+	// Print token
+	capacity = str_write(&desc, capacity, ", found `", 9);
+	capacity = print_token(&desc, capacity, token);
+	sprintf(desc, "`");
 
-	// Token
-	if (token->length == 0) {
-		// If the token's unrecognised and we can print at least 1 character
-		// of the unrecognised token
-		if (token->type == TOKEN_UNRECOGNISED && *token->start != '\0') {
-			// Extract up to the first 8 characters (so we don't cause a
-			// buffer overflow)
-			char *current = token->start;
-			while (*current != '\0' && current - token->start <= 8) {
-				current++;
-			}
-
-			size_t length = current - token->start;
-			strncpy(description, token->start, length);
-			description = &description[length];
-		} else if (token->type == TOKEN_EOF) {
-			strcpy(description, "end of file");
-			description = &description[11];
-		} else {
-			// TODO: handle this better
-		}
-	} else {
-		strncpy(description, token->start, token->length);
-		description = &description[token->length];
-	}
-
-	// Final backtick
-	sprintf(description, "`");
-	return err;
+	// Long jump back to error handler
+	longjmp(vm->error_jump, 1);
 }
 
 
 // Frees an error.
-void err_free(HyError *err) {
+void hy_err_free(HyError *err) {
 	if (err == NULL) {
 		return;
 	}

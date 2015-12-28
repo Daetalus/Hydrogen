@@ -122,12 +122,12 @@ void parse_struct_instantiation(Parser *parser, uint16_t slot);
 
 // Triggers a custom error.
 #define ERROR(...) \
-	parser->vm->err = err_new(&parser->lexer->token, __VA_ARGS__);
+	err_new(parser->vm, &parser->lexer->token, __VA_ARGS__);
 
 
 // Triggers an unexpected token error.
 #define UNEXPECTED(...) \
-	parser->vm->err = err_unexpected(&parser->lexer->token, __VA_ARGS__);
+	err_unexpected(parser->vm, &parser->lexer->token, __VA_ARGS__);
 
 
 // Triggers an unexpected token error if the current token does not match the
@@ -158,7 +158,7 @@ void parse_multi_import(Parser *parser) {
 	EXPECT(TOKEN_STRING, "Expected package name after `(`");
 
 	// Expect a comma separated list of strings
-	while (!vm_has_error(parser->vm) && lexer->token.type == TOKEN_STRING) {
+	while (lexer->token.type == TOKEN_STRING) {
 		// Import the package
 		char *name = lexer_extract_string(&lexer->token);
 		import(parser, name);
@@ -207,7 +207,7 @@ void parse_imports(Parser *parser) {
 	Lexer *lexer = parser->lexer;
 
 	// Continually parse import statements
-	while (!vm_has_error(parser->vm) && lexer->token.type == TOKEN_IMPORT) {
+	while (lexer->token.type == TOKEN_IMPORT) {
 		// Consume the `import`
 		lexer_next(lexer);
 
@@ -1424,7 +1424,7 @@ Operand expr_left(Parser *parser, uint16_t slot) {
 
 		// Check for multiple postfix operators
 		Operand postfix = expr_postfix(parser, operand, slot);
-		while (!vm_has_error(parser->vm) && postfix.type != OP_NONE) {
+		while (postfix.type != OP_NONE) {
 			operand = postfix;
 			postfix = expr_postfix(parser, operand, slot);
 		}
@@ -1443,7 +1443,7 @@ Operand expr_prec(Parser *parser, uint16_t slot, Precedence limit) {
 	Operand left = expr_left(parser, slot);
 
 	// Parse a binary operator
-	while (!vm_has_error(parser->vm) && binary_prec(lexer->token.type) > limit) {
+	while (binary_prec(lexer->token.type) > limit) {
 		// Consume the operator
 		TokenType operator = lexer->token.type;
 		lexer_next(lexer);
@@ -1695,7 +1695,7 @@ void parse_if(Parser *parser) {
 	int jump = -1;
 
 	// Parse following else if statements
-	while (!vm_has_error(parser->vm) && lexer->token.type == TOKEN_ELSE_IF) {
+	while (lexer->token.type == TOKEN_ELSE_IF) {
 		// Insert a jump at the end of the previous if body
 		int new_jump = jmp_new(parser->fn);
 		if (jump == -1) {
@@ -2067,8 +2067,7 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 	}
 
 	// Parse function arguments into consecutive local slots
-	while (!vm_has_error(parser->vm) &&
-			lexer->token.type != TOKEN_CLOSE_PARENTHESIS) {
+	while (lexer->token.type != TOKEN_CLOSE_PARENTHESIS) {
 		// Create local for the argument
 		uint16_t slot;
 		local_new(parser, &slot);
@@ -2244,8 +2243,7 @@ void parse_struct_definition(Parser *parser) {
 		lexer_next(lexer);
 
 		// Parse struct fields
-		while (!vm_has_error(parser->vm) &&
-				lexer->token.type == TOKEN_IDENTIFIER) {
+		while (lexer->token.type == TOKEN_IDENTIFIER) {
 			int index = struct_new_field(def);
 			def->fields[index].start = lexer->token.start;
 			def->fields[index].length = lexer->token.length;
@@ -2382,8 +2380,7 @@ void parse_block(Parser *parser, TokenType terminator) {
 
 	// Continually parse statements until an error is triggered, we reach the
 	// end of the file, or we reach the terminating token
-	while (!vm_has_error(parser->vm) && lexer->token.type != TOKEN_EOF &&
-			lexer->token.type != terminator) {
+	while (lexer->token.type != TOKEN_EOF && lexer->token.type != terminator) {
 		parse_statement(parser);
 	}
 
@@ -2420,7 +2417,7 @@ Parser parser_new(Parser *parent) {
 // populates the function's bytecode based on `package`'s source code.
 void parse_package(VirtualMachine *vm, Package *package) {
 	// Create a lexer on the stack for all child parsers
-	Lexer lexer = lexer_new(package->file, package->source);
+	Lexer lexer = lexer_new(package->file, package->name, package->source);
 	lexer_next(&lexer);
 
 	// Create a new parser

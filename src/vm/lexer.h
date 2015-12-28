@@ -111,6 +111,9 @@ typedef struct {
 	// lexed from a string.
 	char *file;
 
+	// The name of the package the token was defined in.
+	char *package;
+
 	// The value of the token if it's a number.
 	union {
 		double number;
@@ -133,7 +136,7 @@ typedef struct {
 
 
 // Creates a new lexer. The file name is used for error messages.
-Lexer lexer_new(char *file, char *source);
+Lexer lexer_new(char *file, char *package, char *source);
 
 // Parses the next token.
 void lexer_next(Lexer *lexer);

@@ -39,7 +39,12 @@ int main(int argc, char *argv[]) {
 
 	// Run the source string
 	HyVM *vm = hy_new();
-	hy_exec_string(vm, contents);
+	HyError *err = hy_run(vm, contents);
+	if (err != NULL) {
+		printf("Error: %s\n", err->description);
+		hy_err_free(err);
+	}
+
 	hy_free(vm);
 	free(contents);
     return 0;

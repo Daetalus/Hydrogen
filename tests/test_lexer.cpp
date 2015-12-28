@@ -9,7 +9,7 @@
 // Creates a new lexer.
 #define LEXER(code)              \
 	const char *source = (code); \
-	Lexer lexer = lexer_new(NULL, (char *) source);
+	Lexer lexer = lexer_new(NULL, NULL, (char *) source);
 
 
 // Reads the next token from the lexer and ensures it matches the given type.

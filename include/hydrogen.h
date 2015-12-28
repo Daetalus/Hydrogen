@@ -14,14 +14,6 @@
 typedef struct vm HyVM;
 
 
-// Possible results for the execution of source code.
-typedef enum {
-	HY_SUCCESS,
-	HY_COMPILE_ERROR,
-	HY_RUNTIME_ERROR,
-} HyResult;
-
-
 // A runtime or compile error.
 typedef struct {
 	// A description of the error.
@@ -33,8 +25,8 @@ typedef struct {
 	// The column of the line in the source code the error occurred on.
 	uint32_t column;
 
-	// The name of the package the error occurred in, or NULL if the package is
-	// anonymous.
+	// The name of the package the error occurred in, or NULL if the error
+	// occurred in the main package.
 	char *package;
 
 	// The path to the file the error occurred in, or NULL if the source code
@@ -49,11 +41,12 @@ HyVM * hy_new(void);
 // Free an interpreter's state.
 void hy_free(HyVM *vm);
 
-// Runs the given source code string.
-HyResult hy_exec_string(HyVM *vm, char *source);
+// Runs the given source code string, returning a pointer to an error object
+// if an error occurred, or NULL otherwise. The returned error object must be
+// freed.
+HyError * hy_run(HyVM *vm, char *source);
 
-// Returns the most recent error that has occurred. Do not attempt to free the
-// returned pointer!
-HyError * hy_error(HyVM *vm);
+// Frees an error.
+void hy_err_free(HyError *err);
 
 #endif

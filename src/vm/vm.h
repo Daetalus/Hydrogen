@@ -8,6 +8,7 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
+#include <setjmp.h>
 
 #include <hydrogen.h>
 
@@ -133,8 +134,11 @@ typedef struct vm {
 	// Struct field names encountered during compilation.
 	ARRAY(Identifier, fields);
 
-	// The most recent error triggered on the VM.
-	HyError err;
+	// A heap allocated error object, set to a value if an error occurs.
+	HyError *err;
+
+	// The jump buffer object used by setjmp/longjmp in error handling.
+	jmp_buf error_jump;
 } VirtualMachine;
 
 
@@ -152,9 +156,6 @@ uint16_t vm_add_number(VirtualMachine *vm, double number);
 // Adds a field name to the VM's struct field names list. Returns the index of
 // the added name.
 uint16_t vm_add_field(VirtualMachine *vm, Identifier field);
-
-// Returns true when an error has occurred.
-bool vm_has_error(VirtualMachine *vm);
 
 
 // Defines a new package.
@@ -204,6 +205,6 @@ StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
 
 
 // Executes a compiled function on the virtual machine.
-HyResult fn_exec(VirtualMachine *vm, uint16_t main_fn);
+HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn);
 
 #endif
