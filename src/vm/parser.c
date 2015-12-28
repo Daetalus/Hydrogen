@@ -32,9 +32,6 @@
 // * When a scope is freed, all variables defined in that scope are freed
 
 
-// The maximum number of locals that can be allocated on the stack at once.
-#define MAX_LOCALS 512
-
 // The maximum number of identifiers that can exist on the left hand side of an
 // assignment.
 #define MAX_ASSIGN_DEPTH 64
@@ -92,8 +89,7 @@ typedef struct _parser {
 	uint32_t scope_depth;
 
 	// All defined locals.
-	Local locals[MAX_LOCALS];
-	uint32_t locals_count;
+	ARRAY(Local, locals);
 } Parser;
 
 // Creates a new parser.
@@ -225,17 +221,12 @@ void parse_imports(Parser *parser) {
 // Creates a new local at the top of the locals stack. Returns NULL if a local
 // couldn't be allocated.
 Local * local_new(Parser *parser, uint16_t *slot) {
-	// Check we haven't exceeded the maximum number of allowed locals
-	if (parser->locals_count >= MAX_LOCALS) {
-		ERROR("Cannot have more than %d variables in a scope", MAX_LOCALS);
-		return NULL;
-	}
-
 	uint16_t index = parser->locals_count++;
 	if (slot != NULL) {
 		*slot = index;
 	}
 
+	ARRAY_REALLOC(parser->locals, Local);
 	Local *local = &parser->locals[index];
 	local->name = NULL;
 	local->length = 0;
@@ -2400,9 +2391,9 @@ Parser parser_new(Parser *parent) {
 	Parser parser;
 	parser.parent = parent;
 	parser.scope_depth = 0;
-	parser.locals_count = 0;
 	parser.loop = NULL;
 	parser.fn = NULL;
+	ARRAY_INIT(parser.locals, Local, 64);
 
 	if (parent != NULL) {
 		parser.lexer = parent->lexer;
