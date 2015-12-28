@@ -13,81 +13,61 @@
 // Evaluates to true if the given character is a digit.
 #define IS_NUMBER(ch) (ch >= '0' && ch <= '9')
 
-
 // Evaluates to true if the given character is an identifier (letter, number,
 // underscore).
 #define IS_IDENTIFIER(ch)                                     \
 	((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||  \
 	 IS_NUMBER(ch) || ch == '_')
 
-
 // Evaluates to true if the given character is a newline.
 #define IS_NEWLINE(ch) (ch == '\n' || ch == '\r')
-
 
 // Evaluates to true if the given character is whitespace.
 #define IS_WHITESPACE(ch)  \
 	(ch == '\n' || ch == '\r' || ch == '\t' || ch == ' ')
 
-
 // Moves the cursor 1 place forward.
-#define CONSUME() (lexer->cursor++)
+#define CONSUME() (lexer_consume(lexer))
 
+// Moves the cursor an amount forward, guaranteeing no newlines are skipped
+// over.
+#define FORWARD(amount)      \
+	lexer->cursor += amount; \
+	lexer->token.column += amount;
 
 // Evaluates to the character at the current cursor position.
-#define CURRENT() (lexer->source[lexer->cursor])
-
-
-// Evaluates to a pointer to the current character.
-#define CURRENT_PTR() (&CURRENT())
-
+#define CURRENT() (*lexer->cursor)
 
 // Evaluates to the character a certain amount in front of the current cursor
 // position.
-#define PEEK(amount) (lexer->source[lexer->cursor + amount])
-
+#define PEEK(amount) (lexer->cursor[(amount)])
 
 // Evaluates to true if the cursor is past the end of the file.
 #define IS_EOF() (CURRENT() == '\0')
 
 
-// Defines the mappings:
-//   ch1: token1
-#define SINGLE(ch1, token1)      \
-	case ch1:                    \
-		CONSUME();               \
-		lexer->token = (token1); \
-		break;
-
-
-// Defines the mappings:
-//   ch1 ch2: token2
-//   ch1: token1
-#define DOUBLE(ch1, token1, ch2, token2)                                        \
-	case ch1:                                                                   \
-		CONSUME();                                                              \
-		lexer->token = (CURRENT() == (ch2)) ? (CONSUME(), (token2)) : (token1); \
-		break;
-
-
-// Defines the mappings:
-//   ch1 ch2: token2
-//   ch1 ch3: token3
-//   ch1: token1
-#define TRIPLE(ch1, token1, ch2, token2, ch3, token3)                 \
-	case ch1:                                                         \
-		CONSUME();                                                    \
-		lexer->token = (CURRENT() == (ch2)) ? (CONSUME(), (token2)) : \
-			(CURRENT() == (ch3)) ? (CONSUME(), (token3)) : (token1);  \
-		break;
-
-
-// Convenience method for defining a keyword.
-#define KEYWORD(name, token)                 \
-	else if (lexer_matches(lexer, (name))) { \
-		lexer->cursor += strlen(name);       \
-		return (token);                      \
+// Consumes a single character.
+void lexer_consume(Lexer *lexer) {
+	if (IS_EOF()) {
+		return;
 	}
+
+	// Check for newline so we can increment the current line number
+	if (CURRENT() == '\n' || CURRENT() == '\r') {
+		// Treat \r\n as a single newline
+		if (CURRENT() == '\r' && PEEK(1) == '\n') {
+			lexer->cursor++;
+		}
+
+		lexer->token.line_start = lexer->cursor;
+		lexer->token.line++;
+		lexer->token.column = 1;
+	} else {
+		lexer->token.column++;
+	}
+
+	lexer->cursor++;
+}
 
 
 // Returns true if the lexer matches the given string.
@@ -105,18 +85,22 @@ bool lexer_matches(Lexer *lexer, char *string) {
 
 
 // Consumes characters up until the next non-whitespace characters.
-void consume_whitespace(Lexer *lexer) {
+void lexer_consume_whitespace(Lexer *lexer) {
 	while (IS_WHITESPACE(CURRENT())) {
 		CONSUME();
 	}
 }
 
 
-// Creates a new lexer.
-Lexer lexer_new(char *source) {
+// Creates a new lexer. The file name is used for error messages.
+Lexer lexer_new(char *file, char *source) {
 	Lexer lexer;
 	lexer.source = source;
-	lexer.cursor = 0;
+	lexer.cursor = source;
+	lexer.token.line = 1;
+	lexer.token.column = 1;
+	lexer.token.line_start = source;
+	lexer.token.file = file;
 	return lexer;
 }
 
@@ -124,82 +108,91 @@ Lexer lexer_new(char *source) {
 // Lexes the base prefix of a number.
 int lexer_number_base(Lexer *lexer) {
 	// Base prefixes begin with a 0
-	if (CURRENT() == '0') {
-		// Skip over the 0
-		int saved = lexer->cursor;
-		CONSUME();
-
-		switch (CURRENT()) {
-		// Binary
-		case 'b': return 2;
-		// Octal
-		case 'o': return 8;
-		// Hexadecimal
-		case 'x': return 16;
-		// Not a base prefix
-		default:
-			lexer->cursor = saved;
-			return 10;
-		}
+	if (CURRENT() != '0') {
+		return 10;
 	}
-	return 10;
+
+	switch (PEEK(1)) {
+	case 'b':
+		// Binary
+		FORWARD(2);
+		return 2;
+	case 'o':
+		// Octal
+		FORWARD(2);
+		return 8;
+	case 'x':
+		// Hexadecimal
+		FORWARD(2);
+		return 16;
+	default:
+		// Not a base prefix
+		return 10;
+	}
 }
 
 
 // Lexes an integer.
-Token lexer_integer(Lexer *lexer, int base) {
+void lexer_integer(Lexer *lexer, int base) {
+	Token *token = &lexer->token;
+
 	// Consume the number
 	char *end;
-	char *start = CURRENT_PTR();
-	uint64_t integer = strtol(start, &end, base);
-	size_t length = end - start;
+	uint64_t integer = strtol(lexer->cursor, &end, base);
+	token->length = end - token->start;
 
 	// Must have a length greater than 0
-	if (length == 0) {
-		return TOKEN_UNRECOGNISED;
+	if (token->length == 0) {
+		token->type = TOKEN_UNRECOGNISED;
+		return;
 	}
 
 	// Update the cursor position
-	lexer->cursor += length;
+	FORWARD(token->length);
 
 	// Next character must not be an identifier
 	if (IS_IDENTIFIER(CURRENT())) {
-		return TOKEN_UNRECOGNISED;
+		token->type = TOKEN_UNRECOGNISED;
+		token->length = 0;
+		return;
 	}
 
 	// Convert to a double if the number is too large for an integer
 	if (integer > SHRT_MAX) {
-		lexer->value.number = (double) integer;
-		return TOKEN_NUMBER;
+		token->type = TOKEN_NUMBER;
+		token->number = (double) integer;
 	} else {
-		lexer->value.integer = (int16_t) integer;
-		return TOKEN_INTEGER;
+		token->type = TOKEN_INTEGER;
+		token->integer = (int16_t) integer;
 	}
 }
 
 
 // Lexes a floating point number.
-Token lexer_decimal(Lexer *lexer) {
+void lexer_decimal(Lexer *lexer) {
+	Token *token = &lexer->token;
+
 	// Consume the number
 	char *end;
-	char *start = CURRENT_PTR();
-	lexer->value.number = strtod(start, &end);
-	size_t length = end - start;
+	token->type = TOKEN_NUMBER;
+	token->number = strtod(token->start, &end);
+	token->length = end - token->start;
 
 	// Length must be greater than 0
-	if (length == 0) {
-		return TOKEN_UNRECOGNISED;
+	if (token->length == 0) {
+		token->type = TOKEN_UNRECOGNISED;
+		return;
 	}
 
 	// Update the cursor position
-	lexer->cursor += length;
+	FORWARD(token->length);
 
 	// Next character must not be an identifier
 	if (IS_IDENTIFIER(CURRENT())) {
-		return TOKEN_UNRECOGNISED;
+		token->type = TOKEN_UNRECOGNISED;
+		token->length = 0;
+		return;
 	}
-
-	return TOKEN_NUMBER;
 }
 
 
@@ -217,85 +210,102 @@ bool lexer_number_is_decimal(Lexer *lexer) {
 
 
 // Lexes a number.
-Token lexer_number(Lexer *lexer) {
+void lexer_number(Lexer *lexer) {
 	// Check for a base prefix
 	int base = lexer_number_base(lexer);
-	if (base == -1) {
-		// Invalid base specifier
-		return TOKEN_UNRECOGNISED;
-	}
 
 	if (base != 10 || !lexer_number_is_decimal(lexer)) {
 		// Consume an integer if we're not parsing a number that needs to be
 		// stored as a double
-		return lexer_integer(lexer, base);
+		lexer_integer(lexer, base);
 	} else {
-		return lexer_decimal(lexer);
+		lexer_decimal(lexer);
 	}
 }
 
 
 // Lexes a string literal.
-Token lexer_string(Lexer *lexer) {
-	Identifier *identifier = &lexer->value.identifier;
+void lexer_string(Lexer *lexer) {
+	Token *token = &lexer->token;
+	token->length = 1;
+	token->type = TOKEN_STRING;
 
-	// Save the opening quote and starting location
+	// Save the opening quote
 	char quote = CURRENT();
 	CONSUME();
-	identifier->start = CURRENT_PTR();
-	identifier->length = 0;
 
 	// Consume characters until we reach the end of the string
 	while (!IS_EOF() && (CURRENT() != quote || PEEK(-1) == '\\')) {
-		identifier->length++;
+		token->length++;
 		CONSUME();
 	}
 
 	// Check for an unterminated string
 	if (IS_EOF()) {
 		// TODO: Handle unterminated strings better
-		return TOKEN_UNRECOGNISED;
+		token->type = TOKEN_UNRECOGNISED;
+		token->length = 0;
+		return;
 	}
 
 	// Consume the final quote
 	CONSUME();
-	return TOKEN_STRING;
+	token->length++;
 }
 
 
 // Lexes an identifier.
-Token lexer_identifier(Lexer *lexer) {
-	Identifier *identifier = &lexer->value.identifier;
+void lexer_identifier(Lexer *lexer) {
+	Token *token = &lexer->token;
 
 	// Consume an identifier
-	identifier->start = CURRENT_PTR();
-	identifier->length = 0;
+	token->type = TOKEN_IDENTIFIER;
+	token->length = 0;
 	while (IS_IDENTIFIER(CURRENT())) {
+		token->length++;
 		CONSUME();
-		identifier->length++;
 	}
 
-	// We have an identifier if the length is greater than 0
-	return identifier->length > 0 ? TOKEN_IDENTIFIER : TOKEN_UNRECOGNISED;
+	// We have an identifier if the token's length is greater than 0
+	if (token->length == 0) {
+		token->type = TOKEN_UNRECOGNISED;
+		return;
+	}
 }
 
 
+// Convenience method for defining a keyword.
+#define KEYWORD(name, keyword)               \
+	else if (lexer_matches(lexer, (name))) { \
+		int length = strlen(name);           \
+		FORWARD(length);                     \
+		token->type = (keyword);             \
+		token->length = length;              \
+	}
+
+
 // Lexes an identifier or language keyword.
-Token lexer_keyword_identifier(Lexer *lexer) {
+void lexer_keyword_identifier(Lexer *lexer) {
+	Token *token = &lexer->token;
+
 	// Check for a keyword
 	if (lexer_matches(lexer, "else")) {
-		lexer->cursor += 4;
+		// Skip the `else`
+		char *start = lexer->cursor;
+		FORWARD(4);
 
 		// Check for an `if`
-		int saved = lexer->cursor;
-		consume_whitespace(lexer);
+		lexer_consume_whitespace(lexer);
 		if (lexer_matches(lexer, "if")) {
-			lexer->cursor += 2;
-			return TOKEN_ELSE_IF;
+			// Found an else if token
+			FORWARD(2);
+			token->type = TOKEN_ELSE_IF;
+			token->length = lexer->cursor - start;
+		} else {
+			// Plain else token
+			token->type = TOKEN_ELSE;
+			token->length = 4;
 		}
-
-		lexer->cursor = saved;
-		return TOKEN_ELSE;
 	}
 
 	KEYWORD("if", TOKEN_IF)
@@ -313,17 +323,72 @@ Token lexer_keyword_identifier(Lexer *lexer) {
 	KEYWORD("struct", TOKEN_STRUCT)
 	KEYWORD("new", TOKEN_NEW)
 
-	// If we didn't match a keyword, try and parse an identifier
-	return lexer_identifier(lexer);
+	else {
+		// If we didn't match a keyword, try and parse an identifier
+		lexer_identifier(lexer);
+	}
 }
+
+
+// Defines the mappings:
+//   ch1: token1
+#define SINGLE(ch1, token1)     \
+	case ch1:                   \
+		CONSUME();              \
+		token->type = (token1); \
+		token->length = 1;      \
+		break;
+
+
+// Defines the mappings:
+//   ch1 ch2: token2
+//   ch1: token1
+#define DOUBLE(ch1, token1, ch2, token2) \
+	case ch1:                            \
+		CONSUME();                       \
+		if (CURRENT() == (ch2)) {        \
+			CONSUME();                   \
+			token->type = (token2);      \
+			token->length = 2;           \
+		} else {                         \
+			token->type = (token1);      \
+			token->length = 1;           \
+		}                                \
+		break;
+
+
+// Defines the mappings:
+//   ch1 ch2: token2
+//   ch1 ch3: token3
+//   ch1: token1
+#define TRIPLE(ch1, token1, ch2, token2, ch3, token3) \
+	case ch1:                                         \
+		CONSUME();                                    \
+		if (CURRENT() == (ch2)) {                     \
+			CONSUME();                                \
+			token->type = (token2);                   \
+			token->length = 2;                        \
+		} else if (CURRENT() == (ch3)) {              \
+			CONSUME();                                \
+			token->type = (token3);                   \
+			token->length = 2;                        \
+		} else {                                      \
+			token->type = (token1);                   \
+			token->length = 1;                        \
+		}                                             \
+		break;
 
 
 // Parses the next token.
 void lexer_next(Lexer *lexer) {
+	Token *token = &lexer->token;
+	token->start = lexer->cursor;
+
 	switch (CURRENT()) {
 	// End of file
 	case '\0':
-		lexer->token = TOKEN_EOF;
+		token->type = TOKEN_EOF;
+		token->length = 0;
 		break;
 
 	// Whitespace
@@ -331,32 +396,32 @@ void lexer_next(Lexer *lexer) {
 	case '\t':
 	case '\n':
 	case '\r':
-		consume_whitespace(lexer);
+		lexer_consume_whitespace(lexer);
 		lexer_next(lexer);
 		break;
 
 	// Operators
-	DOUBLE('+', TOKEN_ADD, '=', TOKEN_ADD_ASSIGN);
-	DOUBLE('-', TOKEN_SUB, '=', TOKEN_SUB_ASSIGN);
-	DOUBLE('*', TOKEN_MUL, '=', TOKEN_MUL_ASSIGN);
-	DOUBLE('/', TOKEN_DIV, '=', TOKEN_DIV_ASSIGN);
-	SINGLE('%', TOKEN_MOD);
-	DOUBLE('=', TOKEN_ASSIGN, '=', TOKEN_EQ);
-	DOUBLE('!', TOKEN_NOT, '=', TOKEN_NEQ);
-	TRIPLE('<', TOKEN_LT, '=', TOKEN_LE, '<', TOKEN_LEFT_SHIFT);
-	TRIPLE('>', TOKEN_GT, '=', TOKEN_GE, '>', TOKEN_RIGHT_SHIFT);
-	DOUBLE('&', TOKEN_BIT_AND, '&', TOKEN_AND);
-	DOUBLE('|', TOKEN_BIT_OR, '|', TOKEN_OR);
-	DOUBLE('.', TOKEN_DOT, '.', TOKEN_CONCAT);
-	SINGLE('^', TOKEN_BIT_XOR);
-	SINGLE('~', TOKEN_BIT_NOT);
-	SINGLE('(', TOKEN_OPEN_PARENTHESIS);
-	SINGLE(')', TOKEN_CLOSE_PARENTHESIS);
-	SINGLE('[', TOKEN_OPEN_BRACKET);
-	SINGLE(']', TOKEN_CLOSE_BRACKET);
-	SINGLE('{', TOKEN_OPEN_BRACE);
-	SINGLE('}', TOKEN_CLOSE_BRACE);
-	SINGLE(',', TOKEN_COMMA);
+	DOUBLE('+', TOKEN_ADD, '=', TOKEN_ADD_ASSIGN)
+	DOUBLE('-', TOKEN_SUB, '=', TOKEN_SUB_ASSIGN)
+	DOUBLE('*', TOKEN_MUL, '=', TOKEN_MUL_ASSIGN)
+	DOUBLE('/', TOKEN_DIV, '=', TOKEN_DIV_ASSIGN)
+	SINGLE('%', TOKEN_MOD)
+	DOUBLE('=', TOKEN_ASSIGN, '=', TOKEN_EQ)
+	DOUBLE('!', TOKEN_NOT, '=', TOKEN_NEQ)
+	TRIPLE('<', TOKEN_LT, '=', TOKEN_LE, '<', TOKEN_LEFT_SHIFT)
+	TRIPLE('>', TOKEN_GT, '=', TOKEN_GE, '>', TOKEN_RIGHT_SHIFT)
+	DOUBLE('&', TOKEN_BIT_AND, '&', TOKEN_AND)
+	DOUBLE('|', TOKEN_BIT_OR, '|', TOKEN_OR)
+	DOUBLE('.', TOKEN_DOT, '.', TOKEN_CONCAT)
+	SINGLE('^', TOKEN_BIT_XOR)
+	SINGLE('~', TOKEN_BIT_NOT)
+	SINGLE('(', TOKEN_OPEN_PARENTHESIS)
+	SINGLE(')', TOKEN_CLOSE_PARENTHESIS)
+	SINGLE('[', TOKEN_OPEN_BRACKET)
+	SINGLE(']', TOKEN_CLOSE_BRACKET)
+	SINGLE('{', TOKEN_OPEN_BRACE)
+	SINGLE('}', TOKEN_CLOSE_BRACE)
+	SINGLE(',', TOKEN_COMMA)
 
 	// Numbers
 	case '0':
@@ -369,25 +434,25 @@ void lexer_next(Lexer *lexer) {
 	case '7':
 	case '8':
 	case '9':
-		lexer->token = lexer_number(lexer);
+		lexer_number(lexer);
 		break;
 
 	// Strings
 	case '"':
 	case '\'':
-		lexer->token = lexer_string(lexer);
+		lexer_string(lexer);
 		break;
 
 	// Keywords and identifiers
 	default:
-		lexer->token = lexer_keyword_identifier(lexer);
+		lexer_keyword_identifier(lexer);
 		break;
 	}
 }
 
 
 // Converts the character following a `\` into its corresponding escape
-// sequence.
+// sequence. Triggers an error if the escape sequence is invalid.
 char escape_sequence(char ch) {
 	switch (ch) {
 	case 'n':  return '\n';
@@ -398,63 +463,36 @@ char escape_sequence(char ch) {
 	case '\\': return '\\';
 
 	// Invalid escape sequence
-	default: return '\0';
+	default:
+		// TODO: Handle invalid escape sequence
+		return '\0';
 	}
 }
 
 
-// Extracts a string from the given identifier. Returns a heap allocated string
-// that needs to be freed.
-//
-// Returns NULL if the string contains an invalid escape sequence.
-char * lexer_extract_string(Identifier identifier) {
+// Extracts a string from the given token. Returns a heap allocated string
+// that needs to be freed. Triggers an error if the string contains an invalid
+// escape sequence.
+char * lexer_extract_string(Token *token) {
 	// Since the string with parsed escape sequences can't be longer than the
 	// string in the source code, allocate the same amount of room for each.
-	// Add 1 for the NULL terminator
+	// The length of the token includes the opening and closing quote, so
+	// subtract 2, but add 1 for the null terminator.
 	size_t length = 0;
-	char *result = malloc((identifier.length + 1) * sizeof(char));
+	char *result = malloc((token->length - 1) * sizeof(char));
 
-	for (size_t i = 0; i < identifier.length; i++) {
+	for (size_t i = 1; i < token->length - 1; i++) {
 		// Check for an escape sequence
-		if (identifier.start[i] == '\\') {
-			result[length++] = escape_sequence(identifier.start[++i]);
-
-			// Invalid escape sequence
-			if (result[length - 1] == '\0') {
-				return NULL;
-			}
+		if (token->start[i] == '\\') {
+			i++;
+			result[length++] = escape_sequence(token->start[i]);
 		} else {
 			// Normal character
-			result[length++] = identifier.start[i];
+			result[length++] = token->start[i];
 		}
 	}
 
 	// Add the NULL terminator
 	result[length++] = '\0';
 	return result;
-}
-
-
-// Returns the current source code line of the lexer.
-uint32_t lexer_line(Lexer *lexer) {
-	uint32_t line = 0;
-
-	// Iterate over every character in the source code
-	for (char *current = CURRENT_PTR(); current >= lexer->source; current--) {
-		// Skip the current character if it isn't a newline
-		if (*current != '\n' && *current != '\r') {
-			continue;
-		}
-
-		// Increment the line number
-		line++;
-
-		// Treat \n\r or \r\n as a single newline
-		char prev = *(current - 1);
-		if ((prev == '\n' || prev == '\r') && prev != *current) {
-			current--;
-		}
-	}
-
-	return line;
 }

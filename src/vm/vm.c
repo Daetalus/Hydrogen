@@ -70,9 +70,6 @@ void hy_free(HyVM *vm) {
 	free(vm->structs);
 	free(vm->fields);
 
-	// Error
-	err_free(&vm->err);
-
 	// The VM itself
 	free(vm);
 }
@@ -173,6 +170,7 @@ Package * package_new(VirtualMachine *vm) {
 	Package *package = &vm->packages[index];
 	package->name = NULL;
 	package->source = NULL;
+	package->file = NULL;
 	package->main_fn = 0;
 	ARRAY_INIT(package->functions, Function *, 4);
 	return package;

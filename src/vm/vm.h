@@ -12,7 +12,6 @@
 #include <hydrogen.h>
 
 #include "util.h"
-#include "lexer.h"
 
 
 // The maximum number of upvalues that can be defined in a function.
@@ -76,6 +75,10 @@ struct package {
 	// The name of the package as a heap allocated string. NULL if the package
 	// is anonymous.
 	char *name;
+
+	// The file the package was loaded from, or NULL if the package was loaded
+	// from a string.
+	char *file;
 
 	// The source code of the package. A pointer provided by the user, not to be
 	// freed with the rest of the package.

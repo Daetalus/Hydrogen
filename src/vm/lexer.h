@@ -84,30 +84,39 @@ typedef enum {
 	// Other
 	TOKEN_EOF,
 	TOKEN_UNRECOGNISED,
-} Token;
+} TokenType;
 
 
-// An identifier within the source code.
+// A token parsed by the lexer.
 typedef struct {
-	// A pointer to the start of the identifier.
+	// The type of the token.
+	TokenType type;
+
+	// The starting location of the token in the source code.
 	char *start;
 
-	// The length of the identifier.
+	// The length of the token.
 	size_t length;
-} Identifier;
 
+	// The line the token was defined on.
+	uint32_t line;
 
-// The value of a token.
-typedef union {
-	// A number.
-	double number;
+	// The column the token starts at.
+	uint32_t column;
 
-	// An integer.
-	int16_t integer;
+	// A pointer to the start of the line the token was defined on.
+	char *line_start;
 
-	// An identifier or string literal.
-	Identifier identifier;
-} TokenValue;
+	// The name of the file the token was defined in, or NULL if the token was
+	// lexed from a string.
+	char *file;
+
+	// The value of the token if it's a number.
+	union {
+		double number;
+		int16_t integer;
+	};
+} Token;
 
 
 // The lexer, which separates source code into tokens.
@@ -116,27 +125,22 @@ typedef struct {
 	char *source;
 
 	// The current cursor location in the source code.
-	uint32_t cursor;
+	char *cursor;
 
-	// The most recently parsed token.
+	// The most recently lexed token.
 	Token token;
-	TokenValue value;
 } Lexer;
 
 
-// Creates a new lexer.
-Lexer lexer_new(char *source);
+// Creates a new lexer. The file name is used for error messages.
+Lexer lexer_new(char *file, char *source);
 
 // Parses the next token.
 void lexer_next(Lexer *lexer);
 
-// Extracts a string from the given identifier. Returns a heap allocated string
-// that needs to be freed.
-//
-// Returns NULL if the string contains an invalid escape sequence.
-char * lexer_extract_string(Identifier identifier);
-
-// Returns the current source code line of the lexer.
-uint32_t lexer_line(Lexer *lexer);
+// Extracts a string from the given token. Returns a heap allocated string
+// that needs to be freed. Triggers an error if the string contains an invalid
+// escape sequence.
+char * lexer_extract_string(Token *token);
 
 #endif

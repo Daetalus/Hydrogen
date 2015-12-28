@@ -9,51 +9,49 @@
 // Creates a new lexer.
 #define LEXER(code)              \
 	const char *source = (code); \
-	Lexer lexer = lexer_new((char *) source);
+	Lexer lexer = lexer_new(NULL, (char *) source);
 
 
 // Reads the next token from the lexer and ensures it matches the given type.
-#define ASSERT_TOKEN(type) \
-	lexer_next(&lexer);    \
-	ASSERT_EQ(lexer.token, type);
+#define ASSERT_TOKEN(required) \
+	lexer_next(&lexer);        \
+	ASSERT_EQ(lexer.token.type, required);
 
 
 // Ensures the next token is an identifier with the given name.
-#define ASSERT_IDENTIFIER(contents) {                        \
-	Identifier *ident = &lexer.value.identifier;             \
-	lexer_next(&lexer);                                      \
-	ASSERT_EQ(lexer.token, TOKEN_IDENTIFIER);                \
-	ASSERT_EQ(ident->length, strlen(contents));              \
-	ASSERT_STREQN(ident->start, contents, strlen(contents)); \
-}
+#define ASSERT_IDENTIFIER(contents)                               \
+	lexer_next(&lexer);                                           \
+	ASSERT_EQ(lexer.token.type, TOKEN_IDENTIFIER);                \
+	ASSERT_EQ(lexer.token.length, strlen(contents));              \
+	ASSERT_STREQN(lexer.token.start, contents, strlen(contents)); \
+
 
 
 // Ensures the next token matches the given string.
-#define ASSERT_STRING(contents, parsed) {                    \
-	Identifier *ident = &lexer.value.identifier;             \
-	lexer_next(&lexer);                                      \
-	ASSERT_EQ(lexer.token, TOKEN_STRING);                    \
-	ASSERT_EQ(ident->length, strlen(contents));              \
-	ASSERT_STREQN(ident->start, contents, strlen(contents)); \
-	char *extracted = lexer_extract_string(*ident);          \
-	ASSERT_NE(extracted, (char *) NULL);                     \
-	ASSERT_STREQ(extracted, parsed);                         \
-	free(extracted);                                         \
+#define ASSERT_STRING(contents, parsed) {                             \
+	lexer_next(&lexer);                                               \
+	ASSERT_EQ(lexer.token.type, TOKEN_STRING);                        \
+	ASSERT_EQ(lexer.token.length, strlen(contents) + 2);              \
+	ASSERT_STREQN(lexer.token.start + 1, contents, strlen(contents)); \
+	char *extracted = lexer_extract_string(&lexer.token);             \
+	ASSERT_NE(extracted, (char *) NULL);                              \
+	ASSERT_STREQ(extracted, parsed);                                  \
+	free(extracted);                                                  \
 }
 
 
 // Ensures the next token matches the given number.
-#define ASSERT_NUMBER(expected)              \
-	lexer_next(&lexer);                      \
-	ASSERT_EQ(lexer.token, TOKEN_NUMBER);    \
-	ASSERT_EQ(lexer.value.number, expected); \
+#define ASSERT_NUMBER(expected)                \
+	lexer_next(&lexer);                        \
+	ASSERT_EQ(lexer.token.type, TOKEN_NUMBER); \
+	ASSERT_EQ(lexer.token.number, expected);   \
 
 
 // Ensures the next token matches the given integer.
-#define ASSERT_INTEGER(expected)              \
-	lexer_next(&lexer);                       \
-	ASSERT_EQ(lexer.token, TOKEN_INTEGER);    \
-	ASSERT_EQ(lexer.value.integer, expected); \
+#define ASSERT_INTEGER(expected)                \
+	lexer_next(&lexer);                         \
+	ASSERT_EQ(lexer.token.type, TOKEN_INTEGER); \
+	ASSERT_EQ(lexer.token.integer, expected);   \
 
 
 // Tests all mathematical tokens.

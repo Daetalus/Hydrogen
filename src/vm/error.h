@@ -11,11 +11,11 @@
 
 #include "lexer.h"
 
-// Returns a new, custom error.
-HyError err_new(int line, char *fmt, ...);
+// Returns a new, custom error on the given token.
+HyError err_new(Token *token, char *fmt, ...);
 
 // Returns an unexpected token error.
-HyError err_unexpected(int line, Token token, TokenValue value, char *fmt, ...);
+HyError err_unexpected(Token *token, char *fmt, ...);
 
 // Frees an error.
 void err_free(HyError *err);

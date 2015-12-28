@@ -9,7 +9,9 @@
 #include <limits.h>
 
 #include "parser.h"
+#include "lexer.h"
 #include "bytecode.h"
+#include "util.h"
 #include "error.h"
 #include "value.h"
 
@@ -98,7 +100,7 @@ typedef struct _parser {
 Parser parser_new(Parser *parent);
 
 // Parses a block of statements, terminated by the given character.
-void parse_block(Parser *parser, Token terminator);
+void parse_block(Parser *parser, TokenType terminator);
 
 // Parses a function call to the function in `slot`, storing the return value in
 // `return_slot`.
@@ -120,21 +122,20 @@ void parse_struct_instantiation(Parser *parser, uint16_t slot);
 
 // Triggers a custom error.
 #define ERROR(...) \
-	parser->vm->err = err_new(lexer_line(parser->lexer), __VA_ARGS__);
+	parser->vm->err = err_new(&parser->lexer->token, __VA_ARGS__);
 
 
 // Triggers an unexpected token error.
-#define UNEXPECTED(...)                                         \
-	parser->vm->err = err_unexpected(lexer_line(parser->lexer), \
-		parser->lexer->token, parser->lexer->value, __VA_ARGS__);
+#define UNEXPECTED(...) \
+	parser->vm->err = err_unexpected(&parser->lexer->token, __VA_ARGS__);
 
 
 // Triggers an unexpected token error if the current token does not match the
 // given one.
-#define EXPECT(expected, ...)                 \
-	if (parser->lexer->token != (expected)) { \
-		UNEXPECTED(__VA_ARGS__);              \
-		return;                               \
+#define EXPECT(expected, ...)                      \
+	if (parser->lexer->token.type != (expected)) { \
+		UNEXPECTED(__VA_ARGS__);                   \
+		return;                                    \
 	}
 
 
@@ -157,9 +158,9 @@ void parse_multi_import(Parser *parser) {
 	EXPECT(TOKEN_STRING, "Expected package name after `(`");
 
 	// Expect a comma separated list of strings
-	while (!vm_has_error(parser->vm) && lexer->token == TOKEN_STRING) {
+	while (!vm_has_error(parser->vm) && lexer->token.type == TOKEN_STRING) {
 		// Import the package
-		char *name = lexer_extract_string(lexer->value.identifier);
+		char *name = lexer_extract_string(&lexer->token);
 		import(parser, name);
 
 		// Consume the string
@@ -181,15 +182,15 @@ void parse_import(Parser *parser) {
 	Lexer *lexer = parser->lexer;
 
 	// Parse a multi-import statement if the next token is an open parenthesis
-	if (lexer->token == TOKEN_OPEN_PARENTHESIS) {
+	if (lexer->token.type == TOKEN_OPEN_PARENTHESIS) {
 		// Consume the open parenthesis
 		lexer_next(lexer);
 
 		// Multi-import statement
 		parse_multi_import(parser);
-	} else if (lexer->token == TOKEN_STRING) {
+	} else if (lexer->token.type == TOKEN_STRING) {
 		// Single import statement
-		char *name = lexer_extract_string(lexer->value.identifier);
+		char *name = lexer_extract_string(&lexer->token);
 		import(parser, name);
 
 		// Consume the string token
@@ -206,7 +207,7 @@ void parse_imports(Parser *parser) {
 	Lexer *lexer = parser->lexer;
 
 	// Continually parse import statements
-	while (!vm_has_error(parser->vm) && lexer->token == TOKEN_IMPORT) {
+	while (!vm_has_error(parser->vm) && lexer->token.type == TOKEN_IMPORT) {
 		// Consume the `import`
 		lexer_next(lexer);
 
@@ -514,7 +515,7 @@ Operand expr_prec(Parser *parser, uint16_t slot, Precedence precedence);
 
 
 // Returns the precedence of a binary operator.
-Precedence binary_prec(Token operator) {
+Precedence binary_prec(TokenType operator) {
 	switch (operator) {
 	case TOKEN_ADD:
 	case TOKEN_SUB:
@@ -549,7 +550,8 @@ Precedence binary_prec(Token operator) {
 
 // Returns the opcode for an arithmetic operation (including concatenation).
 // Either left or right must be a local.
-Opcode arithmetic_opcode(Token operator, OperandType left, OperandType right) {
+Opcode arithmetic_opcode(TokenType operator, OperandType left,
+		OperandType right) {
 	if (operator == TOKEN_CONCAT) {
 		// Concatenation
 		int offset = (right == OP_STRING ? 1 : (left == OP_STRING ? 2 : 0));
@@ -564,7 +566,8 @@ Opcode arithmetic_opcode(Token operator, OperandType left, OperandType right) {
 
 // Returns the inverted opcode for a comparison operation. Either left or right
 // must be a local.
-Opcode comparison_opcode(Token operator, OperandType left, OperandType right) {
+Opcode comparison_opcode(TokenType operator, OperandType left,
+		OperandType right) {
 	Opcode base;
 	switch (operator) {
 	case TOKEN_EQ:
@@ -594,7 +597,7 @@ Opcode comparison_opcode(Token operator, OperandType left, OperandType right) {
 
 
 // Returns true if the given operands are valid for the given binary operation.
-bool binary_valid(Token operator, OperandType left, OperandType right) {
+bool binary_valid(TokenType operator, OperandType left, OperandType right) {
 	switch (operator) {
 	case TOKEN_ADD:
 	case TOKEN_SUB:
@@ -624,7 +627,8 @@ bool binary_valid(Token operator, OperandType left, OperandType right) {
 
 
 // Performs an arithmetic operation on two integers.
-int32_t binary_integer_arithmetic(Token operator, int16_t left, int16_t right) {
+int32_t binary_integer_arithmetic(TokenType operator, int16_t left,
+		int16_t right) {
 	switch (operator) {
 	case TOKEN_ADD:
 		return left + right;
@@ -641,7 +645,7 @@ int32_t binary_integer_arithmetic(Token operator, int16_t left, int16_t right) {
 
 
 // Performs an arithmetic operation on two doubles.
-double binary_number_arithmetic(Token operator, double left, double right) {
+double binary_number_arithmetic(TokenType operator, double left, double right) {
 	switch (operator) {
 	case TOKEN_ADD:
 		return left + right;
@@ -660,7 +664,7 @@ double binary_number_arithmetic(Token operator, double left, double right) {
 
 
 // Returns the opcode for a unary operator.
-Opcode unary_opcode(Token operator) {
+Opcode unary_opcode(TokenType operator) {
 	switch (operator) {
 	case TOKEN_SUB:
 		return NEG_L;
@@ -707,7 +711,7 @@ bool operand_to_boolean(Operand operand) {
 
 
 // Attempts to fold an `and` or `or` operation.
-Operand fold_condition(Token operator, Operand left, Operand right) {
+Operand fold_condition(TokenType operator, Operand left, Operand right) {
 	Operand operand = operand_new();
 
 	// Don't fold if both are locals
@@ -757,7 +761,8 @@ Operand fold_condition(Token operator, Operand left, Operand right) {
 
 
 // Attempts to fold an equality test.
-Operand fold_equal(Parser *parser, Token operator, Operand left, Operand right) {
+Operand fold_equal(Parser *parser, TokenType operator, Operand left,
+		Operand right) {
 	Operand operand = operand_new();
 
 	// Only fold if types are equal
@@ -808,7 +813,7 @@ Operand fold_equal(Parser *parser, Token operator, Operand left, Operand right) 
 
 
 // Returns the result of a comparison between two identical locals.
-uint16_t compare_locals(Token operator) {
+uint16_t compare_locals(TokenType operator) {
 	switch (operator) {
 	case TOKEN_LT: return FALSE_TAG;
 	case TOKEN_LE: return TRUE_TAG;
@@ -820,7 +825,7 @@ uint16_t compare_locals(Token operator) {
 
 
 // Returns the result of a comparison between two numbers.
-uint16_t compare_numbers(Token operator, double left, double right) {
+uint16_t compare_numbers(TokenType operator, double left, double right) {
 	switch (operator) {
 	case TOKEN_LT: return (left < right) ? TRUE_TAG : FALSE_TAG;
 	case TOKEN_LE: return (left <= right) ? TRUE_TAG : FALSE_TAG;
@@ -832,7 +837,8 @@ uint16_t compare_numbers(Token operator, double left, double right) {
 
 
 // Attempts to fold an order operation.
-Operand fold_order(Parser *parser, Token operator, Operand left, Operand right) {
+Operand fold_order(Parser *parser, TokenType operator, Operand left,
+		Operand right) {
 	Operand operand = operand_new();
 
 	if (left.type == OP_LOCAL && right.type == OP_LOCAL &&
@@ -881,7 +887,7 @@ Operand fold_concat(Parser *parser, Operand left, Operand right) {
 
 
 // Attempts to fold an arithmetic operation.
-Operand fold_arithmetic(Parser *parser, Token operator, Operand left,
+Operand fold_arithmetic(Parser *parser, TokenType operator, Operand left,
 		Operand right) {
 	Operand operand = operand_new();
 
@@ -922,7 +928,7 @@ Operand fold_arithmetic(Parser *parser, Token operator, Operand left,
 
 // Attempts to fold a binary operation. Assumes the operands are valid for the
 // operation.
-Operand fold_binary(Parser *parser, Token operator, Operand left,
+Operand fold_binary(Parser *parser, TokenType operator, Operand left,
 		Operand right) {
 	Operand operand = operand_new();
 
@@ -1073,7 +1079,7 @@ Operand expr_or(Parser *parser, Operand left, Operand right) {
 
 
 // Emits bytecode for a binary operator.
-Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
+Operand expr_binary(Parser *parser, uint16_t slot, TokenType operator,
 		Operand left, Operand right) {
 	Operand operand = operand_new();
 
@@ -1117,7 +1123,7 @@ Operand expr_binary(Parser *parser, uint16_t slot, Token operator,
 
 
 // Emits bytecode for the left operator in a binary expression.
-Operand expr_binary_left(Parser *parser, Token operator, Operand left) {
+Operand expr_binary_left(Parser *parser, TokenType operator, Operand left) {
 	// Turn the operand into a jump statement if we're parsing an `and` or `or`
 	// operator
 	if ((operator == TOKEN_AND || operator == TOKEN_OR) &&
@@ -1227,21 +1233,21 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 	Lexer *lexer = parser->lexer;
 	Operand operand = operand_new();
 
-	switch (lexer->token) {
+	switch (lexer->token.type) {
 	case TOKEN_INTEGER:
 		operand.type = OP_INTEGER;
-		operand.integer = lexer->value.integer;
+		operand.integer = lexer->token.integer;
 		lexer_next(lexer);
 		break;
 
 	case TOKEN_NUMBER:
 		operand.type = OP_NUMBER;
-		operand.number = vm_add_number(parser->vm, lexer->value.number);
+		operand.number = vm_add_number(parser->vm, lexer->token.number);
 		lexer_next(lexer);
 		break;
 
 	case TOKEN_STRING: {
-		char *string = lexer_extract_string(lexer->value.identifier);
+		char *string = lexer_extract_string(&lexer->token);
 		operand.type = OP_STRING;
 		operand.string = vm_add_string(parser->vm, string);
 		lexer_next(lexer);
@@ -1250,8 +1256,8 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 
 	case TOKEN_IDENTIFIER: {
 		// Find an existing variable with the given name
-		char *name = lexer->value.identifier.start;
-		size_t length = lexer->value.identifier.length;
+		char *name = lexer->token.start;
+		size_t length = lexer->token.length;
 		Variable var = local_capture(parser, name, length);
 
 		if (var.type == VAR_LOCAL) {
@@ -1298,7 +1304,7 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 		operand = expr_prec(parser, slot, 0);
 
 		// Expect a closing parenthesis
-		if (lexer->token != TOKEN_CLOSE_PARENTHESIS) {
+		if (lexer->token.type != TOKEN_CLOSE_PARENTHESIS) {
 			UNEXPECTED("Expected `)` to close `(` in expression");
 			operand.type = OP_NONE;
 			break;
@@ -1335,7 +1341,8 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t return_slot) {
 	Lexer *lexer = parser->lexer;
 	Operand result = operand_new();
 
-	if (lexer->token == TOKEN_OPEN_PARENTHESIS) {
+	switch (lexer->token.type) {
+	case TOKEN_OPEN_PARENTHESIS: {
 		// Function call
 		if (operand.type == OP_LOCAL) {
 			parse_fn_call_slot(parser, CALL_L, operand.slot, return_slot,
@@ -1350,7 +1357,10 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t return_slot) {
 
 		result.type = OP_LOCAL;
 		result.slot = return_slot;
-	} else if (lexer->token == TOKEN_DOT) {
+		break;
+	}
+
+	case TOKEN_DOT: {
 		// Struct field access
 		if (operand.type != OP_LOCAL) {
 			// Attempting to index the field on an operand that isn't a local
@@ -1362,13 +1372,16 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t return_slot) {
 		lexer_next(lexer);
 
 		// Expect an identifier
-		if (lexer->token != TOKEN_IDENTIFIER) {
+		if (lexer->token.type != TOKEN_IDENTIFIER) {
 			UNEXPECTED("Expected identifier after `.`");
 			return result;
 		}
 
 		// Emit field access
-		uint16_t index = vm_add_field(parser->vm, lexer->value.identifier);
+		Identifier ident;
+		ident.start = lexer->token.start;
+		ident.length = lexer->token.length;
+		uint16_t index = vm_add_field(parser->vm, ident);
 		emit(parser->fn, instr_new(STRUCT_FIELD, return_slot, operand.slot,
 			index));
 		lexer_next(lexer);
@@ -1377,6 +1390,11 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t return_slot) {
 		result.type = OP_LOCAL;
 		result.slot = return_slot;
 		result.struct_slot = operand.slot;
+		break;
+	}
+
+	default:
+		break;
 	}
 
 	return result;
@@ -1389,7 +1407,7 @@ Operand expr_left(Parser *parser, uint16_t slot) {
 	Lexer *lexer = parser->lexer;
 
 	// Check for unary operators
-	Token unary = lexer->token;
+	TokenType unary = lexer->token.type;
 	Opcode opcode = unary_opcode(unary);
 	if (opcode != NO_OP) {
 		// Consume the unary operator
@@ -1425,9 +1443,9 @@ Operand expr_prec(Parser *parser, uint16_t slot, Precedence limit) {
 	Operand left = expr_left(parser, slot);
 
 	// Parse a binary operator
-	while (!vm_has_error(parser->vm) && binary_prec(lexer->token) > limit) {
+	while (!vm_has_error(parser->vm) && binary_prec(lexer->token.type) > limit) {
 		// Consume the operator
-		Token operator = lexer->token;
+		TokenType operator = lexer->token.type;
 		lexer_next(lexer);
 
 		// Emit bytecode for the left operand
@@ -1490,7 +1508,7 @@ void expr_emit_local(Parser *parser, char *name, size_t length) {
 
 
 // Returns true if `token` can begin an expression.
-bool expr_exists(Token token) {
+bool expr_exists(TokenType token) {
 	return token == TOKEN_IDENTIFIER || token == TOKEN_STRING ||
 		token == TOKEN_INTEGER || token == TOKEN_NUMBER ||
 		token == TOKEN_TRUE || token == TOKEN_FALSE || token == TOKEN_NIL ||
@@ -1513,8 +1531,8 @@ void parse_initial_assignment(Parser *parser) {
 
 	// Expect an identifier
 	EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `let`");
-	char *name = lexer->value.identifier.start;
-	size_t length = lexer->value.identifier.length;
+	char *name = lexer->token.start;
+	size_t length = lexer->token.length;
 	lexer_next(lexer);
 
 	// Check the variable isn't already defined
@@ -1541,30 +1559,33 @@ void parse_initial_assignment(Parser *parser) {
 
 
 // Parses an assignment.
-void parse_assignment(Parser *parser, Identifier name) {
+void parse_assignment(Parser *parser, Token name) {
 	Lexer *lexer = parser->lexer;
 
 	Identifier left[MAX_ASSIGN_DEPTH];
 	int count = 0;
 
 	// Parse left hand side variable list
-	while (lexer->token == TOKEN_DOT) {
+	while (lexer->token.type == TOKEN_DOT) {
 		lexer_next(lexer);
 
 		// Expect an identifier
 		EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `.` in assignment");
-		left[count++] = lexer->value.identifier;
+		left[count++].start = lexer->token.start;
+		left[count - 1].length = lexer->token.length;
 		lexer_next(lexer);
 	}
 
 	// Expect an assignment operator
-	if (lexer->token < TOKEN_ASSIGN || lexer->token > TOKEN_DIV_ASSIGN) {
+	if (lexer->token.type < TOKEN_ASSIGN ||
+			lexer->token.type > TOKEN_DIV_ASSIGN) {
 		UNEXPECTED("Expected `=` after identifier in assignment");
 		return;
 	}
 
 	// Save the token used to perform the assignment
-	Token assign = lexer->token;
+	// TODO: Add modifier assignment token support (currently failing test)
+	TokenType assign = lexer->token.type;
 	lexer_next(lexer);
 
 	// If we're only assigning to a single variable
@@ -1649,7 +1670,7 @@ void parse_if_body(Parser *parser) {
 	uint32_t false_case = parser->fn->bytecode_count;
 
 	// If there's another if or else if after this
-	if (lexer->token == TOKEN_ELSE_IF || lexer->token == TOKEN_ELSE) {
+	if (lexer->token.type == TOKEN_ELSE_IF || lexer->token.type == TOKEN_ELSE) {
 		// An extra jump is going to be inserted, so the false case is one more
 		// instruction after what we think
 		false_case++;
@@ -1674,7 +1695,7 @@ void parse_if(Parser *parser) {
 	int jump = -1;
 
 	// Parse following else if statements
-	while (!vm_has_error(parser->vm) && lexer->token == TOKEN_ELSE_IF) {
+	while (!vm_has_error(parser->vm) && lexer->token.type == TOKEN_ELSE_IF) {
 		// Insert a jump at the end of the previous if body
 		int new_jump = jmp_new(parser->fn);
 		if (jump == -1) {
@@ -1693,13 +1714,12 @@ void parse_if(Parser *parser) {
 	}
 
 	// Check for an else statement
-	if (lexer->token == TOKEN_ELSE) {
+	if (lexer->token.type == TOKEN_ELSE) {
 		// Insert a jump at the end of the previous if body
 		int new_jump = jmp_new(parser->fn);
 		if (jump == -1) {
 			jump = new_jump;
 		} else {
-
 			jmp_append(parser->fn, new_jump, jump);
 			jump = new_jump;
 		}
@@ -1853,7 +1873,7 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
 	Lexer *lexer = parser->lexer;
 
 	// Expect an opening parenthesis
-	if (lexer->token != TOKEN_OPEN_PARENTHESIS) {
+	if (lexer->token.type != TOKEN_OPEN_PARENTHESIS) {
 		UNEXPECTED("Expected `(` after function name to begin arguments list");
 		return 0;
 	}
@@ -1877,31 +1897,31 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
 	}
 
 	// Parse the arguments list into the child parser's locals list
-	while (lexer->token == TOKEN_IDENTIFIER) {
+	while (lexer->token.type == TOKEN_IDENTIFIER) {
 		// Save the argument
 		Local *local = &child.locals[child.locals_count++];
-		local->name = lexer->value.identifier.start;
-		local->length = lexer->value.identifier.length;
+		local->name = lexer->token.start;
+		local->length = lexer->token.length;
 		local->scope_depth = 0;
 		local->upvalue_index = -1;
 		lexer_next(lexer);
 		child.fn->arity++;
 
 		// Skip a comma
-		if (lexer->token == TOKEN_COMMA) {
+		if (lexer->token.type == TOKEN_COMMA) {
 			lexer_next(lexer);
 		}
 	}
 
 	// Expect a closing parenthesis
-	if (lexer->token != TOKEN_CLOSE_PARENTHESIS) {
+	if (lexer->token.type != TOKEN_CLOSE_PARENTHESIS) {
 		UNEXPECTED("Expected `)` to close function arguments list");
 		return 0;
 	}
 	lexer_next(lexer);
 
 	// Expect an opening brace to begin the function block
-	if (lexer->token != TOKEN_OPEN_BRACE) {
+	if (lexer->token.type != TOKEN_OPEN_BRACE) {
 		UNEXPECTED("Expected `{` after arguments list to open function block");
 		return 0;
 	}
@@ -1914,7 +1934,7 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
 	emit(child.fn, instr_new(RET, 0, 0, 0));
 
 	// Expect a closing brace
-	if (lexer->token != TOKEN_CLOSE_BRACE) {
+	if (lexer->token.type != TOKEN_CLOSE_BRACE) {
 		UNEXPECTED("Expected `}` to close function block");
 		return 0;
 	}
@@ -1933,8 +1953,8 @@ void parse_method_definition(Parser *parser) {
 
 	// Expect the name of a struct
 	EXPECT(TOKEN_IDENTIFIER, "Expected struct name in method definition");
-	char *name = lexer->value.identifier.start;
-	size_t length = lexer->value.identifier.length;
+	char *name = lexer->token.start;
+	size_t length = lexer->token.length;
 	lexer_next(lexer);
 
 	// Find a struct with the given name
@@ -1950,7 +1970,7 @@ void parse_method_definition(Parser *parser) {
 	lexer_next(lexer);
 
 	// Check if this is a constructor
-	if (lexer->token == TOKEN_NEW) {
+	if (lexer->token.type == TOKEN_NEW) {
 		// Skip the `new` token
 		lexer_next(lexer);
 
@@ -1961,8 +1981,8 @@ void parse_method_definition(Parser *parser) {
 
 	// Expect the name of the method
 	EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `fn`");
-	name = lexer->value.identifier.start;
-	length = lexer->value.identifier.length;
+	name = lexer->token.start;
+	length = lexer->token.length;
 	lexer_next(lexer);
 
 	// Parse the remainder of the function
@@ -1987,15 +2007,15 @@ void parse_fn_definition(Parser *parser) {
 	lexer_next(lexer);
 
 	// Check if we're parsing a method definition or not
-	if (lexer->token == TOKEN_OPEN_PARENTHESIS) {
+	if (lexer->token.type == TOKEN_OPEN_PARENTHESIS) {
 		parse_method_definition(parser);
 		return;
 	}
 
 	// Expect an identifier (the name of the function)
 	EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `fn`");
-	char *name = lexer->value.identifier.start;
-	size_t length = lexer->value.identifier.length;
+	char *name = lexer->token.start;
+	size_t length = lexer->token.length;
 	lexer_next(lexer);
 
 	// Parse the remainder of the function
@@ -2048,7 +2068,7 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 
 	// Parse function arguments into consecutive local slots
 	while (!vm_has_error(parser->vm) &&
-			lexer->token != TOKEN_CLOSE_PARENTHESIS) {
+			lexer->token.type != TOKEN_CLOSE_PARENTHESIS) {
 		// Create local for the argument
 		uint16_t slot;
 		local_new(parser, &slot);
@@ -2066,9 +2086,9 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 		expr_emit(parser, slot);
 
 		// Expect a comma or closing parenthesis
-		if (lexer->token == TOKEN_COMMA) {
+		if (lexer->token.type == TOKEN_COMMA) {
 			lexer_next(lexer);
-		} else if (lexer->token != TOKEN_CLOSE_PARENTHESIS) {
+		} else if (lexer->token.type != TOKEN_CLOSE_PARENTHESIS) {
 			// Unexpected token
 			UNEXPECTED("Expected `)` to close arguments list in function call");
 			return;
@@ -2089,7 +2109,7 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 
 // Parses a function call, starting at the opening parenthesis of the arguments
 // list. `ident` is the name of the function to call.
-void parse_fn_call(Parser *parser, Identifier ident) {
+void parse_fn_call(Parser *parser, Token ident) {
 	// Parse the result of the function call into a temporary slot
 	uint16_t return_slot;
 	scope_new(parser);
@@ -2127,21 +2147,22 @@ bool parse_call_or_assignment(Parser *parser) {
 	Lexer *lexer = parser->lexer;
 
 	// Check for an identifier
-	if (lexer->token != TOKEN_IDENTIFIER) {
+	if (lexer->token.type != TOKEN_IDENTIFIER) {
 		return false;
 	}
 
 	// Skip the identifier
-	Identifier identifier = lexer->value.identifier;
+	Token identifier = lexer->token;
 	lexer_next(lexer);
 
 	// Check the next character
-	if (lexer->token == TOKEN_OPEN_PARENTHESIS) {
+	if (lexer->token.type == TOKEN_OPEN_PARENTHESIS) {
 		// Function call
 		parse_fn_call(parser, identifier);
 		return true;
-	} else if ((lexer->token >= TOKEN_ASSIGN &&
-			lexer->token <= TOKEN_DIV_ASSIGN) || lexer->token == TOKEN_DOT) {
+	} else if ((lexer->token.type >= TOKEN_ASSIGN &&
+			lexer->token.type <= TOKEN_DIV_ASSIGN) ||
+			lexer->token.type == TOKEN_DOT) {
 		// Assignment
 		parse_assignment(parser, identifier);
 		return true;
@@ -2164,7 +2185,7 @@ void parse_return(Parser *parser) {
 	lexer_next(lexer);
 
 	// Check for a return value
-	if (!expr_exists(lexer->token)) {
+	if (!expr_exists(lexer->token.type)) {
 		// Emit close upvalue instructions for all locals in this function
 		local_close_upvalues(parser);
 
@@ -2202,8 +2223,8 @@ void parse_struct_definition(Parser *parser) {
 
 	// Expect the name of the struct
 	EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `struct`");
-	char *name = lexer->value.identifier.start;
-	size_t length = lexer->value.identifier.length;
+	char *name = lexer->token.start;
+	size_t length = lexer->token.length;
 	lexer_next(lexer);
 
 	// Check the struct doesn't already exist
@@ -2218,21 +2239,23 @@ void parse_struct_definition(Parser *parser) {
 	def->length = length;
 
 	// Check for an optional brace
-	if (lexer->token == TOKEN_OPEN_BRACE) {
+	if (lexer->token.type == TOKEN_OPEN_BRACE) {
 		// Skip the opening brace
 		lexer_next(lexer);
 
 		// Parse struct fields
-		while (!vm_has_error(parser->vm) && lexer->token == TOKEN_IDENTIFIER) {
+		while (!vm_has_error(parser->vm) &&
+				lexer->token.type == TOKEN_IDENTIFIER) {
 			int index = struct_new_field(def);
-			def->fields[index] = lexer->value.identifier;
+			def->fields[index].start = lexer->token.start;
+			def->fields[index].length = lexer->token.length;
 			def->values[index] = NIL_VALUE;
 			lexer_next(lexer);
 
 			// Expect a comma or closing brace
-			if (lexer->token == TOKEN_COMMA) {
+			if (lexer->token.type == TOKEN_COMMA) {
 				lexer_next(lexer);
-			} else if (lexer->token != TOKEN_CLOSE_BRACE) {
+			} else if (lexer->token.type != TOKEN_CLOSE_BRACE) {
 				UNEXPECTED("Expected `}` to close struct fields list");
 			}
 		}
@@ -2253,8 +2276,8 @@ void parse_struct_instantiation(Parser *parser, uint16_t slot) {
 
 	// Expect the name of a struct
 	EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `new`");
-	char *name = lexer->value.identifier.start;
-	size_t length = lexer->value.identifier.length;
+	char *name = lexer->token.start;
+	size_t length = lexer->token.length;
 	lexer_next(lexer);
 
 	// Find a struct with the given name
@@ -2299,7 +2322,7 @@ void parse_struct_instantiation(Parser *parser, uint16_t slot) {
 
 // Parses a single statement.
 void parse_statement(Parser *parser) {
-	switch (parser->lexer->token) {
+	switch (parser->lexer->token.type) {
 		// Trigger a special error for misplaced imports
 	case TOKEN_IMPORT:
 		ERROR("Imports must be placed at the top of the file");
@@ -2351,7 +2374,7 @@ void parse_statement(Parser *parser) {
 
 
 // Parses a block of statements, terminated by `terminator`.
-void parse_block(Parser *parser, Token terminator) {
+void parse_block(Parser *parser, TokenType terminator) {
 	Lexer *lexer = parser->lexer;
 
 	// Create a new scope for the block
@@ -2359,8 +2382,8 @@ void parse_block(Parser *parser, Token terminator) {
 
 	// Continually parse statements until an error is triggered, we reach the
 	// end of the file, or we reach the terminating token
-	while (!vm_has_error(parser->vm) &&
-			lexer->token != TOKEN_EOF && lexer->token != terminator) {
+	while (!vm_has_error(parser->vm) && lexer->token.type != TOKEN_EOF &&
+			lexer->token.type != terminator) {
 		parse_statement(parser);
 	}
 
@@ -2397,7 +2420,7 @@ Parser parser_new(Parser *parent) {
 // populates the function's bytecode based on `package`'s source code.
 void parse_package(VirtualMachine *vm, Package *package) {
 	// Create a lexer on the stack for all child parsers
-	Lexer lexer = lexer_new(package->source);
+	Lexer lexer = lexer_new(package->file, package->source);
 	lexer_next(&lexer);
 
 	// Create a new parser

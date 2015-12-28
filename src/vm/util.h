@@ -9,6 +9,13 @@
 #include <stdlib.h>
 
 
+// A string with a specified length (rather than NULL terminated).
+typedef struct {
+	char *start;
+	size_t length;
+} Identifier;
+
+
 // Converts a double into an unsigned 64 bit integer.
 uint64_t double_to_uint64(double value);
 
