@@ -84,9 +84,36 @@ bool lexer_matches(Lexer *lexer, char *string) {
 }
 
 
+// Returns true if the lexer starts with the given string.
+bool lexer_starts(Lexer *lexer, char *string) {
+	for (int i = 0; string[i] != '\0'; i++) {
+		if (PEEK(i) == '\0' || PEEK(i) != string[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
+
 // Consumes characters up until the next non-whitespace characters.
 void lexer_consume_whitespace(Lexer *lexer) {
 	while (IS_WHITESPACE(CURRENT())) {
+		CONSUME();
+	}
+}
+
+
+// Consumes characters up until the end of the line.
+void lexer_consume_eol(Lexer *lexer) {
+	while (!IS_EOF() && CURRENT() != '\r' && CURRENT() != '\n') {
+		CONSUME();
+	}
+}
+
+
+// Consumes characters until the start of the lexer matches the given string.
+void lexer_consume_until(Lexer *lexer, char *terminator) {
+	while (!IS_EOF() && !lexer_starts(lexer, terminator)) {
 		CONSUME();
 	}
 }
@@ -405,7 +432,6 @@ void lexer_next(Lexer *lexer) {
 	DOUBLE('+', TOKEN_ADD, '=', TOKEN_ADD_ASSIGN)
 	DOUBLE('-', TOKEN_SUB, '=', TOKEN_SUB_ASSIGN)
 	DOUBLE('*', TOKEN_MUL, '=', TOKEN_MUL_ASSIGN)
-	DOUBLE('/', TOKEN_DIV, '=', TOKEN_DIV_ASSIGN)
 	SINGLE('%', TOKEN_MOD)
 	DOUBLE('=', TOKEN_ASSIGN, '=', TOKEN_EQ)
 	DOUBLE('!', TOKEN_NOT, '=', TOKEN_NEQ)
@@ -423,6 +449,29 @@ void lexer_next(Lexer *lexer) {
 	SINGLE('{', TOKEN_OPEN_BRACE)
 	SINGLE('}', TOKEN_CLOSE_BRACE)
 	SINGLE(',', TOKEN_COMMA)
+
+	// Comments and division
+	case '/':
+		CONSUME();
+		if (CURRENT() == '/') {
+			// Single line comment
+			// Consume until end of the next newline
+			lexer_consume_eol(lexer);
+			lexer_next(lexer);
+		} else if (CURRENT() == '*') {
+			// Block comment
+			lexer_consume_until(lexer, "*/");
+			FORWARD(2);
+			lexer_next(lexer);
+		} else if (CURRENT() == '=') {
+			CONSUME();
+			token->length = 2;
+			token->type = TOKEN_DIV_ASSIGN;
+		} else {
+			token->length = 1;
+			token->type = TOKEN_DIV;
+		}
+		break;
 
 	// Numbers
 	case '0':

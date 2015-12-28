@@ -190,3 +190,24 @@ TEST(Lexer, Keywords) {
 	ASSERT_TOKEN(TOKEN_FN);
 	ASSERT_TOKEN(TOKEN_EOF);
 }
+
+
+// Tests single line comments.
+TEST(Lexer, SingleLineComments) {
+	LEXER("true // false this is a test\n+ - //\n//  \t\t  \n\rfn");
+	ASSERT_TOKEN(TOKEN_TRUE);
+	ASSERT_TOKEN(TOKEN_ADD);
+	ASSERT_TOKEN(TOKEN_SUB);
+	ASSERT_TOKEN(TOKEN_FN);
+	ASSERT_TOKEN(TOKEN_EOF);
+}
+
+
+// Tests block comments.
+TEST(Lexer, BlockComments) {
+	LEXER("/* this is a \n\n\r\n \t\r */ + /**/\n\r\n -/*\n*/ else \n if");
+	ASSERT_TOKEN(TOKEN_ADD);
+	ASSERT_TOKEN(TOKEN_SUB);
+	ASSERT_TOKEN(TOKEN_ELSE_IF);
+	ASSERT_TOKEN(TOKEN_EOF);
+}
