@@ -58,7 +58,7 @@ typedef struct {
 	uint32_t arity;
 
 	// The compiled bytecode for the function.
-	ARRAY(uint64_t, bytecode);
+	ARRAY(uint64_t, bytecode)
 
 	// The package the function was defined in.
 	Package *package;
@@ -89,7 +89,7 @@ struct package {
 	uint16_t main_fn;
 
 	// A list of functions defined in this package.
-	ARRAY(Function *, functions);
+	ARRAY(Function *, functions)
 };
 
 
@@ -104,35 +104,35 @@ typedef struct {
 	int constructor;
 
 	// The names of the struct's fields.
-	ARRAY(Identifier, fields);
+	ARRAY(Identifier, fields)
 
 	// The default values for the struct's fields.
-	ARRAY(uint64_t, values);
+	ARRAY(uint64_t, values)
 } StructDefinition;
 
 
 // A virtual machine, storing the interpreter's state.
 typedef struct vm {
 	// A list of compiled functions.
-	ARRAY(Function, functions);
+	ARRAY(Function, functions)
 
 	// All imported packages.
-	ARRAY(Package, packages);
+	ARRAY(Package, packages)
 
 	// Numbers encountered during compilation.
-	ARRAY(uint64_t, numbers);
+	ARRAY(uint64_t, numbers)
 
 	// Strings encountered during compilation.
-	ARRAY(uint64_t, strings);
+	ARRAY(uint64_t, strings)
 
 	// Upvalues found during compilation.
-	ARRAY(Upvalue, upvalues);
+	ARRAY(Upvalue, upvalues)
 
 	// Struct definitions encountered during compilation.
-	ARRAY(StructDefinition, structs);
+	ARRAY(StructDefinition, structs)
 
 	// Struct field names encountered during compilation.
-	ARRAY(Identifier, fields);
+	ARRAY(Identifier, fields)
 
 	// A heap allocated error object, set to a value if an error occurs.
 	HyError *err;
