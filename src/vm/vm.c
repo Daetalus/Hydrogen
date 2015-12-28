@@ -164,6 +164,7 @@ Package * package_new(VirtualMachine *vm) {
 	package->file = NULL;
 	package->main_fn = 0;
 	ARRAY_INIT(package->functions, Function *, 4);
+	ARRAY_INIT(package->structs, StructDefinition *, 4);
 	return package;
 }
 
@@ -219,9 +220,11 @@ Function * fn_new(VirtualMachine *vm, Package *package, uint16_t *index) {
 	ARRAY_INIT(fn->bytecode, uint64_t, 64);
 
 	// Add the function to the package's function list
-	uint32_t package_index = package->functions_count++;
-	ARRAY_REALLOC(package->functions, Function *);
-	package->functions[package_index] = fn;
+	if (package != NULL) {
+		uint32_t package_index = package->functions_count++;
+		ARRAY_REALLOC(package->functions, Function *);
+		package->functions[package_index] = fn;
+	}
 
 	return fn;
 }
@@ -309,17 +312,26 @@ int upvalue_find(VirtualMachine *vm, char *name, size_t length) {
 //
 
 // Creates a new struct definition.
-StructDefinition * struct_new(VirtualMachine *vm) {
+StructDefinition * struct_new(VirtualMachine *vm, Package *package) {
 	int index = vm->structs_count++;
 	ARRAY_REALLOC(vm->structs, StructDefinition);
 
 	// Initialise the struct definition
 	StructDefinition *def = &vm->structs[index];
 	def->name = NULL;
+	def->package = package;
 	def->length = 0;
 	def->constructor = -1;
 	ARRAY_INIT(def->fields, Identifier, 2);
 	ARRAY_INIT(def->values, uint64_t, 2);
+
+	// Add the package to the struct's package list
+	if (package != NULL) {
+		int index = package->structs_count++;
+		ARRAY_REALLOC(package->structs, StructDefinition *);
+		package->structs[index] = def;
+	}
+
 	return def;
 }
 

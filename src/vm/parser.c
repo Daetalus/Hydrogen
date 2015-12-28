@@ -2233,7 +2233,7 @@ void parse_struct_definition(Parser *parser) {
 	}
 
 	// Create the struct definition
-	StructDefinition *def = struct_new(parser->vm);
+	StructDefinition *def = struct_new(parser->vm, parser->fn->package);
 	def->name = name;
 	def->length = length;
 

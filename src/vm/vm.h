@@ -58,7 +58,7 @@ typedef struct {
 	uint32_t arity;
 
 	// The compiled bytecode for the function.
-	ARRAY(uint64_t, bytecode)
+	ARRAY(uint64_t, bytecode);
 
 	// The package the function was defined in.
 	Package *package;
@@ -68,6 +68,27 @@ typedef struct {
 	Upvalue *defined_upvalues[MAX_UPVALUES_IN_FN];
 	uint32_t defined_upvalues_count;
 } Function;
+
+
+// A struct definition.
+typedef struct {
+	// The name of the struct.
+	char *name;
+	size_t length;
+
+	// The index of the struct's constructor function, or -1 if the struct
+	// doesn't have a constructor.
+	int constructor;
+
+	// The package the struct was defined in.
+	Package *package;
+
+	// The names of the struct's fields.
+	ARRAY(Identifier, fields);
+
+	// The default values for the struct's fields.
+	ARRAY(uint64_t, values);
+} StructDefinition;
 
 
 // A package (collection of functions, global variables, and constants),
@@ -89,50 +110,35 @@ struct package {
 	uint16_t main_fn;
 
 	// A list of functions defined in this package.
-	ARRAY(Function *, functions)
+	ARRAY(Function *, functions);
+
+	// A list of structs defined in this package.
+	ARRAY(StructDefinition *, structs);
 };
-
-
-// A struct definition.
-typedef struct {
-	// The name of the struct.
-	char *name;
-	size_t length;
-
-	// The index of the struct's constructor function, or -1 if the struct
-	// doesn't have a constructor.
-	int constructor;
-
-	// The names of the struct's fields.
-	ARRAY(Identifier, fields)
-
-	// The default values for the struct's fields.
-	ARRAY(uint64_t, values)
-} StructDefinition;
 
 
 // A virtual machine, storing the interpreter's state.
 typedef struct vm {
 	// A list of compiled functions.
-	ARRAY(Function, functions)
+	ARRAY(Function, functions);
 
 	// All imported packages.
-	ARRAY(Package, packages)
+	ARRAY(Package, packages);
 
 	// Numbers encountered during compilation.
-	ARRAY(uint64_t, numbers)
+	ARRAY(uint64_t, numbers);
 
 	// Strings encountered during compilation.
-	ARRAY(uint64_t, strings)
+	ARRAY(uint64_t, strings);
 
 	// Upvalues found during compilation.
-	ARRAY(Upvalue, upvalues)
+	ARRAY(Upvalue, upvalues);
 
 	// Struct definitions encountered during compilation.
-	ARRAY(StructDefinition, structs)
+	ARRAY(StructDefinition, structs);
 
 	// Struct field names encountered during compilation.
-	ARRAY(Identifier, fields)
+	ARRAY(Identifier, fields);
 
 	// A heap allocated error object, set to a value if an error occurs.
 	HyError *err;
@@ -190,8 +196,9 @@ Upvalue * upvalue_new(VirtualMachine *vm, int *index);
 int upvalue_find(VirtualMachine *vm, char *name, size_t length);
 
 
-// Creates a new struct definition.
-StructDefinition * struct_new(VirtualMachine *vm);
+// Defines a new struct definition in the given package, or in the global
+// namespace if `package` is NULL.
+StructDefinition * struct_new(VirtualMachine *vm, Package *package);
 
 // Frees a struct.
 void struct_free(StructDefinition *def);

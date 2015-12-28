@@ -12,8 +12,8 @@ IF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 ENDIF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 
 # Debug and release flags
-set(CMAKE_C_FLAGS_DEBUG "-Wall -Wextra -Wpedantic -O0 -g")
-set(CMAKE_C_FLAGS_RELEASE "-Wall -Wextra -Wpedantic -O3")
+set(CMAKE_C_FLAGS_DEBUG "-Wall -Wextra -O0 -g")
+set(CMAKE_C_FLAGS_RELEASE "-Wall -Wextra -O3")
 
 # Library
 include_directories(include)
