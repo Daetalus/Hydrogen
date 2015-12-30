@@ -10,7 +10,7 @@
 
 
 // Returns the contents of a file as a heap allocated string.
-char * read_file(char *path) {
+char * file_contents(char *path) {
 	FILE *f = fopen(path, "r");
 
 	// Get the length of the file
@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
 
 	// Read the contents of the file
 	char *path = argv[1];
-	char *contents = read_file(path);
+	char *contents = file_contents(path);
 
 	// Run the source string
 	HyVM *vm = hy_new();

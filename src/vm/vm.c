@@ -160,8 +160,8 @@ Package * package_new(VirtualMachine *vm) {
 	// Initialise the package
 	Package *package = &vm->packages[index];
 	package->name = NULL;
-	package->source = NULL;
 	package->file = NULL;
+	package->source = NULL;
 	package->main_fn = 0;
 	ARRAY_INIT(package->functions, Function *, 4);
 	ARRAY_INIT(package->structs, StructDefinition *, 4);
@@ -171,7 +171,14 @@ Package * package_new(VirtualMachine *vm) {
 
 // Frees a package.
 void package_free(Package *package) {
+	if (package->file != NULL) {
+		free(package->file);
+	}
+	if (package->name != NULL) {
+		free(package->name);
+	}
 	free(package->functions);
+	free(package->structs);
 }
 
 

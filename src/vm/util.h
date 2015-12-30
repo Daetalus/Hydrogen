@@ -28,6 +28,9 @@ int16_t uint16_to_int16(uint16_t value);
 // Converts a signed 16 bit integer to an unsigned 16 bit integer.
 uint16_t int16_to_uint16(int16_t value);
 
+// Returns the contents of a file as a heap allocated string.
+char * read_file(char *path);
+
 
 // Creates a new array in a struct.
 #define ARRAY(type, name)       \
@@ -45,14 +48,14 @@ uint16_t int16_to_uint16(int16_t value);
 
 // Increases the capacity of the array if its size is larger than it's capacity.
 // You need to increase the size of the array before actually setting any data.
-#define ARRAY_REALLOC(array, type)                                 \
-    if (array ## _count > array ## _capacity) {                    \
-		if (array ## _count <= array ## _capacity * 2) {           \
-			array ## _capacity *= 2;                               \
-		} else {                                                   \
-			array ## _capacity = array ## _count + 4;              \
-		}                                                          \
-		array = realloc(array, array ## _capacity * sizeof(type)); \
+#define ARRAY_REALLOC(array, type)                                          \
+    if (array ## _count > array ## _capacity) {                             \
+		if (array ## _count <= array ## _capacity * 2) {                    \
+			array ## _capacity *= 2;                                        \
+		} else {                                                            \
+			array ## _capacity = array ## _count + 4;                       \
+		}                                                                   \
+		array = (type *) realloc(array, array ## _capacity * sizeof(type)); \
     }
 
 #endif
