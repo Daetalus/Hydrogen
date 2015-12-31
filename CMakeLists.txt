@@ -26,7 +26,7 @@ add_executable(cli ${CLI_SOURCES})
 target_link_libraries(cli hydrogen)
 
 # Enable testing using Google's testing framework
-add_subdirectory(gtest/googletest)
+add_subdirectory(tests/gtest/googletest)
 enable_testing()
 
 # Macro for adding a test program
