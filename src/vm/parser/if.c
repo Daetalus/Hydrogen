@@ -5,6 +5,7 @@
 
 #include "if.h"
 #include "expr.h"
+#include "jmp.h"
 #include "../bytecode.h"
 
 

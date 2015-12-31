@@ -12,6 +12,7 @@
 #include "../value.h"
 
 #include "expr.h"
+#include "jmp.h"
 #include "local.h"
 #include "fn.h"
 #include "struct.h"

@@ -14,22 +14,6 @@
 #include "struct.h"
 
 
-// * The parser converts lexed source code into bytecode
-// * A `Parser` struct is used for each function
-// * The top level source of a file (not inside a function) is treated as the
-//   package's main function
-// * A function has a main block and arguments
-// * A block consists of a series of statements (eg. if, while, loop, for, etc.)
-// * A statement itself may have another block (eg. while loops), which is
-//   parsed recursively
-//
-// * Variables (locals) are stored in a stack in the order they were defined
-// * Each local stores the scope depth at which it was defined
-// * A new scope is defined at the start of each block and freed at the end of
-//   the block
-// * When a scope is freed, all variables defined in that scope are freed
-
-
 // Creates a new parser. Does not create a new function for the parser.
 Parser parser_new(Parser *parent) {
 	Parser parser;

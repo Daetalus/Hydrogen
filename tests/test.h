@@ -10,6 +10,7 @@ extern "C" {
 #include <error.h>
 #include <parser/lexer.h>
 #include <parser/parser.h>
+#include <parser/jmp.h>
 #include <util.h>
 #include <value.h>
 #include <vm.h>
