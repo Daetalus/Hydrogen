@@ -8,7 +8,7 @@
 #include <stdio.h>
 
 #include "vm.h"
-#include "parser.h"
+#include "parser/parser.h"
 #include "error.h"
 #include "bytecode.h"
 #include "value.h"

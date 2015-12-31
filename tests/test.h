@@ -8,8 +8,8 @@ extern "C" {
 #include <bytecode.h>
 #include <debug.h>
 #include <error.h>
-#include <lexer.h>
-#include <parser.h>
+#include <parser/lexer.h>
+#include <parser/parser.h>
 #include <util.h>
 #include <value.h>
 #include <vm.h>

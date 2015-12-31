@@ -17,11 +17,11 @@ set(CMAKE_C_FLAGS_RELEASE "-Wall -Wextra -O3")
 
 # Library
 include_directories(include)
-file(GLOB VM_SOURCES src/vm/*.c)
+file(GLOB_RECURSE VM_SOURCES src/vm/*)
 add_library(hydrogen STATIC ${VM_SOURCES})
 
 # Command line executable
-file(GLOB CLI_SOURCES src/cli/*.c)
+file(GLOB_RECURSE CLI_SOURCES src/cli/*)
 add_executable(cli ${CLI_SOURCES})
 target_link_libraries(cli hydrogen)
 

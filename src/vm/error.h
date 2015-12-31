@@ -10,7 +10,7 @@
 #include <hydrogen.h>
 
 #include "vm.h"
-#include "lexer.h"
+#include "parser/lexer.h"
 
 // Triggers a custom error.
 void err_new(VirtualMachine *vm, Token *token, char *fmt, ...);
