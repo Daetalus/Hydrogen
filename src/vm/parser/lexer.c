@@ -24,7 +24,7 @@
 
 // Evaluates to true if the given character is whitespace.
 #define IS_WHITESPACE(ch)  \
-	(ch == '\n' || ch == '\r' || ch == '\t' || ch == ' ')
+	((ch) == '\n' || (ch) == '\r' || (ch) == '\t' || (ch) == ' ')
 
 // Moves the cursor 1 place forward.
 #define CONSUME() (lexer_consume(lexer))

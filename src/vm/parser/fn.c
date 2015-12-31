@@ -69,6 +69,7 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
 
 	// Expect a closing parenthesis
 	if (lexer->token.type != TOKEN_CLOSE_PARENTHESIS) {
+		parser_free(&child);
 		UNEXPECTED("Expected `)` to close function arguments list");
 		return 0;
 	}
@@ -76,6 +77,7 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
 
 	// Expect an opening brace to begin the function block
 	if (lexer->token.type != TOKEN_OPEN_BRACE) {
+		parser_free(&child);
 		UNEXPECTED("Expected `{` after arguments list to open function block");
 		return 0;
 	}
@@ -89,11 +91,13 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
 
 	// Expect a closing brace
 	if (lexer->token.type != TOKEN_CLOSE_BRACE) {
+		parser_free(&child);
 		UNEXPECTED("Expected `}` to close function block");
 		return 0;
 	}
 	lexer_next(lexer);
 
+	parser_free(&child);
 	return fn_index;
 }
 

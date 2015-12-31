@@ -70,5 +70,6 @@ char * read_file(char *path) {
 	char *contents = malloc(sizeof(char) * (length + 1));
 	fread(contents, sizeof(char), length, f);
 	fclose(f);
+	contents[length] = '\0';
 	return contents;
 }

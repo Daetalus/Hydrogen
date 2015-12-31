@@ -31,13 +31,21 @@
 
 
 // Triggers a custom error.
-#define ERROR(...) \
-	err_new(parser->vm, &parser->lexer->token, __VA_ARGS__);
+#define ERROR(...) {                      \
+	VirtualMachine *vm = parser->vm;      \
+	Token *token = &parser->lexer->token; \
+	parser_free(parser);                  \
+	err_new(vm, token, __VA_ARGS__);      \
+}
 
 
 // Triggers an unexpected token error.
-#define UNEXPECTED(...) \
-	err_unexpected(parser->vm, &parser->lexer->token, __VA_ARGS__);
+#define UNEXPECTED(...) {                   \
+	VirtualMachine *vm = parser->vm;        \
+	Token *token = &parser->lexer->token;   \
+	parser_free(parser);                    \
+	err_unexpected(vm, token, __VA_ARGS__); \
+}
 
 
 // Triggers an unexpected token error if the current token does not match the
@@ -101,6 +109,9 @@ void parse_package(VirtualMachine *vm, Package *package);
 
 // Creates a new parser. Does not create a new function for the parser.
 Parser parser_new(Parser *parent);
+
+// Frees resources allocated by a parser.
+void parser_free(Parser *parser);
 
 // Parses a block of statements, terminated by `terminator`.
 void parse_block(Parser *parser, TokenType terminator);

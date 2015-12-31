@@ -6,7 +6,7 @@
 #include "test.h"
 
 
-// Tests we can get the next instruction in a jump list.
+// Tests finding the next instruction in a jump list.
 TEST(Jump, Next) {
 	FUNCTION(
 		NEQ_LL, 0, 3, 0,
@@ -31,7 +31,7 @@ TEST(Jump, Next) {
 }
 
 
-// Tests we can get the last instruction in a jump list.
+// Tests finding the last instruction in a jump list.
 TEST(Jump, Last) {
 	FUNCTION(
 		NEQ_LL, 0, 3, 0,

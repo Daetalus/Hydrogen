@@ -36,6 +36,13 @@ Parser parser_new(Parser *parent) {
 }
 
 
+// Frees resources allocated by a parser.
+void parser_free(Parser *parser) {
+	free(parser->locals);
+	free(parser->imports);
+}
+
+
 // Creates a new function on `vm`, used as `package`'s main function, and
 // populates the function's bytecode based on `package`'s source code.
 void parse_package(VirtualMachine *vm, Package *package) {
@@ -57,6 +64,9 @@ void parse_package(VirtualMachine *vm, Package *package) {
 
 	// Append a return instruction
 	emit(parser.fn, instr_new(RET, 0, 0, 0));
+
+	// Free the parser we allocated
+	parser_free(&parser);
 }
 
 
