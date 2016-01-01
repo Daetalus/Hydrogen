@@ -116,12 +116,13 @@ void parse_method_definition(Parser *parser) {
 	lexer_next(lexer);
 
 	// Find a struct with the given name
-	StructDefinition *def = struct_find(parser->vm, name, length, NULL);
-	if (def == NULL) {
+	int def_index = struct_find(parser->vm, name, length);
+	if (def_index < 0) {
 		ERROR("Attempt to define method on undefined struct `%.*s`", length,
 			name);
 		return;
 	}
+	StructDefinition *def = &parser->vm->structs[def_index];
 
 	// Expect a closing parenthesis
 	EXPECT(TOKEN_CLOSE_PARENTHESIS, "Expected `)` after struct name");

@@ -24,7 +24,7 @@ void parse_struct_definition(Parser *parser) {
 	lexer_next(lexer);
 
 	// Check the struct doesn't already exist
-	if (struct_find(parser->vm, name, length, NULL) != NULL) {
+	if (struct_find(parser->vm, name, length) >= 0) {
 		ERROR("Struct `%.*s` is already defined", length, name);
 		return;
 	}
@@ -76,13 +76,13 @@ void parse_struct_instantiation(Parser *parser, uint16_t slot) {
 	lexer_next(lexer);
 
 	// Find a struct with the given name
-	uint16_t index;
-	StructDefinition *def = struct_find(parser->vm, name, length, &index);
-	if (def == NULL) {
+	int index = struct_find(parser->vm, name, length);
+	if (index < 0) {
 		// Struct is undefined
 		ERROR("Undefined struct `%.*s` in instantiation", length, name);
 		return;
 	}
+	StructDefinition *def = &parser->vm->structs[index];
 
 	// Emit bytecode to create the struct
 	emit(parser->fn, instr_new(STRUCT_NEW, slot, index, 0));

@@ -175,9 +175,9 @@ Package * package_new(VirtualMachine *vm);
 // Frees a package.
 void package_free(Package *package);
 
-// Finds a package with the given name. Returns NULL if the package doesn't
-// exist.
-Package * package_find(VirtualMachine *vm, char *name, size_t length);
+// Returns the index of a package with the given name, or -1 if one couldn't be
+// found.
+int package_find(VirtualMachine *vm, char *name, size_t length);
 
 
 // Defines a new function in the given package, or in the global namespace if
@@ -187,10 +187,9 @@ Function * fn_new(VirtualMachine *vm, Package *package, uint16_t *index);
 // Frees resources allocated by a function.
 void fn_free(Function *fn);
 
-// Finds a function with the given name. Returns NULL if the function doesn't
-// exist.
-Function * fn_find(VirtualMachine *vm, char *name, size_t length,
-	uint16_t *index);
+// Returns the index of a function with the given name in the VM's function
+// list, or -1 if one couldn't be found.
+int fn_find(VirtualMachine *vm, char *name, size_t length);
 
 
 // Creates a new upvalue.
@@ -211,9 +210,9 @@ void struct_free(StructDefinition *def);
 // Creates a new field on a struct definition, returning its index.
 int struct_new_field(StructDefinition *def);
 
-// Returns a struct definition called `name`, or NULL if no such struct exists.
-StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
-	uint16_t *index);
+// Returns the index of a struct definition in the VM's struct definition list
+// with the given name, or -1 if one doesn't exist.
+int struct_find(VirtualMachine *vm, char *name, size_t length);
 
 
 // Executes a compiled function on the virtual machine.

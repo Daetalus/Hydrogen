@@ -47,6 +47,9 @@ typedef enum {
 	MOV_LU,
 	MOV_UL,
 
+	MOV_TL,
+	MOV_LT,
+
 
 	//
 	//  Math

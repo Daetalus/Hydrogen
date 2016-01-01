@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "local.h"
+#include "import.h"
 #include "../bytecode.h"
 
 
@@ -109,6 +110,14 @@ Variable local_capture(Parser *parser, char *name, size_t length) {
 		return result;
 	}
 
+	// Search packages
+	slot = import_package_find(parser, name, length);
+	if (slot >= 0) {
+		result.type = VAR_PACKAGE;
+		result.index = slot;
+		return result;
+	}
+
 	result.type = VAR_UNDEFINED;
 	return result;
 }
@@ -146,12 +155,12 @@ bool local_exists(Parser *parser, char *name, size_t length) {
 	}
 
 	// Structs
-	if (struct_find(parser->vm, name, length, NULL) != NULL) {
+	if (struct_find(parser->vm, name, length) >= 0) {
 		return true;
 	}
 
 	// Packages
-	if (import_package_find(parser, name, length) != NULL) {
+	if (import_package_find(parser, name, length) >= 0) {
 		return true;
 	}
 

@@ -182,21 +182,21 @@ void package_free(Package *package) {
 }
 
 
-// Finds a package with the given name. Returns NULL if the package doesn't
-// exist.
-Package * package_find(VirtualMachine *vm, char *name, size_t length) {
+// Returns the index of a package with the given name, or -1 if one couldn't be
+// found.
+int package_find(VirtualMachine *vm, char *name, size_t length) {
 	for (uint32_t i = 0; i < vm->packages_count; i++) {
 		Package *package = &vm->packages[i];
 
 		// Check the length of the package name and the name itself are equal
 		if (strlen(package->name) == length &&
 				strncmp(package->name, name, length) == 0) {
-			return package;
+			return i;
 		}
 	}
 
 	// Couldn't find a package with the given name
-	return NULL;
+	return -1;
 }
 
 
@@ -243,10 +243,9 @@ void fn_free(Function *fn) {
 }
 
 
-// Finds a function with the given name. Returns NULL if the function doesn't
-// exist.
-Function * fn_find(VirtualMachine *vm, char *name, size_t length,
-		uint16_t *index) {
+// Returns the index of a function with the given name in the VM's function
+// list, or -1 if one couldn't be found.
+int fn_find(VirtualMachine *vm, char *name, size_t length) {
 	// Functions that are defined recently are more likely to be used sooner
 	// (maybe?), so search the array in reverse order
 	for (int i = vm->functions_count; i >= 0; i--) {
@@ -255,16 +254,12 @@ Function * fn_find(VirtualMachine *vm, char *name, size_t length,
 		// Check if the length of the function's name matches, along with the
 		// name itself
 		if (fn->length == length && strncmp(fn->name, name, length) == 0) {
-			// Set the index
-			if (index != NULL) {
-				*index = i;
-			}
-			return fn;
+			return i;
 		}
 	}
 
 	// Couldn't find a function with the given name
-	return NULL;
+	return -1;
 }
 
 
@@ -364,24 +359,19 @@ int struct_new_field(StructDefinition *def) {
 }
 
 
-// Returns a struct definition called `name`, or NULL if no such struct exists.
-StructDefinition * struct_find(VirtualMachine *vm, char *name, size_t length,
-		uint16_t *index) {
+// Returns the index of a struct definition in the VM's struct definition list
+// with the given name, or -1 if one doesn't exist.
+int struct_find(VirtualMachine *vm, char *name, size_t length) {
 	for (int i = vm->structs_count - 1; i >= 0; i--) {
 		StructDefinition *def = &vm->structs[i];
 		if (def->length == length && strncmp(def->name, name, length) == 0) {
-			// Set requested index
-			if (index != NULL) {
-				*index = i;
-			}
-
 			// Found requested struct
-			return def;
+			return i;
 		}
 	}
 
 	// Couldn't find the struct
-	return NULL;
+	return -1;
 }
 
 

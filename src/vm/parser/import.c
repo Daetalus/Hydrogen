@@ -22,8 +22,6 @@ int last_path_component(char *path) {
 // Resolves the path for a package. If the given path is absolute, or the
 // importing package is not a file, then the path is
 char * import_package_path(Package *importer, char *path) {
-	size_t length = strlen(path);
-
 	// Find the position of the last path component of the importing
 	// package's path
 	int last = importer->file != NULL ? last_path_component(importer->file) : -1;
@@ -38,7 +36,6 @@ char * import_package_path(Package *importer, char *path) {
 		char *result = (char *) malloc(sizeof(char) * (strlen(path) + last + 2));
 		strncpy(result, importer->file, last + 1);
 		strcpy(&result[last + 1], path);
-		free(path);
 		return result;
 	}
 }
@@ -125,6 +122,9 @@ char * import_package_name(char *path) {
 Package * import_new(Parser *parser, char *path, char *name) {
 	// Find the requested package
 	char *actual_path = import_package_path(parser->fn->package, path);
+	if (actual_path != path) {
+		free(path);
+	}
 
 	Package *package = package_new(parser->vm);
 	package->name = name;
@@ -143,17 +143,17 @@ Package * import_new(Parser *parser, char *path, char *name) {
 }
 
 
-// Searches for an imported package in the parser with the given name,
-// returning NULL if the package couldn't be found.
-void import_package_find(Parser *parser, char *name, size_t length) {
-	for (uint32_t i = 0; i < parser->locals_count; i++) {
+// Returns the index of a package in the VM's package list with the given name
+// imported by the parser, or -1 if one can't be find.
+int import_package_find(Parser *parser, char *name, size_t length) {
+	for (uint32_t i = 0; i < parser->imports_count; i++) {
 		Package *package = parser->imports[i];
-		if (strlen(package->name) == length &&
+		if (package->name != NULL && strlen(package->name) == length &&
 				strncmp(name, package->name, length) == 0) {
-			return package;
+			return i;
 		}
 	}
-	return NULL;
+	return -1;
 }
 
 
