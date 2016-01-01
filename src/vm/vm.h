@@ -86,7 +86,8 @@ typedef struct {
 	// The names of the struct's fields.
 	ARRAY(Identifier, fields);
 
-	// The default values for the struct's fields.
+	// The default values for the struct's fields, which can be `memcpy`ed into
+	// a struct's fields list at runtime when instantiating a struct.
 	ARRAY(uint64_t, values);
 } StructDefinition;
 
@@ -114,6 +115,10 @@ struct package {
 
 	// A list of structs defined in this package.
 	ARRAY(StructDefinition *, structs);
+
+	// Storage location for all top level locals defined by the package, so we
+	// can access these locals from other packages outside this one.
+	ARRAY(uint64_t, locals);
 };
 
 

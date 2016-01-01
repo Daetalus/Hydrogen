@@ -23,7 +23,6 @@ int last_path_component(char *path) {
 // importing package is not a file, then the path is
 char * import_package_path(Package *importer, char *path) {
 	size_t length = strlen(path);
-	char *result;
 
 	// Find the position of the last path component of the importing
 	// package's path
@@ -32,17 +31,16 @@ char * import_package_path(Package *importer, char *path) {
 	// Copy the path across if it's absolute (begins with `/`), or the path
 	// is relative to the current directory (rather than the importing package)
 	if (path[0] == '/' || last == -1) {
-		result = (char *) malloc(sizeof(char) * (length + 1));
-		strcpy(result, path);
+		return path;
 	} else {
 		// Append the path to the importing package's path (excluding the last
 		// path component of the importing package's path)
-		result = (char *) malloc(sizeof(char) * (length + last + 2));
+		char *result = (char *) malloc(sizeof(char) * (strlen(path) + last + 2));
 		strncpy(result, importer->file, last + 1);
 		strcpy(&result[last + 1], path);
+		free(path);
+		return result;
 	}
-
-	return result;
 }
 
 
@@ -127,12 +125,6 @@ char * import_package_name(char *path) {
 Package * import_new(Parser *parser, char *path, char *name) {
 	// Find the requested package
 	char *actual_path = import_package_path(parser->fn->package, path);
-	free(path);
-	if (actual_path == NULL) {
-		free(name);
-		ERROR("Failed to find package `%s`", name);
-		return NULL;
-	}
 
 	Package *package = package_new(parser->vm);
 	package->name = name;
@@ -145,7 +137,23 @@ Package * import_new(Parser *parser, char *path, char *name) {
 		return NULL;
 	}
 
+	// Compile the package
+	parse_package(parser->vm, package);
 	return package;
+}
+
+
+// Searches for an imported package in the parser with the given name,
+// returning NULL if the package couldn't be found.
+void import_package_find(Parser *parser, char *name, size_t length) {
+	for (uint32_t i = 0; i < parser->locals_count; i++) {
+		Package *package = parser->imports[i];
+		if (strlen(package->name) == length &&
+				strncmp(name, package->name, length) == 0) {
+			return package;
+		}
+	}
+	return NULL;
 }
 
 

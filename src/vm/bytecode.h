@@ -30,6 +30,7 @@
 // * P: primitive (true, false, nil)
 // * F: function
 // * U: upvalue
+// * T: top level local in a package
 typedef enum {
 
 	//

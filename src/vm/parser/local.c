@@ -150,6 +150,11 @@ bool local_exists(Parser *parser, char *name, size_t length) {
 		return true;
 	}
 
+	// Packages
+	if (import_package_find(parser, name, length) != NULL) {
+		return true;
+	}
+
 	return false;
 }
 
