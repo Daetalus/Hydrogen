@@ -16,6 +16,7 @@ TEST(Functions, Definition) {
 
 	FN(0);
 	ASSERT_INSTR(MOV_LF, 0, 1, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
 	ASSERT_RET();
 
 	FN(1);
@@ -37,6 +38,7 @@ TEST(Functions, SingleArgument) {
 
 	FN(0);
 	ASSERT_INSTR(MOV_LF, 0, 1, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
 	ASSERT_RET();
 
 	FN(1);
@@ -57,6 +59,7 @@ TEST(Functions, MultipleArguments) {
 
 	FN(0);
 	ASSERT_INSTR(MOV_LF, 0, 1, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
 	ASSERT_RET();
 
 	FN(1);
@@ -80,6 +83,7 @@ TEST(Functions, ReturnNothing) {
 
 	FN(0);
 	ASSERT_INSTR(MOV_LF, 0, 1, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
 	ASSERT_RET();
 
 	FN(1);
@@ -105,6 +109,7 @@ TEST(Functions, ReturnValue) {
 
 	FN(0);
 	ASSERT_INSTR(MOV_LF, 0, 1, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
 	ASSERT_RET();
 
 	FN(1);
@@ -127,6 +132,7 @@ TEST(Functions, ArgumentsAndReturn) {
 
 	FN(0);
 	ASSERT_INSTR(MOV_LF, 0, 1, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
 	ASSERT_RET();
 
 	FN(1);
@@ -149,7 +155,9 @@ TEST(Functions, Call) {
 
 	FN(0);
 	ASSERT_INSTR(MOV_LF, 0, 1, 0);
-	ASSERT_CALL(CALL_L, 0, 0, 0, 1);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
+	ASSERT_CALL(CALL_L, 0, 0, 0, 0);
 	ASSERT_RET();
 
 	FN(1);
@@ -171,8 +179,10 @@ TEST(Functions, CallWithArgument) {
 
 	FN(0);
 	ASSERT_INSTR(MOV_LF, 0, 1, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
 	ASSERT_INSTR(MOV_LI, 1, 2, 0);
-	ASSERT_CALL(CALL_L, 0, 1, 1, 1);
+	ASSERT_CALL(CALL_L, 0, 1, 1, 0);
 	ASSERT_RET();
 
 	FN(1);
@@ -194,10 +204,12 @@ TEST(Functions, CallWithMultipleArguments) {
 
 	FN(0);
 	ASSERT_INSTR(MOV_LF, 0, 1, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
 	ASSERT_INSTR(MOV_LI, 1, 1, 0);
 	ASSERT_INSTR(MOV_LI, 2, 2, 0);
 	ASSERT_INSTR(MOV_LI, 3, 3, 0);
-	ASSERT_CALL(CALL_L, 0, 1, 3, 1);
+	ASSERT_CALL(CALL_L, 0, 1, 3, 0);
 	ASSERT_RET();
 
 	FN(1);
@@ -220,8 +232,11 @@ TEST(Functions, CallWithReturnValue) {
 
 	FN(0);
 	ASSERT_INSTR(MOV_LF, 0, 1, 0);
-	ASSERT_CALL(CALL_L, 0, 0, 0, 1);
-	ASSERT_INSTR(MUL_LI, 1, 1, 2);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
+	ASSERT_CALL(CALL_L, 0, 0, 0, 0);
+	ASSERT_INSTR(MUL_LI, 0, 0, 2);
+	ASSERT_INSTR(MOV_TL, 1, 0, 0);
 	ASSERT_RET();
 
 	FN(1);
@@ -244,7 +259,9 @@ TEST(Functions, MultipleDefinitions) {
 
 	FN(0);
 	ASSERT_INSTR(MOV_LF, 0, 1, 0);
-	ASSERT_INSTR(MOV_LF, 1, 2, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LF, 0, 2, 0);
+	ASSERT_INSTR(MOV_TL, 1, 0, 0);
 	ASSERT_RET();
 
 	FN(1);
@@ -271,9 +288,13 @@ TEST(Functions, CallAsArgument) {
 
 	FN(0);
 	ASSERT_INSTR(MOV_LF, 0, 1, 0);
-	ASSERT_INSTR(MOV_LI, 3, 1, 0);
-	ASSERT_CALL(CALL_L, 0, 3, 1, 2);
-	ASSERT_CALL(CALL_L, 0, 2, 1, 1);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 1, 0, 0);
+	ASSERT_INSTR(MOV_LI, 2, 1, 0);
+	ASSERT_CALL(CALL_L, 1, 2, 1, 1);
+	ASSERT_CALL(CALL_L, 0, 1, 1, 0);
+	ASSERT_INSTR(MOV_TL, 1, 0, 0);
 	ASSERT_RET();
 
 	FN(1);
@@ -295,9 +316,11 @@ TEST(Functions, AnonymousFunction) {
 
 	FN(0);
 	ASSERT_INSTR(MOV_LF, 0, 1, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
 	ASSERT_INSTR(MOV_LI, 1, 1, 0);
 	ASSERT_INSTR(MOV_LI, 2, 2, 0);
-	ASSERT_CALL(CALL_L, 0, 1, 2, 1);
+	ASSERT_CALL(CALL_L, 0, 1, 2, 0);
 	ASSERT_RET();
 
 	FN(1);
@@ -321,6 +344,7 @@ TEST(Functions, CallAnonymousFunction) {
 	ASSERT_INSTR(MOV_LI, 1, 1, 0);
 	ASSERT_INSTR(MOV_LI, 2, 2, 0);
 	ASSERT_CALL(CALL_F, 1, 1, 2, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
 	ASSERT_RET();
 
 	FN(1);

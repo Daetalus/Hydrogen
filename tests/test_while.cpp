@@ -16,10 +16,14 @@ TEST(While, Single) {
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
 	ASSERT_INSTR(GE_LI, 0, 100, 0);
-	ASSERT_JMP(3);
+	ASSERT_JMP(5);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
 	ASSERT_INSTR(ADD_LI, 0, 0, 1);
-	ASSERT_INSTR(LOOP, 3, 0, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(LOOP, 6, 0, 0);
 
 	ASSERT_RET();
 	COMPILER_FREE();
@@ -29,12 +33,14 @@ TEST(While, Single) {
 // Tests a break statement from within a while loop.
 TEST(While, Break) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"while a < 1000 {\n"
 		"	a = a + 1\n"
 		"	if a == 100 {\n"
 		"		break\n"
 		"	}\n"
+		"}\n"
 		"}\n"
 	);
 
@@ -56,6 +62,7 @@ TEST(While, Break) {
 // Tests two nested while loops.
 TEST(While, Nested) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"while a < 100 {\n"
 		"	let b = 4\n"
@@ -63,7 +70,8 @@ TEST(While, Nested) {
 		"		b = b + 1\n"
 		"	}\n"
 		"	a = a + 1\n"
-		"}"
+		"}\n"
+		"}\n"
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
@@ -87,6 +95,7 @@ TEST(While, Nested) {
 // Tests a break statement from within a nested while loop.
 TEST(While, NestedBreak) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"while a < 100 {\n"
 		"	let b = 4\n"
@@ -100,7 +109,8 @@ TEST(While, NestedBreak) {
 		"	if a == 20 {\n"
 		"		break\n"
 		"	}\n"
-		"}"
+		"}\n"
+		"}\n"
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);

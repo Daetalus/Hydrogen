@@ -9,12 +9,14 @@
 // Tests we can perform simple operations.
 TEST(Expression, SingleOperators) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"let b = 4\n"
 		"let c = a + b\n"
 		"let d = a * c\n"
 		"let e = a - 3\n"
 		"let f = 5 / b\n"
+		"}\n"
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
@@ -32,6 +34,7 @@ TEST(Expression, SingleOperators) {
 // Tests the compiler obeys operator precedence.
 TEST(Expression, OperatorPrecedence) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"let b = 4\n"
 		"let c = 5\n"
@@ -39,6 +42,7 @@ TEST(Expression, OperatorPrecedence) {
 		"let e = a + b * c\n"
 		"let f = a * b + c * d\n"
 		"let g = a * b * c\n"
+		"}\n"
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
@@ -70,11 +74,13 @@ TEST(Expression, OperatorPrecedence) {
 // Tests parentheses in overriding operator precedence.
 TEST(Expression, Parentheses) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"let b = 4\n"
 		"let c = (a + b) * a\n"
 		"let d = (a + b) * (c + a)\n"
 		"let e = (a + b) * (c + a) * (b + a)\n"
+		"}\n"
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
@@ -104,12 +110,14 @@ TEST(Expression, Parentheses) {
 // Tests conditional operations when assigning to variables.
 TEST(Expression, Conditional) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"let b = 4\n"
 		"let c = a == b\n"
 		"let d = a < b\n"
 		"let e = b >= c\n"
 		"let f = a != c\n"
+		"}\n"
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
@@ -151,10 +159,12 @@ TEST(Expression, Conditional) {
 // Tests combining conditionals using only `and` operators.
 TEST(Expression, And) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"let b = 4\n"
 		"let c = a == 3 && b == 4\n"
 		"let d = a == 3 && b == 4 && c == 5\n"
+		"}\n"
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
@@ -188,10 +198,12 @@ TEST(Expression, And) {
 // Tests combining conditionals using only `or` operators.
 TEST(Expression, Or) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"let b = 4\n"
 		"let c = a == 3 || b == 4\n"
 		"let d = a == 3 || b == 4 || c == 5\n"
+		"}\n"
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
@@ -226,6 +238,7 @@ TEST(Expression, Or) {
 // list.
 TEST(Expression, AndOrSingleJumpList) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"let b = 4\n"
 		"let c = 5\n"
@@ -233,6 +246,7 @@ TEST(Expression, AndOrSingleJumpList) {
 		"let e = a == 3 || b == 4 && c == 5\n"
 		"let f = a == 3 && (b == 4 || c == 5)\n"
 		"let g = (a == 3 || b == 4) && c == 5\n"
+		"}\n"
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
@@ -291,6 +305,7 @@ TEST(Expression, AndOrSingleJumpList) {
 // Tests `or` operations where both arguments are jump lists.
 TEST(Expression, AndOrOrJumpList) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"let b = 4\n"
 		"let c = 5\n"
@@ -299,6 +314,7 @@ TEST(Expression, AndOrOrJumpList) {
 		"let f = (a == 3 || b == 4) || (c == 5 && d == 6)\n"
 		"let g = (a == 3 && b == 4) || (c == 5 || d == 6)\n"
 		"let h = (a == 3 || b == 4) || (c == 5 || d == 6)\n"
+		"}\n"
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
@@ -366,6 +382,7 @@ TEST(Expression, AndOrOrJumpList) {
 // Tests `and` operations where both arguments are jump lists.
 TEST(Expression, AndOrAndJumpList) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"let b = 4\n"
 		"let c = 5\n"
@@ -374,6 +391,7 @@ TEST(Expression, AndOrAndJumpList) {
 		"let f = (a == 3 || b == 4) && (c == 5 && d == 6)\n"
 		"let g = (a == 3 && b == 4) && (c == 5 || d == 6)\n"
 		"let h = (a == 3 || b == 4) && (c == 5 || d == 6)\n"
+		"}\n"
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);

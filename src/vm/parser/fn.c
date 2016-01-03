@@ -27,10 +27,8 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
 	Lexer *lexer = parser->lexer;
 
 	// Expect an opening parenthesis
-	if (lexer->token.type != TOKEN_OPEN_PARENTHESIS) {
-		UNEXPECTED("Expected `(` after function name to begin arguments list");
-		return 0;
-	}
+	EXPECT(TOKEN_OPEN_PARENTHESIS,
+		"Expected `(` after function name to begin arguments list");
 	lexer_next(lexer);
 
 	// Create the new child parser
@@ -180,17 +178,35 @@ void parse_fn_definition(Parser *parser) {
 	// Parse the remainder of the function
 	uint16_t fn_index = parse_fn_definition_body(parser, name, length, false);
 
+	// If this is a top level function
+	bool top_level = parser_is_top_level(parser);
+	if (top_level) {
+		// Create a new scope so we can discard this local
+		scope_new(parser);
+	}
+
 	// Create a new local to store the function in
 	uint16_t slot;
 	Local *local = local_new(parser, &slot);
-	if (local == NULL) {
-		return;
-	}
-	local->name = name;
-	local->length = length;
 
 	// Emit bytecode to store the function into the created local
 	emit(parser->fn, instr_new(MOV_LF, slot, fn_index, 0));
+
+	// If this is a top level function
+	if (top_level) {
+		// Free the scope we created
+		scope_free(parser);
+
+		// Create a new top level variable
+		int index = package_local_new(parser->fn->package, name, length);
+		uint16_t package_index = (parser->fn->package - parser->vm->packages) /
+			sizeof(Package);
+		emit(parser->fn, instr_new(MOV_TL, index, package_index, slot));
+	} else {
+		// Save the name of the function as the local
+		local->name = name;
+		local->length = length;
+	}
 }
 
 
@@ -215,14 +231,23 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 
 	// Add the `self` argument
 	uint8_t arity = 0;
+	uint16_t argument_start = parser->locals_count;
 	if (self_slot >= 0) {
-		// Create a local for the argument
-		uint16_t slot;
-		local_new(parser, &slot);
-
-		// Move the `self` value into this slot
-		emit(parser->fn, instr_new(MOV_LL, slot, self_slot, 0));
 		arity++;
+
+		// If the self argument isn't on the top of the stack
+		if (self_slot != (int) parser->locals_count - 1) {
+			// Create a local for the argument
+			uint16_t slot;
+			local_new(parser, &slot);
+
+			// Move the `self` value into this slot
+			emit(parser->fn, instr_new(MOV_LL, slot, self_slot, 0));
+		} else {
+			// Self argument is on the top of the stack, so reduce the location
+			// the arguments start
+			argument_start--;
+		}
 	}
 
 	// Parse function arguments into consecutive local slots
@@ -259,9 +284,13 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 	// Skip the closing parenthesis
 	lexer_next(lexer);
 
-	// Call the function
-	uint16_t arg_start = (arity == 0) ? 0 : parser->locals_count;
-	emit(parser->fn, instr_new_4(call, arity, slot, arg_start, return_slot));
+	// Emit the function call
+	if (arity == 0) {
+		argument_start = 0;
+	}
+
+	emit(parser->fn, instr_new_4(call, arity, slot, argument_start,
+		return_slot));
 }
 
 
@@ -280,12 +309,18 @@ void parse_fn_call(Parser *parser, Token ident) {
 	Variable var = local_capture(parser, name, length);
 	if (var.type == VAR_LOCAL) {
 		parse_fn_call_slot(parser, CALL_L, var.slot, return_slot, -1);
-	} else if (var.type == VAR_UPVALUE) {
+	} else if (var.type == VAR_UPVALUE || var.type == VAR_TOP_LEVEL) {
 		// Store the upvalue into a temporary local
 		uint16_t slot;
 		scope_new(parser);
 		local_new(parser, &slot);
-		emit(parser->fn, instr_new(MOV_LU, slot, var.slot, 0));
+		if (var.type == VAR_UPVALUE) {
+			emit(parser->fn, instr_new(MOV_LU, slot, var.slot, 0));
+		} else {
+			uint16_t package_index = (parser->fn->package -
+				parser->vm->packages) / sizeof(Package);
+			emit(parser->fn, instr_new(MOV_LT, slot, package_index, var.slot));
+		}
 
 		// Call the function
 		parse_fn_call_slot(parser, CALL_L, slot, return_slot, -1);
@@ -305,6 +340,8 @@ void parse_fn_call(Parser *parser, Token ident) {
 //
 
 // Parses a return statement.
+// TODO: Trigger error if we try and return a value from a custom struct
+// constructor
 void parse_return(Parser *parser) {
 	Lexer *lexer = parser->lexer;
 

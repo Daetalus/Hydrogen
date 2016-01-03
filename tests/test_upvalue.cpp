@@ -9,9 +9,11 @@
 // Tests fetching an upvalue from a scope external to the function.
 TEST(Upvalue, Get) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"fn test() {\n"
 		"	let b = a + 2\n"
+		"}\n"
 		"}\n"
 	);
 
@@ -33,9 +35,11 @@ TEST(Upvalue, Get) {
 // Tests setting an upvalue from a scope external to the function.
 TEST(Upvalue, Set) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"fn test() {\n"
 		"	a = a + 1\n"
+		"}\n"
 		"}\n"
 	);
 
@@ -58,12 +62,14 @@ TEST(Upvalue, Set) {
 // Tests closing upvalues when they go out of stack scope.
 TEST(Upvalue, Close) {
 	COMPILER(
+		"{\n"
 		"fn adder() {\n"
 		"	let i = 0\n"
 		"	return fn() {\n"
 		"		i = i + 1\n"
 		"		return i\n"
 		"	}\n"
+		"}\n"
 		"}\n"
 	);
 
@@ -90,6 +96,7 @@ TEST(Upvalue, Close) {
 // Tests using multiple upvalues.
 TEST(Upvalue, Multiple) {
 	COMPILER(
+		"{\n"
 		"let a = 0\n"
 		"let b = 0\n"
 		"fn adder() {\n"
@@ -97,6 +104,7 @@ TEST(Upvalue, Multiple) {
 		"}\n"
 		"fn subtracter() {\n"
 		"	a = a - b\n"
+		"}\n"
 		"}\n"
 	);
 

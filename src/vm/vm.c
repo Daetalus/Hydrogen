@@ -165,6 +165,8 @@ Package * package_new(VirtualMachine *vm) {
 	package->main_fn = 0;
 	ARRAY_INIT(package->functions, Function *, 4);
 	ARRAY_INIT(package->structs, StructDefinition *, 4);
+	ARRAY_INIT(package->locals, Identifier, 4);
+	ARRAY_INIT(package->values, uint64_t, 4);
 	return package;
 }
 
@@ -196,6 +198,35 @@ int package_find(VirtualMachine *vm, char *name, size_t length) {
 	}
 
 	// Couldn't find a package with the given name
+	return -1;
+}
+
+
+// Creates a new top level local on a package, returning its index.
+int package_local_new(Package *package, char *name, size_t length) {
+	int index = package->locals_count++;
+	package->values_count++;
+	ARRAY_REALLOC(package->locals, Identifier);
+	ARRAY_REALLOC(package->values, uint64_t);
+
+	package->values[index] = NIL_VALUE;
+	Identifier *ident = &package->locals[index];
+	ident->start = name;
+	ident->length = length;
+	return index;
+}
+
+
+// Returns the index of a package's top level variable with the given name, or
+// -1 if no such local could be found.
+int package_local_find(Package *package, char *name, size_t length) {
+	for (uint32_t i = 0; i < package->locals_count; i++) {
+		Identifier *ident = &package->locals[i];
+		if (ident->length == length &&
+				strncmp(ident->start, name, length) == 0) {
+			return i;
+		}
+	}
 	return -1;
 }
 

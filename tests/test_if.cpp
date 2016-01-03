@@ -16,9 +16,12 @@ TEST(If, If) {
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
 	ASSERT_INSTR(NEQ_LI, 0, 3, 0);
-	ASSERT_JMP(2);
+	ASSERT_JMP(3);
 	ASSERT_INSTR(MOV_LI, 0, 4, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
 	ASSERT_RET();
 
 	COMPILER_FREE();
@@ -37,11 +40,15 @@ TEST(If, IfElse) {
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
 	ASSERT_INSTR(NEQ_LI, 0, 4, 0);
-	ASSERT_JMP(3);
+	ASSERT_JMP(4);
 	ASSERT_INSTR(MOV_LI, 0, 4, 0);
-	ASSERT_JMP(2);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_JMP(3);
 	ASSERT_INSTR(MOV_LI, 0, 5, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
 	ASSERT_RET();
 
 	COMPILER_FREE();
@@ -51,11 +58,13 @@ TEST(If, IfElse) {
 // Tests an if followed by a single else if.
 TEST(If, IfElseIf) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"if a == 4 {\n"
 		"	a = 5\n"
 		"} else if a == 5 {\n"
 		"	a = 6\n"
+		"}\n"
 		"}\n"
 	);
 
@@ -76,6 +85,7 @@ TEST(If, IfElseIf) {
 // Tests an if followed by multiple else ifs.
 TEST(If, IfElseIfs) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"if a == 4 {\n"
 		"	a = 5\n"
@@ -83,7 +93,8 @@ TEST(If, IfElseIfs) {
 		"	a = 6\n"
 		"} else if a == 7 {\n"
 		"	a = 8\n"
-		"}"
+		"}\n"
+		"}\n"
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
@@ -107,6 +118,7 @@ TEST(If, IfElseIfs) {
 // Tests an if, followed by an else if, followed by an else.
 TEST(If, ElseIfElse) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"if a == 4 {\n"
 		"	a = 5\n"
@@ -114,6 +126,7 @@ TEST(If, ElseIfElse) {
 		"	a = 6\n"
 		"} else {\n"
 		"	a = 7\n"
+		"}\n"
 		"}\n"
 	);
 
@@ -136,6 +149,7 @@ TEST(If, ElseIfElse) {
 // Tests an ifs, followed by multiple else ifs, followed by an else.
 TEST(If, ElseIfsElse) {
 	COMPILER(
+		"{\n"
 		"let a = 3\n"
 		"if a == 4 {\n"
 		"	a = 5\n"
@@ -145,6 +159,7 @@ TEST(If, ElseIfsElse) {
 		"	a = 7\n"
 		"} else {\n"
 		"	a = 8\n"
+		"}\n"
 		"}\n"
 	);
 

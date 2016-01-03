@@ -47,8 +47,17 @@ typedef enum {
 	MOV_LU,
 	MOV_UL,
 
-	MOV_TL,
+	// Arguments:
+	// * `local`: stack slot to place top level variable in
+	// * `package`: index of package containing top level local
+	// * `var`: index of top level local in package
 	MOV_LT,
+
+	// Arguments:
+	// * `var`: index of top level local in package
+	// * `package`: index of package containing top level local to set
+	// * `value`: stack slot of local, integer, etc.
+	MOV_TL,
 
 
 	//

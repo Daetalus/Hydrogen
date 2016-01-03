@@ -16,31 +16,42 @@ TEST(Assign, Assignment) {
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
-	ASSERT_INSTR(MOV_LS, 1, 0, 0);
-	ASSERT_INSTR(MOV_LP, 2, TRUE_TAG, 0);
-	ASSERT_INSTR(MOV_LL, 3, 2, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+
+	ASSERT_INSTR(MOV_LS, 0, 0, 0);
+	ASSERT_INSTR(MOV_TL, 1, 0, 0);
+
+	ASSERT_INSTR(MOV_LP, 0, TRUE_TAG, 0);
+	ASSERT_INSTR(MOV_TL, 2, 0, 0);
+
+	ASSERT_INSTR(MOV_LT, 0, 0, 2);
+	ASSERT_INSTR(MOV_TL, 3, 0, 0);
 
 	ASSERT_RET();
 	COMPILER_FREE();
 }
 
 
-// Tests we can use modified assignment operators like `+=`.
-TEST(Assign, ModifiedAssignment) {
+// Tests we can assign to variables between scopes.
+TEST(Assign, Scopes) {
 	COMPILER(
 		"let a = 3\n"
-		"a += 5\n"
-		"a -= a * 3\n"
-		"a *= 2\n"
-		"a /= 5\n"
+		"if a == 3 {\n"
+		"	let b = 5\n"
+		"	a = 4\n"
+		"}\n"
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
-	ASSERT_INSTR(ADD_LI, 0, 0, 5);
-	ASSERT_INSTR(MUL_LI, 1, 0, 3);
-	ASSERT_INSTR(SUB_LL, 0, 0, 1);
-	ASSERT_INSTR(MUL_LI, 0, 0, 2);
-	ASSERT_INSTR(DIV_LI, 0, 0, 5);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
+	ASSERT_INSTR(NEQ_LI, 0, 3, 0);
+	ASSERT_JMP(4);
+
+	ASSERT_INSTR(MOV_LI, 0, 5, 0);
+	ASSERT_INSTR(MOV_LI, 1, 4, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 1);
 
 	ASSERT_RET();
 	COMPILER_FREE();

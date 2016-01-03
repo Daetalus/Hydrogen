@@ -18,6 +18,7 @@ typedef enum {
 	OP_PRIMITIVE,
 	OP_FN,
 	OP_JUMP,
+	OP_PACKAGE,
 	OP_NONE,
 } OperandType;
 
@@ -43,6 +44,7 @@ typedef struct {
 		uint16_t slot;
 		uint16_t fn_index;
 		uint16_t value;
+		uint16_t index;
 
 		uint32_t jump;
 	};

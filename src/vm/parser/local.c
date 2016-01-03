@@ -86,6 +86,14 @@ Variable local_capture(Parser *parser, char *name, size_t length) {
 	Variable result;
 	int slot;
 
+	// Search package top level locals
+	slot = package_local_find(parser->fn->package, name, length);
+	if (slot >= 0) {
+		result.type = VAR_TOP_LEVEL;
+		result.slot = slot;
+		return result;
+	}
+
 	// Search parser locals
 	slot = local_find(parser, name, length);
 	if (slot >= 0) {
@@ -114,7 +122,7 @@ Variable local_capture(Parser *parser, char *name, size_t length) {
 	slot = import_package_find(parser, name, length);
 	if (slot >= 0) {
 		result.type = VAR_PACKAGE;
-		result.index = slot;
+		result.slot = slot;
 		return result;
 	}
 
@@ -137,6 +145,11 @@ bool local_exists_all(Parser *parser, char *name, size_t length) {
 
 // Returns true if a variable name already exists
 bool local_exists(Parser *parser, char *name, size_t length) {
+	// Top level locals in package
+	if (package_local_find(parser->fn->package, name, length) >= 0) {
+		return true;
+	}
+
 	// Parser locals
 	if (local_find(parser, name, length) >= 0) {
 		return true;

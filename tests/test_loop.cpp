@@ -7,7 +7,7 @@
 
 
 // Tests an infinite loop.
-TEST(Loop, Loop) {
+TEST(Loop, InfiniteLoop) {
 	COMPILER(
 		"let a = 3\n"
 		"loop {\n"
@@ -16,8 +16,11 @@ TEST(Loop, Loop) {
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
 	ASSERT_INSTR(ADD_LI, 0, 0, 1);
-	ASSERT_INSTR(LOOP, 1, 0, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(LOOP, 3, 0, 0);
 
 	ASSERT_RET();
 	COMPILER_FREE();
@@ -37,11 +40,15 @@ TEST(Loop, Break) {
 	);
 
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
 	ASSERT_INSTR(ADD_LI, 0, 0, 1);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
 	ASSERT_INSTR(NEQ_LI, 0, 10, 0);
 	ASSERT_JMP(2);
 	ASSERT_JMP(2);
-	ASSERT_INSTR(LOOP, 4, 0, 0);
+	ASSERT_INSTR(LOOP, 7, 0, 0);
 
 	ASSERT_RET();
 	COMPILER_FREE();

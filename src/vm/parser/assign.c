@@ -37,16 +37,35 @@ void parse_initial_assignment(Parser *parser) {
 	EXPECT(TOKEN_ASSIGN, "Expected `=` after identifier in assignment");
 	lexer_next(lexer);
 
-	// Create a new local
+	// If this is a top level variable
+	bool top_level = parser_is_top_level(parser);
+	if (top_level) {
+		// Create a new scope so we can discard this local
+		scope_new(parser);
+	}
+
+	// Parse an expression into a new local
 	uint16_t slot;
 	Local *local = local_new(parser, &slot);
-
-	// Expect an expression
 	expr_emit(parser, slot);
 
-	// Save the local's name
-	local->name = name;
-	local->length = length;
+	// If this is a top level variable
+	if (top_level)  {
+		// Free the scope to discard this local
+		scope_free(parser);
+
+		// Create a new top level variable
+		int index = package_local_new(parser->fn->package, name, length);
+
+		// Store the result of the expression into the top level variable
+		uint16_t package_index = (parser->fn->package - parser->vm->packages) /
+			sizeof(Package);
+		emit(parser->fn, instr_new(MOV_TL, index, package_index, slot));
+	} else {
+		// Save the local's name
+		local->name = name;
+		local->length = length;
+	}
 }
 
 
@@ -93,16 +112,52 @@ void parse_assignment(Parser *parser, Token name) {
 	Variable var = local_capture(parser, name.start, name.length);
 	uint16_t previous = var.slot;
 	uint16_t slot = var.slot;
-	if (var.type == VAR_LOCAL && count > 1) {
+	if (var.type == VAR_PACKAGE) {
+		// Find the top level variable in the package from the first element
+		// after the first `.` in the left hand side variable list
+		Package *package = &parser->vm->packages[var.slot];
+		char *var_name = left[0].start;
+		size_t var_length = left[0].length;
+		int pkg_var_index = package_local_find(package, var_name, var_length);
+		if (pkg_var_index == -1) {
+			ERROR("Attempt to assign to undefined top level variable `%.*s`"
+				"in package `%s`", var_length, var_name, package->name);
+			return;
+		}
+
+		// If we're assigning directly to a top level variable
+		if (count == 1) {
+			// Parse an expression into an empty slot
+			local_new(parser, &slot);
+			expr_emit(parser, slot);
+			scope_free(parser);
+
+			// Move the result into the top level variable
+			emit(parser->fn, instr_new(MOV_TL, pkg_var_index, var.slot, slot));
+			return;
+		} else {
+			// Assigning to a struct field on a top level variable
+			// Store the top level variable into a new slot
+			local_new(parser, &slot);
+			previous = slot;
+			emit(parser->fn, instr_new(MOV_LT, slot, var.slot, pkg_var_index));
+		}
+	} else if (var.type == VAR_LOCAL && count > 1) {
 		// If this is a local and we have to replace this local with one of its
 		// fields in the next step, allocate a new stack position for this local
-		previous = var.slot;
 		local_new(parser, &slot);
-	} else if (var.type == VAR_UPVALUE) {
-		// Store the upvalue into a new local
+	} else if (var.type == VAR_UPVALUE || var.type == VAR_TOP_LEVEL) {
+		// Create a new local to store the upvalue/top level variable in
 		local_new(parser, &slot);
 		previous = slot;
-		emit(parser->fn, instr_new(MOV_LU, slot, var.slot, 0));
+
+		if (var.type == VAR_UPVALUE) {
+			emit(parser->fn, instr_new(MOV_LU, slot, var.slot, 0));
+		} else {
+			uint16_t package_index = (parser->fn->package -
+				parser->vm->packages) / sizeof(Package);
+			emit(parser->fn, instr_new(MOV_LT, slot, package_index, var.slot));
+		}
 	} else if (var.type == VAR_UNDEFINED) {
 		ERROR("Assigning to undefined variable `%.*s`", name.length, name.start);
 		return;

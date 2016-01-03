@@ -7,6 +7,7 @@
 #define PARSER_H
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "../vm.h"
 #include "../error.h"
@@ -53,7 +54,6 @@
 #define EXPECT(expected, ...)                      \
 	if (parser->lexer->token.type != (expected)) { \
 		UNEXPECTED(__VA_ARGS__);                   \
-		return;                                    \
 	}
 
 
@@ -112,6 +112,9 @@ Parser parser_new(Parser *parent);
 
 // Frees resources allocated by a parser.
 void parser_free(Parser *parser);
+
+// Returns true if a parser is currently parsing the top level of a file.
+bool parser_is_top_level(Parser *parser);
 
 // Parses a block of statements, terminated by `terminator`.
 void parse_block(Parser *parser, TokenType terminator);

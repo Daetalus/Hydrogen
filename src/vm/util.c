@@ -8,6 +8,9 @@
 #include "util.h"
 
 
+// TODO: Convert to pointer casting rather than unions
+
+
 // Converter for 64 bit values.
 typedef union {
 	double double_value;

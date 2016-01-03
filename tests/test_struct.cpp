@@ -61,7 +61,9 @@ TEST(Struct, Instantiation) {
 	);
 
 	ASSERT_INSTR(STRUCT_NEW, 0, 0, 0);
-	ASSERT_INSTR(STRUCT_NEW, 1, 0, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(STRUCT_NEW, 0, 0, 0);
+	ASSERT_INSTR(MOV_TL, 1, 0, 0);
 	ASSERT_RET();
 
 	COMPILER_FREE();
@@ -79,7 +81,10 @@ TEST(Struct, GetField) {
 	);
 
 	ASSERT_INSTR(STRUCT_NEW, 0, 0, 0);
-	ASSERT_INSTR(STRUCT_FIELD, 1, 0, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
+	ASSERT_INSTR(STRUCT_FIELD, 0, 0, 0);
+	ASSERT_INSTR(MOV_TL, 1, 0, 0);
 	ASSERT_RET();
 
 	COMPILER_FREE();
@@ -92,9 +97,11 @@ TEST(Struct, SetField) {
 		"struct Test {\n"
 		"	field1\n"
 		"}\n"
+		"{\n"
 		"let a = new Test()\n"
 		"a.field1 = 3\n"
 		"a.field1.test.hello = 10\n"
+		"}\n"
 	);
 
 	ASSERT_INSTR(STRUCT_NEW, 0, 0, 0);
@@ -145,7 +152,10 @@ TEST(Struct, GetMethod) {
 
 	FN(0);
 	ASSERT_INSTR(STRUCT_NEW, 0, 0, 0);
-	ASSERT_INSTR(STRUCT_FIELD, 1, 0, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
+	ASSERT_INSTR(STRUCT_FIELD, 0, 0, 0);
+	ASSERT_INSTR(MOV_TL, 1, 0, 0);
 	ASSERT_RET();
 
 	FN(1);
@@ -179,6 +189,8 @@ TEST(Struct, UseSelf) {
 
 
 // Tests calling a method on a struct.
+// TODO: Fix this test case by preserving whether the `self` for a method call
+// is a top level variable or normal local
 TEST(Struct, CallMethod) {
 	COMPILER(
 		"struct Test\n"
@@ -191,9 +203,12 @@ TEST(Struct, CallMethod) {
 
 	FN(0);
 	ASSERT_INSTR(STRUCT_NEW, 0, 0, 0);
-	ASSERT_INSTR(STRUCT_FIELD, 1, 0, 0);
-	ASSERT_INSTR(MOV_LL, 2, 0, 0);
-	ASSERT_CALL(CALL_L, 1, 2, 1, 1);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
+	ASSERT_INSTR(STRUCT_FIELD, 0, 0, 0);
+	ASSERT_INSTR(MOV_LT, 1, 0, 0);
+	ASSERT_CALL(CALL_L, 0, 1, 1, 0);
+	ASSERT_INSTR(MOV_TL, 1, 0, 0);
 	ASSERT_RET();
 
 	FN(1);
@@ -236,9 +251,9 @@ TEST(Struct, CallCustomConstructor) {
 
 	FN(0);
 	ASSERT_INSTR(STRUCT_NEW, 0, 0, 0);
-	ASSERT_INSTR(MOV_LL, 1, 0, 0);
-	ASSERT_INSTR(MOV_LI, 2, 3, 0);
-	ASSERT_CALL(CALL_F, 1, 1, 2, 1);
+	ASSERT_INSTR(MOV_LI, 1, 3, 0);
+	ASSERT_CALL(CALL_F, 1, 0, 2, 1);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
 	ASSERT_RET();
 
 	FN(1);

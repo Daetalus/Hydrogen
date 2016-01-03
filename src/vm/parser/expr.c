@@ -158,7 +158,8 @@ bool binary_valid(TokenType operator, OperandType left, OperandType right) {
 			(right >= OP_LOCAL && right <= OP_PRIMITIVE);
 	case TOKEN_AND:
 	case TOKEN_OR:
-		return left != OP_NONE && right != OP_NONE;
+		return left != OP_NONE && left != OP_PACKAGE &&
+			right != OP_NONE && right != OP_PACKAGE;
 	default:
 		return false;
 	}
@@ -742,7 +743,7 @@ void expr_patch_false_case(Parser *parser, Operand operand, int false_case) {
 }
 
 
-// Stores the value of an operand into `slot`.
+// Stores the value of an operand into `slot` on the stack.
 void expr_discharge(Parser *parser, uint16_t slot, Operand operand) {
 	if (operand.type == OP_LOCAL) {
 		// Copy a local if isn't in a deallocated scope
@@ -807,6 +808,16 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 			emit(parser->fn, instr_new(MOV_LU, slot, var.slot, 0));
 			operand.type = OP_LOCAL;
 			operand.slot = slot;
+		} else if (var.type == VAR_PACKAGE) {
+			operand.type = OP_PACKAGE;
+			operand.index = var.slot;
+		} else if (var.type == VAR_TOP_LEVEL) {
+			// Store the top level variable into a local
+			uint16_t package_index = (parser->fn->package -
+				parser->vm->packages) / sizeof(Package);
+			emit(parser->fn, instr_new(MOV_LT, slot, package_index, var.slot));
+			operand.type = OP_LOCAL;
+			operand.slot = slot;
 		} else {
 			// Undefined
 			ERROR("Undefined variable `%.*s` in expression", length, name);
@@ -843,11 +854,8 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 		operand = expr_prec(parser, slot, 0);
 
 		// Expect a closing parenthesis
-		if (lexer->token.type != TOKEN_CLOSE_PARENTHESIS) {
-			UNEXPECTED("Expected `)` to close `(` in expression");
-			operand.type = OP_NONE;
-			break;
-		}
+		EXPECT(TOKEN_CLOSE_PARENTHESIS,
+			"Expected `)` to close `(` in expression");
 		lexer_next(lexer);
 		break;
 
@@ -876,7 +884,7 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 
 
 // Parses a postfix operator after an operand.
-Operand expr_postfix(Parser *parser, Operand operand, uint16_t return_slot) {
+Operand expr_postfix(Parser *parser, Operand operand, uint16_t slot) {
 	Lexer *lexer = parser->lexer;
 	Operand result = operand_new();
 
@@ -884,10 +892,10 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t return_slot) {
 	case TOKEN_OPEN_PARENTHESIS: {
 		// Function call
 		if (operand.type == OP_LOCAL) {
-			parse_fn_call_slot(parser, CALL_L, operand.slot, return_slot,
+			parse_fn_call_slot(parser, CALL_L, operand.slot, slot,
 				operand.struct_slot);
 		} else if (operand.type == OP_FN) {
-			parse_fn_call_slot(parser, CALL_F, operand.fn_index, return_slot,
+			parse_fn_call_slot(parser, CALL_F, operand.fn_index, slot,
 				operand.struct_slot);
 		} else {
 			ERROR("Attempt to call non-function");
@@ -895,14 +903,13 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t return_slot) {
 		}
 
 		result.type = OP_LOCAL;
-		result.slot = return_slot;
+		result.slot = slot;
 		break;
 	}
 
 	case TOKEN_DOT: {
-		// Struct field access
-		if (operand.type != OP_LOCAL) {
-			// Attempting to index the field on an operand that isn't a local
+		// Struct field or package top level variable access
+		if (operand.type != OP_LOCAL && operand.type != OP_PACKAGE) {
 			ERROR("Attempt to index non-local");
 			return result;
 		}
@@ -911,24 +918,43 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t return_slot) {
 		lexer_next(lexer);
 
 		// Expect an identifier
-		if (lexer->token.type != TOKEN_IDENTIFIER) {
-			UNEXPECTED("Expected identifier after `.`");
-			return result;
-		}
+		EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `.`");
 
-		// Emit field access
-		Identifier ident;
-		ident.start = lexer->token.start;
-		ident.length = lexer->token.length;
-		uint16_t index = vm_add_field(parser->vm, ident);
-		emit(parser->fn, instr_new(STRUCT_FIELD, return_slot, operand.slot,
-			index));
-		lexer_next(lexer);
-
-		// Set the return local
+		// Update the result
 		result.type = OP_LOCAL;
-		result.slot = return_slot;
-		result.struct_slot = operand.slot;
+		result.slot = slot;
+
+		if (operand.type == OP_LOCAL) {
+			// Emit field access
+			// TODO: Check if the field has already been created
+			Identifier ident;
+			ident.start = lexer->token.start;
+			ident.length = lexer->token.length;
+			uint16_t index = vm_add_field(parser->vm, ident);
+			emit(parser->fn, instr_new(STRUCT_FIELD, slot, operand.slot, index));
+
+			// Set the struct the local was referenced from in case of a
+			// function call, when we need to give the struct to the method
+			// for the `self` argument
+			result.struct_slot = operand.slot;
+		} else {
+			// Get the index of the top level variable
+			char *name = lexer->token.start;
+			size_t length = lexer->token.length;
+			Package *package = &parser->vm->packages[operand.index];
+			int index = package_local_find(package, name, length);
+
+			// Check the variable exists
+			if (index == -1) {
+				ERROR("Undefined top level variable `%.*s` in package `%s`",
+					length, name, package->name);
+				return result;
+			}
+
+			// Emit package top level variable access
+			emit(parser->fn, instr_new(MOV_LT, slot, operand.index, index));
+		}
+		lexer_next(lexer);
 		break;
 	}
 
@@ -1030,7 +1056,7 @@ void expr_emit_local(Parser *parser, char *name, size_t length) {
 	if (var.type == VAR_LOCAL) {
 		// Parse an expression
 		expr_emit(parser, var.slot);
-	} else if (var.type == VAR_UPVALUE) {
+	} else if (var.type == VAR_UPVALUE || var.type == VAR_TOP_LEVEL) {
 		// Parse an expression into an empty local slot
 		scope_new(parser);
 		uint16_t slot;
@@ -1038,8 +1064,17 @@ void expr_emit_local(Parser *parser, char *name, size_t length) {
 		expr_emit(parser, slot);
 		scope_free(parser);
 
-		// Store the local into an upvalue
-		emit(parser->fn, instr_new(MOV_UL, var.slot, slot, 0));
+		if (var.type == VAR_UPVALUE) {
+			// Store the local into an upvalue
+			emit(parser->fn, instr_new(MOV_UL, var.slot, slot, 0));
+		} else {
+			// Store the local into a top level variable
+			uint16_t package_index = (parser->fn->package -
+				parser->vm->packages) / sizeof(Package);
+			emit(parser->fn, instr_new(MOV_TL, var.slot, package_index, slot));
+		}
+	} else if (var.type == VAR_PACKAGE) {
+		ERROR("Attempt to assign to package `%.*s`", length, name);
 	} else {
 		ERROR("Assigning to undefined variable `%.*s`", length, name);
 	}

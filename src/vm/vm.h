@@ -118,7 +118,8 @@ struct package {
 
 	// Storage location for all top level locals defined by the package, so we
 	// can access these locals from other packages outside this one.
-	ARRAY(uint64_t, locals);
+	ARRAY(Identifier, locals);
+	ARRAY(uint64_t, values);
 };
 
 
@@ -178,6 +179,13 @@ void package_free(Package *package);
 // Returns the index of a package with the given name, or -1 if one couldn't be
 // found.
 int package_find(VirtualMachine *vm, char *name, size_t length);
+
+// Creates a new top level local on a package, returning its index.
+int package_local_new(Package *package, char *name, size_t length);
+
+// Returns the index of a package's top level variable with the given name, or
+// -1 if no such local could be found.
+int package_local_find(Package *package, char *name, size_t length);
 
 
 // Defines a new function in the given package, or in the global namespace if

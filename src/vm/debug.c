@@ -13,7 +13,7 @@
 #define MAX_NAME_LENGTH 50
 
 // The number of opcodes.
-#define OPCODE_COUNT 84
+#define OPCODE_COUNT 87
 
 
 // The name of every opcode.
@@ -26,6 +26,8 @@ char OPCODE_NAMES[OPCODE_COUNT][MAX_NAME_LENGTH] = {
 	"MOV_LF",
 	"MOV_LU",
 	"MOV_UL",
+	"MOV_LT",
+	"MOV_TL",
 	"ADD_LL",
 	"ADD_LI",
 	"ADD_LN",
@@ -115,6 +117,8 @@ int ARGUMENT_COUNT[OPCODE_COUNT] = {
 	2, // MOV_LF
 	2, // MOV_LU
 	2, // MOV_UL
+	3, // MOV_LT
+	3, // MOV_TL
 	3, // ADD_LL
 	3, // ADD_LI
 	3, // ADD_LN

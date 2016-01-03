@@ -43,6 +43,12 @@ void parser_free(Parser *parser) {
 }
 
 
+// Returns true if a parser is currently parsing the top level of a file.
+bool parser_is_top_level(Parser *parser) {
+	return parser->parent == NULL && parser->scope_depth == 1;
+}
+
+
 // Creates a new function on `vm`, used as `package`'s main function, and
 // populates the function's bytecode based on `package`'s source code.
 void parse_package(VirtualMachine *vm, Package *package) {
@@ -103,7 +109,8 @@ bool parse_call_or_assignment(Parser *parser) {
 
 // Parses a single statement.
 void parse_statement(Parser *parser) {
-	switch (parser->lexer->token.type) {
+	Lexer *lexer = parser->lexer;
+	switch (lexer->token.type) {
 		// Trigger a special error for misplaced imports
 	case TOKEN_IMPORT:
 		ERROR("Imports must be placed at the top of the file");
@@ -139,6 +146,13 @@ void parse_statement(Parser *parser) {
 
 	case TOKEN_STRUCT:
 		parse_struct_definition(parser);
+		break;
+
+	case TOKEN_OPEN_BRACE:
+		lexer_next(lexer);
+		parse_block(parser, TOKEN_CLOSE_BRACE);
+		EXPECT(TOKEN_CLOSE_BRACE, "Expected `}` to close block");
+		lexer_next(lexer);
 		break;
 
 	default:

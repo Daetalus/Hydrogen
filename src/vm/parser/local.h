@@ -32,6 +32,7 @@ typedef enum {
 	VAR_LOCAL,
 	VAR_UPVALUE,
 	VAR_PACKAGE,
+	VAR_TOP_LEVEL,
 } VariableType;
 
 
@@ -40,14 +41,13 @@ typedef struct {
 	// The type of the variable.
 	VariableType type;
 
-	union {
-		// Used to specify the position of the local on the stack, or the index
-		// of the upvalue in the VM's upvalue list.
-		uint16_t slot;
-
-		// Used to specify the index of the package in the VM's package list.
-		uint32_t index;
-	};
+	// Depending on the variable type:
+	// * Local: position on stack
+	// * Upvalue: index in VM's upvalue list
+	// * Package: index of package in VM's package list
+	// * Top level: index of top level variable in the current function's
+	//   package
+	uint16_t slot;
 } Variable;
 
 
