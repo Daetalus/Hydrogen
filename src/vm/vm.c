@@ -139,6 +139,16 @@ uint16_t vm_add_number(VirtualMachine *vm, double number) {
 // Adds a field name to the VM's struct field names list. Returns the index of
 // the added name.
 uint16_t vm_add_field(VirtualMachine *vm, Identifier field) {
+	// Check if a field already exists
+	for (uint32_t i = 0; i < vm->fields_count; i++) {
+		Identifier *ident = &vm->fields[i];
+		if (ident->length == field.length &&
+				strncmp(ident->start, field.start, field.length) == 0) {
+			return i;
+		}
+	}
+
+	// Doesn't exist, so create it
 	uint16_t index = vm->fields_count++;
 	ARRAY_REALLOC(vm->fields, Identifier);
 	vm->fields[index] = field;
