@@ -217,10 +217,12 @@ void parse_fn_definition(Parser *parser) {
 
 // Parses a call to the function in `slot`, storing the return value in
 // `return_slot`. Starts at the opening parenthesis of the arguments list.
-// If we're calling a method on a struct, the `self` argument is supplied in
-// the stack slot specified by `self_slot`.
-void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
-		uint16_t return_slot, int self_slot) {
+// If the `self` argument has its `is_method` field set to true, then the
+// we are calling a method on a struct, and a `self` argument is pushed onto
+// the argument's list. The `self` value is reconstructed from the data in the
+// given argument.
+void parse_fn_call_self(Parser *parser, Opcode call, uint16_t slot,
+		uint16_t return_slot, OperandSelf *self) {
 	Lexer *lexer = parser->lexer;
 
 	// Skip the opening parenthesis
@@ -232,21 +234,21 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 	// Add the `self` argument
 	uint8_t arity = 0;
 	uint16_t argument_start = parser->locals_count;
-	if (self_slot >= 0) {
+	if (self != NULL && self->type != SELF_NONE && self->is_method) {
 		arity++;
 
-		// If the self argument isn't on the top of the stack
-		if (self_slot != (int) parser->locals_count - 1) {
-			// Create a local for the argument
-			uint16_t slot;
-			local_new(parser, &slot);
+		// Move the `self` value into a local
+		uint16_t self_slot;
+		local_new(parser, &self_slot);
 
-			// Move the `self` value into this slot
-			emit(parser->fn, instr_new(MOV_LL, slot, self_slot, 0));
-		} else {
-			// Self argument is on the top of the stack, so reduce the location
-			// the arguments start
-			argument_start--;
+		// Emit bytecode to store the local into the new slot
+		if (self->type == SELF_LOCAL) {
+			emit(parser->fn, instr_new(MOV_LL, self_slot, self->slot, 0));
+		} else if (self->type == SELF_UPVALUE) {
+			emit(parser->fn, instr_new(MOV_LU, self_slot, self->slot, 0));
+		} else if (self->type == SELF_TOP_LEVEL) {
+			emit(parser->fn, instr_new(MOV_LT, self_slot, self->package_index,
+				self->slot));
 		}
 	}
 
@@ -284,13 +286,22 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 	// Skip the closing parenthesis
 	lexer_next(lexer);
 
-	// Emit the function call
+	// If there are no arguments, then don't bother with the argument start
 	if (arity == 0) {
 		argument_start = 0;
 	}
 
+	// Emit the function call
 	emit(parser->fn, instr_new_4(call, arity, slot, argument_start,
 		return_slot));
+}
+
+
+// Parses a call to the function in `slot`, storing the return value in
+// `return_slot`. Starts at the opening parenthesis of the arguments list.
+void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
+		uint16_t return_slot) {
+	parse_fn_call_self(parser, call, slot, return_slot, NULL);
 }
 
 
@@ -308,7 +319,7 @@ void parse_fn_call(Parser *parser, Token ident) {
 	size_t length = ident.length;
 	Variable var = local_capture(parser, name, length);
 	if (var.type == VAR_LOCAL) {
-		parse_fn_call_slot(parser, CALL_L, var.slot, return_slot, -1);
+		parse_fn_call_slot(parser, CALL_L, var.slot, return_slot);
 	} else if (var.type == VAR_UPVALUE || var.type == VAR_TOP_LEVEL) {
 		// Store the upvalue into a temporary local
 		uint16_t slot;
@@ -323,7 +334,7 @@ void parse_fn_call(Parser *parser, Token ident) {
 		}
 
 		// Call the function
-		parse_fn_call_slot(parser, CALL_L, slot, return_slot, -1);
+		parse_fn_call_slot(parser, CALL_L, slot, return_slot);
 
 		// Free the temporary local
 		scope_free(parser);

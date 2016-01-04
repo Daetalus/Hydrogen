@@ -91,6 +91,7 @@ bool parse_call_or_assignment(Parser *parser) {
 	lexer_next(lexer);
 
 	// Check the next character
+	// TODO: Parse left hand assignment list here so we can call struct methods
 	if (lexer->token.type == TOKEN_OPEN_PARENTHESIS) {
 		// Function call
 		parse_fn_call(parser, identifier);

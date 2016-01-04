@@ -96,7 +96,11 @@ void parse_struct_instantiation(Parser *parser, uint16_t slot) {
 		scope_free(parser);
 
 		// Call the constructor
-		parse_fn_call_slot(parser, CALL_F, def->constructor, return_slot, slot);
+		OperandSelf self;
+		self.type = SELF_LOCAL;
+		self.slot = slot;
+		self.is_method = true;
+		parse_fn_call_self(parser, CALL_F, def->constructor, return_slot, &self);
 	} else {
 		// Expect an opening and closing parenthesis
 		EXPECT(TOKEN_OPEN_PARENTHESIS,

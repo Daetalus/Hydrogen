@@ -189,8 +189,6 @@ TEST(Struct, UseSelf) {
 
 
 // Tests calling a method on a struct.
-// TODO: Fix this test case by preserving whether the `self` for a method call
-// is a top level variable or normal local
 TEST(Struct, CallMethod) {
 	COMPILER(
 		"struct Test\n"
@@ -216,6 +214,40 @@ TEST(Struct, CallMethod) {
 	ASSERT_RET();
 
 	COMPILER_FREE();
+}
+
+
+// Tests calling a method on a struct stored as an upvalue.
+TEST(Struct, UpvalueCallMethod) {
+	COMPILER(
+		"struct Test\n"
+		"fn (Test) test() {\n"
+		"	let a = 3\n"
+		"}\n"
+		"{\n"
+		"let a = new Test()\n"
+		"fn test() {\n"
+		"	let c = a.test()\n"
+		"}\n"
+		"}\n"
+	);
+
+	FN(0);
+	ASSERT_INSTR(STRUCT_NEW, 0, 0, 0);
+	ASSERT_INSTR(MOV_LF, 1, 2, 0);
+	ASSERT_INSTR(UPVALUE_CLOSE, 0, 0, 0);
+	ASSERT_RET();
+
+	FN(1);
+	ASSERT_INSTR(MOV_LI, 1, 3, 0);
+	ASSERT_RET();
+
+	FN(2);
+	ASSERT_INSTR(MOV_LU, 0, 0, 0);
+	ASSERT_INSTR(STRUCT_FIELD, 0, 0, 0);
+	ASSERT_INSTR(MOV_LU, 1, 0, 0);
+	ASSERT_CALL(CALL_L, 0, 1, 1, 0);
+	ASSERT_RET();
 }
 
 
@@ -251,8 +283,9 @@ TEST(Struct, CallCustomConstructor) {
 
 	FN(0);
 	ASSERT_INSTR(STRUCT_NEW, 0, 0, 0);
-	ASSERT_INSTR(MOV_LI, 1, 3, 0);
-	ASSERT_CALL(CALL_F, 1, 0, 2, 1);
+	ASSERT_INSTR(MOV_LL, 1, 0, 0);
+	ASSERT_INSTR(MOV_LI, 2, 3, 0);
+	ASSERT_CALL(CALL_F, 1, 1, 2, 1);
 	ASSERT_INSTR(MOV_TL, 0, 0, 0);
 	ASSERT_RET();
 

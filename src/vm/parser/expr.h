@@ -23,16 +23,42 @@ typedef enum {
 } OperandType;
 
 
+// The type of variable a local was originally created from.
+typedef enum {
+	SELF_NONE,
+	SELF_LOCAL,
+	SELF_UPVALUE,
+	SELF_TOP_LEVEL,
+} OperandSelfType;
+
+
+// Used to reconstruct the `self` argument to method calls on structs.
+typedef struct {
+	// The type of variable this local was originally created from (another
+	// local, upvalue, or top level variable).
+	OperandSelfType type;
+
+	// The slot of the other variable the local was created from.
+	uint16_t slot;
+
+	// If the type of this self argument is a top level variable, then this
+	// is the index of the package the variable is in.
+	uint16_t package_index;
+
+	// True if this local was created by indexing a struct, used to know
+	// when we should push a `self` argument to a method call.
+	bool is_method;
+} OperandSelf;
+
+
 // An operand in an expression.
 typedef struct {
 	// The type of the operand.
 	OperandType type;
 
-	// If this operand was created by indexing a struct, this will store the
-	// stack slot of the struct that was indexed, or -1 otherwise. Used when
-	// calling this local as a function, so we know which value to push as
-	// `self`.
-	int struct_slot;
+	// Used to tell where the local originated from. Used for the `self`
+	// argument to method calls.
+	OperandSelf self;
 
 	// The value of the operand. Numbers and strings are stored as indices into
 	// the VM's number/string list.

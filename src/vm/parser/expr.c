@@ -225,11 +225,23 @@ bool unary_valid(Opcode operator, OperandType operand) {
 }
 
 
+// Moves a top level variable at `index` in the parser's function's package
+// into the given stack slot.
+void expr_top_level_to_local(Parser *parser, uint16_t slot, uint16_t index) {
+	uint16_t package_index = (parser->fn->package - parser->vm->packages) /
+		sizeof(Package);
+	emit(parser->fn, instr_new(MOV_LT, slot, package_index, index));
+}
+
+
 // Creates a new, empty operand.
 Operand operand_new(void) {
 	Operand operand;
 	operand.type = OP_NONE;
-	operand.struct_slot = -1;
+	operand.self.type = SELF_NONE;
+	operand.self.slot = 0;
+	operand.self.package_index = 0;
+	operand.self.is_method = false;
 	return operand;
 }
 
@@ -265,7 +277,8 @@ Operand fold_condition(TokenType operator, Operand left, Operand right) {
 
 	// If neither are locals
 	if (!IS_JUMP_OR_LOCAL(left.type) && !IS_JUMP_OR_LOCAL(right.type)) {
-		bool result = (operator == TOKEN_OR) ? (first || second) : (first && second);
+		bool result = (operator == TOKEN_OR) ? (first || second) :
+			(first && second);
 		operand.type = OP_PRIMITIVE;
 		operand.primitive = result ? TRUE_TAG : FALSE_TAG;
 		return operand;
@@ -803,21 +816,30 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 		if (var.type == VAR_LOCAL) {
 			operand.type = OP_LOCAL;
 			operand.slot = var.slot;
+
+			operand.self.type = SELF_LOCAL;
+			operand.self.slot = var.slot;
 		} else if (var.type == VAR_UPVALUE) {
 			// Store the upvalue into a local slot
 			emit(parser->fn, instr_new(MOV_LU, slot, var.slot, 0));
 			operand.type = OP_LOCAL;
+
 			operand.slot = slot;
+			operand.self.type = SELF_UPVALUE;
+			operand.self.slot = var.slot;
 		} else if (var.type == VAR_PACKAGE) {
 			operand.type = OP_PACKAGE;
 			operand.index = var.slot;
 		} else if (var.type == VAR_TOP_LEVEL) {
 			// Store the top level variable into a local
-			uint16_t package_index = (parser->fn->package -
-				parser->vm->packages) / sizeof(Package);
-			emit(parser->fn, instr_new(MOV_LT, slot, package_index, var.slot));
+			expr_top_level_to_local(parser, slot, var.slot);
 			operand.type = OP_LOCAL;
 			operand.slot = slot;
+
+			operand.self.type = SELF_TOP_LEVEL;
+			operand.self.slot = var.slot;
+			operand.self.package_index = (parser->fn->package -
+				parser->vm->packages) / sizeof(Package);
 		} else {
 			// Undefined
 			ERROR("Undefined variable `%.*s` in expression", length, name);
@@ -892,11 +914,11 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t slot) {
 	case TOKEN_OPEN_PARENTHESIS: {
 		// Function call
 		if (operand.type == OP_LOCAL) {
-			parse_fn_call_slot(parser, CALL_L, operand.slot, slot,
-				operand.struct_slot);
+			parse_fn_call_self(parser, CALL_L, operand.slot, slot,
+				&operand.self);
 		} else if (operand.type == OP_FN) {
-			parse_fn_call_slot(parser, CALL_F, operand.fn_index, slot,
-				operand.struct_slot);
+			parse_fn_call_self(parser, CALL_F, operand.fn_index, slot,
+				&operand.self);
 		} else {
 			ERROR("Attempt to call non-function");
 			return result;
@@ -936,7 +958,16 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t slot) {
 			// Set the struct the local was referenced from in case of a
 			// function call, when we need to give the struct to the method
 			// for the `self` argument
-			result.struct_slot = operand.slot;
+			if (operand.self.is_method) {
+				// This isn't the first index of a struct (ie. `a.b.c`)
+				result.self.type = SELF_LOCAL;
+				result.self.slot = operand.slot;
+				result.self.is_method = true;
+			} else {
+				// The first index (ie. `a.b`)
+				result.self = operand.self;
+				result.self.is_method = true;
+			}
 		} else {
 			// Get the index of the top level variable
 			char *name = lexer->token.start;
@@ -953,6 +984,12 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t slot) {
 
 			// Emit package top level variable access
 			emit(parser->fn, instr_new(MOV_LT, slot, operand.index, index));
+
+			// Set the struct slot
+			result.self.type = SELF_TOP_LEVEL;
+			result.self.slot = index;
+			result.self.package_index = operand.index;
+			result.self.is_method = false;
 		}
 		lexer_next(lexer);
 		break;
@@ -1038,7 +1075,12 @@ Operand expr_prec(Parser *parser, uint16_t slot, Precedence limit) {
 // For some expressions, nothing may need to be stored (ie. expressions
 // consisting of only a constant), so `slot` will remain unused.
 Operand expr(Parser *parser, uint16_t slot) {
-	return expr_prec(parser, slot, PREC_NONE);
+	// Ensure we create no persistent variables in an expression by surrounding
+	// it in a scope
+	scope_new(parser);
+	Operand result = expr_prec(parser, slot, PREC_NONE);
+	scope_free(parser);
+	return result;
 }
 
 
