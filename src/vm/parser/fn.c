@@ -328,7 +328,24 @@ void parse_fn_call(Parser *parser, Identifier *left, int count) {
 
 	// TODO: Remove duplication between here and parse_assignment
 	if (var.type == VAR_PACKAGE) {
-		// TODO: Calling functions in a package
+		// Find the top level variable
+		Package *package = &parser->vm->packages[var.slot];
+		char *var_name = left[1].start;
+		size_t var_length = left[1].length;
+		int pkg_var_index = package_local_find(package, var_name, var_length);
+		if (pkg_var_index == -1) {
+			ERROR("Attempt to assign to undefined top level variable `%.*s`"
+				"in package `%s`", var_length, var_name, package->name);
+			return;
+		}
+
+		// Move value into a local
+		local_new(parser, &slot);
+		previous = slot;
+		emit(parser->fn, instr_new(MOV_LT, slot, var.slot, pkg_var_index));
+		self.type = SELF_TOP_LEVEL;
+		self.package_index = var.slot;
+		self.slot = pkg_var_index;
 	} else if (var.type == VAR_LOCAL && count > 1) {
 		// If we have to replace this local with one of its fields, allocate
 		// a new local for it
