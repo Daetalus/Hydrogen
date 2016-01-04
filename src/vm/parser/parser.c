@@ -56,7 +56,7 @@ bool parser_is_top_level(Parser *parser) {
 // populates the function's bytecode based on `package`'s source code.
 void parse_package(VirtualMachine *vm, Package *package) {
 	// Create a lexer on the stack for all child parsers
-	Lexer lexer = lexer_new(package->file, package->name, package->source);
+	Lexer lexer = lexer_new(vm, package->file, package->name, package->source);
 	lexer_next(&lexer);
 
 	// Create a new parser

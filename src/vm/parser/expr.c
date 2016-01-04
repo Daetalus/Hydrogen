@@ -800,7 +800,7 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 		break;
 
 	case TOKEN_STRING: {
-		char *string = lexer_extract_string(&lexer->token);
+		char *string = lexer_extract_string(lexer, &lexer->token);
 		operand.type = OP_STRING;
 		operand.string = vm_add_string(parser->vm, string);
 		lexer_next(lexer);
@@ -948,7 +948,6 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t slot) {
 
 		if (operand.type == OP_LOCAL) {
 			// Emit field access
-			// TODO: Check if the field has already been created
 			Identifier ident;
 			ident.start = lexer->token.start;
 			ident.length = lexer->token.length;

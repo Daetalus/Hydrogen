@@ -8,6 +8,7 @@
 #include <limits.h>
 
 #include "lexer.h"
+#include "../error.h"
 
 
 // Evaluates to true if the given character is a digit.
@@ -120,8 +121,9 @@ void lexer_consume_until(Lexer *lexer, char *terminator) {
 
 
 // Creates a new lexer. The file name is used for error messages.
-Lexer lexer_new(char *file, char *package, char *source) {
+Lexer lexer_new(VirtualMachine *vm, char *file, char *package, char *source) {
 	Lexer lexer;
+	lexer.vm = vm;
 	lexer.source = source;
 	lexer.cursor = source;
 	lexer.token.line = 1;
@@ -270,9 +272,7 @@ void lexer_string(Lexer *lexer) {
 
 	// Check for an unterminated string
 	if (IS_EOF()) {
-		// TODO: Handle unterminated strings better
-		token->type = TOKEN_UNRECOGNISED;
-		token->length = 0;
+		err_new(lexer->vm, token, "Unterminated string literal");
 		return;
 	}
 
@@ -514,7 +514,6 @@ char escape_sequence(char ch) {
 
 	// Invalid escape sequence
 	default:
-		// TODO: Handle invalid escape sequence
 		return '\0';
 	}
 }
@@ -523,7 +522,7 @@ char escape_sequence(char ch) {
 // Extracts a string from the given token. Returns a heap allocated string
 // that needs to be freed. Triggers an error if the string contains an invalid
 // escape sequence.
-char * lexer_extract_string(Token *token) {
+char * lexer_extract_string(Lexer *lexer, Token *token) {
 	// Since the string with parsed escape sequences can't be longer than the
 	// string in the source code, allocate the same amount of room for each.
 	// The length of the token includes the opening and closing quote, so
@@ -535,7 +534,15 @@ char * lexer_extract_string(Token *token) {
 		// Check for an escape sequence
 		if (token->start[i] == '\\') {
 			i++;
-			result[length++] = escape_sequence(token->start[i]);
+			char ch = escape_sequence(token->start[i]);
+			if (ch == '\0') {
+				// Invalid escape sequence
+				err_new(lexer->vm, token, "Invalid escape sequence `\\%c`",
+					token->start[i]);
+				return NULL;
+			}
+
+			result[length++] = ch;
 		} else {
 			// Normal character
 			result[length++] = token->start[i];

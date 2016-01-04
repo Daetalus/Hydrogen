@@ -388,8 +388,7 @@ void parse_fn_call(Parser *parser, Identifier *left, int count) {
 //
 
 // Parses a return statement.
-// TODO: Trigger error if we try and return a value from a custom struct
-// constructor
+// TODO: Trigger error if we try and return a value from a custom constructor
 void parse_return(Parser *parser) {
 	Lexer *lexer = parser->lexer;
 

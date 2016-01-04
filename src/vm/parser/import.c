@@ -216,7 +216,7 @@ void parse_multi_import(Parser *parser) {
 	// Expect a comma separated list of strings
 	while (lexer->token.type == TOKEN_STRING) {
 		// Extract the name of the package
-		char *path = lexer_extract_string(&lexer->token);
+		char *path = lexer_extract_string(lexer, &lexer->token);
 		import(parser, path);
 
 		// Consume the string
@@ -246,7 +246,7 @@ void parse_import(Parser *parser) {
 		parse_multi_import(parser);
 	} else if (lexer->token.type == TOKEN_STRING) {
 		// Single import statement
-		char *path = lexer_extract_string(&lexer->token);
+		char *path = lexer_extract_string(lexer, &lexer->token);
 		import(parser, path);
 
 		// Consume the string token

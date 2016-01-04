@@ -8,6 +8,8 @@
 
 #include <stdlib.h>
 
+#include "vm.h"
+
 
 // All possible token types.
 typedef enum {
@@ -124,6 +126,9 @@ typedef struct {
 
 // The lexer, which separates source code into tokens.
 typedef struct {
+	// The virtual machine the lexer is running under.
+	VirtualMachine *vm;
+
 	// A pointer to the original source code.
 	char *source;
 
@@ -136,7 +141,7 @@ typedef struct {
 
 
 // Creates a new lexer. The file name is used for error messages.
-Lexer lexer_new(char *file, char *package, char *source);
+Lexer lexer_new(VirtualMachine *vm, char *file, char *package, char *source);
 
 // Parses the next token.
 void lexer_next(Lexer *lexer);
@@ -144,6 +149,6 @@ void lexer_next(Lexer *lexer);
 // Extracts a string from the given token. Returns a heap allocated string
 // that needs to be freed. Triggers an error if the string contains an invalid
 // escape sequence.
-char * lexer_extract_string(Token *token);
+char * lexer_extract_string(Lexer *lexer, Token *token);
 
 #endif

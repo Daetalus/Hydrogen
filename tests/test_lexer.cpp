@@ -9,7 +9,7 @@
 // Creates a new lexer.
 #define LEXER(code)              \
 	const char *source = (code); \
-	Lexer lexer = lexer_new(NULL, NULL, (char *) source);
+	Lexer lexer = lexer_new(NULL, NULL, NULL, (char *) source);
 
 
 // Reads the next token from the lexer and ensures it matches the given type.
@@ -33,7 +33,7 @@
 	ASSERT_EQ(lexer.token.type, TOKEN_STRING);                        \
 	ASSERT_EQ(lexer.token.length, strlen(contents) + 2);              \
 	ASSERT_STREQN(lexer.token.start + 1, contents, strlen(contents)); \
-	char *extracted = lexer_extract_string(&lexer.token);             \
+	char *extracted = lexer_extract_string(&lexer, &lexer.token);     \
 	ASSERT_NE(extracted, (char *) NULL);                              \
 	ASSERT_STREQ(extracted, parsed);                                  \
 	free(extracted);                                                  \
