@@ -99,4 +99,8 @@ bool expr_exists(TokenType token);
 // to update the location of the false case to `false_case`.
 void expr_patch_false_case(Parser *parser, Operand operand, int false_case);
 
+// Moves a top level variable at `index` in the parser's function's package
+// into the given stack slot.
+void expr_top_level_to_local(Parser *parser, uint16_t slot, uint16_t index);
+
 #endif

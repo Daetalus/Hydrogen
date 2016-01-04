@@ -36,8 +36,8 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 		uint16_t return_slot);
 
 // Parses a function call, starting at the opening parenthesis of the arguments
-// list. `ident` is the name of the function to call.
-void parse_fn_call(Parser *parser, Token ident);
+// list.
+void parse_fn_call(Parser *parser, Identifier *list, int count);
 
 // Parses a return statement.
 void parse_return(Parser *parser);

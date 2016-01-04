@@ -9,11 +9,6 @@
 #include "../bytecode.h"
 
 
-// The maximum number of identifiers that can exist on the left hand side of an
-// assignment.
-#define MAX_ASSIGN_DEPTH 64
-
-
 // Parses an assignment to a new variable (using a `let` token).
 void parse_initial_assignment(Parser *parser) {
 	Lexer *lexer = parser->lexer;
@@ -70,54 +65,34 @@ void parse_initial_assignment(Parser *parser) {
 
 
 // Parses an assignment to an already initialised variable.
-void parse_assignment(Parser *parser, Token name) {
+void parse_assignment(Parser *parser, Identifier *left, int count) {
 	Lexer *lexer = parser->lexer;
 
-	Identifier left[MAX_ASSIGN_DEPTH];
-	int count = 0;
-
-	// Parse left hand side variable list
-	while (lexer->token.type == TOKEN_DOT) {
-		lexer_next(lexer);
-
-		// Expect an identifier
-		EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `.` in assignment");
-		left[count++].start = lexer->token.start;
-		left[count - 1].length = lexer->token.length;
-		lexer_next(lexer);
-	}
-
-	// Expect an assignment operator
-	if (lexer->token.type < TOKEN_ASSIGN ||
-			lexer->token.type > TOKEN_DIV_ASSIGN) {
-		UNEXPECTED("Expected `=` after identifier in assignment");
-		return;
-	}
-
 	// Save the token used to perform the assignment
-	// TODO: Add modifier assignment token support (currently failing test)
+	// TODO: Add modifier assignment token support
 	TokenType assign = lexer->token.type;
 	lexer_next(lexer);
 
 	// If we're only assigning to a single variable
-	if (count == 0) {
-		expr_emit_local(parser, name.start, name.length);
+	if (count == 1) {
+		expr_emit_local(parser, left[0].start, left[0].length);
 		return;
 	}
 
-	// Assigning to a struct field
+	// Assigning to a struct field (at least 2 elements in the identifier list)
 	scope_new(parser);
 
 	// Move the first element in the left variable list into a local
-	Variable var = local_capture(parser, name.start, name.length);
+	Variable var = local_capture(parser, left[0].start, left[0].length);
 	uint16_t previous = var.slot;
 	uint16_t slot = var.slot;
+
 	if (var.type == VAR_PACKAGE) {
 		// Find the top level variable in the package from the first element
 		// after the first `.` in the left hand side variable list
 		Package *package = &parser->vm->packages[var.slot];
-		char *var_name = left[0].start;
-		size_t var_length = left[0].length;
+		char *var_name = left[1].start;
+		size_t var_length = left[1].length;
 		int pkg_var_index = package_local_find(package, var_name, var_length);
 		if (pkg_var_index == -1) {
 			ERROR("Attempt to assign to undefined top level variable `%.*s`"
@@ -126,7 +101,7 @@ void parse_assignment(Parser *parser, Token name) {
 		}
 
 		// If we're assigning directly to a top level variable
-		if (count == 1) {
+		if (count == 2) {
 			// Parse an expression into an empty slot
 			local_new(parser, &slot);
 			expr_emit(parser, slot);
@@ -142,7 +117,7 @@ void parse_assignment(Parser *parser, Token name) {
 			previous = slot;
 			emit(parser->fn, instr_new(MOV_LT, slot, var.slot, pkg_var_index));
 		}
-	} else if (var.type == VAR_LOCAL && count > 1) {
+	} else if (var.type == VAR_LOCAL && count > 2) {
 		// If this is a local and we have to replace this local with one of its
 		// fields in the next step, allocate a new stack position for this local
 		local_new(parser, &slot);
@@ -154,17 +129,16 @@ void parse_assignment(Parser *parser, Token name) {
 		if (var.type == VAR_UPVALUE) {
 			emit(parser->fn, instr_new(MOV_LU, slot, var.slot, 0));
 		} else {
-			uint16_t package_index = (parser->fn->package -
-				parser->vm->packages) / sizeof(Package);
-			emit(parser->fn, instr_new(MOV_LT, slot, package_index, var.slot));
+			expr_top_level_to_local(parser, slot, var.slot);
 		}
 	} else if (var.type == VAR_UNDEFINED) {
-		ERROR("Assigning to undefined variable `%.*s`", name.length, name.start);
+		ERROR("Assigning to undefined variable `%.*s`", left[0].length,
+			left[0].start);
 		return;
 	}
 
 	// Index all left hand variables except the last one
-	for (int i = 0; i < count - 1; i++) {
+	for (int i = 1; i < count - 1; i++) {
 		// Replace the struct that's in the slot at the moment
 		uint16_t index = vm_add_field(parser->vm, left[i]);
 		emit(parser->fn, instr_new(STRUCT_FIELD, slot, previous, index));

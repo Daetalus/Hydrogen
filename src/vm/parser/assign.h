@@ -12,6 +12,6 @@
 void parse_initial_assignment(Parser *parser);
 
 // Parses an assignment to an already initialised variable.
-void parse_assignment(Parser *parser, Token name);
+void parse_assignment(Parser *parser, Identifier *left, int count);
 
 #endif

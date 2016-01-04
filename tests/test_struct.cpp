@@ -197,16 +197,23 @@ TEST(Struct, CallMethod) {
 		"}\n"
 		"let a = new Test()\n"
 		"let b = a.test()\n"
+		"a.test()\n"
 	);
 
 	FN(0);
 	ASSERT_INSTR(STRUCT_NEW, 0, 0, 0);
 	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+
 	ASSERT_INSTR(MOV_LT, 0, 0, 0);
 	ASSERT_INSTR(STRUCT_FIELD, 0, 0, 0);
 	ASSERT_INSTR(MOV_LT, 1, 0, 0);
 	ASSERT_CALL(CALL_L, 0, 1, 1, 0);
 	ASSERT_INSTR(MOV_TL, 1, 0, 0);
+
+	ASSERT_INSTR(MOV_LT, 0, 0, 0);
+	ASSERT_INSTR(STRUCT_FIELD, 0, 0, 1);
+	ASSERT_INSTR(MOV_LT, 1, 0, 0);
+	ASSERT_CALL(CALL_L, 0, 1, 1, 0);
 	ASSERT_RET();
 
 	FN(1);

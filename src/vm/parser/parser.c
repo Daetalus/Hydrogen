@@ -13,6 +13,9 @@
 #include "fn.h"
 #include "struct.h"
 
+// The maximum number of elements in a path.
+#define MAX_PATH_DEPTH 64
+
 
 // Creates a new parser. Does not create a new function for the parser.
 Parser parser_new(Parser *parent) {
@@ -76,6 +79,30 @@ void parse_package(VirtualMachine *vm, Package *package) {
 }
 
 
+// Parses a path (a sequence of identifiers separated by dots). Returns the
+// number of elements in the path, putting the identifiers into the given list.
+int parse_path(Parser *parser, Identifier *path) {
+	Lexer *lexer = parser->lexer;
+
+	// Parse a sequence of identifiers
+	int count = 0;
+	while (lexer->token.type == TOKEN_IDENTIFIER) {
+		path[count++].start = lexer->token.start;
+		path[count - 1].length = lexer->token.length;
+		lexer_next(lexer);
+
+		// Expect a dot
+		if (lexer->token.type == TOKEN_DOT) {
+			lexer_next(lexer);
+		} else {
+			break;
+		}
+	}
+
+	return count;
+}
+
+
 // Parses an assignment or function call. Returns false if neither could be
 // parsed.
 bool parse_call_or_assignment(Parser *parser) {
@@ -86,21 +113,22 @@ bool parse_call_or_assignment(Parser *parser) {
 		return false;
 	}
 
-	// Skip the identifier
-	Token identifier = lexer->token;
-	lexer_next(lexer);
+	// Parse an identifier list
+	Identifier path[MAX_PATH_DEPTH];
+	int count = parse_path(parser, path);
+	if (count <= 0) {
+		return false;
+	}
 
 	// Check the next character
-	// TODO: Parse left hand assignment list here so we can call struct methods
 	if (lexer->token.type == TOKEN_OPEN_PARENTHESIS) {
 		// Function call
-		parse_fn_call(parser, identifier);
+		parse_fn_call(parser, path, count);
 		return true;
-	} else if ((lexer->token.type >= TOKEN_ASSIGN &&
-			lexer->token.type <= TOKEN_DIV_ASSIGN) ||
-			lexer->token.type == TOKEN_DOT) {
+	} else if (lexer->token.type >= TOKEN_ASSIGN &&
+			lexer->token.type <= TOKEN_DIV_ASSIGN) {
 		// Assignment
-		parse_assignment(parser, identifier);
+		parse_assignment(parser, path, count);
 		return true;
 	}
 

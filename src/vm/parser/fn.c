@@ -306,42 +306,79 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 
 
 // Parses a function call, starting at the opening parenthesis of the arguments
-// list. `ident` is the name of the function to call.
-void parse_fn_call(Parser *parser, Token ident) {
+// list.
+void parse_fn_call(Parser *parser, Identifier *left, int count) {
 	// Parse the result of the function call into a temporary slot
 	uint16_t return_slot;
 	scope_new(parser);
 	local_new(parser, &return_slot);
 	scope_free(parser);
 
-	// Find a local with the name of the function
-	char *name = ident.start;
-	size_t length = ident.length;
-	Variable var = local_capture(parser, name, length);
-	if (var.type == VAR_LOCAL) {
-		parse_fn_call_slot(parser, CALL_L, var.slot, return_slot);
-	} else if (var.type == VAR_UPVALUE || var.type == VAR_TOP_LEVEL) {
-		// Store the upvalue into a temporary local
-		uint16_t slot;
-		scope_new(parser);
+	// Create a new scope for the struct fields we might have to index
+	scope_new(parser);
+
+	// Create a `self` variable in case this is a method call
+	OperandSelf self;
+	self.is_method = false;
+
+	// Move the first element in the left into a variable
+	Variable var = local_capture(parser, left[0].start, left[0].length);
+	uint16_t previous = var.slot;
+	uint16_t slot = var.slot;
+
+	// TODO: Remove duplication between here and parse_assignment
+	if (var.type == VAR_PACKAGE) {
+		// TODO: Calling functions in a package
+	} else if (var.type == VAR_LOCAL && count > 1) {
+		// If we have to replace this local with one of its fields, allocate
+		// a new local for it
 		local_new(parser, &slot);
+		self.type = SELF_LOCAL;
+		self.slot = var.slot;
+	} else if (var.type == VAR_UPVALUE || var.type == VAR_TOP_LEVEL) {
+		// Create a new local to store the upvalue/top level variable in
+		local_new(parser, &slot);
+		previous = slot;
+
 		if (var.type == VAR_UPVALUE) {
 			emit(parser->fn, instr_new(MOV_LU, slot, var.slot, 0));
+			self.type = SELF_UPVALUE;
+			self.slot = var.slot;
 		} else {
-			uint16_t package_index = (parser->fn->package -
-				parser->vm->packages) / sizeof(Package);
-			emit(parser->fn, instr_new(MOV_LT, slot, package_index, var.slot));
+			expr_top_level_to_local(parser, slot, var.slot);
+			self.type = SELF_TOP_LEVEL;
+			self.slot = var.slot;
+			self.package_index = (parser->fn->package - parser->vm->packages) /
+				sizeof(Package);
 		}
-
-		// Call the function
-		parse_fn_call_slot(parser, CALL_L, slot, return_slot);
-
-		// Free the temporary local
-		scope_free(parser);
-	} else {
-		// Undefined function
-		ERROR("Attempt to call undefined function `%.*s`", length, name);
+	} else if (var.type == VAR_UNDEFINED) {
+		ERROR("Undefined variable `%.*s` in function call", left[0].length,
+			left[0].start);
+		return;
 	}
+
+	// Index all left variables
+	for (int i = 1; i < count; i++) {
+		// Replace the struct in the current slot with its field
+		uint16_t index = vm_add_field(parser->vm, left[i]);
+		emit(parser->fn, instr_new(STRUCT_FIELD, slot, previous, index));
+		previous = slot;
+
+		// Update the `self` value
+		if (self.is_method) {
+			// Up to third index (ie. `a.b.c`)
+			self.type = SELF_LOCAL;
+			self.slot = slot;
+		} else {
+			self.is_method = true;
+		}
+	}
+
+	// Parse a function call
+	parse_fn_call_self(parser, CALL_L, slot, return_slot, &self);
+
+	// Free the scope we created for struct fields
+	scope_free(parser);
 }
 
 
