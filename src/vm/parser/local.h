@@ -12,7 +12,7 @@
 
 
 // A local variable.
-struct local {
+typedef struct local {
 	// The name of the local.
 	char *name;
 	size_t length;
@@ -23,7 +23,7 @@ struct local {
 	// The index of the upvalue in the VM's upvalue list, or -1 if this local
 	// wasn't used in a closure.
 	int upvalue_index;
-};
+} Local;
 
 
 // The type of a variable.
@@ -32,6 +32,7 @@ typedef enum {
 	VAR_LOCAL,
 	VAR_UPVALUE,
 	VAR_PACKAGE,
+	VAR_NATIVE_PACKAGE,
 	VAR_TOP_LEVEL,
 } VariableType;
 

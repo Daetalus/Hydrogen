@@ -66,7 +66,7 @@ extern "C" {
 // Creates a mock compiler with the given source code.
 #define COMPILER(code)                                   \
 	VirtualMachine *vm = hy_new();                       \
-	Package *package = package_new(vm);                  \
+	Package *package = package_new(vm, NULL);            \
 	package->source = (char *) (code);                   \
 	if (setjmp(vm->error_jump) == 0) {                   \
 		parse_package(vm, package);                      \

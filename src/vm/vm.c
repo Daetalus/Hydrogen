@@ -23,8 +23,10 @@ HyVM * hy_new(void) {
 	// Allocate memory for arrays
 	ARRAY_INIT(vm->functions, Function, 4);
 	ARRAY_INIT(vm->packages, Package, 4);
-	ARRAY_INIT(vm->numbers, uint64_t, 16);
-	ARRAY_INIT(vm->strings, uint64_t, 16);
+	ARRAY_INIT(vm->native_packages, HyNativePackage, 4);
+	ARRAY_INIT(vm->native_fns, NativeFn, 4);
+	ARRAY_INIT(vm->numbers, HyValue, 16);
+	ARRAY_INIT(vm->strings, HyValue, 16);
 	ARRAY_INIT(vm->upvalues, Upvalue, 4);
 	ARRAY_INIT(vm->structs, StructDefinition, 2);
 	ARRAY_INIT(vm->fields, Identifier, 4);
@@ -39,6 +41,18 @@ void hy_free(HyVM *vm) {
 	for (uint32_t i = 0; i < vm->packages_count; i++) {
 		Package *package = &vm->packages[i];
 		package_free(package);
+	}
+
+	// Native packages
+	for (uint32_t i = 0; i < vm->native_packages_count; i++) {
+		HyNativePackage *package = &vm->native_packages[i];
+		native_package_free(package);
+	}
+
+	// Native functions
+	for (uint32_t i = 0; i < vm->native_fns_count; i++) {
+		NativeFn *fn = &vm->native_fns[i];
+		native_fn_free(fn);
 	}
 
 	// Strings
@@ -61,6 +75,8 @@ void hy_free(HyVM *vm) {
 	// Arrays
 	free(vm->packages);
 	free(vm->functions);
+	free(vm->native_packages);
+	free(vm->native_fns);
 	free(vm->numbers);
 	free(vm->strings);
 	free(vm->upvalues);
@@ -81,7 +97,7 @@ void hy_free(HyVM *vm) {
 // if an error occurred, or NULL otherwise. The returned error object must be
 // freed.
 HyError * hy_run(HyVM *vm, char *source) {
-	Package *main = package_new(vm);
+	Package *main = package_new(vm, NULL);
 	main->source = source;
 
 	if (setjmp(vm->error_jump) == 0) {
@@ -109,7 +125,7 @@ HyError * hy_run(HyVM *vm, char *source) {
 // string.
 uint16_t vm_add_string(VirtualMachine *vm, char *string) {
 	uint16_t index = vm->strings_count++;
-	ARRAY_REALLOC(vm->strings, uint64_t);
+	ARRAY_REALLOC(vm->strings, HyValue);
 
 	Object *obj = malloc(sizeof(Object) + sizeof(char) * (strlen(string) + 1));
 	obj->type = OBJ_STRING;
@@ -130,7 +146,7 @@ char * vm_string(VirtualMachine *vm, int index) {
 // number.
 uint16_t vm_add_number(VirtualMachine *vm, double number) {
 	uint16_t index = vm->numbers_count++;
-	ARRAY_REALLOC(vm->numbers, uint64_t);
+	ARRAY_REALLOC(vm->numbers, HyValue);
 	vm->numbers[index] = number_to_value(number);
 	return index;
 }
@@ -162,10 +178,13 @@ uint16_t vm_add_field(VirtualMachine *vm, Identifier field) {
 //
 
 // Defines a new package.
-Package * package_new(VirtualMachine *vm) {
+Package * package_new(VirtualMachine *vm, uint32_t *requested) {
 	// Increment the size of the packages array
 	uint32_t index = vm->packages_count++;
 	ARRAY_REALLOC(vm->packages, Package);
+	if (requested != NULL) {
+		*requested = index;
+	}
 
 	// Initialise the package
 	Package *package = &vm->packages[index];
@@ -176,7 +195,7 @@ Package * package_new(VirtualMachine *vm) {
 	ARRAY_INIT(package->functions, Function *, 4);
 	ARRAY_INIT(package->structs, StructDefinition *, 4);
 	ARRAY_INIT(package->locals, Identifier, 4);
-	ARRAY_INIT(package->values, uint64_t, 4);
+	ARRAY_INIT(package->values, HyValue, 4);
 	return package;
 }
 
@@ -217,7 +236,7 @@ int package_local_new(Package *package, char *name, size_t length) {
 	int index = package->locals_count++;
 	package->values_count++;
 	ARRAY_REALLOC(package->locals, Identifier);
-	ARRAY_REALLOC(package->values, uint64_t);
+	ARRAY_REALLOC(package->values, HyValue);
 
 	package->values[index] = NIL_VALUE;
 	Identifier *ident = &package->locals[index];
@@ -238,6 +257,98 @@ int package_local_find(Package *package, char *name, size_t length) {
 		}
 	}
 	return -1;
+}
+
+
+
+//
+//  Native Packages
+//
+
+// Define a native package on an interpreter with the given name.
+HyNativePackage * hy_package_new(HyVM *vm, char *name) {
+	// TODO: Ensure the package name contains only ASCII characters
+	int index = vm->native_packages_count++;
+	ARRAY_REALLOC(vm->native_packages, HyNativePackage);
+	HyNativePackage *package = &vm->native_packages[index];
+	package->vm = vm;
+	ARRAY_INIT(package->functions, NativeFn *, 4);
+
+	// Make a heap allocated copy of the string, because God knows what the user
+	// has given us
+	package->name = malloc(sizeof(char) * (strlen(name) + 1));
+	strcpy(package->name, name);
+
+	return package;
+}
+
+
+// Frees a native package.
+void native_package_free(HyNativePackage *package) {
+	free(package->name);
+	free(package->functions);
+}
+
+
+// Finds a native package, returning its index, or -1 if it couldn't be found.
+int native_package_find(VirtualMachine *vm, char *name, size_t length) {
+	for (uint32_t i = 0; i < vm->native_packages_count; i++) {
+		HyNativePackage *pkg = &vm->native_packages[i];
+		if (length == strlen(pkg->name) &&
+				strncmp(pkg->name, name, length) == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+
+// Frees a native function.
+void native_fn_free(NativeFn *fn) {
+	free(fn->name);
+}
+
+
+// Finds a native function in a native package, returning its index, or -1 if
+// no such function could be found.
+int native_fn_find(HyNativePackage *package, char *name, size_t length) {
+	NativeFn *fn = NULL;
+	for (uint32_t i = 0; i < package->functions_count; i++) {
+		fn = package->functions[i];
+		if (length == strlen(fn->name) && strncmp(name, fn->name, length) == 0) {
+			break;
+		}
+	}
+
+	// If we couldn't find the function
+	if (fn == NULL) {
+		return -1;
+	}
+
+	// Return the index of the function
+	return (fn - package->vm->native_fns) / sizeof(NativeFn);
+}
+
+
+// Defines a native function on a package with the given name and number of
+// arguments. If `arity` is -1, then the function can accept an arbitrary
+// number of arguments.
+void hy_package_fn_new(HyNativePackage *package, char *name, int arity,
+		HyNativeFn fn) {
+	int index = package->vm->native_fns_count++;
+	ARRAY_REALLOC(package->vm->native_fns, NativeFn);
+	NativeFn *native = &package->vm->native_fns[index];
+	native->arity = arity;
+	native->fn = fn;
+
+	// Make a heap allocated copy of the name
+	native->name = malloc(sizeof(char) * (strlen(name) + 1));
+	strcpy(native->name, name);
+
+	// Add the function to the package's function list
+	index = package->functions_count++;
+	ARRAY_REALLOC(package->functions, NativeFn *);
+	package->functions[index] = native;
 }
 
 
@@ -366,7 +477,7 @@ StructDefinition * struct_new(VirtualMachine *vm, Package *package) {
 	def->length = 0;
 	def->constructor = -1;
 	ARRAY_INIT(def->fields, Identifier, 2);
-	ARRAY_INIT(def->values, uint64_t, 2);
+	ARRAY_INIT(def->values, HyValue, 2);
 
 	// Add the package to the struct's package list
 	if (package != NULL) {
@@ -391,7 +502,7 @@ int struct_new_field(StructDefinition *def) {
 	int index = def->fields_count++;
 	def->values_count++;
 	ARRAY_REALLOC(def->fields, Identifier);
-	ARRAY_REALLOC(def->values, uint64_t);
+	ARRAY_REALLOC(def->values, HyValue);
 
 	Identifier *field = &def->fields[index];
 	field->start = NULL;
@@ -692,7 +803,7 @@ HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	debug_print_bytecode(fn);
 
 	// The variable stack
-	uint64_t *stack = malloc(sizeof(uint64_t) * MAX_STACK_SIZE);
+	HyValue *stack = malloc(sizeof(HyValue) * MAX_STACK_SIZE);
 
 	// The function frame stack
 	Frame *frames = malloc(sizeof(Frame) * MAX_CALL_STACK_SIZE);
@@ -700,8 +811,8 @@ HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 
 	// Cache from the VM
 	Upvalue *upvalues = vm->upvalues;
-	uint64_t *numbers = vm->numbers;
-	uint64_t *strings = vm->strings;
+	HyValue *numbers = vm->numbers;
+	HyValue *strings = vm->strings;
 	Function *functions = vm->functions;
 	StructDefinition *structs = vm->structs;
 	Identifier *struct_fields = vm->fields;
@@ -922,12 +1033,12 @@ instruction:
 
 	case STRUCT_NEW: {
 		StructDefinition *def = &structs[ARG2];
-		Object *obj = malloc(sizeof(Object) + sizeof(uint64_t) *
+		Object *obj = malloc(sizeof(Object) + sizeof(HyValue) *
 			def->fields_count);
 		obj->type = OBJ_STRUCT;
 		obj->obj.definition = def;
-		memcpy(obj->obj.fields, def->values,
-			sizeof(uint64_t) * def->fields_count);
+		memcpy(obj->obj.fields, def->values, sizeof(HyValue) *
+			def->fields_count);
 		ARG1_L = ptr_to_value(obj);
 		NEXT();
 	}

@@ -57,23 +57,6 @@
 	}
 
 
-// A local variable.
-typedef struct local Local;
-
-// Data about a loop required by the parser in order to implement break
-// statements.
-typedef struct loop {
-	// The index of the last break statement's jump instruction in the bytecode.
-	// Used to form a jump list which can be patched after the loop has finished
-	// being compiled. -1 if no break statements are used.
-	int jump;
-
-	// The next loop in the linked list, used by the parser so we can keep track
-	// of which loop to break out of when we hit a break statement.
-	struct loop *outer;
-} Loop;
-
-
 // A parser, which converts lexed source code into bytecode.
 typedef struct _parser {
 	// The virtual machine we're parsing for.
@@ -90,16 +73,16 @@ typedef struct _parser {
 
 	// The innermost loop being parsed, or NULL if we're not inside a loop.
 	// Stored as a linked list.
-	Loop *loop;
+	struct loop *loop;
 
 	// The current scope depth.
 	uint32_t scope_depth;
 
 	// All defined locals.
-	ARRAY(Local, locals);
+	ARRAY(struct local, locals);
 
-	// All imported packages.
-	ARRAY(Package *, imports);
+	// All imported packages (native and user).
+	ARRAY(struct import, imports);
 } Parser;
 
 

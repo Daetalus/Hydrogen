@@ -25,7 +25,7 @@ Parser parser_new(Parser *parent) {
 	parser.loop = NULL;
 	parser.fn = NULL;
 	ARRAY_INIT(parser.locals, Local, 64);
-	ARRAY_INIT(parser.imports, Package *, 4);
+	ARRAY_INIT(parser.imports, Import, 4);
 
 	if (parent != NULL) {
 		parser.lexer = parent->lexer;

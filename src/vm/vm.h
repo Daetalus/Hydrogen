@@ -43,7 +43,7 @@ typedef struct {
 		uint16_t slot;
 
 		// The value of the upvalue, used once its been closed.
-		uint64_t value;
+		HyValue value;
 	};
 } Upvalue;
 
@@ -88,7 +88,7 @@ typedef struct {
 
 	// The default values for the struct's fields, which can be `memcpy`ed into
 	// a struct's fields list at runtime when instantiating a struct.
-	ARRAY(uint64_t, values);
+	ARRAY(HyValue, values);
 } StructDefinition;
 
 
@@ -119,7 +119,35 @@ struct package {
 	// Storage location for all top level locals defined by the package, so we
 	// can access these locals from other packages outside this one.
 	ARRAY(Identifier, locals);
-	ARRAY(uint64_t, values);
+	ARRAY(HyValue, values);
+};
+
+
+// A native function.
+typedef struct {
+	// The name of the function as a heap allocated string.
+	char *name;
+
+	// The number of arguments to the function, or -1 if the function accepts an
+	// arbitrary number of arguments.
+	int arity;
+
+	// The C function pointer callback.
+	HyNativeFn fn;
+} NativeFn;
+
+
+// A native package defined in C.
+struct native_package {
+	// The name of the package as a heap allocated string.
+	char *name;
+
+	// A pointer to the VM.
+	HyVM *vm;
+
+	// A list of native functions defined on this package as pointers into the
+	// VM's native function list.
+	ARRAY(NativeFn *, functions);
 };
 
 
@@ -131,11 +159,17 @@ typedef struct vm {
 	// All imported packages.
 	ARRAY(Package, packages);
 
+	// All native functions.
+	ARRAY(NativeFn, native_fns);
+
+	// All native packages.
+	ARRAY(HyNativePackage, native_packages);
+
 	// Numbers encountered during compilation.
-	ARRAY(uint64_t, numbers);
+	ARRAY(HyValue, numbers);
 
 	// Strings encountered during compilation.
-	ARRAY(uint64_t, strings);
+	ARRAY(HyValue, strings);
 
 	// Upvalues found during compilation.
 	ARRAY(Upvalue, upvalues);
@@ -171,7 +205,7 @@ uint16_t vm_add_field(VirtualMachine *vm, Identifier field);
 
 
 // Defines a new package.
-Package * package_new(VirtualMachine *vm);
+Package * package_new(VirtualMachine *vm, uint32_t *requested);
 
 // Frees a package.
 void package_free(Package *package);
@@ -186,6 +220,20 @@ int package_local_new(Package *package, char *name, size_t length);
 // Returns the index of a package's top level variable with the given name, or
 // -1 if no such local could be found.
 int package_local_find(Package *package, char *name, size_t length);
+
+
+// Frees a native package.
+void native_package_free(HyNativePackage *package);
+
+// Finds a native package, returning its index, or -1 if it couldn't be found.
+int native_package_find(VirtualMachine *vm, char *name, size_t length);
+
+// Frees a native function.
+void native_fn_free(NativeFn *fn);
+
+// Finds a native function in a native package, returning its index, or -1 if
+// no such function could be found.
+int native_fn_find(HyNativePackage *package, char *name, size_t length);
 
 
 // Defines a new function in the given package, or in the global namespace if

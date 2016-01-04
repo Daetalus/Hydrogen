@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "import.h"
+#include "../bytecode.h"
 
 
 // Returns the position of the path separator (`/`) that begins the final
@@ -119,14 +120,15 @@ char * import_package_name(char *path) {
 
 
 // Loads an external package.
-Package * import_new(Parser *parser, char *path, char *name) {
+uint32_t import_user(Parser *parser, char *path, char *name) {
 	// Find the requested package
 	char *actual_path = import_package_path(parser->fn->package, path);
 	if (actual_path != path) {
 		free(path);
 	}
 
-	Package *package = package_new(parser->vm);
+	uint32_t index;
+	Package *package = package_new(parser->vm, &index);
 	package->name = name;
 	package->file = actual_path;
 	package->source = read_file(actual_path);
@@ -134,26 +136,55 @@ Package * import_new(Parser *parser, char *path, char *name) {
 	// Check we could actually read the file
 	if (package->source == NULL) {
 		ERROR("Failed to find package `%s`", name);
-		return NULL;
+		return 0;
 	}
 
 	// Compile the package
 	parse_package(parser->vm, package);
-	return package;
+
+	// Call the package's main function
+	emit(parser->fn, instr_new_4(CALL_F, 0, package->main_fn, 0, 0));
+
+	return index;
 }
 
 
-// Returns the index of a package in the VM's package list with the given name
-// imported by the parser, or -1 if one can't be find.
-int import_package_find(Parser *parser, char *name, size_t length) {
+// Searches for an imported package in the parser with the given name,
+// returning NULL if the package couldn't be found.
+Import * import_package_find(Parser *parser, char *name, size_t length) {
+	VirtualMachine *vm = parser->vm;
+
 	for (uint32_t i = 0; i < parser->imports_count; i++) {
-		Package *package = parser->imports[i];
-		if (package->name != NULL && strlen(package->name) == length &&
-				strncmp(name, package->name, length) == 0) {
-			return i;
+		Import *import = &parser->imports[i];
+		if (import->type == IMPORT_USER) {
+			// Check a user package
+			Package *package = &vm->packages[import->index];
+			if (package->name != NULL && length == strlen(package->name) &&
+					strncmp(package->name, name, length) == 0) {
+				return import;
+			}
+		} else {
+			// Check a native package
+			HyNativePackage *package = &vm->native_packages[import->index];
+			if (length == strlen(package->name) &&
+					strncmp(package->name, name, length) == 0) {
+				return import;
+			}
 		}
 	}
-	return -1;
+
+	// Not found
+	return NULL;
+}
+
+
+// Imports a native package with the given index.
+void import_native(Parser *parser, int native) {
+	int index = parser->imports_count++;
+	ARRAY_REALLOC(parser->imports, Import);
+	Import *import = &parser->imports[index];
+	import->type = IMPORT_NATIVE;
+	import->index = native;
 }
 
 
@@ -169,31 +200,36 @@ void import(Parser *parser, char *path) {
 	char *name = import_package_name(path);
 
 	// Check if the package has already been imported
-	for (uint32_t i = 0; i < parser->imports_count; i++) {
-		Package *package = parser->imports[i];
-		if (strcmp(package->name, name) == 0) {
-			// Already imported
-			free(path);
-			free(name);
-			ERROR("Package `%s` already imported", name);
-			return;
-		}
+	Import *found = import_package_find(parser, name, strlen(name));
+	if (found != NULL) {
+		// Already imported
+		free(path);
+		free(name);
+		ERROR("Package `%s` already imported", name);
+		return;
+	}
+
+	// Check if we're importing a native package
+	int native = native_package_find(parser->vm, path, strlen(path));
+	if (native >= 0) {
+		import_native(parser, native);
+		return;
 	}
 
 	// Check if the package has already been loaded
-	Package *import = NULL;
+	int import = -1;
 	for (uint32_t i = 0; i < parser->vm->packages_count; i++) {
 		Package *package = &parser->vm->packages[i];
 		if (strcmp(package->name, name) == 0) {
 			// Package has already been loaded
-			import = package;
+			import = i;
 			break;
 		}
 	}
 
 	// If the package hasn't already been loaded, load it
-	if (import == NULL) {
-		import = import_new(parser, path, name);
+	if (import == -1) {
+		import = import_user(parser, path, name);
 	} else {
 		free(name);
 		free(path);
@@ -201,8 +237,10 @@ void import(Parser *parser, char *path) {
 
 	// Add the imported package to the imports list
 	int index = parser->imports_count++;
-	ARRAY_REALLOC(parser->imports, Package *);
-	parser->imports[index] = import;
+	ARRAY_REALLOC(parser->imports, Import);
+	Import *new_import = &parser->imports[index];
+	new_import->type = IMPORT_USER;
+	new_import->index = import;
 }
 
 

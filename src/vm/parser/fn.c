@@ -305,6 +305,38 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 }
 
 
+// Parses a call to a function in a native package. `index` is the index of the
+// native package in the VM's native package list. `return_slot` is the location
+// to store the return value of the function call.
+void parse_native_fn_call(Parser *parser, uint32_t index, uint16_t return_slot) {
+	Lexer *lexer = parser->lexer;
+	HyNativePackage *package = &parser->vm->native_packages[index];
+
+	// Expect a dot
+	EXPECT(TOKEN_DOT, "Expected `.` after native package name `%s`",
+		package->name);
+	lexer_next(lexer);
+
+	// Expect an identifier
+	EXPECT(TOKEN_IDENTIFIER, "Expected identifier after `.` in native package "
+		"function call");
+	char *name = lexer->token.start;
+	size_t length = lexer->token.length;
+	lexer_next(lexer);
+
+	// Look for the native function
+	int fn_index = native_fn_find(package, name, length);
+	if (fn_index == -1) {
+		ERROR("Undefined native function `%.*s` on native package `%s`", length,
+			name, package->name);
+		return;
+	}
+
+	// Parse the rest of the function call
+	parse_fn_call_slot(parser, CALL_NATIVE, fn_index, return_slot);
+}
+
+
 // Parses a function call, starting at the opening parenthesis of the arguments
 // list.
 void parse_fn_call(Parser *parser, Identifier *left, int count) {

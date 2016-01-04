@@ -119,10 +119,11 @@ Variable local_capture(Parser *parser, char *name, size_t length) {
 	}
 
 	// Search packages
-	slot = import_package_find(parser, name, length);
-	if (slot >= 0) {
-		result.type = VAR_PACKAGE;
-		result.slot = slot;
+	Import *import = import_package_find(parser, name, length);
+	if (import != NULL) {
+		result.type = (import->type == IMPORT_USER) ? VAR_PACKAGE :
+			VAR_NATIVE_PACKAGE;
+		result.slot = import->index;
 		return result;
 	}
 
@@ -173,7 +174,7 @@ bool local_exists(Parser *parser, char *name, size_t length) {
 	}
 
 	// Packages
-	if (import_package_find(parser, name, length) >= 0) {
+	if (import_package_find(parser, name, length) != NULL) {
 		return true;
 	}
 

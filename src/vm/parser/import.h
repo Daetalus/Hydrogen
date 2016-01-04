@@ -8,9 +8,26 @@
 
 #include "parser.h"
 
+// The type of an imported package.
+typedef enum {
+	IMPORT_USER,
+	IMPORT_NATIVE,
+} ImportType;
+
+// An imported package.
+typedef struct import {
+	// The type of an import.
+	ImportType type;
+
+	// The index of the package (native or user) in the corresponding VM's
+	// package list.
+	uint32_t index;
+} Import;
+
+
 // Searches for an imported package in the parser with the given name,
 // returning NULL if the package couldn't be found.
-int import_package_find(Parser *parser, char *name, size_t length);
+Import * import_package_find(Parser *parser, char *name, size_t length);
 
 // Imports a package with the given path and name.
 void import(Parser *parser, char *path);

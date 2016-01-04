@@ -830,6 +830,12 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 		} else if (var.type == VAR_PACKAGE) {
 			operand.type = OP_PACKAGE;
 			operand.index = var.slot;
+		} else if (var.type == VAR_NATIVE_PACKAGE) {
+			// Parse a native function call and set the operand to its return
+			// slot
+			parse_native_fn_call(parser, var.slot, slot);
+			operand.type = OP_LOCAL;
+			operand.slot = slot;
 		} else if (var.type == VAR_TOP_LEVEL) {
 			// Store the top level variable into a local
 			expr_top_level_to_local(parser, slot, var.slot);

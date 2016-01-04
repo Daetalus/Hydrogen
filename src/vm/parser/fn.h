@@ -39,6 +39,11 @@ void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
 // list.
 void parse_fn_call(Parser *parser, Identifier *list, int count);
 
+// Parses a call to a function in a native package. `index` is the index of the
+// native package in the VM's native package list. `return_slot` is the location
+// to store the return value of the function call.
+void parse_native_fn_call(Parser *parser, uint32_t index, uint16_t return_slot);
+
 // Parses a return statement.
 void parse_return(Parser *parser);
 

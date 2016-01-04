@@ -174,6 +174,15 @@ typedef enum {
 	// itself.
 	CALL_F,
 
+	// Calls a C function in a native package.
+	//
+	// Arguments:
+	// * `arity`: number of arguments given to the function call
+	// * `fn`: index of the function in the VM's native function list
+	// * `argument_start`: the stack slot of the first argument
+	// * `return_slot`: the stack slot to store the return value of the function
+	CALL_NATIVE,
+
 	// Returns nothing from a function (moves nil into the return slot).
 	RET,
 
