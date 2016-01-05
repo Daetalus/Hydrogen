@@ -65,19 +65,21 @@ extern "C" {
 
 
 // Creates a mock compiler with the given source code.
-#define COMPILER(code)                                   \
-	VirtualMachine *vm = hy_new();                       \
-	Package *package = package_new(vm, NULL);            \
-	package->source = (char *) (code);                   \
-	if (setjmp(vm->error_jump) == 0) {                   \
-		parse_package(vm, package);                      \
-	} else {                                             \
-		if (vm->err != NULL) {                           \
-			printf("Error: %s\n", vm->err->description); \
-			exit(1);                                     \
-		}                                                \
-	}                                                    \
-	Function *fn = &vm->functions[package->main_fn];     \
+#define COMPILER(code)                                                      \
+	char *source = (char *) (code);                                         \
+	VirtualMachine *vm = hy_new();                                          \
+	Package *package = package_new(vm, NULL);                               \
+	package->source = (char *) malloc(sizeof(char) * (strlen(source) + 1)); \
+	strcpy(package->source, source);                                        \
+	if (setjmp(vm->error_jump) == 0) {                                      \
+		parse_package(vm, package);                                         \
+	} else {                                                                \
+		if (vm->err != NULL) {                                              \
+			printf("Error: %s\n", vm->err->description);                    \
+			exit(1);                                                        \
+		}                                                                   \
+	}                                                                       \
+	Function *fn = &vm->functions[package->main_fn];                        \
 	size_t index = 0;
 
 

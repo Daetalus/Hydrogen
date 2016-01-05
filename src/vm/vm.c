@@ -119,6 +119,7 @@ HyError * hy_run(HyVM *vm, char *source) {
 	Package *main = package_new(vm, NULL);
 
 	// Copy across the source code
+	printf("mallocing\n");
 	main->source = malloc(sizeof(char) * (strlen(source) + 1));
 	strcpy(main->source, source);
 
@@ -877,6 +878,8 @@ HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	uint32_t frames_count = 0;
 
 	// Cache from the VM
+	Package *packages = vm->packages;
+	NativeFn *native_fns = vm->native_fns;
 	Upvalue *upvalues = vm->upvalues;
 	HyValue *numbers = vm->numbers;
 	HyValue *strings = vm->strings;
@@ -925,6 +928,7 @@ instruction:
 	case MOV_LF:
 		ARG1_L = INDEX_TO_VALUE(ARG2, FN_TAG);
 		NEXT();
+
 	case MOV_LU:
 		if (upvalues[ARG2].open) {
 			ARG1_L = stack[UPVALUE_STACK_SLOT(ARG2)];
@@ -938,6 +942,13 @@ instruction:
 		} else {
 			upvalues[ARG1].value = ARG2_L;
 		}
+		NEXT();
+
+	case MOV_LT:
+		ARG1_L = packages[ARG2].values[ARG3];
+		NEXT();
+	case MOV_TL:
+		packages[ARG2].values[ARG1] = ARG3_L;
 		NEXT();
 
 
@@ -1060,6 +1071,14 @@ instruction:
 	case CALL_F:
 		CALL(ARG0, ARG1, ARG2, ARG3);
 		goto instruction;
+	case CALL_NATIVE: {
+		HyArgs args;
+		args.arity = ARG0;
+		args.stack = stack;
+		args.stack_start = stack_start + ARG2;
+		ARG3_L = native_fns[ARG1].fn(vm, &args);
+		NEXT();
+	}
 
 	case RET:
 		RETURN(NIL_VALUE);
