@@ -199,8 +199,7 @@ void parse_fn_definition(Parser *parser) {
 
 		// Create a new top level variable
 		int index = package_local_new(parser->fn->package, name, length);
-		uint16_t package_index = (parser->fn->package - parser->vm->packages) /
-			sizeof(Package);
+		uint16_t package_index = parser->fn->package - parser->vm->packages;
 		emit(parser->fn, instr_new(MOV_TL, index, package_index, slot));
 	} else {
 		// Save the name of the function as the local
@@ -422,8 +421,7 @@ void parse_fn_call(Parser *parser, Identifier *left, int count) {
 			expr_top_level_to_local(parser, slot, var.slot);
 			self.type = SELF_TOP_LEVEL;
 			self.slot = var.slot;
-			self.package_index = (parser->fn->package - parser->vm->packages) /
-				sizeof(Package);
+			self.package_index = parser->fn->package - parser->vm->packages;
 		}
 	} else if (var.type == VAR_UNDEFINED) {
 		ERROR("Undefined variable `%.*s` in function call", left[0].length,

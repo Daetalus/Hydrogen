@@ -366,7 +366,8 @@ int native_fn_find(HyNativePackage *package, char *name, size_t length) {
 	for (uint32_t i = 0; i < package->functions_count; i++) {
 		NativeFn *fn = package->functions[i];
 		if (length == strlen(fn->name) && strncmp(name, fn->name, length) == 0) {
-			return i;
+			// Find the index of the function in the VM's functions list
+			return fn - package->vm->native_fns;
 		}
 	}
 	return -1;
@@ -858,7 +859,7 @@ typedef enum {
 // Executes a compiled function on the virtual machine.
 HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	Function *fn = &vm->functions[main_fn];
-	debug_print_bytecode(fn);
+	// debug_print_bytecode(fn);
 
 	// The variable stack
 	HyValue *stack = malloc(sizeof(HyValue) * MAX_STACK_SIZE);
@@ -1152,7 +1153,6 @@ instruction:
 	}
 
 finish:
-	printf("YAYYYYYYYYYYYYYYYYYYYY!!!\n");
 	return NULL;
 
 error:

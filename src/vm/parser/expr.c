@@ -228,8 +228,7 @@ bool unary_valid(Opcode operator, OperandType operand) {
 // Moves a top level variable at `index` in the parser's function's package
 // into the given stack slot.
 void expr_top_level_to_local(Parser *parser, uint16_t slot, uint16_t index) {
-	uint16_t package_index = (parser->fn->package - parser->vm->packages) /
-		sizeof(Package);
+	uint16_t package_index = parser->fn->package - parser->vm->packages;
 	emit(parser->fn, instr_new(MOV_LT, slot, package_index, index));
 }
 
@@ -844,8 +843,8 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 
 			operand.self.type = SELF_TOP_LEVEL;
 			operand.self.slot = var.slot;
-			operand.self.package_index = (parser->fn->package -
-				parser->vm->packages) / sizeof(Package);
+			operand.self.package_index = parser->fn->package -
+				parser->vm->packages;
 		} else {
 			// Undefined
 			ERROR("Undefined variable `%.*s` in expression", length, name);
@@ -1116,8 +1115,8 @@ void expr_emit_local(Parser *parser, char *name, size_t length) {
 			emit(parser->fn, instr_new(MOV_UL, var.slot, slot, 0));
 		} else {
 			// Store the local into a top level variable
-			uint16_t package_index = (parser->fn->package -
-				parser->vm->packages) / sizeof(Package);
+			uint16_t package_index = parser->fn->package -
+				parser->vm->packages;
 			emit(parser->fn, instr_new(MOV_TL, var.slot, package_index, slot));
 		}
 	} else if (var.type == VAR_PACKAGE) {

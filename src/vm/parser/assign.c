@@ -53,8 +53,7 @@ void parse_initial_assignment(Parser *parser) {
 		int index = package_local_new(parser->fn->package, name, length);
 
 		// Store the result of the expression into the top level variable
-		uint16_t package_index = (parser->fn->package - parser->vm->packages) /
-			sizeof(Package);
+		uint16_t package_index = parser->fn->package - parser->vm->packages;
 		emit(parser->fn, instr_new(MOV_TL, index, package_index, slot));
 	} else {
 		// Save the local's name
