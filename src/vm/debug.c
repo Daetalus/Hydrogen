@@ -87,6 +87,7 @@ char OPCODE_NAMES[OPCODE_COUNT][MAX_NAME_LENGTH] = {
 	"LOOP",
 	"CALL_L",
 	"CALL_F",
+	"CALL_NATIVE",
 	"RET",
 	"RET_L",
 	"RET_I",
@@ -178,6 +179,7 @@ int ARGUMENT_COUNT[OPCODE_COUNT] = {
 	1, // LOOP
 	4, // CALL_L
 	4, // CALL_F
+	4, // CALL_NATIVE
 	0, // RET
 	1, // RET_L
 	1, // RET_I
@@ -219,6 +221,9 @@ void debug_print_instruction(int i, uint64_t instruction) {
 	// Jump destination
 	if (opcode == JMP) {
 		uint32_t destination = i + instr_argument(instruction, 1);
+		printf("==> %d", destination);
+	} else if (opcode == LOOP) {
+		uint32_t destination = i - instr_argument(instruction, 1) + 1;
 		printf("==> %d", destination);
 	}
 

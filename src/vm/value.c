@@ -111,5 +111,17 @@ HyValue hy_number(double value) {
 
 // Returns the type of a variable.
 HyType hy_type(HyValue value) {
-
+	if (IS_NUMBER_VALUE(value)) {
+		return HY_NUMBER;
+	} else if (IS_STRING_VALUE(value)) {
+		return HY_STRING;
+	} else if (IS_PTR_VALUE(value)) {
+		return HY_STRUCT;
+	} else if (IS_FN_VALUE(value)) {
+		return HY_FN;
+	} else if (value == TRUE_VALUE || value == FALSE_VALUE) {
+		return HY_BOOLEAN;
+	} else {
+		return HY_NIL;
+	}
 }

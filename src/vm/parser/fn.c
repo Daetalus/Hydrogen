@@ -312,6 +312,9 @@ void parse_native_fn_call(Parser *parser, uint32_t index, uint16_t return_slot) 
 	Lexer *lexer = parser->lexer;
 	HyNativePackage *package = &parser->vm->native_packages[index];
 
+	// Skip the package name
+	lexer_next(lexer);
+
 	// Expect a dot
 	EXPECT(TOKEN_DOT, "Expected `.` after native package name `%s`",
 		package->name);
@@ -378,6 +381,28 @@ void parse_fn_call(Parser *parser, Identifier *left, int count) {
 		self.type = SELF_TOP_LEVEL;
 		self.package_index = var.slot;
 		self.slot = pkg_var_index;
+	} else if (var.type == VAR_NATIVE_PACKAGE) {
+		// Expect only one other element in the variable list
+		if (count > 2) {
+			ERROR("Expected `()` after identifier in native package function "
+				"call");
+			return;
+		}
+
+		// Look for the native function
+		char *name = left[1].start;
+		size_t length = left[1].length;
+		HyNativePackage *package = &parser->vm->native_packages[var.slot];
+		int fn_index = native_fn_find(package, name, length);
+		if (fn_index == -1) {
+			ERROR("Undefined native function `%.*s` on native package `%s`",
+				length, name, package->name);
+			return;
+		}
+
+		// Parse the rest of the function call
+		parse_fn_call_slot(parser, CALL_NATIVE, fn_index, return_slot);
+		return;
 	} else if (var.type == VAR_LOCAL && count > 1) {
 		// If we have to replace this local with one of its fields, allocate
 		// a new local for it

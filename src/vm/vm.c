@@ -99,16 +99,15 @@ HyError * hy_exec(HyVM *vm, Package *main) {
 	if (setjmp(vm->error_jump) == 0) {
 		// Compile the source
 		parse_package(vm, main);
-		return NULL;
-	} else {
-		// Check for a compile error
-		if (vm->err != NULL) {
-			return vm->err;
-		}
-
-		// Execute the compiled bytecode
-		return fn_exec(vm, main->main_fn);
 	}
+
+	// Check for a compile error
+	if (vm->err != NULL) {
+		return vm->err;
+	}
+
+	// Execute the compiled bytecode
+	return fn_exec(vm, main->main_fn);
 }
 
 
@@ -119,7 +118,6 @@ HyError * hy_run(HyVM *vm, char *source) {
 	Package *main = package_new(vm, NULL);
 
 	// Copy across the source code
-	printf("mallocing\n");
 	main->source = malloc(sizeof(char) * (strlen(source) + 1));
 	strcpy(main->source, source);
 
@@ -365,21 +363,13 @@ void native_fn_free(NativeFn *fn) {
 // Finds a native function in a native package, returning its index, or -1 if
 // no such function could be found.
 int native_fn_find(HyNativePackage *package, char *name, size_t length) {
-	NativeFn *fn = NULL;
 	for (uint32_t i = 0; i < package->functions_count; i++) {
-		fn = package->functions[i];
+		NativeFn *fn = package->functions[i];
 		if (length == strlen(fn->name) && strncmp(name, fn->name, length) == 0) {
-			break;
+			return i;
 		}
 	}
-
-	// If we couldn't find the function
-	if (fn == NULL) {
-		return -1;
-	}
-
-	// Return the index of the function
-	return (fn - package->vm->native_fns) / sizeof(NativeFn);
+	return -1;
 }
 
 
@@ -989,30 +979,27 @@ instruction:
 		));
 		NEXT();
 
-	case CONCAT_LL: {
+	case CONCAT_LL:
 		ENSURE_STRS(ARG2_L, ARG3_L);
 		ARG1_L = ptr_to_value(concat_str(
 			value_to_ptr(ARG2_L),
 			value_to_ptr(ARG3_L)
 		));
 		NEXT();
-	}
-	case CONCAT_LS: {
+	case CONCAT_LS:
 		ENSURE_STR(ARG2_L);
 		ARG1_L = ptr_to_value(concat_str(
 			value_to_ptr(ARG2_L),
 			TO_STR(strings[ARG3])
 		));
 		NEXT();
-	}
-	case CONCAT_SL: {
+	case CONCAT_SL:
 		ENSURE_STR(ARG2_L);
 		ARG1_L = ptr_to_value(concat_str(
 			TO_STR(strings[ARG2]),
 			value_to_ptr(ARG3_L)
 		));
 		NEXT();
-	}
 
 	case NEG_L:
 		ENSURE_NUMBER(ARG1_L);
@@ -1057,6 +1044,7 @@ instruction:
 		NEXT();
 	case LOOP:
 		ip -= ARG2;
+		ip++;
 		NEXT();
 
 
