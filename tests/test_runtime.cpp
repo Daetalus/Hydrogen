@@ -56,6 +56,13 @@ char * read_first_line(char *path) {
 	line[length] = '\0';
 	fclose(file);
 
+	// Replace `|` with newlines
+	for (int i = 0; i < length; i++) {
+		if (line[i] == '|') {
+			line[i] = '\n';
+		}
+	}
+
 	return line;
 }
 
@@ -80,4 +87,5 @@ void death_test(char *path) {
 
 
 // Assignment
-RUNTIME_TEST(Assign, Simple, "assign/simple.hy");
+RUNTIME_TEST(Assign, TopLevel, "assign/top_level.hy");
+RUNTIME_TEST(Assign, Stack, "assign/stack.hy");

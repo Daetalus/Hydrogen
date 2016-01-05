@@ -10,7 +10,7 @@
 void io_print_value(FILE *stream, HyValue value) {
 	switch (hy_type(value)) {
 	case HY_NUMBER:
-		fprintf(stream, "%g", hy_expect_number(value));
+		fprintf(stream, "%.15g", hy_expect_number(value));
 		break;
 	case HY_STRING:
 		fprintf(stream, "%s", hy_expect_string(value));
