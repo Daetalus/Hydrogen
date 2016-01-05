@@ -5,6 +5,7 @@
 
 extern "C" {
 #include <hydrogen.h>
+#include <hystdlib.h>
 #include <bytecode.h>
 #include <debug.h>
 #include <error.h>

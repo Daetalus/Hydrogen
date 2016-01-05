@@ -36,7 +36,7 @@
 	VirtualMachine *vm = parser->vm;      \
 	Token *token = &parser->lexer->token; \
 	parser_free(parser);                  \
-	err_new(vm, token, __VA_ARGS__);      \
+	err_token(vm, token, __VA_ARGS__);    \
 }
 
 

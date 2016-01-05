@@ -4,6 +4,7 @@
 //
 
 #include <hydrogen.h>
+#include <hystdlib.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,6 +41,7 @@ int main(int argc, char *argv[]) {
 
 	// Run the source string
 	HyVM *vm = hy_new();
+	hy_add_stdlib(vm);
 	HyError *err = hy_run(vm, contents);
 	if (err != NULL) {
 		printf("Error: %s\n", err->description);

@@ -9,14 +9,20 @@
 #include "../bytecode.h"
 
 
-// Returns the position of the path separator (`/`) that begins the final
-// path component in a filesystem path, or -1 if one doesn't exist.
-int last_path_component(char *path) {
-	int last = strlen(path) - 1;
-	while (last >= 0 && path[last] != '/') {
+// Returns the position of the last occurrence of the given character.
+int last_occurrence(char *string, char ch) {
+	int last = strlen(string) - 1;
+	while (last >= 0 && string[last] != ch) {
 		last--;
 	}
 	return last;
+}
+
+
+// Returns the position of the path separator (`/`) that begins the final
+// path component in a filesystem path, or -1 if one doesn't exist.
+int last_path_component(char *path) {
+	return last_occurrence(path, '/');
 }
 
 
@@ -78,7 +84,7 @@ bool import_path_is_valid(char *path) {
 			}
 			i += 2;
 		} else if (i == 0 && path[i] == '.') {
-			// Expect ../
+			// Expect `../`
 			if (i > length - 2 || path[i + 1] != '.' || path[i + 2] != '/') {
 				return false;
 			}
@@ -92,25 +98,43 @@ bool import_path_is_valid(char *path) {
 }
 
 
-// Extracts a package's actual name from its provided path, returning NULL if
-// the path is invalid.
+// Extracts a package's actual name from its provided path.
 char * import_package_name(char *path) {
 	// Find the last path component
 	size_t length = strlen(path);
-	int last = last_path_component(path);
+	int last_path = last_path_component(path);
+
+	// Find the last `.` for the file extension
+	int last_dot = last_occurrence(path, '.');
+	if (last_dot < last_path) {
+		// The dot is before the final path component, so there's no file
+		// extension
+		last_dot = -1;
+	}
 
 	char *name;
-	if (last < 0) {
+	if (last_path < 0 && last_dot < 0) {
 		// Copy into a new string
 		name = (char *) malloc(sizeof(char) * length);
 		strcpy(name, path);
+	} else if (last_path < 0) {
+		// File extension
+		name = (char *) malloc(sizeof(char) * last_dot);
+		strncpy(name, path, last_dot);
+		name[last_dot] = '\0';
 	} else {
+		// Stop before the file extension if one exists
+		size_t stop = length;
+		if (last_dot >= 0) {
+			stop = last_dot;
+		}
+
 		// Extract the last component into a new string
 		// The length includes the + 1 for the NULL terminator
-		size_t last_length = length - last;
+		size_t last_length = length - last_path;
 		name = (char *) malloc(sizeof(char) * last_length);
-		for (size_t i = last + 1; i < length; i++) {
-			name[i - (last + 1)] = path[i];
+		for (size_t i = last_path + 1; i < stop; i++) {
+			name[i - (last_path + 1)] = path[i];
 		}
 		name[last_length - 1] = '\0';
 	}

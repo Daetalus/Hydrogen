@@ -9,6 +9,7 @@
 
 #include "vm.h"
 #include "parser/parser.h"
+#include "parser/import.h"
 #include "error.h"
 #include "bytecode.h"
 #include "value.h"
@@ -93,13 +94,8 @@ void hy_free(HyVM *vm) {
 //  Execution
 //
 
-// Runs the given source code string, returning a pointer to an error object
-// if an error occurred, or NULL otherwise. The returned error object must be
-// freed.
-HyError * hy_run(HyVM *vm, char *source) {
-	Package *main = package_new(vm, NULL);
-	main->source = source;
-
+// Runs the interpreter with the given package as the main package.
+HyError * hy_exec(HyVM *vm, Package *main) {
 	if (setjmp(vm->error_jump) == 0) {
 		// Compile the source
 		parse_package(vm, main);
@@ -113,6 +109,56 @@ HyError * hy_run(HyVM *vm, char *source) {
 		// Execute the compiled bytecode
 		return fn_exec(vm, main->main_fn);
 	}
+}
+
+
+// Runs the given source code string, returning a pointer to an error object
+// if an error occurred, or NULL otherwise. The returned error object must be
+// freed.
+HyError * hy_run(HyVM *vm, char *source) {
+	Package *main = package_new(vm, NULL);
+
+	// Copy across the source code
+	main->source = malloc(sizeof(char) * (strlen(source) + 1));
+	strcpy(main->source, source);
+
+	// Run
+	return hy_exec(vm, main);
+}
+
+
+// Runs a file, returning an error if one occurred, or NULL otherwise.
+HyError * hy_run_file(HyVM *vm, char *path) {
+	Package *main = package_new(vm, NULL);
+
+	// Copy the path into the package
+	main->file = (char *) malloc(sizeof(char) * (strlen(path) + 1));
+	strcpy(main->file, path);
+
+	// Read the source code
+	main->source = read_file(main->file);
+	if (main->source == NULL) {
+		err_new(vm, "Failed to open file `%s`", path);
+		return vm->err;
+	}
+
+	// Get the package name from the path
+	main->name = import_package_name(main->file);
+
+	// Run
+	return hy_exec(vm, main);
+}
+
+
+// Directly triggers an error.
+void hy_trigger_error(HyVM *vm, char *message) {
+	err_fatal(vm, message);
+}
+
+
+// Run the garbage collector.
+void hy_collect_garbage(HyVM *vm) {
+	// TODO
 }
 
 
@@ -208,6 +254,7 @@ void package_free(Package *package) {
 	if (package->name != NULL) {
 		free(package->name);
 	}
+	free(package->source);
 	free(package->functions);
 	free(package->structs);
 }
@@ -303,6 +350,11 @@ int native_package_find(VirtualMachine *vm, char *name, size_t length) {
 }
 
 
+
+//
+//  Native Functions
+//
+
 // Frees a native function.
 void native_fn_free(NativeFn *fn) {
 	free(fn->name);
@@ -333,8 +385,7 @@ int native_fn_find(HyNativePackage *package, char *name, size_t length) {
 // Defines a native function on a package with the given name and number of
 // arguments. If `arity` is -1, then the function can accept an arbitrary
 // number of arguments.
-void hy_package_fn_new(HyNativePackage *package, char *name, int arity,
-		HyNativeFn fn) {
+void hy_fn_new(HyNativePackage *package, char *name, int arity, HyNativeFn fn) {
 	int index = package->vm->native_fns_count++;
 	ARRAY_REALLOC(package->vm->native_fns, NativeFn);
 	NativeFn *native = &package->vm->native_fns[index];
@@ -349,6 +400,22 @@ void hy_package_fn_new(HyNativePackage *package, char *name, int arity,
 	index = package->functions_count++;
 	ARRAY_REALLOC(package->functions, NativeFn *);
 	package->functions[index] = native;
+}
+
+
+// Returns the number of arguments supplied to a function.
+uint32_t hy_args_count(HyArgs *args) {
+	return args->arity;
+}
+
+
+// Returns the `n`th argument supplied to a native function.
+HyValue hy_arg(HyArgs *args, uint32_t n) {
+	if (n >= args->arity) {
+		return NIL_VALUE;
+	} else {
+		return args->stack[args->stack_start + n];
+	}
 }
 
 

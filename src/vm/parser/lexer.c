@@ -272,7 +272,7 @@ void lexer_string(Lexer *lexer) {
 
 	// Check for an unterminated string
 	if (IS_EOF()) {
-		err_new(lexer->vm, token, "Unterminated string literal");
+		err_token(lexer->vm, token, "Unterminated string literal");
 		return;
 	}
 
@@ -537,7 +537,7 @@ char * lexer_extract_string(Lexer *lexer, Token *token) {
 			char ch = escape_sequence(token->start[i]);
 			if (ch == '\0') {
 				// Invalid escape sequence
-				err_new(lexer->vm, token, "Invalid escape sequence `\\%c`",
+				err_token(lexer->vm, token, "Invalid escape sequence `\\%c`",
 					token->start[i]);
 				return NULL;
 			}

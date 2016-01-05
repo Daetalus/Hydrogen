@@ -47,6 +47,9 @@ void hy_free(HyVM *vm);
 // freed.
 HyError * hy_run(HyVM *vm, char *source);
 
+// Runs a file, returning an error if one occurred, or NULL otherwise.
+HyError * hy_run_file(HyVM *vm, char *path);
+
 // Frees an error.
 void hy_err_free(HyError *err);
 
@@ -66,7 +69,7 @@ typedef struct native_package HyNativePackage;
 typedef struct fn_args HyArgs;
 
 // A native function.
-typedef HyValue (* HyNativeFn)(HyArgs *);
+typedef HyValue (* HyNativeFn)(HyVM *, HyArgs *);
 
 // The type of a variable.
 typedef enum {
@@ -85,11 +88,11 @@ HyNativePackage * hy_package_new(HyVM *vm, char *name);
 // Defines a native function on a package with the given name and number of
 // arguments. If `arity` is -1, then the function can accept an arbitrary
 // number of arguments.
-void hy_package_fn_new(HyNativePackage *package, char *name, int arity,
-	HyNativeFn fn);
+void hy_fn_new(HyNativePackage *package, char *name, int arity, HyNativeFn fn);
 
 
 // Directly triggers an error.
+// TODO: Make varargs
 void hy_trigger_error(HyVM *vm, char *message);
 
 // Run the garbage collector.
@@ -97,10 +100,12 @@ void hy_collect_garbage(HyVM *vm);
 
 
 // Returns the number of arguments supplied to a function.
-int hy_args_count(HyArgs *args);
+uint32_t hy_args_count(HyArgs *args);
 
-// Returns the `n`th argument supplied to a native function.
-HyValue hy_args_get(HyArgs *args, int n);
+// Returns the `n`th argument supplied to a native function. Returns nil if the
+// requested argument's index is greater than the number of arguments supplied
+// to the function.
+HyValue hy_arg(HyArgs *args, uint32_t n);
 
 // Implicitly converts a value to a boolean, not triggering an error.
 bool hy_to_bool(HyValue value);

@@ -29,6 +29,10 @@ typedef struct import {
 // returning NULL if the package couldn't be found.
 Import * import_package_find(Parser *parser, char *name, size_t length);
 
+// Extracts a package's actual name from its provided path, returning NULL if
+// the path is invalid.
+char * import_package_name(char *path);
+
 // Imports a package with the given path and name.
 void import(Parser *parser, char *path);
 

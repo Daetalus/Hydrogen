@@ -22,31 +22,67 @@ void err_init(VirtualMachine *vm, Token *token) {
 
 	vm->err = malloc(sizeof(HyError));
 	vm->err->description = malloc(sizeof(char) * MAX_DESCRIPTION_LENGTH);
-	vm->err->line = token->line;
-	vm->err->column = token->column;
 
-	// Copy across the file into a heap allocated string, since we don't
-	// know the lifetime of the one provided by the package
-	if (token->file != NULL) {
-		vm->err->file = malloc(sizeof(char) * strlen(token->file));
-		strcpy(vm->err->file, token->file);
-	} else {
-		vm->err->file = NULL;
-	}
+	if (token != NULL) {
+		vm->err->line = token->line;
+		vm->err->column = token->column;
 
-	// Copy across the package name into a heap allocated string, similar to
-	// the file name
-	if (token->package != NULL) {
-		vm->err->package = malloc(sizeof(char) * strlen(token->package));
-		strcpy(vm->err->package, token->package);
-	} else {
-		vm->err->package = NULL;
+		// Copy across the file into a heap allocated string, since we don't
+		// know the lifetime of the one provided by the package
+		if (token->file != NULL) {
+			vm->err->file = malloc(sizeof(char) * strlen(token->file));
+			strcpy(vm->err->file, token->file);
+		} else {
+			vm->err->file = NULL;
+		}
+
+		// Copy across the package name into a heap allocated string, similar to
+		// the file name
+		if (token->package != NULL) {
+			vm->err->package = malloc(sizeof(char) * strlen(token->package));
+			strcpy(vm->err->package, token->package);
+		} else {
+			vm->err->package = NULL;
+		}
 	}
 }
 
 
+// Exits back to where the error guard is placed.
+void err_jump(VirtualMachine *vm) {
+	longjmp(vm->error_jump, 1);
+}
+
+
+// Sets the error on the VM.
+void err_new(VirtualMachine *vm, char *fmt, ...) {
+	err_init(vm, NULL);
+
+	// Write to the description
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(vm->err->description, MAX_DESCRIPTION_LENGTH, fmt, args);
+	va_end(args);
+}
+
+
+// Triggers a fatal error on the Vm.
+void err_fatal(VirtualMachine *vm, char *fmt, ...) {
+	err_init(vm, NULL);
+
+	// Write to the description
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(vm->err->description, MAX_DESCRIPTION_LENGTH, fmt, args);
+	va_end(args);
+
+	// Terminate
+	err_jump(vm);
+}
+
+
 // Triggers a custom error.
-void err_new(VirtualMachine *vm, Token *token, char *fmt, ...) {
+void err_token(VirtualMachine *vm, Token *token, char *fmt, ...) {
 	err_init(vm, token);
 
 	// Write to the description
@@ -56,7 +92,7 @@ void err_new(VirtualMachine *vm, Token *token, char *fmt, ...) {
 	va_end(args);
 
 	// Jump to the error handler
-	longjmp(vm->error_jump, 1);
+	err_jump(vm);
 }
 
 
@@ -123,7 +159,7 @@ void err_unexpected(VirtualMachine *vm, Token *token, char *fmt, ...) {
 	sprintf(desc, "`");
 
 	// Long jump back to error handler
-	longjmp(vm->error_jump, 1);
+	err_jump(vm);
 }
 
 

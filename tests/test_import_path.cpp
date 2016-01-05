@@ -82,4 +82,9 @@ TEST(ImportPath, PackageName) {
 	ASSERT_STREQ(import_package_name("test/testing"), "testing");
 	ASSERT_STREQ(import_package_name("../test/../testing"), "testing");
 	ASSERT_STREQ(import_package_name("/absolute/path"), "path");
+	ASSERT_STREQ(import_package_name("test.hy"), "test");
+	ASSERT_STREQ(import_package_name("thing/test.hy"), "test");
+	ASSERT_STREQ(import_package_name("../test.hy"), "test");
+	ASSERT_STREQ(import_package_name("another/../test.hy"), "test");
+	ASSERT_STREQ(import_package_name("../another/../test.hy"), "test");
 }

@@ -123,6 +123,19 @@ struct package {
 };
 
 
+// Arguments to a native function.
+struct fn_args {
+	// The number of arguments.
+	uint32_t arity;
+
+	// A pointer to the start of the stack.
+	HyValue *stack;
+
+	// The starting location on the stack of the arguments.
+	uint32_t stack_start;
+};
+
+
 // A native function.
 typedef struct {
 	// The name of the function as a heap allocated string.
