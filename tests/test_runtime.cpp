@@ -90,6 +90,9 @@ void death_test(char *path) {
 RUNTIME_TEST(Assign, TopLevel, "assign/top_level.hy");
 RUNTIME_TEST(Assign, Stack, "assign/stack.hy");
 
+// Expressions
+RUNTIME_TEST(Expr, Arithmetic, "expr/arithmetic.hy");
+
 // If statements
 RUNTIME_TEST(If, If, "if/if.hy");
 RUNTIME_TEST(If, IfElse, "if/if_else.hy");

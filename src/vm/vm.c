@@ -671,31 +671,31 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 
 
 // Shorthand for defining a set of arithmetic operations.
-#define ARITHMETIC_OPERATION(prefix, op)                    \
-	case prefix ## _LL:                                     \
-		ENSURE_NUMBERS(ARG2_L, ARG3_L);                     \
-		ARG1_L = number_to_value(value_to_number(ARG2_L) op \
-			value_to_number(ARG3_L));                       \
-		NEXT();                                             \
-	case prefix ## _LI:                                     \
-		ENSURE_NUMBER(ARG2_L);                              \
-		ARG1_L = number_to_value(value_to_number(ARG2_L) op \
-			INTEGER_TO_DOUBLE(ARG3));                       \
-		NEXT();                                             \
-	case prefix ## _LN:                                     \
-		ENSURE_NUMBER(ARG2_L);                              \
-		ARG1_L = number_to_value(value_to_number(ARG2_L) op \
-			numbers[ARG3]);                                 \
-		NEXT();                                             \
-	case prefix ## _IL:                                     \
-		ENSURE_NUMBER(ARG3_L);                              \
-		ARG1_L = number_to_value(INTEGER_TO_DOUBLE(ARG2) op \
-			value_to_number(ARG3_L));                       \
-		NEXT();                                             \
-	case prefix ## _NL:                                     \
-		ENSURE_NUMBER(ARG3_L);                              \
-		ARG1_L = number_to_value(numbers[ARG2] op           \
-			value_to_number(ARG3_L));                       \
+#define ARITHMETIC_OPERATION(prefix, op)                           \
+	case prefix ## _LL:                                            \
+		ENSURE_NUMBERS(ARG2_L, ARG3_L);                            \
+		ARG1_L = number_to_value(value_to_number(ARG2_L) op        \
+			value_to_number(ARG3_L));                              \
+		NEXT();                                                    \
+	case prefix ## _LI:                                            \
+		ENSURE_NUMBER(ARG2_L);                                     \
+		ARG1_L = number_to_value(value_to_number(ARG2_L) op        \
+			(double) uint16_to_int16(ARG3));                       \
+		NEXT();                                                    \
+	case prefix ## _LN:                                            \
+		ENSURE_NUMBER(ARG2_L);                                     \
+		ARG1_L = number_to_value(value_to_number(ARG2_L) op        \
+			value_to_number(numbers[ARG3]));                       \
+		NEXT();                                                    \
+	case prefix ## _IL:                                            \
+		ENSURE_NUMBER(ARG3_L);                                     \
+		ARG1_L = number_to_value((double) uint16_to_int16(ARG2) op \
+			value_to_number(ARG3_L));                              \
+		NEXT();                                                    \
+	case prefix ## _NL:                                            \
+		ENSURE_NUMBER(ARG3_L);                                     \
+		ARG1_L = number_to_value(value_to_number(numbers[ARG2]) op \
+			value_to_number(ARG3_L));                              \
 		NEXT();
 
 
@@ -950,7 +950,7 @@ instruction:
 	ARITHMETIC_OPERATION(ADD, +)
 	ARITHMETIC_OPERATION(SUB, -)
 	ARITHMETIC_OPERATION(MUL, *)
-	ARITHMETIC_OPERATION(DIV, / )
+	ARITHMETIC_OPERATION(DIV, /)
 
 	case MOD_LL:
 		ENSURE_NUMBERS(ARG2_L, ARG3_L);
@@ -960,22 +960,22 @@ instruction:
 	case MOD_LI:
 		ENSURE_NUMBER(ARG2_L);
 		ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
-			INTEGER_TO_DOUBLE(ARG3)));
+			(double) uint16_to_int16(ARG3)));
 		NEXT();
 	case MOD_LN:
 		ENSURE_NUMBER(ARG2_L);
 		ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
-			numbers[ARG3]));
+			value_to_number(numbers[ARG3])));
 		NEXT();
 	case MOD_IL:
 		ENSURE_NUMBER(ARG3_L);
-		ARG1_L = number_to_value(fmod(INTEGER_TO_DOUBLE(ARG2),
+		ARG1_L = number_to_value(fmod((double) uint16_to_int16(ARG2),
 			value_to_number(ARG3_L)));
 		NEXT();
 	case MOD_NL:
 		ENSURE_NUMBER(ARG3_L);
 		ARG1_L = number_to_value(fmod(
-			numbers[ARG2],
+			value_to_number(numbers[ARG2]),
 			value_to_number(ARG3_L)
 		));
 		NEXT();
