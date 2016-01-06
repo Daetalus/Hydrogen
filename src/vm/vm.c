@@ -724,7 +724,7 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 		NEXT();                                                              \
 	case prefix ## _LS:                                                      \
 		if (unary (IS_STRING_VALUE(ARG1_L) &&                                \
-				strcmp(TO_STR(ARG2_L), TO_STR(strings[ARG3])) == 0)) {       \
+				strcmp(TO_STR(ARG1_L), TO_STR(strings[ARG2])) == 0)) {       \
 			ip++;                                                            \
 		}                                                                    \
 		NEXT();                                                              \
