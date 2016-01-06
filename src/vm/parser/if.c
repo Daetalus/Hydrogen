@@ -15,7 +15,13 @@ void parse_if_body(Parser *parser) {
 
 	// Parse the conditional expression
 	Operand condition = expr(parser, parser->locals_count);
-	// TODO: Check condition is a jump
+	if (condition.type == OP_LOCAL) {
+		condition = operand_to_jump(parser, condition);
+	} else if (condition.type != OP_JUMP) {
+		// TODO: Implement folding
+		ERROR("If condition folding unimplemented");
+		return;
+	}
 
 	// Expect an opening brace
 	EXPECT(TOKEN_OPEN_BRACE, "Expected `{` after condition in if statement");

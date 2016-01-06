@@ -89,3 +89,11 @@ void death_test(char *path) {
 // Assignment
 RUNTIME_TEST(Assign, TopLevel, "assign/top_level.hy");
 RUNTIME_TEST(Assign, Stack, "assign/stack.hy");
+
+// If statements
+RUNTIME_TEST(If, If, "if/if.hy");
+RUNTIME_TEST(If, IfElse, "if/if_else.hy");
+RUNTIME_TEST(If, IfElseif, "if/if_elseif.hy");
+RUNTIME_TEST(If, IfElseifElse, "if/if_elseif_else.hy");
+RUNTIME_TEST(If, IfElseifs, "if/if_elseifs.hy");
+RUNTIME_TEST(If, IfElseIfsElse, "if/if_elseifs_else.hy");

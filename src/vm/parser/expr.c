@@ -548,7 +548,7 @@ Operand operand_to_jump(Parser *parser, Operand operand) {
 	// Emit a comparison and empty jump instruction
 	emit(parser->fn, instr_new(IS_FALSE_L, operand.slot, 0, 0));
 	result.jump = jmp_new(parser->fn);
-	return operand;
+	return result;
 }
 
 

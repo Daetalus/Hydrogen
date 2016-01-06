@@ -103,4 +103,7 @@ void expr_patch_false_case(Parser *parser, Operand operand, int false_case);
 // into the given stack slot.
 void expr_top_level_to_local(Parser *parser, uint16_t slot, uint16_t index);
 
+// Emits bytecode to convert a local operand into a jump.
+Operand operand_to_jump(Parser *parser, Operand operand);
+
 #endif

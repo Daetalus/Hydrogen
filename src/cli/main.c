@@ -13,6 +13,9 @@
 // Returns the contents of a file as a heap allocated string.
 char * file_contents(char *path) {
 	FILE *f = fopen(path, "r");
+	if (f == NULL) {
+		return NULL;
+	}
 
 	// Get the length of the file
 	fseek(f, 0, SEEK_END);
@@ -38,6 +41,10 @@ int main(int argc, char *argv[]) {
 	// Read the contents of the file
 	char *path = argv[1];
 	char *contents = file_contents(path);
+	if (contents == NULL) {
+		printf("Failed to open file `%s`\n", path);
+		return 1;
+	}
 
 	// Run the source string
 	HyVM *vm = hy_new();
