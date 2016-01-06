@@ -1018,12 +1018,12 @@ instruction:
 	// comparison is false.
 
 	case IS_TRUE_L:
-		if (ARG1_L != TRUE_VALUE) {
+		if (ARG1_L == FALSE_VALUE || ARG1_L == NIL_VALUE) {
 			ip++;
 		}
 		NEXT();
 	case IS_FALSE_L:
-		if (ARG1_L == TRUE_VALUE) {
+		if (ARG1_L != FALSE_VALUE && ARG1_L != NIL_VALUE) {
 			ip++;
 		}
 		NEXT();
@@ -1042,11 +1042,10 @@ instruction:
 
 	case JMP:
 		ip += ARG1;
-		NEXT();
+		goto instruction;
 	case LOOP:
 		ip -= ARG1;
-		ip++;
-		NEXT();
+		goto instruction;
 
 
 	//

@@ -149,8 +149,8 @@ int ARGUMENT_COUNT[OPCODE_COUNT] = {
 	3, // CONCAT_LS
 	3, // CONCAT_SL
 	2, // NEG_L
-	2, // IS_TRUE_L
-	2, // IS_FALSE_L
+	1, // IS_TRUE_L
+	1, // IS_FALSE_L
 	2, // EQ_LL
 	2, // EQ_LI
 	2, // EQ_LN
@@ -208,7 +208,7 @@ void debug_print_instruction(int i, uint64_t instruction) {
 	// Opcode
 	uint16_t opcode = instr_opcode(instruction);
 	char *name = &OPCODE_NAMES[opcode][0];
-	printf("%-10s ", name);
+	printf("%-12s ", name);
 
 	// Arguments
 	int argument_count = ARGUMENT_COUNT[opcode];

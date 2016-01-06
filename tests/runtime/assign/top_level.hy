@@ -1,4 +1,4 @@
-// 3|hello|false|3|3|true|testing|another string
+// 3|hello|false|3|3|true|testing|another string|yet another|false|3
 
 import "err"
 
@@ -24,4 +24,13 @@ let word = "testing"
 err.println(word)
 
 word = "another string"
+err.println(word)
+
+word = "yet another"
+err.println(word)
+
+word = false
+err.println(word)
+
+word = 3
 err.println(word)

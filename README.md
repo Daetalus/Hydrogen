@@ -14,7 +14,7 @@ Hydrogen is written in C and has no external dependencies. The tests use the Goo
 Hydrogen is built using the CMake build system:
 
 ```bash
-$ git clone https://github.com/GravityScore/Hydrogen
+$ git clone --recursive https://github.com/GravityScore/Hydrogen
 $ cd Hydrogen
 $ mkdir build
 $ cd build
