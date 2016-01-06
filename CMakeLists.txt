@@ -14,6 +14,8 @@ ENDIF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 # Debug and release flags
 set(CMAKE_C_FLAGS_DEBUG "-Wall -Wextra -O0 -g")
 set(CMAKE_C_FLAGS_RELEASE "-Wall -Wextra -O3")
+set(CMAKE_CXX_FLAGS_DEBUG ${CMAKE_C_FLAGS_DEBUG})
+set(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
 
 # Library
 include_directories(include)

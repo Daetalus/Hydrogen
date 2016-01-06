@@ -44,6 +44,10 @@
 #define IS_STRING_VALUE(value) \
 	(IS_PTR_VALUE(value) && ((Object *) value_to_ptr(value))->type == OBJ_STRING)
 
+// Evaluates to true if `value` is an object.
+#define IS_OBJ_VALUE(value) \
+	(IS_PTR_VALUE(value) && ((Object *) value_to_ptr(value))->type == OBJ_STRUCT)
+
 // Evaluates to true if `value` is a function, when all quiet NaN bits and the
 // closure mask (not the sign bit) are set.
 #define IS_FN_VALUE(value) \

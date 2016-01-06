@@ -705,7 +705,7 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 		if ((ARG1_L binary ARG2_L) ||                                        \
 				unary (IS_STRING_VALUE(ARG1_L) && IS_STRING_VALUE(ARG2_L) && \
 					strcmp(TO_STR(ARG1_L), TO_STR(ARG2_L)) == 0) ||          \
-				unary (IS_PTR_VALUE(ARG1_L) && IS_PTR_VALUE(ARG1_L) &&       \
+				unary (IS_OBJ_VALUE(ARG1_L) && IS_OBJ_VALUE(ARG1_L) &&       \
 					FIELDS_COUNT(ARG1_L) == FIELDS_COUNT(ARG2_L) &&          \
 					memcmp(TO_FIELDS(ARG1_L), TO_FIELDS(ARG2_L),             \
 						FIELDS_COUNT(ARG1_L) * sizeof(uint64_t)) == 0)) {    \
