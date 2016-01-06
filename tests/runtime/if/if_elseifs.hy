@@ -38,7 +38,7 @@ if a == 12.4 {
 	err.println("b")
 } else if a < 2 {
 	err.println("c")
-} else if a + 11 == 70011 {
+} else if a == 70000 {
 	err.println("d")
 } else if a - 2 == 69998 {
 	err.println("e")
