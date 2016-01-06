@@ -1041,10 +1041,10 @@ instruction:
 	//
 
 	case JMP:
-		ip += ARG2;
+		ip += ARG1;
 		NEXT();
 	case LOOP:
-		ip -= ARG2;
+		ip -= ARG1;
 		ip++;
 		NEXT();
 
