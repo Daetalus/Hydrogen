@@ -1,5 +1,7 @@
 // a|d|e
 
+import "err"
+
 let a = 3
 if a == 3 {
 	err.println("a")
