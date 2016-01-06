@@ -224,7 +224,8 @@ void parse_fn_call_self(Parser *parser, Opcode call, uint16_t slot,
 		uint16_t return_slot, OperandSelf *self) {
 	Lexer *lexer = parser->lexer;
 
-	// Skip the opening parenthesis
+	// Expect an opening parenthesis
+	EXPECT(TOKEN_OPEN_PARENTHESIS, "Expected `(` after name in function call");
 	lexer_next(lexer);
 
 	// Create a new scope for the function arguments
