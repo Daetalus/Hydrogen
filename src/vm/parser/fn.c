@@ -283,7 +283,9 @@ void parse_fn_call_self(Parser *parser, Opcode call, uint16_t slot,
 	// Free the scope created for the arguments
 	scope_free(parser);
 
-	// Skip the closing parenthesis
+	// Expect a closing parenthesis
+	EXPECT(TOKEN_CLOSE_PARENTHESIS,
+		"Expected `)` to close arguments list in function call");
 	lexer_next(lexer);
 
 	// If there are no arguments, then don't bother with the argument start
