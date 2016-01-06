@@ -713,7 +713,7 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 		}                                                                    \
 		NEXT();                                                              \
 	case prefix ## _LI:                                                      \
-		if (ARG1_L binary (double) uint16_to_int16(ARG2)) {                  \
+		if (ARG1_L binary INTEGER_TO_DOUBLE(ARG2)) {                         \
 			ip++;                                                            \
 		}                                                                    \
 		NEXT();                                                              \
