@@ -57,7 +57,7 @@ char * read_first_line(char *path) {
 	fclose(file);
 
 	// Replace `|` with newlines
-	for (int i = 0; i < length; i++) {
+	for (size_t i = 0; i < length; i++) {
 		if (line[i] == '|') {
 			line[i] = '\n';
 		}
@@ -103,3 +103,6 @@ RUNTIME_TEST(If, IfElseifElse, "if/if_elseif_else.hy");
 RUNTIME_TEST(If, IfElseifs, "if/if_elseifs.hy");
 RUNTIME_TEST(If, IfElseIfsElse, "if/if_elseifs_else.hy");
 RUNTIME_TEST(If, Nested, "if/nested.hy");
+
+// Functions
+RUNTIME_TEST(Fn, Call, "fn/call.hy");

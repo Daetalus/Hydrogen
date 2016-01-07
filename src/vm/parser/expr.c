@@ -664,9 +664,23 @@ Operand expr_binary(Parser *parser, uint16_t slot, TokenType operator,
 		// Comparison
 		operand.type = OP_JUMP;
 
-		// Emit the comparison and the empty jump instruction following it
+		// The local must be on the left if we're not comparing two locals
 		Opcode opcode = comparison_opcode(operator, left.type, right.type);
-		emit(parser->fn, instr_new(opcode, left.value, right.value, 0));
+		uint16_t left_value = left.value;
+		uint16_t right_value = right.value;
+		if (left.type != OP_LOCAL && right.type == OP_LOCAL) {
+			// Only invert if it's not comparing equality
+			if (operator != TOKEN_EQ && operator != TOKEN_NEQ) {
+				opcode = inverted_conditional_opcode(opcode);
+			}
+
+			// Swap the arguments to the instruction
+			left_value = right.value;
+			right_value = left.value;
+		}
+
+		// Emit the comparison and the empty jump instruction following it
+		emit(parser->fn, instr_new(opcode, left_value, right_value, 0));
 		operand.jump = jmp_new(parser->fn);
 	}
 

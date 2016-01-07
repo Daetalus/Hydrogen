@@ -742,24 +742,24 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 
 
 // Shorthand for defining an order operation.
-#define ORDER_OPERATION(prefix, operator)                     \
-	case prefix ## _LL:                                       \
-		ENSURE_NUMBERS(ARG1_L, ARG2_L);                       \
-		if (ARG1_L operator ARG2_L) {                         \
-			ip++;                                             \
-		}                                                     \
-		NEXT();                                               \
-	case prefix ## _LI:                                       \
-		ENSURE_NUMBER(ARG1_L);                                \
-		if (ARG1_L operator (double) uint16_to_int16(ARG2)) { \
-			ip++;                                             \
-		}                                                     \
-		NEXT();                                               \
-	case prefix ## _LN:                                       \
-		ENSURE_NUMBER(ARG1_L);                                \
-		if (ARG1_L operator numbers[ARG2]) {                  \
-			ip++;                                             \
-		}                                                     \
+#define ORDER_OPERATION(prefix, operator)                                      \
+	case prefix ## _LL:                                                        \
+		ENSURE_NUMBERS(ARG1_L, ARG2_L);                                        \
+		if (value_to_number(ARG1_L) operator value_to_number(ARG2_L)) {        \
+			ip++;                                                              \
+		}                                                                      \
+		NEXT();                                                                \
+	case prefix ## _LI:                                                        \
+		ENSURE_NUMBER(ARG1_L);                                                 \
+		if (value_to_number(ARG1_L) operator (double) uint16_to_int16(ARG2)) { \
+			ip++;                                                              \
+		}                                                                      \
+		NEXT();                                                                \
+	case prefix ## _LN:                                                        \
+		ENSURE_NUMBER(ARG1_L);                                                 \
+		if (value_to_number(ARG1_L) operator value_to_number(numbers[ARG2])) { \
+			ip++;                                                              \
+		}                                                                      \
 		NEXT();
 
 

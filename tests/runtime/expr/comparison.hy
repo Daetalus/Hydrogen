@@ -28,13 +28,13 @@ err.println(b)
 // Local, number
 
 a = 10.2
-b = 10.2 >= a
+b = 10.3 >= a
 err.println(b)
 
 b = a >= 4.31415
 err.println(b)
 
-b = 10.2 == a
+b = 10.3 != a
 err.println(b)
 
 b = a == 11.8847
