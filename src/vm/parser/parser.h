@@ -82,7 +82,7 @@ typedef struct _parser {
 	ARRAY(struct local, locals);
 
 	// All imported packages (native and user).
-	ARRAY(struct import, imports);
+	struct imports *imports;
 } Parser;
 
 

@@ -176,10 +176,11 @@ uint32_t import_user(Parser *parser, char *path, char *name) {
 // Searches for an imported package in the parser with the given name,
 // returning NULL if the package couldn't be found.
 Import * import_package_find(Parser *parser, char *name, size_t length) {
+	Imports *imports = parser->imports;
 	VirtualMachine *vm = parser->vm;
 
-	for (uint32_t i = 0; i < parser->imports_count; i++) {
-		Import *import = &parser->imports[i];
+	for (uint32_t i = 0; i < imports->imports_count; i++) {
+		Import *import = &imports->imports[i];
 		if (import->type == IMPORT_USER) {
 			// Check a user package
 			Package *package = &vm->packages[import->index];
@@ -203,12 +204,13 @@ Import * import_package_find(Parser *parser, char *name, size_t length) {
 
 
 // Imports a native package with the given index.
-void import_native(Parser *parser, int native) {
-	int index = parser->imports_count++;
-	ARRAY_REALLOC(parser->imports, Import);
-	Import *import = &parser->imports[index];
-	import->type = IMPORT_NATIVE;
-	import->index = native;
+void import_new(Parser *parser, ImportType type, int import_index) {
+	Imports *imports = parser->imports;
+	int index = imports->imports_count++;
+	ARRAY_REALLOC(imports->imports, Import);
+	Import *import = &imports->imports[index];
+	import->type = type;
+	import->index = import_index;
 }
 
 
@@ -236,7 +238,7 @@ void import(Parser *parser, char *path) {
 	// Check if we're importing a native package
 	int native = native_package_find(parser->vm, path, strlen(path));
 	if (native >= 0) {
-		import_native(parser, native);
+		import_new(parser, IMPORT_NATIVE, native);
 		return;
 	}
 
@@ -260,11 +262,7 @@ void import(Parser *parser, char *path) {
 	}
 
 	// Add the imported package to the imports list
-	int index = parser->imports_count++;
-	ARRAY_REALLOC(parser->imports, Import);
-	Import *new_import = &parser->imports[index];
-	new_import->type = IMPORT_USER;
-	new_import->index = import;
+	import_new(parser, IMPORT_USER, import);
 }
 
 

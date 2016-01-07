@@ -14,6 +14,7 @@ typedef enum {
 	IMPORT_NATIVE,
 } ImportType;
 
+
 // An imported package.
 typedef struct import {
 	// The type of an import.
@@ -23,6 +24,12 @@ typedef struct import {
 	// package list.
 	uint32_t index;
 } Import;
+
+
+// All imported packages.
+typedef struct imports {
+	ARRAY(Import, imports);
+} Imports;
 
 
 // Searches for an imported package in the parser with the given name,

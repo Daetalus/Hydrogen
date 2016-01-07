@@ -31,17 +31,17 @@ TEST(Struct, Definition) {
 	// No actual instructions
 	ASSERT_RET();
 
-	ASSERT_EQ(vm->structs_count, 3);
+	ASSERT_EQ(vm->structs_count, 3u);
 
 	ASSERT_STREQN(vm->structs[0].name, "Test", vm->structs[0].length);
-	ASSERT_EQ(vm->structs[0].fields_count, 0);
+	ASSERT_EQ(vm->structs[0].fields_count, 0u);
 
 	ASSERT_STREQN(vm->structs[1].name, "Test2", vm->structs[1].length);
-	ASSERT_EQ(vm->structs[1].fields_count, 1);
+	ASSERT_EQ(vm->structs[1].fields_count, 1u);
 	ASSERT_FIELD(1, 0, "field1");
 
 	ASSERT_STREQN(vm->structs[2].name, "Test3", vm->structs[2].length);
-	ASSERT_EQ(vm->structs[2].fields_count, 3);
+	ASSERT_EQ(vm->structs[2].fields_count, 3u);
 	ASSERT_FIELD(2, 0, "field1");
 	ASSERT_FIELD(2, 1, "field2");
 	ASSERT_FIELD(2, 2, "field3");

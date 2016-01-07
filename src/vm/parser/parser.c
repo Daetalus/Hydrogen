@@ -25,14 +25,15 @@ Parser parser_new(Parser *parent) {
 	parser.loop = NULL;
 	parser.fn = NULL;
 	ARRAY_INIT(parser.locals, Local, 64);
-	ARRAY_INIT(parser.imports, Import, 4);
 
 	if (parent != NULL) {
 		parser.lexer = parent->lexer;
 		parser.vm = parent->vm;
+		parser.imports = parent->imports;
 	} else {
 		parser.lexer = NULL;
 		parser.vm = NULL;
+		parser.imports = NULL;
 	}
 
 	return parser;
@@ -42,7 +43,6 @@ Parser parser_new(Parser *parent) {
 // Frees resources allocated by a parser.
 void parser_free(Parser *parser) {
 	free(parser->locals);
-	free(parser->imports);
 }
 
 
@@ -65,6 +65,12 @@ void parse_package(VirtualMachine *vm, Package *package) {
 	parser.lexer = &lexer;
 	parser.fn = fn_new(vm, package, &package->main_fn);
 
+	// Create the imports list on the stack so all child compilers can access
+	// the same list
+	Imports imports;
+	ARRAY_INIT(imports.imports, Import, 4);
+	parser.imports = &imports;
+
 	// Parse import statements at the top of the file
 	parse_imports(&parser);
 
@@ -76,6 +82,7 @@ void parse_package(VirtualMachine *vm, Package *package) {
 
 	// Free the parser we allocated
 	parser_free(&parser);
+	free(imports.imports);
 }
 
 
