@@ -1054,10 +1054,10 @@ instruction:
 
 	case CALL_L:
 		ENSURE_FN(ARG1_L);
-		CALL(ARG0, VALUE_TO_INDEX(ARG1_L, FN_TAG), ARG2, ARG3);
+		CALL(VALUE_TO_INDEX(ARG1_L, FN_TAG), ARG0, ARG2, ARG3);
 		goto instruction;
 	case CALL_F:
-		CALL(ARG0, ARG1, ARG2, ARG3);
+		CALL(ARG1, ARG0, ARG2, ARG3);
 		goto instruction;
 	case CALL_NATIVE: {
 		HyArgs args;
