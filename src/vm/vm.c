@@ -256,6 +256,8 @@ void package_free(Package *package) {
 	free(package->source);
 	free(package->functions);
 	free(package->structs);
+	free(package->locals);
+	free(package->values);
 }
 
 
@@ -766,15 +768,15 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 // Call a function.
 #define CALL(fn_index, call_arity, argument_start, fn_return_slot)         \
 	frames[frames_count - 1].ip = ip;                                      \
-	fn = &functions[fn_index];                                             \
+	fn = &functions[(fn_index)];                                           \
 	if (fn->arity != (call_arity)) {                                       \
 		err = ERR_INCORRECT_ARITY;                                         \
 		goto error;                                                        \
 	}                                                                      \
 	frames_count++;                                                        \
-	ip = fn->bytecode;                                                     \
 	frames[frames_count - 1].stack_start = stack_start + (argument_start); \
 	frames[frames_count - 1].return_slot = stack_start + (fn_return_slot); \
+	ip = fn->bytecode;                                                     \
 	stack_start = frames[frames_count - 1].stack_start;                    \
 	for (uint32_t i = 0; i < fn->defined_upvalues_count; i++) {            \
 		fn->defined_upvalues[i]->fn_stack_start = stack_start;             \
@@ -1151,10 +1153,11 @@ instruction:
 		STRUCT_SET_FIELD(INDEX_TO_VALUE(ARG3, FN_TAG));
 	}
 
-finish:
-	return NULL;
-
 error:
 	printf("FAILED! %d\n", err);
+
+finish:
+	free(stack);
+	free(frames);
 	return NULL;
 }

@@ -428,7 +428,7 @@ Operand fold_concat(Parser *parser, Operand left, Operand right) {
 	size_t length = strlen(first);
 
 	// Combine both strings
-	char *result = malloc(sizeof(char) * (length + strlen(second) + 1));
+	char result[length + strlen(second) + 1];
 	strcpy(result, first);
 	strcpy(&result[length], second);
 
@@ -816,6 +816,7 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 		char *string = lexer_extract_string(lexer, &lexer->token);
 		operand.type = OP_STRING;
 		operand.string = vm_add_string(parser->vm, string);
+		free(string);
 		lexer_next(lexer);
 		break;
 	}

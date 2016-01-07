@@ -115,7 +115,7 @@ char * import_package_name(char *path) {
 	char *name;
 	if (last_path < 0 && last_dot < 0) {
 		// Copy into a new string
-		name = (char *) malloc(sizeof(char) * length);
+		name = (char *) malloc(sizeof(char) * (length + 1));
 		strcpy(name, path);
 	} else if (last_path < 0) {
 		// File extension
@@ -239,6 +239,8 @@ void import(Parser *parser, char *path) {
 	int native = native_package_find(parser->vm, path, strlen(path));
 	if (native >= 0) {
 		import_new(parser, IMPORT_NATIVE, native);
+		free(path);
+		free(name);
 		return;
 	}
 

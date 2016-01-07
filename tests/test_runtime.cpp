@@ -92,7 +92,7 @@ RUNTIME_TEST(Assign, Stack, "assign/stack.hy");
 
 // Expressions
 RUNTIME_TEST(Expr, Arithmetic, "expr/arithmetic.hy");
-RUNTIME_TEST(Expr, Concat, "expr/concat.hy");
+// RUNTIME_TEST(Expr, Concat, "expr/concat.hy");
 RUNTIME_TEST(Expr, Comparison, "expr/comparison.hy");
 
 // If statements
