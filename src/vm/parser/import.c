@@ -145,8 +145,10 @@ char * import_package_name(char *path) {
 
 // Loads an external package.
 uint32_t import_user(Parser *parser, char *path, char *name) {
+	Function *fn = &parser->vm->functions[parser->fn_index];
+
 	// Find the requested package
-	char *actual_path = import_package_path(parser->fn->package, path);
+	char *actual_path = import_package_path(fn->package, path);
 	if (actual_path != path) {
 		free(path);
 	}
@@ -167,7 +169,7 @@ uint32_t import_user(Parser *parser, char *path, char *name) {
 	parse_package(parser->vm, package);
 
 	// Call the package's main function
-	emit(parser->fn, instr_new_4(CALL_F, 0, package->main_fn, 0, 0));
+	emit(fn, instr_new_4(CALL_F, 0, package->main_fn, 0, 0));
 
 	return index;
 }

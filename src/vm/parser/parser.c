@@ -23,7 +23,7 @@ Parser parser_new(Parser *parent) {
 	parser.parent = parent;
 	parser.scope_depth = 0;
 	parser.loop = NULL;
-	parser.fn = NULL;
+	parser.fn_index = 0;
 	ARRAY_INIT(parser.locals, Local, 64);
 
 	if (parent != NULL) {
@@ -63,7 +63,8 @@ void parse_package(VirtualMachine *vm, Package *package) {
 	Parser parser = parser_new(NULL);
 	parser.vm = vm;
 	parser.lexer = &lexer;
-	parser.fn = fn_new(vm, package, &package->main_fn);
+	fn_new(vm, package, &parser.fn_index);
+	package->main_fn = parser.fn_index;
 
 	// Create the imports list on the stack so all child compilers can access
 	// the same list
@@ -78,7 +79,8 @@ void parse_package(VirtualMachine *vm, Package *package) {
 	parse_block(&parser, TOKEN_EOF);
 
 	// Append a return instruction
-	emit(parser.fn, instr_new(RET, 0, 0, 0));
+	Function *fn = &vm->functions[parser.fn_index];
+	emit(fn, instr_new(RET, 0, 0, 0));
 
 	// Free the parser we allocated
 	parser_free(&parser);

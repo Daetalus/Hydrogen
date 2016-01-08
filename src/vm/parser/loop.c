@@ -12,6 +12,7 @@
 // Parses an infinite loop.
 void parse_loop(Parser *parser) {
 	Lexer *lexer = parser->lexer;
+	Function *fn = &parser->vm->functions[parser->fn_index];
 
 	// Skip the `loop` token
 	lexer_next(lexer);
@@ -27,7 +28,7 @@ void parse_loop(Parser *parser) {
 	parser->loop = &loop;
 
 	// Parse the inner block
-	uint32_t start = parser->fn->bytecode_count;
+	uint32_t start = fn->bytecode_count;
 	parse_block(parser, TOKEN_CLOSE_BRACE);
 
 	// Expect the closing brace
@@ -38,12 +39,12 @@ void parse_loop(Parser *parser) {
 	parser->loop = loop.outer;
 
 	// Insert a jump statement to return to the start of the loop
-	uint32_t offset = parser->fn->bytecode_count - start;
-	emit(parser->fn, instr_new(LOOP, offset, 0, 0));
+	uint32_t offset = fn->bytecode_count - start;
+	emit(fn, instr_new(LOOP, offset, 0, 0));
 
 	// Patch break statements to here
 	if (loop.jump >= 0) {
-		jmp_target_all(parser->fn, loop.jump, parser->fn->bytecode_count);
+		jmp_target_all(fn, loop.jump, fn->bytecode_count);
 	}
 }
 
@@ -51,13 +52,14 @@ void parse_loop(Parser *parser) {
 // Parses a while loop.
 void parse_while(Parser *parser) {
 	Lexer *lexer = parser->lexer;
+	Function *fn = &parser->vm->functions[parser->fn_index];
 
 	// Skip the `while` token
 	lexer_next(lexer);
 
 	// Expect an expression
 	// TODO: Check condition is a jump
-	uint32_t start = parser->fn->bytecode_count;
+	uint32_t start = fn->bytecode_count;
 	Operand condition = expr(parser, parser->locals_count);
 
 	// Add a loop to the linked list
@@ -77,16 +79,16 @@ void parse_while(Parser *parser) {
 	parser->loop = loop.outer;
 
 	// Insert a jump statement to return to the start of the loop
-	uint32_t offset = parser->fn->bytecode_count - start;
-	emit(parser->fn, instr_new(LOOP, offset, 0, 0));
+	uint32_t offset = fn->bytecode_count - start;
+	emit(fn, instr_new(LOOP, offset, 0, 0));
 
 	// Point the condition's false case here
-	uint32_t after = parser->fn->bytecode_count;
+	uint32_t after = fn->bytecode_count;
 	expr_patch_false_case(parser, condition, after);
 
 	// Point all break statements here
 	if (loop.jump >= 0) {
-		jmp_target_all(parser->fn, loop.jump, after);
+		jmp_target_all(fn, loop.jump, after);
 	}
 }
 
@@ -94,6 +96,7 @@ void parse_while(Parser *parser) {
 // Parses a break statement.
 void parse_break(Parser *parser) {
 	Lexer *lexer = parser->lexer;
+	Function *fn = &parser->vm->functions[parser->fn_index];
 
 	// Skip the `break` token
 	lexer_next(lexer);
@@ -105,14 +108,14 @@ void parse_break(Parser *parser) {
 	}
 
 	// Emit a jump instruction
-	uint32_t jump = jmp_new(parser->fn);
+	uint32_t jump = jmp_new(fn);
 
 	// Add it to the loop's jump list
 	Loop *loop = parser->loop;
 	if (loop->jump == -1) {
 		loop->jump = jump;
 	} else {
-		uint32_t last = jmp_last(parser->fn, loop->jump);
-		jmp_append(parser->fn, last, jump);
+		uint32_t last = jmp_last(fn, loop->jump);
+		jmp_append(fn, last, jump);
 	}
 }

@@ -12,6 +12,7 @@
 // Parses the condition and body of an if or else if statement.
 void parse_if_body(Parser *parser) {
 	Lexer *lexer = parser->lexer;
+	Function *fn = &parser->vm->functions[parser->fn_index];
 
 	// Parse the conditional expression
 	Operand condition = expr(parser, parser->locals_count);
@@ -35,7 +36,7 @@ void parse_if_body(Parser *parser) {
 	lexer_next(lexer);
 
 	// Get the location of the false case
-	uint32_t false_case = parser->fn->bytecode_count;
+	uint32_t false_case = fn->bytecode_count;
 
 	// If there's another if or else if after this
 	if (lexer->token.type == TOKEN_ELSE_IF || lexer->token.type == TOKEN_ELSE) {
@@ -52,6 +53,7 @@ void parse_if_body(Parser *parser) {
 // Parses an if statement.
 void parse_if(Parser *parser) {
 	Lexer *lexer = parser->lexer;
+	Function *fn = &parser->vm->functions[parser->fn_index];
 
 	// Skip the `if` token
 	lexer_next(lexer);
@@ -65,12 +67,12 @@ void parse_if(Parser *parser) {
 	// Parse following else if statements
 	while (lexer->token.type == TOKEN_ELSE_IF) {
 		// Insert a jump at the end of the previous if body
-		int new_jump = jmp_new(parser->fn);
+		int new_jump = jmp_new(fn);
 		if (jump == -1) {
 			jump = new_jump;
 		} else {
 
-			jmp_append(parser->fn, new_jump, jump);
+			jmp_append(fn, new_jump, jump);
 			jump = new_jump;
 		}
 
@@ -84,11 +86,11 @@ void parse_if(Parser *parser) {
 	// Check for an else statement
 	if (lexer->token.type == TOKEN_ELSE) {
 		// Insert a jump at the end of the previous if body
-		int new_jump = jmp_new(parser->fn);
+		int new_jump = jmp_new(fn);
 		if (jump == -1) {
 			jump = new_jump;
 		} else {
-			jmp_append(parser->fn, new_jump, jump);
+			jmp_append(fn, new_jump, jump);
 			jump = new_jump;
 		}
 
@@ -104,5 +106,5 @@ void parse_if(Parser *parser) {
 	}
 
 	// Patch jumps to after if statement
-	jmp_target_all(parser->fn, jump, parser->fn->bytecode_count);
+	jmp_target_all(fn, jump, fn->bytecode_count);
 }

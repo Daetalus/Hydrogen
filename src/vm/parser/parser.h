@@ -68,8 +68,8 @@ typedef struct _parser {
 	// The lexer.
 	Lexer *lexer;
 
-	// The function we're compiling the source code into.
-	Function *fn;
+	// The index of the function we're compiling.
+	uint16_t fn_index;
 
 	// The innermost loop being parsed, or NULL if we're not inside a loop.
 	// Stored as a linked list.

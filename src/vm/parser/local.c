@@ -58,7 +58,7 @@ int local_find_all(Parser *parser, char *name, size_t length) {
 
 	int slot = local_find(parser, name, length);
 	if (slot >= 0) {
-		Function *fn = parser->fn;
+		Function *fn = &parser->vm->functions[parser->fn_index];
 
 		// Create an upvalue from the local
 		int index;
@@ -83,11 +83,12 @@ int local_find_all(Parser *parser, char *name, size_t length) {
 // Returns a local or upvalue with the given name. First searches the parser's
 // locals list, then the existing upvalues, then parent parsers' locals.
 Variable local_capture(Parser *parser, char *name, size_t length) {
+	Function *fn = &parser->vm->functions[parser->fn_index];
 	Variable result;
 	int slot;
 
 	// Search package top level locals
-	slot = package_local_find(parser->fn->package, name, length);
+	slot = package_local_find(fn->package, name, length);
 	if (slot >= 0) {
 		result.type = VAR_TOP_LEVEL;
 		result.slot = slot;
@@ -146,8 +147,10 @@ bool local_exists_all(Parser *parser, char *name, size_t length) {
 
 // Returns true if a variable name already exists
 bool local_exists(Parser *parser, char *name, size_t length) {
+	Function *fn = &parser->vm->functions[parser->fn_index];
+
 	// Top level locals in package
-	if (package_local_find(parser->fn->package, name, length) >= 0) {
+	if (package_local_find(fn->package, name, length) >= 0) {
 		return true;
 	}
 
@@ -185,12 +188,14 @@ bool local_exists(Parser *parser, char *name, size_t length) {
 // Emits close upvalue instructions for all locals still on the parser's local
 // stack.
 void local_close_upvalues(Parser *parser) {
+	Function *fn = &parser->vm->functions[parser->fn_index];
+
 	// Emit in reverse order
 	for (int i = parser->locals_count; i >= 0; i--) {
 		int upvalue = parser->locals[i].upvalue_index;
 		if (upvalue >= 0) {
 			// Emit close upvalue instruction
-			emit(parser->fn, instr_new(UPVALUE_CLOSE, upvalue, 0, 0));
+			emit(fn, instr_new(UPVALUE_CLOSE, upvalue, 0, 0));
 		}
 	}
 }
@@ -205,6 +210,7 @@ void scope_new(Parser *parser) {
 // Decrements the parser's scope depth, removing all locals from the stack
 // created in that scope and closing any upvalues.
 void scope_free(Parser *parser) {
+	Function *fn = &parser->vm->functions[parser->fn_index];
 	parser->scope_depth--;
 
 	// Since the locals are stored in order of stack depth, with the locals
@@ -217,7 +223,7 @@ void scope_free(Parser *parser) {
 		int upvalue = parser->locals[i].upvalue_index;
 		if (upvalue >= 0) {
 			// Close the upvalue
-			emit(parser->fn, instr_new(UPVALUE_CLOSE, upvalue, 0, 0));
+			emit(fn, instr_new(UPVALUE_CLOSE, upvalue, 0, 0));
 		}
 
 		parser->locals_count--;

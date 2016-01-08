@@ -12,6 +12,7 @@
 // Parses an assignment to a new variable (using a `let` token).
 void parse_initial_assignment(Parser *parser) {
 	Lexer *lexer = parser->lexer;
+	Function *fn = &parser->vm->functions[parser->fn_index];
 
 	// Consume the `let` token
 	lexer_next(lexer);
@@ -50,11 +51,11 @@ void parse_initial_assignment(Parser *parser) {
 		scope_free(parser);
 
 		// Create a new top level variable
-		int index = package_local_new(parser->fn->package, name, length);
+		int index = package_local_new(fn->package, name, length);
 
 		// Store the result of the expression into the top level variable
-		uint16_t package_index = parser->fn->package - parser->vm->packages;
-		emit(parser->fn, instr_new(MOV_TL, index, package_index, slot));
+		uint16_t package_index = fn->package - parser->vm->packages;
+		emit(fn, instr_new(MOV_TL, index, package_index, slot));
 	} else {
 		// Save the local's name
 		local->name = name;
@@ -66,6 +67,7 @@ void parse_initial_assignment(Parser *parser) {
 // Parses an assignment to an already initialised variable.
 void parse_assignment(Parser *parser, Identifier *left, int count) {
 	Lexer *lexer = parser->lexer;
+	Function *fn = &parser->vm->functions[parser->fn_index];
 
 	// Save the token used to perform the assignment
 	// TODO: Add modifier assignment token support
@@ -107,14 +109,14 @@ void parse_assignment(Parser *parser, Identifier *left, int count) {
 			scope_free(parser);
 
 			// Move the result into the top level variable
-			emit(parser->fn, instr_new(MOV_TL, pkg_var_index, var.slot, slot));
+			emit(fn, instr_new(MOV_TL, pkg_var_index, var.slot, slot));
 			return;
 		} else {
 			// Assigning to a struct field on a top level variable
 			// Store the top level variable into a new slot
 			local_new(parser, &slot);
 			previous = slot;
-			emit(parser->fn, instr_new(MOV_LT, slot, var.slot, pkg_var_index));
+			emit(fn, instr_new(MOV_LT, slot, var.slot, pkg_var_index));
 		}
 	} else if (var.type == VAR_LOCAL && count > 2) {
 		// If this is a local and we have to replace this local with one of its
@@ -126,7 +128,7 @@ void parse_assignment(Parser *parser, Identifier *left, int count) {
 		previous = slot;
 
 		if (var.type == VAR_UPVALUE) {
-			emit(parser->fn, instr_new(MOV_LU, slot, var.slot, 0));
+			emit(fn, instr_new(MOV_LU, slot, var.slot, 0));
 		} else {
 			expr_top_level_to_local(parser, slot, var.slot);
 		}
@@ -140,7 +142,7 @@ void parse_assignment(Parser *parser, Identifier *left, int count) {
 	for (int i = 1; i < count - 1; i++) {
 		// Replace the struct that's in the slot at the moment
 		uint16_t index = vm_add_field(parser->vm, left[i]);
-		emit(parser->fn, instr_new(STRUCT_FIELD, slot, previous, index));
+		emit(fn, instr_new(STRUCT_FIELD, slot, previous, index));
 		previous = slot;
 	}
 
@@ -155,7 +157,7 @@ void parse_assignment(Parser *parser, Identifier *left, int count) {
 	// Set the field of the struct in `slot` to `operand`
 	Opcode opcode = STRUCT_SET_L + operand.type;
 	uint16_t index = vm_add_field(parser->vm, left[count - 1]);
-	emit(parser->fn, instr_new(opcode, slot, index, operand.value));
+	emit(fn, instr_new(opcode, slot, index, operand.value));
 
 	// Free the scope we created
 	scope_free(parser);
