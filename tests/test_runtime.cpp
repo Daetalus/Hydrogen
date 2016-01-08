@@ -106,3 +106,7 @@ RUNTIME_TEST(If, Nested, "if/nested.hy");
 
 // Functions
 RUNTIME_TEST(Fn, Call, "fn/call.hy");
+RUNTIME_TEST(Fn, Recursion, "fn/recursion.hy");
+
+// While loops
+RUNTIME_TEST(While, Basic, "while/basic.hy");
