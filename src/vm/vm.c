@@ -784,14 +784,15 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 
 
 // Return from a function.
-#define RETURN(value)                                   \
-	frames_count--;                                     \
-	if (frames_count == 0) {                            \
-		goto finish;                                    \
-	}                                                   \
-	ip = frames[frames_count - 1].ip;                   \
-	stack_start = frames[frames_count - 1].stack_start; \
-	stack[frames[frames_count - 1].return_slot] = (value);
+#define RETURN(value)                                    \
+	frames_count--;                                      \
+	if (frames_count == 0) {                             \
+		goto finish;                                     \
+	}                                                    \
+	stack[frames[frames_count - 1].stack_start +         \
+		frames[frames_count - 1].return_slot] = (value); \
+	stack_start = frames[frames_count - 1].stack_start;  \
+	ip = frames[frames_count - 1].ip;
 
 
 // Sets the field of a struct.
