@@ -26,3 +26,9 @@ while n < 10 {
 	current = temp + current
 	n = n + 1
 }
+
+
+let a = 3
+while a == a + 1 {
+	err.println("something")
+}

@@ -249,7 +249,7 @@ Operand operand_new(void) {
 // Converts an integer or number operand into a double value.
 double operand_to_number(Parser *parser, Operand operand) {
 	if (operand.type == OP_NUMBER) {
-		return parser->vm->numbers[operand.number];
+		return value_to_number(parser->vm->numbers[operand.number]);
 	} else {
 		return (double) operand.integer;
 	}
@@ -635,6 +635,9 @@ Operand expr_or(Parser *parser, Operand left, Operand right) {
 // Emits bytecode for a binary operator.
 Operand expr_binary(Parser *parser, uint16_t slot, TokenType operator,
 		Operand left, Operand right) {
+	// printf("binary expr\n");
+	// printf("token %d, %d %d\n", operator, TOKEN_EQ, TOKEN_ADD);
+	// printf("left %d, right %d, %d %d\n", left.type, right.type, OP_LOCAL, OP_INTEGER);
 	Function *fn = &parser->vm->functions[parser->fn_index];
 	Operand operand = operand_new();
 
@@ -1105,12 +1108,7 @@ Operand expr_prec(Parser *parser, uint16_t slot, Precedence limit) {
 // For some expressions, nothing may need to be stored (ie. expressions
 // consisting of only a constant), so `slot` will remain unused.
 Operand expr(Parser *parser, uint16_t slot) {
-	// Ensure we create no persistent variables in an expression by surrounding
-	// it in a scope
-	scope_new(parser);
-	Operand result = expr_prec(parser, slot, PREC_NONE);
-	scope_free(parser);
-	return result;
+	return expr_prec(parser, slot, PREC_NONE);
 }
 
 
