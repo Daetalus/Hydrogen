@@ -1,4 +1,4 @@
-// test|another|hello world|6|3|hello|3|14|10
+// test|another|hello world|6|3|hello|3|14|10|6|7
 
 import "err"
 
@@ -63,3 +63,11 @@ fn test9(arg1, arg2, arg3) {
 }
 
 err.println(test9(0, 0, 1))
+
+
+fn test(arg) {
+	return arg + 1
+}
+
+err.println(test(test(test(3))))
+err.println(test(test(test(test(test(test(1)))))))

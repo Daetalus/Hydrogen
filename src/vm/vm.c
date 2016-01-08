@@ -280,8 +280,8 @@ int package_find(VirtualMachine *vm, char *name, size_t length) {
 
 
 // Creates a new top level local on a package, returning its index.
-int package_local_new(Package *package, char *name, size_t length) {
-	int index = package->locals_count++;
+uint32_t package_local_new(Package *package, char *name, size_t length) {
+	uint32_t index = package->locals_count++;
 	package->values_count++;
 	ARRAY_REALLOC(package->locals, Identifier);
 	ARRAY_REALLOC(package->values, HyValue);
@@ -623,7 +623,7 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 
 
 // Converts an argument (uint16) to a number (double).
-#define INTEGER_TO_DOUBLE(integer) \
+#define INTEGER_TO_VALUE(integer) \
 	number_to_value((double) uint16_to_int16(integer))
 
 
@@ -715,7 +715,7 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 		}                                                                    \
 		NEXT();                                                              \
 	case prefix ## _LI:                                                      \
-		if (ARG1_L binary INTEGER_TO_DOUBLE(ARG2)) {                         \
+		if (ARG1_L binary INTEGER_TO_VALUE(ARG2)) {                         \
 			ip++;                                                            \
 		}                                                                    \
 		NEXT();                                                              \
@@ -866,7 +866,7 @@ typedef enum {
 // Executes a compiled function on the virtual machine.
 HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	Function *fn = &vm->functions[main_fn];
-	// debug_print_bytecode(fn);
+	debug_print_bytecode(fn);
 
 	// The variable stack
 	HyValue *stack = malloc(sizeof(HyValue) * MAX_STACK_SIZE);
@@ -915,7 +915,7 @@ instruction:
 		ARG1_L = ARG2_L;
 		NEXT();
 	case MOV_LI:
-		ARG1_L = INTEGER_TO_DOUBLE(ARG2);
+		ARG1_L = INTEGER_TO_VALUE(ARG2);
 		NEXT();
 	case MOV_LN:
 		ARG1_L = numbers[ARG2];
@@ -1085,7 +1085,7 @@ instruction:
 		RETURN(ARG1_L);
 		NEXT();
 	case RET_I:
-		RETURN(INTEGER_TO_DOUBLE(ARG1));
+		RETURN(INTEGER_TO_VALUE(ARG1));
 		NEXT();
 	case RET_N:
 		RETURN(numbers[ARG1]);
@@ -1150,7 +1150,7 @@ instruction:
 	case STRUCT_SET_L:
 		STRUCT_SET_FIELD(ARG3_L);
 	case STRUCT_SET_I:
-		STRUCT_SET_FIELD(INTEGER_TO_DOUBLE(ARG3));
+		STRUCT_SET_FIELD(INTEGER_TO_VALUE(ARG3));
 	case STRUCT_SET_N:
 		STRUCT_SET_FIELD(numbers[ARG3]);
 	case STRUCT_SET_S:

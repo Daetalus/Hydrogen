@@ -101,6 +101,7 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
 
 
 // Parses a method definition.
+// TODO: Method recursion
 void parse_method_definition(Parser *parser) {
 	Lexer *lexer = parser->lexer;
 
@@ -175,19 +176,25 @@ void parse_fn_definition(Parser *parser) {
 	size_t length = lexer->token.length;
 	lexer_next(lexer);
 
-	// Parse the remainder of the function
-	uint16_t fn_index = parse_fn_definition_body(parser, name, length, false);
-
 	// If this is a top level function
 	bool top_level = parser_is_top_level(parser);
+	uint32_t top_level_index;
 	if (top_level) {
 		// Create a new scope so we can discard this local
 		scope_new(parser);
+
+		// Create a new top level local
+		top_level_index = package_local_new(parser->fn->package, name, length);
 	}
 
 	// Create a new local to store the function in
 	uint16_t slot;
 	Local *local = local_new(parser, &slot);
+	local->name = lexer->token.start;
+	local->length = lexer->token.length;
+
+	// Parse the remainder of the function
+	uint16_t fn_index = parse_fn_definition_body(parser, name, length, false);
 
 	// Emit bytecode to store the function into the created local
 	emit(parser->fn, instr_new(MOV_LF, slot, fn_index, 0));
@@ -198,13 +205,9 @@ void parse_fn_definition(Parser *parser) {
 		scope_free(parser);
 
 		// Create a new top level variable
-		int index = package_local_new(parser->fn->package, name, length);
 		uint16_t package_index = parser->fn->package - parser->vm->packages;
-		emit(parser->fn, instr_new(MOV_TL, index, package_index, slot));
-	} else {
-		// Save the name of the function as the local
-		local->name = name;
-		local->length = length;
+		emit(parser->fn, instr_new(MOV_TL, top_level_index, package_index,
+			slot));
 	}
 }
 
@@ -404,6 +407,9 @@ void parse_fn_call(Parser *parser, Identifier *left, int count) {
 
 		// Parse the rest of the function call
 		parse_fn_call_slot(parser, CALL_NATIVE, fn_index, return_slot);
+
+		// Free the scope we allocated for the struct fields
+		scope_free(parser);
 		return;
 	} else if (var.type == VAR_LOCAL && count > 1) {
 		// If we have to replace this local with one of its fields, allocate

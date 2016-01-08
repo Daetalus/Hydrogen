@@ -228,7 +228,7 @@ void package_free(Package *package);
 int package_find(VirtualMachine *vm, char *name, size_t length);
 
 // Creates a new top level local on a package, returning its index.
-int package_local_new(Package *package, char *name, size_t length);
+uint32_t package_local_new(Package *package, char *name, size_t length);
 
 // Returns the index of a package's top level variable with the given name, or
 // -1 if no such local could be found.
