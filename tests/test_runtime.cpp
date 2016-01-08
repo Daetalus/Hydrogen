@@ -110,4 +110,3 @@ RUNTIME_TEST(Fn, Recursion, "fn/recursion.hy");
 
 // While loops
 RUNTIME_TEST(While, Basic, "while/basic.hy");
-RUNTIME_TEST(While, Break, "while/break.hy");
