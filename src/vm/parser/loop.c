@@ -5,6 +5,7 @@
 
 #include "loop.h"
 #include "expr.h"
+#include "local.h"
 #include "jmp.h"
 #include "../bytecode.h"
 
@@ -59,7 +60,13 @@ void parse_while(Parser *parser) {
 
 	// Expect an expression
 	uint32_t start = fn->bytecode_count;
-	Operand condition = expr(parser, parser->locals_count);
+
+	uint16_t local;
+	scope_new(parser);
+	local_new(parser, &local);
+	Operand condition = expr(parser, local);
+	scope_free(parser);
+
 	if (condition.type == OP_LOCAL) {
 		condition = operand_to_jump(parser, condition);
 	} else if (condition.type != OP_JUMP) {

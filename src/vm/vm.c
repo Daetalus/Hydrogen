@@ -22,14 +22,14 @@ HyVM * hy_new(void) {
 	vm->err = NULL;
 
 	// Allocate memory for arrays
-	ARRAY_INIT(vm->functions, Function, 4);
+	ARRAY_INIT(vm->functions, Function, 8);
 	ARRAY_INIT(vm->packages, Package, 4);
 	ARRAY_INIT(vm->native_packages, HyNativePackage, 4);
-	ARRAY_INIT(vm->native_fns, NativeFn, 4);
+	ARRAY_INIT(vm->native_fns, NativeFn, 8);
 	ARRAY_INIT(vm->numbers, HyValue, 16);
 	ARRAY_INIT(vm->strings, HyValue, 16);
 	ARRAY_INIT(vm->upvalues, Upvalue, 4);
-	ARRAY_INIT(vm->structs, StructDefinition, 2);
+	ARRAY_INIT(vm->structs, StructDefinition, 4);
 	ARRAY_INIT(vm->fields, Identifier, 4);
 
 	return (HyVM *) vm;
@@ -866,7 +866,7 @@ typedef enum {
 // Executes a compiled function on the virtual machine.
 HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	Function *fn = &vm->functions[main_fn];
-	// debug_print_bytecode(fn);
+	debug_print_bytecode(fn);
 
 	// The variable stack
 	HyValue *stack = malloc(sizeof(HyValue) * MAX_STACK_SIZE);

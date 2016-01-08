@@ -635,9 +635,6 @@ Operand expr_or(Parser *parser, Operand left, Operand right) {
 // Emits bytecode for a binary operator.
 Operand expr_binary(Parser *parser, uint16_t slot, TokenType operator,
 		Operand left, Operand right) {
-	// printf("binary expr\n");
-	// printf("token %d, %d %d\n", operator, TOKEN_EQ, TOKEN_ADD);
-	// printf("left %d, right %d, %d %d\n", left.type, right.type, OP_LOCAL, OP_INTEGER);
 	Function *fn = &parser->vm->functions[parser->fn_index];
 	Operand operand = operand_new();
 
