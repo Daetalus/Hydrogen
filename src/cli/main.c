@@ -52,6 +52,8 @@ int main(int argc, char *argv[]) {
 	HyError *err = hy_run(vm, contents);
 	if (err != NULL) {
 		printf("Error: %s\n", err->description);
+		printf("Line: %d\n", err->line);
+		printf("Column: %d\n", err->column);
 		hy_err_free(err);
 	}
 

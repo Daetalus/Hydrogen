@@ -58,9 +58,15 @@ void parse_while(Parser *parser) {
 	lexer_next(lexer);
 
 	// Expect an expression
-	// TODO: Check condition is a jump
 	uint32_t start = fn->bytecode_count;
 	Operand condition = expr(parser, parser->locals_count);
+	if (condition.type == OP_LOCAL) {
+		condition = operand_to_jump(parser, condition);
+	} else if (condition.type != OP_JUMP) {
+		// TODO: Implement folding
+		ERROR("While condition folding unimplemented");
+		return;
+	}
 
 	// Add a loop to the linked list
 	Loop loop;
