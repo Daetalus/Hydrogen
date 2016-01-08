@@ -774,6 +774,7 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 		goto error;                                                        \
 	}                                                                      \
 	frames_count++;                                                        \
+	frames[frames_count - 1].fn = fn;                                      \
 	frames[frames_count - 1].stack_start = stack_start + (argument_start); \
 	frames[frames_count - 1].return_slot = stack_start + (fn_return_slot); \
 	ip = fn->bytecode;                                                     \
@@ -792,6 +793,7 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 	stack[frames[frames_count - 1].stack_start +         \
 		frames[frames_count - 1].return_slot] = (value); \
 	stack_start = frames[frames_count - 1].stack_start;  \
+	fn = frames[frames_count - 1].fn;                    \
 	ip = frames[frames_count - 1].ip;
 
 
@@ -836,6 +838,9 @@ char * concat_str(char *left, char *right) {
 
 // A function frame on the call stack.
 typedef struct {
+	// A pointer to the function being executed in this frame.
+	Function *fn;
+
 	// The start of the function's locals on the stack (absolute stack position)
 	uint32_t stack_start;
 
@@ -894,6 +899,7 @@ HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	// Push the main function's call frame
 	frames_count++;
 	ip = fn->bytecode;
+	frames[frames_count - 1].fn = fn;
 	frames[frames_count - 1].ip = ip;
 	frames[frames_count - 1].stack_start = 0;
 	frames[frames_count - 1].return_slot = 0;
