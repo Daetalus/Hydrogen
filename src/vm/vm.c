@@ -893,7 +893,9 @@ HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	// Push the main function's call frame
 	frames_count++;
 	ip = fn->bytecode;
+	frames[frames_count - 1].ip = ip;
 	frames[frames_count - 1].stack_start = 0;
+	frames[frames_count - 1].return_slot = 0;
 
 	// Main execution loop
 instruction:
