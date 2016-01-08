@@ -866,7 +866,7 @@ typedef enum {
 // Executes a compiled function on the virtual machine.
 HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	Function *fn = &vm->functions[main_fn];
-	debug_print_bytecode(fn);
+	// debug_print_bytecode(fn);
 
 	// The variable stack
 	HyValue *stack = malloc(sizeof(HyValue) * MAX_STACK_SIZE);

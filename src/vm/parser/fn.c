@@ -178,6 +178,12 @@ void parse_fn_definition(Parser *parser) {
 	size_t length = lexer->token.length;
 	lexer_next(lexer);
 
+	// Ensure we haven't already defined this function
+	if (local_exists(parser, name, length)) {
+		ERROR("Function `%.*s` already defined", length, name);
+		return;
+	}
+
 	// If this is a top level function
 	bool top_level = parser_is_top_level(parser);
 	uint32_t top_level_index;

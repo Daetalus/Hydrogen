@@ -65,9 +65,9 @@ fn test9(arg1, arg2, arg3) {
 err.println(test9(0, 0, 1))
 
 
-fn test(arg) {
+fn test10(arg) {
 	return arg + 1
 }
 
-err.println(test(test(test(3))))
-err.println(test(test(test(test(test(test(1)))))))
+err.println(test10(test10(test10(3))))
+err.println(test10(test10(test10(test10(test10(test10(1)))))))
