@@ -786,12 +786,11 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 
 // Return from a function.
 #define RETURN(value)                                    \
-	frames_count--;                                      \
-	if (frames_count == 0) {                             \
+	if (frames_count == 1) {                             \
 		goto finish;                                     \
 	}                                                    \
-	stack[frames[frames_count - 1].stack_start +         \
-		frames[frames_count - 1].return_slot] = (value); \
+	stack[frames[frames_count - 1].return_slot] = (value); \
+	frames_count--;                                      \
 	stack_start = frames[frames_count - 1].stack_start;  \
 	fn = frames[frames_count - 1].fn;                    \
 	ip = frames[frames_count - 1].ip;
