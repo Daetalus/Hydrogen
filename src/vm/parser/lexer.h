@@ -8,7 +8,7 @@
 
 #include <stdlib.h>
 
-#include "vm.h"
+#include "../vm.h"
 
 
 // All possible token types.
