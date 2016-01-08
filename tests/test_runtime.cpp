@@ -7,7 +7,7 @@
 
 
 // The prefix added to all runtime test paths.
-#define PATH_PREFIX "../../tests/runtime"
+#define PATH_PREFIX "../tests/runtime"
 
 // The maximum size of the output from a test case
 #define MAX_OUTPUT 1024
@@ -111,3 +111,4 @@ RUNTIME_TEST(Fn, Recursion, "fn/recursion.hy");
 // While loops
 RUNTIME_TEST(While, Basic, "while/basic.hy");
 RUNTIME_TEST(While, Break, "while/break.hy");
+RUNTIME_TEST(While, Nested, "while/nested.hy");
