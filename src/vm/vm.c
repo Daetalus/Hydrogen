@@ -674,27 +674,27 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 
 // Shorthand for defining a set of arithmetic operations.
 #define ARITHMETIC_OPERATION(prefix, op)                           \
-	case prefix ## _LL:                                            \
+	_ ## prefix ## _LL:                                            \
 		ENSURE_NUMBERS(ARG2_L, ARG3_L);                            \
 		ARG1_L = number_to_value(value_to_number(ARG2_L) op        \
 			value_to_number(ARG3_L));                              \
 		NEXT();                                                    \
-	case prefix ## _LI:                                            \
+	_ ## prefix ## _LI:                                            \
 		ENSURE_NUMBER(ARG2_L);                                     \
 		ARG1_L = number_to_value(value_to_number(ARG2_L) op        \
 			(double) uint16_to_int16(ARG3));                       \
 		NEXT();                                                    \
-	case prefix ## _LN:                                            \
+	_ ## prefix ## _LN:                                            \
 		ENSURE_NUMBER(ARG2_L);                                     \
 		ARG1_L = number_to_value(value_to_number(ARG2_L) op        \
 			value_to_number(numbers[ARG3]));                       \
 		NEXT();                                                    \
-	case prefix ## _IL:                                            \
+	_ ## prefix ## _IL:                                            \
 		ENSURE_NUMBER(ARG3_L);                                     \
 		ARG1_L = number_to_value((double) uint16_to_int16(ARG2) op \
 			value_to_number(ARG3_L));                              \
 		NEXT();                                                    \
-	case prefix ## _NL:                                            \
+	_ ## prefix ## _NL:                                            \
 		ENSURE_NUMBER(ARG3_L);                                     \
 		ARG1_L = number_to_value(value_to_number(numbers[ARG2]) op \
 			value_to_number(ARG3_L));                              \
@@ -703,7 +703,7 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 
 // Shorthand for defining a set of equality operations.
 #define EQUALITY_OPERATION(prefix, binary, unary)                          \
-	case prefix ## _LL:                                                    \
+	_ ## prefix ## _LL:                                                    \
 		if (unary ((ARG1_L == ARG2_L) ||                                   \
 				(IS_STRING_VALUE(ARG1_L) && IS_STRING_VALUE(ARG2_L) &&     \
 					strcmp(TO_STR(ARG1_L), TO_STR(ARG2_L)) == 0) ||        \
@@ -714,28 +714,28 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 			ip++;                                                          \
 		}                                                                  \
 		NEXT();                                                            \
-	case prefix ## _LI:                                                    \
+	_ ## prefix ## _LI:                                                    \
 		if (ARG1_L binary INTEGER_TO_VALUE(ARG2)) {                        \
 			ip++;                                                          \
 		}                                                                  \
 		NEXT();                                                            \
-	case prefix ## _LN:                                                    \
+	_ ## prefix ## _LN:                                                    \
 		if (ARG1_L binary numbers[ARG2]) {                                 \
 			ip++;                                                          \
 		}                                                                  \
 		NEXT();                                                            \
-	case prefix ## _LS:                                                    \
+	_ ## prefix ## _LS:                                                    \
 		if (unary (IS_STRING_VALUE(ARG1_L) &&                              \
 				strcmp(TO_STR(ARG1_L), TO_STR(strings[ARG2])) == 0)) {     \
 			ip++;                                                          \
 		}                                                                  \
 		NEXT();                                                            \
-	case prefix ## _LP:                                                    \
+	_ ## prefix ## _LP:                                                    \
 		if (ARG1_L binary PRIMITIVE_FROM_TAG(ARG2)) {                      \
 			ip++;                                                          \
 		}                                                                  \
 		NEXT();                                                            \
-	case prefix ## _LF:                                                    \
+	_ ## prefix ## _LF:                                                    \
 		if (unary (IS_FN_VALUE(ARG1_L) &&                                  \
 				VALUE_TO_INDEX(ARG1_L, FN_TAG) == ARG2)) {                 \
 			ip++;                                                          \
@@ -745,19 +745,19 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 
 // Shorthand for defining an order operation.
 #define ORDER_OPERATION(prefix, operator)                                      \
-	case prefix ## _LL:                                                        \
+	_ ## prefix ## _LL:                                                        \
 		ENSURE_NUMBERS(ARG1_L, ARG2_L);                                        \
 		if (value_to_number(ARG1_L) operator value_to_number(ARG2_L)) {        \
 			ip++;                                                              \
 		}                                                                      \
 		NEXT();                                                                \
-	case prefix ## _LI:                                                        \
+	_ ## prefix ## _LI:                                                        \
 		ENSURE_NUMBER(ARG1_L);                                                 \
 		if (value_to_number(ARG1_L) operator (double) uint16_to_int16(ARG2)) { \
 			ip++;                                                              \
 		}                                                                      \
 		NEXT();                                                                \
-	case prefix ## _LN:                                                        \
+	_ ## prefix ## _LN:                                                        \
 		ENSURE_NUMBER(ARG1_L);                                                 \
 		if (value_to_number(ARG1_L) operator value_to_number(numbers[ARG2])) { \
 			ip++;                                                              \
@@ -814,10 +814,14 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 }
 
 
-// Goes to the next instruction.
+// Jumps to the next instruction.
+#define DISPATCH() goto *dispatch_table[INSTR_OPCODE(*ip)];
+
+// Jumps to the next instruction using a dispatch table for computed gotos by
+// incrementing the instruction pointer.
 #define NEXT() \
 	ip++;      \
-	goto instruction;
+	DISPATCH();
 
 
 // The stack slot of an open upvalue.
@@ -865,6 +869,40 @@ typedef enum {
 
 // Executes a compiled function on the virtual machine.
 HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
+	// Table of labels for computed gotos.
+	static void *dispatch_table[] = {
+		&&_MOV_LL, &&_MOV_LI, &&_MOV_LN, &&_MOV_LS, &&_MOV_LP, &&_MOV_LF,
+		&&_MOV_LU, &&_MOV_UL,
+		&&_MOV_LT, &&_MOV_TL,
+
+		&&_ADD_LL, &&_ADD_LI, &&_ADD_LN, &&_ADD_IL, &&_ADD_NL,
+		&&_SUB_LL, &&_SUB_LI, &&_SUB_LN, &&_SUB_IL, &&_SUB_NL,
+		&&_MUL_LL, &&_MUL_LI, &&_MUL_LN, &&_MUL_IL, &&_MUL_NL,
+		&&_DIV_LL, &&_DIV_LI, &&_DIV_LN, &&_DIV_IL, &&_DIV_NL,
+		&&_MOD_LL, &&_MOD_LI, &&_MOD_LN, &&_MOD_IL, &&_MOD_NL,
+		&&_CONCAT_LL, &&_CONCAT_LS, &&_CONCAT_SL,
+		&&_NEG_L,
+
+		&&_IS_TRUE_L, &&_IS_FALSE_L,
+		&&_EQ_LL, &&_EQ_LI, &&_EQ_LN, &&_EQ_LS, &&_EQ_LP, &&_EQ_LF,
+		&&_NEQ_LL, &&_NEQ_LI, &&_NEQ_LN, &&_NEQ_LS, &&_NEQ_LP, &&_NEQ_LF,
+		&&_LT_LL, &&_LT_LI, &&_LT_LN,
+		&&_LE_LL, &&_LE_LI, &&_LE_LN,
+		&&_GT_LL, &&_GT_LI, &&_GT_LN,
+		&&_GE_LL, &&_GE_LI, &&_GE_LN,
+
+		&&_JMP, &&_LOOP,
+
+		&&_CALL_L, &&_CALL_F, &&_CALL_NATIVE,
+		&&_RET, &&_RET_L, &&_RET_I, &&_RET_N, &&_RET_S, &&_RET_P, &&_RET_F,
+
+		&&_UPVALUE_CLOSE,
+
+		&&_STRUCT_NEW, &&_STRUCT_FIELD,
+		&&_STRUCT_SET_L, &&_STRUCT_SET_I, &&_STRUCT_SET_N, &&_STRUCT_SET_S,
+		&&_STRUCT_SET_P, &&_STRUCT_SET_F,
+	};
+
 	Function *fn = &vm->functions[main_fn];
 	// debug_print_bytecode(fn);
 
@@ -903,54 +941,50 @@ HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	frames[frames_count - 1].stack_start = 0;
 	frames[frames_count - 1].return_slot = 0;
 
-	// Main execution loop
-instruction:
-	switch (INSTR_OPCODE(*ip)) {
-
 	//
 	//  Storage
 	//
 
-	case MOV_LL:
-		ARG1_L = ARG2_L;
-		NEXT();
-	case MOV_LI:
-		ARG1_L = INTEGER_TO_VALUE(ARG2);
-		NEXT();
-	case MOV_LN:
-		ARG1_L = numbers[ARG2];
-		NEXT();
-	case MOV_LS:
-		ARG1_L = strings[ARG2];
-		NEXT();
-	case MOV_LP:
-		ARG1_L = PRIMITIVE_FROM_TAG(ARG2);
-		NEXT();
-	case MOV_LF:
-		ARG1_L = INDEX_TO_VALUE(ARG2, FN_TAG);
-		NEXT();
+_MOV_LL:
+	ARG1_L = ARG2_L;
+	NEXT();
+_MOV_LI:
+	ARG1_L = INTEGER_TO_VALUE(ARG2);
+	NEXT();
+_MOV_LN:
+	ARG1_L = numbers[ARG2];
+	NEXT();
+_MOV_LS:
+	ARG1_L = strings[ARG2];
+	NEXT();
+_MOV_LP:
+	ARG1_L = PRIMITIVE_FROM_TAG(ARG2);
+	NEXT();
+_MOV_LF:
+	ARG1_L = INDEX_TO_VALUE(ARG2, FN_TAG);
+	NEXT();
 
-	case MOV_LU:
-		if (upvalues[ARG2].open) {
-			ARG1_L = stack[UPVALUE_STACK_SLOT(ARG2)];
-		} else {
-			ARG1_L = upvalues[ARG2].value;
-		}
-		NEXT();
-	case MOV_UL:
-		if (upvalues[ARG1].open) {
-			stack[UPVALUE_STACK_SLOT(ARG1)] = ARG2_L;
-		} else {
-			upvalues[ARG1].value = ARG2_L;
-		}
-		NEXT();
+_MOV_LU:
+	if (upvalues[ARG2].open) {
+		ARG1_L = stack[UPVALUE_STACK_SLOT(ARG2)];
+	} else {
+		ARG1_L = upvalues[ARG2].value;
+	}
+	NEXT();
+_MOV_UL:
+	if (upvalues[ARG1].open) {
+		stack[UPVALUE_STACK_SLOT(ARG1)] = ARG2_L;
+	} else {
+		upvalues[ARG1].value = ARG2_L;
+	}
+	NEXT();
 
-	case MOV_LT:
-		ARG1_L = packages[ARG2].values[ARG3];
-		NEXT();
-	case MOV_TL:
-		packages[ARG2].values[ARG1] = ARG3_L;
-		NEXT();
+_MOV_LT:
+	ARG1_L = packages[ARG2].values[ARG3];
+	NEXT();
+_MOV_TL:
+	packages[ARG2].values[ARG1] = ARG3_L;
+	NEXT();
 
 
 	//
@@ -962,60 +996,60 @@ instruction:
 	ARITHMETIC_OPERATION(MUL, *)
 	ARITHMETIC_OPERATION(DIV, /)
 
-	case MOD_LL:
-		ENSURE_NUMBERS(ARG2_L, ARG3_L);
-		ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
-			value_to_number(ARG3_L)));
-		NEXT();
-	case MOD_LI:
-		ENSURE_NUMBER(ARG2_L);
-		ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
-			(double) uint16_to_int16(ARG3)));
-		NEXT();
-	case MOD_LN:
-		ENSURE_NUMBER(ARG2_L);
-		ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
-			value_to_number(numbers[ARG3])));
-		NEXT();
-	case MOD_IL:
-		ENSURE_NUMBER(ARG3_L);
-		ARG1_L = number_to_value(fmod((double) uint16_to_int16(ARG2),
-			value_to_number(ARG3_L)));
-		NEXT();
-	case MOD_NL:
-		ENSURE_NUMBER(ARG3_L);
-		ARG1_L = number_to_value(fmod(
-			value_to_number(numbers[ARG2]),
-			value_to_number(ARG3_L)
-		));
-		NEXT();
+_MOD_LL:
+	ENSURE_NUMBERS(ARG2_L, ARG3_L);
+	ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
+		value_to_number(ARG3_L)));
+	NEXT();
+_MOD_LI:
+	ENSURE_NUMBER(ARG2_L);
+	ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
+		(double) uint16_to_int16(ARG3)));
+	NEXT();
+_MOD_LN:
+	ENSURE_NUMBER(ARG2_L);
+	ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
+		value_to_number(numbers[ARG3])));
+	NEXT();
+_MOD_IL:
+	ENSURE_NUMBER(ARG3_L);
+	ARG1_L = number_to_value(fmod((double) uint16_to_int16(ARG2),
+		value_to_number(ARG3_L)));
+	NEXT();
+_MOD_NL:
+	ENSURE_NUMBER(ARG3_L);
+	ARG1_L = number_to_value(fmod(
+		value_to_number(numbers[ARG2]),
+		value_to_number(ARG3_L)
+	));
+	NEXT();
 
-	case CONCAT_LL:
-		ENSURE_STRS(ARG2_L, ARG3_L);
-		ARG1_L = ptr_to_value(concat_str(
-			value_to_ptr(ARG2_L),
-			value_to_ptr(ARG3_L)
-		));
-		NEXT();
-	case CONCAT_LS:
-		ENSURE_STR(ARG2_L);
-		ARG1_L = ptr_to_value(concat_str(
-			value_to_ptr(ARG2_L),
-			TO_STR(strings[ARG3])
-		));
-		NEXT();
-	case CONCAT_SL:
-		ENSURE_STR(ARG2_L);
-		ARG1_L = ptr_to_value(concat_str(
-			TO_STR(strings[ARG2]),
-			value_to_ptr(ARG3_L)
-		));
-		NEXT();
+_CONCAT_LL:
+	ENSURE_STRS(ARG2_L, ARG3_L);
+	ARG1_L = ptr_to_value(concat_str(
+		value_to_ptr(ARG2_L),
+		value_to_ptr(ARG3_L)
+	));
+	NEXT();
+_CONCAT_LS:
+	ENSURE_STR(ARG2_L);
+	ARG1_L = ptr_to_value(concat_str(
+		value_to_ptr(ARG2_L),
+		TO_STR(strings[ARG3])
+	));
+	NEXT();
+_CONCAT_SL:
+	ENSURE_STR(ARG2_L);
+	ARG1_L = ptr_to_value(concat_str(
+		TO_STR(strings[ARG2]),
+		value_to_ptr(ARG3_L)
+	));
+	NEXT();
 
-	case NEG_L:
-		ENSURE_NUMBER(ARG1_L);
-		ARG1_L = number_to_value(-value_to_number(ARG1_L));
-		NEXT();
+_NEG_L:
+	ENSURE_NUMBER(ARG1_L);
+	ARG1_L = number_to_value(-value_to_number(ARG1_L));
+	NEXT();
 
 
 	//
@@ -1027,16 +1061,16 @@ instruction:
 	// the jump instruction (by incrementing the instruction pointer), if the
 	// comparison is false.
 
-	case IS_TRUE_L:
-		if (ARG1_L == FALSE_VALUE || ARG1_L == NIL_VALUE) {
-			ip++;
-		}
-		NEXT();
-	case IS_FALSE_L:
-		if (ARG1_L != FALSE_VALUE && ARG1_L != NIL_VALUE) {
-			ip++;
-		}
-		NEXT();
+_IS_TRUE_L:
+	if (ARG1_L == FALSE_VALUE || ARG1_L == NIL_VALUE) {
+		ip++;
+	}
+	NEXT();
+_IS_FALSE_L:
+	if (ARG1_L != FALSE_VALUE && ARG1_L != NIL_VALUE) {
+		ip++;
+	}
+	NEXT();
 
 	EQUALITY_OPERATION(EQ, !=, !)
 	EQUALITY_OPERATION(NEQ, ==, )
@@ -1050,116 +1084,115 @@ instruction:
 	//  Control Flow
 	//
 
-	case JMP:
-		ip += ARG1;
-		goto instruction;
-	case LOOP:
-		ip -= ARG1;
-		goto instruction;
+_JMP:
+	ip += ARG1;
+	DISPATCH();
+_LOOP:
+	ip -= ARG1;
+	DISPATCH();
 
 
 	//
 	//  Functions
 	//
 
-	case CALL_L:
-		ENSURE_FN(ARG1_L);
-		CALL(VALUE_TO_INDEX(ARG1_L, FN_TAG), ARG0, ARG2, ARG3);
-		goto instruction;
-	case CALL_F:
-		CALL(ARG1, ARG0, ARG2, ARG3);
-		goto instruction;
-	case CALL_NATIVE: {
-		HyArgs args;
-		args.arity = ARG0;
-		args.stack = stack;
-		args.stack_start = stack_start + ARG2;
-		ARG3_L = native_fns[ARG1].fn(vm, &args);
-		NEXT();
-	}
+_CALL_L:
+	ENSURE_FN(ARG1_L);
+	CALL(VALUE_TO_INDEX(ARG1_L, FN_TAG), ARG0, ARG2, ARG3);
+	DISPATCH();
+_CALL_F:
+	CALL(ARG1, ARG0, ARG2, ARG3);
+	DISPATCH();
+_CALL_NATIVE: {
+	HyArgs args;
+	args.arity = ARG0;
+	args.stack = stack;
+	args.stack_start = stack_start + ARG2;
+	ARG3_L = native_fns[ARG1].fn(vm, &args);
+	NEXT();
+}
 
-	case RET:
-		RETURN(NIL_VALUE);
-		NEXT();
-	case RET_L:
-		RETURN(ARG1_L);
-		NEXT();
-	case RET_I:
-		RETURN(INTEGER_TO_VALUE(ARG1));
-		NEXT();
-	case RET_N:
-		RETURN(numbers[ARG1]);
-		NEXT();
-	case RET_S:
-		RETURN(strings[ARG1]);
-		NEXT();
-	case RET_P:
-		RETURN(PRIMITIVE_FROM_TAG(ARG1));
-		NEXT();
-	case RET_F:
-		RETURN(INDEX_TO_VALUE(ARG1, FN_TAG));
-		NEXT();
+_RET:
+	RETURN(NIL_VALUE);
+	NEXT();
+_RET_L:
+	RETURN(ARG1_L);
+	NEXT();
+_RET_I:
+	RETURN(INTEGER_TO_VALUE(ARG1));
+	NEXT();
+_RET_N:
+	RETURN(numbers[ARG1]);
+	NEXT();
+_RET_S:
+	RETURN(strings[ARG1]);
+	NEXT();
+_RET_P:
+	RETURN(PRIMITIVE_FROM_TAG(ARG1));
+	NEXT();
+_RET_F:
+	RETURN(INDEX_TO_VALUE(ARG1, FN_TAG));
+	NEXT();
 
 
 	//
 	//  Upvalues
 	//
 
-	case UPVALUE_CLOSE:
-		upvalues[ARG1].open = false;
-		upvalues[ARG1].value = stack[UPVALUE_STACK_SLOT(ARG1)];
-		NEXT();
+_UPVALUE_CLOSE:
+	upvalues[ARG1].open = false;
+	upvalues[ARG1].value = stack[UPVALUE_STACK_SLOT(ARG1)];
+	NEXT();
 
 
 	//
 	//  Structs
 	//
 
-	case STRUCT_NEW: {
-		StructDefinition *def = &structs[ARG2];
-		Object *obj = malloc(sizeof(Object) + sizeof(HyValue) *
-			def->fields_count);
-		obj->type = OBJ_STRUCT;
-		obj->obj.definition = def;
-		memcpy(obj->obj.fields, def->values, sizeof(HyValue) *
-			def->fields_count);
-		ARG1_L = ptr_to_value(obj);
-		NEXT();
-	}
+_STRUCT_NEW: {
+	StructDefinition *def = &structs[ARG2];
+	Object *obj = malloc(sizeof(Object) + sizeof(HyValue) *
+		def->fields_count);
+	obj->type = OBJ_STRUCT;
+	obj->obj.definition = def;
+	memcpy(obj->obj.fields, def->values, sizeof(HyValue) *
+		def->fields_count);
+	ARG1_L = ptr_to_value(obj);
+	NEXT();
+}
 
-	case STRUCT_FIELD: {
-		ENSURE_OBJECT(ARG2_L);
-		Identifier *ident = &struct_fields[ARG3];
-		Object *obj = (Object *) value_to_ptr(ARG2_L);
-		StructDefinition *def = obj->obj.definition;
+_STRUCT_FIELD: {
+	ENSURE_OBJECT(ARG2_L);
+	Identifier *ident = &struct_fields[ARG3];
+	Object *obj = (Object *) value_to_ptr(ARG2_L);
+	StructDefinition *def = obj->obj.definition;
 
-		// Look for the field
-		for (uint32_t i = 0; i < def->fields_count; i++) {
-			if (ident->length == def->fields[i].length &&
-					strncmp(ident->start, def->fields[i].start, ident->length)) {
-				ARG1_L = obj->obj.fields[i];
-				NEXT();
-			}
+	// Look for the field
+	for (uint32_t i = 0; i < def->fields_count; i++) {
+		if (ident->length == def->fields[i].length &&
+				strncmp(ident->start, def->fields[i].start, ident->length)) {
+			ARG1_L = obj->obj.fields[i];
+			NEXT();
 		}
-
-		// Couldn't find the field on the struct
-		err = ERR_NO_SUCH_FIELD;
-		goto error;
 	}
 
-	case STRUCT_SET_L:
-		STRUCT_SET_FIELD(ARG3_L);
-	case STRUCT_SET_I:
-		STRUCT_SET_FIELD(INTEGER_TO_VALUE(ARG3));
-	case STRUCT_SET_N:
-		STRUCT_SET_FIELD(numbers[ARG3]);
-	case STRUCT_SET_S:
-		STRUCT_SET_FIELD(strings[ARG3]);
-	case STRUCT_SET_P:
-		STRUCT_SET_FIELD(PRIMITIVE_FROM_TAG(ARG3));
-	case STRUCT_SET_F:
-		STRUCT_SET_FIELD(INDEX_TO_VALUE(ARG3, FN_TAG));
-	}
+	// Couldn't find the field on the struct
+	err = ERR_NO_SUCH_FIELD;
+	goto error;
+}
+
+_STRUCT_SET_L:
+	STRUCT_SET_FIELD(ARG3_L);
+_STRUCT_SET_I:
+	STRUCT_SET_FIELD(INTEGER_TO_VALUE(ARG3));
+_STRUCT_SET_N:
+	STRUCT_SET_FIELD(numbers[ARG3]);
+_STRUCT_SET_S:
+	STRUCT_SET_FIELD(strings[ARG3]);
+_STRUCT_SET_P:
+	STRUCT_SET_FIELD(PRIMITIVE_FROM_TAG(ARG3));
+_STRUCT_SET_F:
+	STRUCT_SET_FIELD(INDEX_TO_VALUE(ARG3, FN_TAG));
 
 error:
 	printf("FAILED! %d\n", err);
