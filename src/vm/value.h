@@ -102,16 +102,67 @@ typedef struct {
 } Object;
 
 
+// A union to convert between doubles and unsigned 8 byte integers without
+// implicit conversion.
+typedef union {
+	double number;
+	uint64_t value;
+	void *ptr;
+} Converter64Bit;
+
+
+// Converter for 16 bit values.
+typedef union {
+	uint16_t unsigned_value;
+	int16_t signed_value;
+} Converter16Bit;
+
+
 // Converts a value into a number.
-double value_to_number(uint64_t value);
+static inline double value_to_number(uint64_t value) {
+	Converter64Bit convert;
+	convert.value = value;
+	return convert.number;
+}
+
 
 // Converts a number into a value.
-uint64_t number_to_value(double number);
+static inline uint64_t number_to_value(double number) {
+	Converter64Bit convert;
+	convert.number = number;
+	return convert.value;
+}
+
 
 // Converts a value into a pointer.
-void * value_to_ptr(uint64_t value);
+static inline void * value_to_ptr(uint64_t value) {
+	Converter64Bit convert;
+	convert.value = (value & ~(QUIET_NAN | SIGN));
+	return convert.ptr;
+}
+
 
 // Converts a pointer into a value.
-uint64_t ptr_to_value(void *ptr);
+static inline uint64_t ptr_to_value(void *ptr) {
+	Converter64Bit convert;
+	convert.ptr = ptr;
+	return (convert.value) ^ (QUIET_NAN | SIGN);
+}
+
+
+// Converts an unsigned 16 bit integer to a signed 16 bit integer.
+static inline int16_t uint16_to_int16(uint16_t value) {
+	Converter16Bit converter;
+	converter.unsigned_value = value;
+	return converter.signed_value;
+}
+
+
+// Converts a signed 16 bit integer to an unsigned 16 bit integer.
+static inline uint16_t int16_to_uint16(int16_t value) {
+	Converter16Bit converter;
+	converter.signed_value = value;
+	return converter.unsigned_value;
+}
 
 #endif

@@ -16,18 +16,6 @@ typedef struct {
 } Identifier;
 
 
-// Converts a double into an unsigned 64 bit integer.
-uint64_t double_to_uint64(double value);
-
-// Converts an unsigned 64 bit integer into a double.
-double uint64_t_to_double(uint64_t value);
-
-// Converts an unsigned 16 bit integer to a signed 16 bit integer.
-int16_t uint16_to_int16(uint16_t value);
-
-// Converts a signed 16 bit integer to an unsigned 16 bit integer.
-uint16_t int16_to_uint16(int16_t value);
-
 // Returns the contents of a file as a heap allocated string.
 char * read_file(char *path);
 
