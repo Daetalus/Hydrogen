@@ -40,7 +40,7 @@ root.print() // Prints [1, [2, [3]]]
 
 And the infamous Hello World:
 
-```
+```rust
 import "io"
 io.println("Hello, world!")
 ```
