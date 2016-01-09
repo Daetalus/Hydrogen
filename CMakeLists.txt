@@ -36,7 +36,7 @@ add_executable(cli ${CLI_SOURCES})
 target_link_libraries(cli hydrogen hystdlib)
 
 # Enable testing using Google's testing framework
-add_subdirectory(tests/gtest/googletest)
+add_subdirectory(test/gtest/googletest)
 enable_testing()
 
 # Add include directories for tests
@@ -48,7 +48,7 @@ include_directories(
 # Macro for adding a test program
 macro(test name)
 	# Create the testing executable
-	add_executable(test_${name} tests/test_${name}.cpp)
+	add_executable(test_${name} test/test_${name}.cpp)
 
 	# Link against Hydrogen, Google Test, and Boost libraries
 	target_link_libraries(test_${name}

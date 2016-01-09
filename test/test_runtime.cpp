@@ -7,7 +7,7 @@
 
 
 // The prefix added to all runtime test paths.
-#define PATH_PREFIX "../tests/runtime"
+#define PATH_PREFIX "../test/runtime"
 
 // The maximum size of the output from a test case
 #define MAX_OUTPUT 1024
