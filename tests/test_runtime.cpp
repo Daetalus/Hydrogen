@@ -122,3 +122,6 @@ RUNTIME_TEST(Fn, Recursion, "fn/recursion.hy");
 
 // Closures
 RUNTIME_TEST(Closure, Upvalues, "closure/upvalues.hy");
+
+// Structs
+RUNTIME_TEST(Struct, Fields, "struct/fields.hy");

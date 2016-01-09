@@ -777,20 +777,20 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 	ip = frames[frames_count - 1].ip;
 
 // Sets the field of a struct.
-#define STRUCT_SET_FIELD(value) {                                             \
-	ENSURE_OBJECT(ARG1_L);                                                    \
-	Identifier *ident = &struct_fields[ARG2];                                 \
-	Object *obj = (Object *) val_to_ptr(ARG1_L);                            \
-	StructDefinition *def = obj->obj.definition;                              \
-	for (uint32_t i = 0; i < def->fields_count; i++) {                        \
-		if (ident->length == def->fields[i].length &&                         \
-				strncmp(ident->start, def->fields[i].start, ident->length)) { \
-			obj->obj.fields[i] = (value);                                     \
-			NEXT();                                                           \
-		}                                                                     \
-	}                                                                         \
-	err = ERR_NO_SUCH_FIELD;                                                  \
-	goto error;                                                               \
+#define STRUCT_SET_FIELD(value) {                                          \
+	ENSURE_OBJECT(ARG1_L);                                                 \
+	Identifier *ident = &struct_fields[ARG2];                              \
+	Object *obj = (Object *) val_to_ptr(ARG1_L);                           \
+	StructDefinition *def = obj->obj.definition;                           \
+	for (uint32_t i = 0; i < def->fields_count; i++) {                     \
+		Identifier *field = &def->fields[i];                               \
+		if (ident->length == field->length &&                              \
+				strncmp(ident->start, field->start, ident->length) == 0) { \
+			obj->obj.fields[i] = (value);                                  \
+			NEXT();                                                        \
+		}                                                                  \
+	}                                                                      \
+	goto error;                                                            \
 }
 
 // Converts an argument (uint16) to a number (double).
@@ -841,6 +841,7 @@ typedef struct {
 
 // Possible runtime errors.
 typedef enum {
+	ERR_NONE,
 	ERR_INVALID_OPERAND,
 	ERR_INVALID_FN,
 	ERR_INCORRECT_ARITY,
@@ -913,7 +914,7 @@ HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	uint32_t stack_start = 0;
 
 	// The type of a runtime error, if one is triggered
-	RuntimeError err;
+	RuntimeError err = ERR_NONE;
 
 	// Push the main function's call frame
 	frames_count++;
@@ -1138,8 +1139,9 @@ _STRUCT_FIELD: {
 
 	// Look for the field
 	for (uint32_t i = 0; i < def->fields_count; i++) {
-		if (ident->length == def->fields[i].length &&
-				strncmp(ident->start, def->fields[i].start, ident->length)) {
+		Identifier *field = &def->fields[i];
+		if (ident->length == field->length &&
+				strncmp(ident->start, field->start, ident->length) == 0) {
 			ARG1_L = obj->obj.fields[i];
 			NEXT();
 		}
