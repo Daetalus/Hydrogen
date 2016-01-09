@@ -923,6 +923,8 @@ HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	frames[frames_count - 1].stack_start = 0;
 	frames[frames_count - 1].return_slot = 0;
 
+	DISPATCH();
+
 	//
 	//  Storage
 	//
