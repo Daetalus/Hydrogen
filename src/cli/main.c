@@ -6,58 +6,60 @@
 #include <hydrogen.h>
 #include <hystdlib.h>
 
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
+
+#include "config.h"
 
 
-// Returns the contents of a file as a heap allocated string.
-char * file_contents(char *path) {
-	FILE *f = fopen(path, "r");
-	if (f == NULL) {
-		return NULL;
-	}
-
-	// Get the length of the file
-	fseek(f, 0, SEEK_END);
-	size_t length = ftell(f);
-	rewind(f);
-
-	// Read its contents
-	char *contents = malloc(sizeof(char) * (length + 1));
-	fread(contents, sizeof(char), length, f);
-	fclose(f);
-	contents[length] = '\0';
-	return contents;
+// Pretty prints an error.
+void print_err(HyError *err) {
+	printf("Error: %s\n", err->description);
+	printf("Line: %d\n", err->line);
 }
 
 
+// Main entry point.
 int main(int argc, char *argv[]) {
-	// Ensure we have an argument
-	if (argc <= 1) {
-		printf("Usage:\n    hydrogen <path to file>\n");
-		return 1;
+	// Parse options
+	Config config = config_new(argc, argv);
+	if (config.stage == STAGE_EXIT) {
+		// Help or version information was displayed and we don't want to do
+		// anything else
+		return EXIT_SUCCESS;
 	}
 
-	// Read the contents of the file
-	char *path = argv[1];
-	char *contents = file_contents(path);
-	if (contents == NULL) {
-		printf("Failed to open file `%s`\n", path);
-		return 1;
-	}
-
-	// Run the source string
+	// Create a VM
 	HyVM *vm = hy_new();
 	hy_add_stdlib(vm);
-	HyError *err = hy_run(vm, contents);
-	if (err != NULL) {
-		printf("Error: %s\n", err->description);
-		printf("Line: %d\n", err->line);
-		printf("Column: %d\n", err->column);
-		hy_err_free(err);
+
+	int result = EXIT_SUCCESS;
+	if (config.stage == STAGE_NORMAL) {
+		// Run the input
+		HyError *err;
+		if (config.input_type == INPUT_FILE) {
+			err = hy_run_file(vm, config.input);
+		} else {
+			err = hy_run(vm, config.input);
+		}
+
+		// Check for an error
+		if (err != NULL) {
+			print_err(err);
+			hy_err_free(err);
+			result = EXIT_FAILURE;
+		}
+	} else if (config.stage == STAGE_BYTECODE) {
+		// Print bytecode
+		printf("Bytecodebytecodebytecodesomemorebytecode\n");
+	} else if (config.stage == STAGE_REPL) {
+		// Start a REPL
+		printf("Sorry, REPL isn't implemented yet :(\n");
 	}
 
+	// Free resources
 	hy_free(vm);
-	free(contents);
-    return 0;
+	config_free(&config);
+
+    return result;
 }

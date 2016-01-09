@@ -117,11 +117,6 @@ int parse_path(Parser *parser, Identifier *path) {
 bool parse_call_or_assignment(Parser *parser) {
 	Lexer *lexer = parser->lexer;
 
-	// Check for an identifier
-	if (lexer->token.type != TOKEN_IDENTIFIER) {
-		return false;
-	}
-
 	// Parse an identifier list
 	Identifier path[MAX_PATH_DEPTH];
 	int count = parse_path(parser, path);
@@ -141,6 +136,8 @@ bool parse_call_or_assignment(Parser *parser) {
 		return true;
 	}
 
+	// TODO: The wrong token will be shown in the error here, reset the token
+	// to the first one in the `path` we parsed
 	return false;
 }
 
