@@ -1,4 +1,4 @@
-// 3|4|test|nil|1|2|hello this is a test|another test
+// 3|4|test|nil|1|2|hello this is a test|another test|3
 
 import "err"
 
@@ -38,3 +38,14 @@ err.println(b.c)
 
 b.aa = "another test"
 err.println(b.aa)
+
+
+struct Test3 {
+	a
+}
+
+let c = new Test3()
+let d = new Test3()
+d.a = 3
+c.a = d
+err.println(c.a.a)
