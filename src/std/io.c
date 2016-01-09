@@ -16,8 +16,12 @@ void io_print_value(FILE *stream, HyValue value) {
 		fprintf(stream, "%s", hy_expect_string(value));
 		break;
 	case HY_STRUCT:
+		// TODO
+		fprintf(stream, "struct");
+		break;
 	case HY_FN:
 		// TODO
+		fprintf(stream, "fn");
 		break;
 	case HY_BOOLEAN:
 		if (hy_to_bool(value)) {

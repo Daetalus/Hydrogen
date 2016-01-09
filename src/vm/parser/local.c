@@ -87,18 +87,18 @@ Variable local_capture(Parser *parser, char *name, size_t length) {
 	Variable result;
 	int slot;
 
-	// Search package top level locals
-	slot = package_local_find(fn->package, name, length);
-	if (slot >= 0) {
-		result.type = VAR_TOP_LEVEL;
-		result.slot = slot;
-		return result;
-	}
-
 	// Search parser locals
 	slot = local_find(parser, name, length);
 	if (slot >= 0) {
 		result.type = VAR_LOCAL;
+		result.slot = slot;
+		return result;
+	}
+
+	// Search package top level locals
+	slot = package_local_find(fn->package, name, length);
+	if (slot >= 0) {
+		result.type = VAR_TOP_LEVEL;
 		result.slot = slot;
 		return result;
 	}
@@ -149,14 +149,17 @@ bool local_exists_all(Parser *parser, char *name, size_t length) {
 bool local_exists(Parser *parser, char *name, size_t length) {
 	Function *fn = &parser->vm->functions[parser->fn_index];
 
-	// Top level locals in package
-	if (package_local_find(fn->package, name, length) >= 0) {
-		return true;
-	}
-
 	// Parser locals
 	if (local_find(parser, name, length) >= 0) {
 		return true;
+	}
+
+	// Only check against package top level locals if we're currently in the
+	// top level
+	if (parser_is_top_level(parser)) {
+		if (package_local_find(fn->package, name, length) >= 0) {
+			return true;
+		}
 	}
 
 	// Existing upvalues

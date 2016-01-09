@@ -353,3 +353,30 @@ TEST(Functions, CallAnonymousFunction) {
 
 	COMPILER_FREE();
 }
+
+
+// Tests overriding top level variables in function arguments and locals.
+TEST(Functions, OverrideTopLevel) {
+	COMPILER(
+		"let a = 3\n"
+		"let b = 4\n"
+		"fn test(a) {\n"
+		"	let b = a\n"
+		"}\n"
+	);
+
+	FN(0);
+	ASSERT_INSTR(MOV_LI, 0, 3, 0);
+	ASSERT_INSTR(MOV_TL, 0, 0, 0);
+	ASSERT_INSTR(MOV_LI, 0, 4, 0);
+	ASSERT_INSTR(MOV_TL, 1, 0, 0);
+	ASSERT_INSTR(MOV_LF, 0, 1, 0);
+	ASSERT_INSTR(MOV_TL, 2, 0, 0);
+	ASSERT_RET();
+
+	FN(1);
+	ASSERT_INSTR(MOV_LL, 1, 0, 0);
+	ASSERT_RET();
+
+	COMPILER_FREE();
+}

@@ -1121,12 +1121,10 @@ _UPVALUE_CLOSE:
 
 _STRUCT_NEW: {
 	StructDefinition *def = &structs[ARG2];
-	Object *obj = malloc(sizeof(Object) + sizeof(HyValue) *
-		def->fields_count);
+	Object *obj = malloc(sizeof(Object) + sizeof(HyValue) * def->fields_count);
 	obj->type = OBJ_STRUCT;
 	obj->obj.definition = def;
-	memcpy(obj->obj.fields, def->values, sizeof(HyValue) *
-		def->fields_count);
+	memcpy(obj->obj.fields, def->values, sizeof(HyValue) * def->fields_count);
 	ARG1_L = ptr_to_val(obj);
 	NEXT();
 }
