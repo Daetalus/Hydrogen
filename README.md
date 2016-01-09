@@ -38,14 +38,14 @@ $ hydrogen
 
 The command line interface has a number of options:
 
-Option    | Description
---------- | -----------
-`-h`      | Shows this help information.
-`-v`      | Shows the version number of the current Hydrogen installation.
-`-b`      | Prints the program's compiled bytecode.
-`-s`      | Doesn't execute a file, but rather treats the command line arguments as Hydrogen source code.
-`--joff`  | Turns off JIT compilation during runtime.
-`--jinfo` | Shows information about hot loops that are JIT-compiled during execution.
+Option            | Description
+----------------- | -----------
+`-b`              | Prints a program's compiled bytecode.
+`--stdin`         | Read program source code from the standard input.
+`--joff`          | Turns off JIT compilation during runtime.
+`--jinfo`         | Shows information about hot loops that are JIT-compiled during execution.
+`--help`, `-h`    | Shows this help information.
+`--version`, `-v` | Shows the version number of the current Hydrogen installation.
 
 
 ### License
