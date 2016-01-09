@@ -42,11 +42,11 @@
 
 // Evaluates to true if `value` is a string.
 #define IS_STRING_VALUE(value) \
-	(IS_PTR_VALUE(value) && ((Object *) value_to_ptr(value))->type == OBJ_STRING)
+	(IS_PTR_VALUE(value) && ((Object *) val_to_ptr(value))->type == OBJ_STRING)
 
 // Evaluates to true if `value` is an object.
 #define IS_OBJ_VALUE(value) \
-	(IS_PTR_VALUE(value) && ((Object *) value_to_ptr(value))->type == OBJ_STRUCT)
+	(IS_PTR_VALUE(value) && ((Object *) val_to_ptr(value))->type == OBJ_STRUCT)
 
 // Evaluates to true if `value` is a function, when all quiet NaN bits and the
 // closure mask (not the sign bit) are set.
@@ -64,15 +64,15 @@
 
 // Evaluates to a string from a value.
 #define TO_STR(value) \
-	(&(((Object *) value_to_ptr((value)))->string[0]))
+	(&(((Object *) val_to_ptr((value)))->string[0]))
 
 // Evaluates to a struct's fields array.
 #define TO_FIELDS(value) \
-	(&(((Object *) value_to_ptr((value)))->obj.fields[0]))
+	(&(((Object *) val_to_ptr((value)))->obj.fields[0]))
 
 // Evaluates to the number of fields in a struct.
 #define FIELDS_COUNT(value) \
-	(((Object *) value_to_ptr((value)))->obj.definition->fields_count)
+	(((Object *) val_to_ptr((value)))->obj.definition->fields_count)
 
 
 // The type of an object.
@@ -102,6 +102,11 @@ typedef struct {
 } Object;
 
 
+
+//
+//  Type Conversion
+//
+
 // A union to convert between doubles and unsigned 8 byte integers without
 // implicit conversion.
 typedef union {
@@ -119,7 +124,7 @@ typedef union {
 
 
 // Converts a value into a number.
-static inline double value_to_number(uint64_t value) {
+static inline double val_to_num(uint64_t value) {
 	Converter64Bit convert;
 	convert.value = value;
 	return convert.number;
@@ -127,7 +132,7 @@ static inline double value_to_number(uint64_t value) {
 
 
 // Converts a number into a value.
-static inline uint64_t number_to_value(double number) {
+static inline uint64_t num_to_val(double number) {
 	Converter64Bit convert;
 	convert.number = number;
 	return convert.value;
@@ -135,7 +140,7 @@ static inline uint64_t number_to_value(double number) {
 
 
 // Converts a value into a pointer.
-static inline void * value_to_ptr(uint64_t value) {
+static inline void * val_to_ptr(uint64_t value) {
 	Converter64Bit convert;
 	convert.value = (value & ~(QUIET_NAN | SIGN));
 	return convert.ptr;
@@ -143,7 +148,7 @@ static inline void * value_to_ptr(uint64_t value) {
 
 
 // Converts a pointer into a value.
-static inline uint64_t ptr_to_value(void *ptr) {
+static inline uint64_t ptr_to_val(void *ptr) {
 	Converter64Bit convert;
 	convert.ptr = ptr;
 	return (convert.value) ^ (QUIET_NAN | SIGN);

@@ -28,7 +28,7 @@ double hy_expect_number(HyValue value) {
 		// Trigger runtime error
 		// TODO
 	}
-	return value_to_number(value);
+	return val_to_num(value);
 }
 
 

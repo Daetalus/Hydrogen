@@ -58,7 +58,7 @@ void hy_free(HyVM *vm) {
 
 	// Strings
 	for (uint32_t i = 0; i < vm->strings_count; i++) {
-		free(value_to_ptr(vm->strings[i]));
+		free(val_to_ptr(vm->strings[i]));
 	}
 
 	// Functions
@@ -175,14 +175,14 @@ uint16_t vm_add_string(VirtualMachine *vm, char *string) {
 	Object *obj = malloc(sizeof(Object) + sizeof(char) * (strlen(string) + 1));
 	obj->type = OBJ_STRING;
 	strcpy(&obj->string[0], string);
-	vm->strings[index] = ptr_to_value(obj);
+	vm->strings[index] = ptr_to_val(obj);
 	return index;
 }
 
 
 // Returns the string at `index` in the VM's strings list.
 char * vm_string(VirtualMachine *vm, int index) {
-	Object *obj = value_to_ptr(vm->strings[index]);
+	Object *obj = val_to_ptr(vm->strings[index]);
 	return &obj->string[0];
 }
 
@@ -192,7 +192,7 @@ char * vm_string(VirtualMachine *vm, int index) {
 uint16_t vm_add_number(VirtualMachine *vm, double number) {
 	uint16_t index = vm->numbers_count++;
 	ARRAY_REALLOC(vm->numbers, HyValue);
-	vm->numbers[index] = number_to_value(number);
+	vm->numbers[index] = num_to_val(number);
 	return index;
 }
 
@@ -600,7 +600,6 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 // is the recursion depth limit.
 #define MAX_CALL_STACK_SIZE 1024
 
-
 // Evaluates to the opcode of an instruction.
 #define INSTR_OPCODE(instr) ((instr) & 0xff)
 
@@ -621,12 +620,6 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 #define ARG2_L (stack[stack_start + ARG2])
 #define ARG3_L (stack[stack_start + ARG3])
 
-
-// Converts an argument (uint16) to a number (double).
-#define INTEGER_TO_VALUE(integer) \
-	number_to_value((double) uint16_to_int16(integer))
-
-
 // Triggers an error if an argument is not a number.
 #define ENSURE_NUMBER(arg)            \
 	if (!IS_NUMBER_VALUE(arg)) {      \
@@ -639,7 +632,6 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 		err = ERR_INVALID_OPERAND;                          \
 		goto error;                                         \
 	}
-
 
 // Triggers an error if an argument is not a string.
 #define ENSURE_STR(arg)            \
@@ -654,7 +646,6 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 		goto error;                                          \
 	}
 
-
 // Triggers an error if an argument isn't a function.
 #define ENSURE_FN(arg)        \
 	if (!IS_FN_VALUE(arg)) {  \
@@ -662,44 +653,37 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 		goto error;           \
 	}
 
-
 // Triggers an error if an argument isn't an object.
 #define ENSURE_OBJECT(arg)                                        \
 	if (!IS_PTR_VALUE(arg) ||                                     \
-			((Object *) value_to_ptr(arg))->type != OBJ_STRUCT) { \
+			((Object *) val_to_ptr(arg))->type != OBJ_STRUCT) { \
 		err = ERR_INVALID_FIELD_ACCESS;                           \
 		goto error;                                               \
 	}
 
-
 // Shorthand for defining a set of arithmetic operations.
-#define ARITHMETIC_OPERATION(prefix, op)                           \
-	_ ## prefix ## _LL:                                            \
-		ENSURE_NUMBERS(ARG2_L, ARG3_L);                            \
-		ARG1_L = number_to_value(value_to_number(ARG2_L) op        \
-			value_to_number(ARG3_L));                              \
-		NEXT();                                                    \
-	_ ## prefix ## _LI:                                            \
-		ENSURE_NUMBER(ARG2_L);                                     \
-		ARG1_L = number_to_value(value_to_number(ARG2_L) op        \
-			(double) uint16_to_int16(ARG3));                       \
-		NEXT();                                                    \
-	_ ## prefix ## _LN:                                            \
-		ENSURE_NUMBER(ARG2_L);                                     \
-		ARG1_L = number_to_value(value_to_number(ARG2_L) op        \
-			value_to_number(numbers[ARG3]));                       \
-		NEXT();                                                    \
-	_ ## prefix ## _IL:                                            \
-		ENSURE_NUMBER(ARG3_L);                                     \
-		ARG1_L = number_to_value((double) uint16_to_int16(ARG2) op \
-			value_to_number(ARG3_L));                              \
-		NEXT();                                                    \
-	_ ## prefix ## _NL:                                            \
-		ENSURE_NUMBER(ARG3_L);                                     \
-		ARG1_L = number_to_value(value_to_number(numbers[ARG2]) op \
-			value_to_number(ARG3_L));                              \
+#define ARITHMETIC_OPERATION(prefix, op)                                      \
+	_ ## prefix ## _LL:                                                       \
+		ENSURE_NUMBERS(ARG2_L, ARG3_L);                                       \
+		ARG1_L = num_to_val(val_to_num(ARG2_L) op val_to_num(ARG3_L));        \
+		NEXT();                                                               \
+	_ ## prefix ## _LI:                                                       \
+		ENSURE_NUMBER(ARG2_L);                                                \
+		ARG1_L = num_to_val(val_to_num(ARG2_L) op UINT16_TO_NUM(ARG3));       \
+		NEXT();                                                               \
+	_ ## prefix ## _LN:                                                       \
+		ENSURE_NUMBER(ARG2_L);                                                \
+		ARG1_L = num_to_val(val_to_num(ARG2_L) op                             \
+			val_to_num(numbers[ARG3]));                                       \
+		NEXT();                                                               \
+	_ ## prefix ## _IL:                                                       \
+		ENSURE_NUMBER(ARG3_L);                                                \
+		ARG1_L = num_to_val(UINT16_TO_NUM(ARG2) op val_to_num(ARG3_L));       \
+		NEXT();                                                               \
+	_ ## prefix ## _NL:                                                       \
+		ENSURE_NUMBER(ARG3_L);                                                \
+		ARG1_L = num_to_val(val_to_num(numbers[ARG2]) op val_to_num(ARG3_L)); \
 		NEXT();
-
 
 // Shorthand for defining a set of equality operations.
 #define EQUALITY_OPERATION(prefix, binary, unary)                          \
@@ -715,7 +699,7 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 		}                                                                  \
 		NEXT();                                                            \
 	_ ## prefix ## _LI:                                                    \
-		if (ARG1_L binary INTEGER_TO_VALUE(ARG2)) {                        \
+		if (ARG1_L binary UINT16_TO_VAL(ARG2)) {                           \
 			ip++;                                                          \
 		}                                                                  \
 		NEXT();                                                            \
@@ -742,28 +726,26 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 		}                                                                  \
 		NEXT();
 
-
 // Shorthand for defining an order operation.
-#define ORDER_OPERATION(prefix, operator)                                      \
-	_ ## prefix ## _LL:                                                        \
-		ENSURE_NUMBERS(ARG1_L, ARG2_L);                                        \
-		if (value_to_number(ARG1_L) operator value_to_number(ARG2_L)) {        \
-			ip++;                                                              \
-		}                                                                      \
-		NEXT();                                                                \
-	_ ## prefix ## _LI:                                                        \
-		ENSURE_NUMBER(ARG1_L);                                                 \
-		if (value_to_number(ARG1_L) operator (double) uint16_to_int16(ARG2)) { \
-			ip++;                                                              \
-		}                                                                      \
-		NEXT();                                                                \
-	_ ## prefix ## _LN:                                                        \
-		ENSURE_NUMBER(ARG1_L);                                                 \
-		if (value_to_number(ARG1_L) operator value_to_number(numbers[ARG2])) { \
-			ip++;                                                              \
-		}                                                                      \
+#define ORDER_OPERATION(prefix, operator)                            \
+	_ ## prefix ## _LL:                                              \
+		ENSURE_NUMBERS(ARG1_L, ARG2_L);                              \
+		if (val_to_num(ARG1_L) operator val_to_num(ARG2_L)) {        \
+			ip++;                                                    \
+		}                                                            \
+		NEXT();                                                      \
+	_ ## prefix ## _LI:                                              \
+		ENSURE_NUMBER(ARG1_L);                                       \
+		if (val_to_num(ARG1_L) operator UINT16_TO_NUM(ARG2)) {       \
+			ip++;                                                    \
+		}                                                            \
+		NEXT();                                                      \
+	_ ## prefix ## _LN:                                              \
+		ENSURE_NUMBER(ARG1_L);                                       \
+		if (val_to_num(ARG1_L) operator val_to_num(numbers[ARG2])) { \
+			ip++;                                                    \
+		}                                                            \
 		NEXT();
-
 
 // Call a function.
 #define CALL(fn_index, call_arity, argument_start, fn_return_slot)         \
@@ -783,24 +765,22 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 		fn->defined_upvalues[i]->fn_stack_start = stack_start;             \
 	}
 
-
 // Return from a function.
-#define RETURN(value)                                    \
-	if (frames_count == 1) {                             \
-		goto finish;                                     \
-	}                                                    \
+#define RETURN(value)                                      \
+	if (frames_count == 1) {                               \
+		goto finish;                                       \
+	}                                                      \
 	stack[frames[frames_count - 1].return_slot] = (value); \
-	frames_count--;                                      \
-	stack_start = frames[frames_count - 1].stack_start;  \
-	fn = frames[frames_count - 1].fn;                    \
+	frames_count--;                                        \
+	stack_start = frames[frames_count - 1].stack_start;    \
+	fn = frames[frames_count - 1].fn;                      \
 	ip = frames[frames_count - 1].ip;
-
 
 // Sets the field of a struct.
 #define STRUCT_SET_FIELD(value) {                                             \
 	ENSURE_OBJECT(ARG1_L);                                                    \
 	Identifier *ident = &struct_fields[ARG2];                                 \
-	Object *obj = (Object *) value_to_ptr(ARG1_L);                            \
+	Object *obj = (Object *) val_to_ptr(ARG1_L);                            \
 	StructDefinition *def = obj->obj.definition;                              \
 	for (uint32_t i = 0; i < def->fields_count; i++) {                        \
 		if (ident->length == def->fields[i].length &&                         \
@@ -813,16 +793,18 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 	goto error;                                                               \
 }
 
+// Converts an argument (uint16) to a number (double).
+#define UINT16_TO_NUM(uint16) ((double) uint16_to_int16(uint16))
+
+// Converts an argument (uint16) to a number (a double) as a value (uint64).
+#define UINT16_TO_VAL(uint16) num_to_val(UINT16_TO_NUM(uint16))
 
 // Jumps to the next instruction.
 #define DISPATCH() goto *dispatch_table[INSTR_OPCODE(*ip)];
 
 // Jumps to the next instruction using a dispatch table for computed gotos by
 // incrementing the instruction pointer.
-#define NEXT() \
-	ip++;      \
-	DISPATCH();
-
+#define NEXT() ip++; DISPATCH();
 
 // The stack slot of an open upvalue.
 #define UPVALUE_STACK_SLOT(index) \
@@ -830,7 +812,7 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 
 
 // Concatenates two strings.
-char * concat_str(char *left, char *right) {
+static inline char * concat_str(char *left, char *right) {
 	int length = strlen(left);
 	char *str = malloc(sizeof(char) * (length + strlen(right) + 1));
 	strcpy(str, left);
@@ -949,7 +931,7 @@ _MOV_LL:
 	ARG1_L = ARG2_L;
 	NEXT();
 _MOV_LI:
-	ARG1_L = INTEGER_TO_VALUE(ARG2);
+	ARG1_L = UINT16_TO_VAL(ARG2);
 	NEXT();
 _MOV_LN:
 	ARG1_L = numbers[ARG2];
@@ -998,57 +980,42 @@ _MOV_TL:
 
 _MOD_LL:
 	ENSURE_NUMBERS(ARG2_L, ARG3_L);
-	ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
-		value_to_number(ARG3_L)));
+	ARG1_L = num_to_val(fmod(val_to_num(ARG2_L),
+		val_to_num(ARG3_L)));
 	NEXT();
 _MOD_LI:
 	ENSURE_NUMBER(ARG2_L);
-	ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
-		(double) uint16_to_int16(ARG3)));
+	ARG1_L = num_to_val(fmod(val_to_num(ARG2_L), UINT16_TO_NUM(ARG3)));
 	NEXT();
 _MOD_LN:
 	ENSURE_NUMBER(ARG2_L);
-	ARG1_L = number_to_value(fmod(value_to_number(ARG2_L),
-		value_to_number(numbers[ARG3])));
+	ARG1_L = num_to_val(fmod(val_to_num(ARG2_L), val_to_num(numbers[ARG3])));
 	NEXT();
 _MOD_IL:
 	ENSURE_NUMBER(ARG3_L);
-	ARG1_L = number_to_value(fmod((double) uint16_to_int16(ARG2),
-		value_to_number(ARG3_L)));
+	ARG1_L = num_to_val(fmod(UINT16_TO_NUM(ARG2), val_to_num(ARG3_L)));
 	NEXT();
 _MOD_NL:
 	ENSURE_NUMBER(ARG3_L);
-	ARG1_L = number_to_value(fmod(
-		value_to_number(numbers[ARG2]),
-		value_to_number(ARG3_L)
-	));
+	ARG1_L = num_to_val(fmod(val_to_num(numbers[ARG2]), val_to_num(ARG3_L)));
 	NEXT();
 
 _CONCAT_LL:
 	ENSURE_STRS(ARG2_L, ARG3_L);
-	ARG1_L = ptr_to_value(concat_str(
-		value_to_ptr(ARG2_L),
-		value_to_ptr(ARG3_L)
-	));
+	ARG1_L = ptr_to_val(concat_str(val_to_ptr(ARG2_L), val_to_ptr(ARG3_L)));
 	NEXT();
 _CONCAT_LS:
 	ENSURE_STR(ARG2_L);
-	ARG1_L = ptr_to_value(concat_str(
-		value_to_ptr(ARG2_L),
-		TO_STR(strings[ARG3])
-	));
+	ARG1_L = ptr_to_val(concat_str(val_to_ptr(ARG2_L), TO_STR(strings[ARG3])));
 	NEXT();
 _CONCAT_SL:
 	ENSURE_STR(ARG2_L);
-	ARG1_L = ptr_to_value(concat_str(
-		TO_STR(strings[ARG2]),
-		value_to_ptr(ARG3_L)
-	));
+	ARG1_L = ptr_to_val(concat_str(TO_STR(strings[ARG2]), val_to_ptr(ARG3_L)));
 	NEXT();
 
 _NEG_L:
 	ENSURE_NUMBER(ARG1_L);
-	ARG1_L = number_to_value(-value_to_number(ARG1_L));
+	ARG1_L = num_to_val(-val_to_num(ARG1_L));
 	NEXT();
 
 
@@ -1119,7 +1086,7 @@ _RET_L:
 	RETURN(ARG1_L);
 	NEXT();
 _RET_I:
-	RETURN(INTEGER_TO_VALUE(ARG1));
+	RETURN(UINT16_TO_VAL(ARG1));
 	NEXT();
 _RET_N:
 	RETURN(numbers[ARG1]);
@@ -1157,14 +1124,14 @@ _STRUCT_NEW: {
 	obj->obj.definition = def;
 	memcpy(obj->obj.fields, def->values, sizeof(HyValue) *
 		def->fields_count);
-	ARG1_L = ptr_to_value(obj);
+	ARG1_L = ptr_to_val(obj);
 	NEXT();
 }
 
 _STRUCT_FIELD: {
 	ENSURE_OBJECT(ARG2_L);
 	Identifier *ident = &struct_fields[ARG3];
-	Object *obj = (Object *) value_to_ptr(ARG2_L);
+	Object *obj = (Object *) val_to_ptr(ARG2_L);
 	StructDefinition *def = obj->obj.definition;
 
 	// Look for the field
@@ -1184,7 +1151,7 @@ _STRUCT_FIELD: {
 _STRUCT_SET_L:
 	STRUCT_SET_FIELD(ARG3_L);
 _STRUCT_SET_I:
-	STRUCT_SET_FIELD(INTEGER_TO_VALUE(ARG3));
+	STRUCT_SET_FIELD(UINT16_TO_VAL(ARG3));
 _STRUCT_SET_N:
 	STRUCT_SET_FIELD(numbers[ARG3]);
 _STRUCT_SET_S:

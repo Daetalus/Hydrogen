@@ -249,7 +249,7 @@ Operand operand_new(void) {
 // Converts an integer or number operand into a double value.
 double operand_to_number(Parser *parser, Operand operand) {
 	if (operand.type == OP_NUMBER) {
-		return value_to_number(parser->vm->numbers[operand.number]);
+		return val_to_num(parser->vm->numbers[operand.number]);
 	} else {
 		return (double) operand.integer;
 	}
