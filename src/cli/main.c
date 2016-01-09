@@ -35,23 +35,24 @@ int main(int argc, char *argv[]) {
 
 	int result = EXIT_SUCCESS;
 	if (config.stage == STAGE_NORMAL) {
-		// Run the input
-		HyError *err;
-		if (config.input_type == INPUT_FILE) {
-			err = hy_run_file(vm, config.input);
-		} else {
-			err = hy_run(vm, config.input);
-		}
+		if (!config.show_bytecode) {
+			// Run the input
+			HyError *err;
+			if (config.input_type == INPUT_FILE) {
+				err = hy_run_file(vm, config.input);
+			} else {
+				err = hy_run(vm, config.input);
+			}
 
-		// Check for an error
-		if (err != NULL) {
-			print_err(err);
-			hy_err_free(err);
-			result = EXIT_FAILURE;
+			// Check for an error
+			if (err != NULL) {
+				print_err(err);
+				hy_err_free(err);
+				result = EXIT_FAILURE;
+			}
+		} else {
+			printf("Some bytecode\n");
 		}
-	} else if (config.stage == STAGE_BYTECODE) {
-		// Print bytecode
-		printf("Bytecodebytecodebytecodesomemorebytecode\n");
 	} else if (config.stage == STAGE_REPL) {
 		// Start a REPL
 		printf("Sorry, REPL isn't implemented yet :(\n");

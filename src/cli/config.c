@@ -49,19 +49,14 @@ void config_opt(Config *config, char *opt) {
 		config->enable_jit = false;
 	} else if (strcmp(opt, "-b") == 0) {
 		// Show bytecode
-		config->stage = STAGE_BYTECODE;
+		config->show_bytecode = true;
 	} else if (strcmp(opt, "--stdin") == 0) {
 		// Read from stdin
-		if (config->stage == STAGE_REPL) {
-			config->stage = STAGE_NORMAL;
-		}
+		config->stage = STAGE_NORMAL;
 		config->input_type = INPUT_SOURCE;
-		config->input = read_stdin();
 	} else if (opt[0] != '-') {
 		// Path to input
-		if (config->stage == STAGE_REPL) {
-			config->stage = STAGE_NORMAL;
-		}
+		config->stage = STAGE_NORMAL;
 		config->input_type = INPUT_FILE;
 		config->input = opt;
 	} else {
@@ -78,6 +73,7 @@ Config config_new(int argc, char *argv[]) {
 	Config config;
 	config.enable_jit = true;
 	config.show_jit_info = false;
+	config.show_bytecode = false;
 	config.stage = STAGE_REPL;
 	config.input_type = INPUT_FILE;
 	config.input = NULL;
@@ -85,6 +81,11 @@ Config config_new(int argc, char *argv[]) {
 	// Parse options
 	for (int i = 1; i < argc && config.stage != STAGE_EXIT; i++) {
 		config_opt(&config, argv[i]);
+	}
+
+	// Read the source from the standard input
+	if (config.stage != STAGE_EXIT && config.input_type == INPUT_SOURCE) {
+		config.input = read_stdin();
 	}
 
 	return config;

@@ -12,7 +12,6 @@
 // Which stage of execution to reach before exiting.
 typedef enum {
 	STAGE_NORMAL,
-	STAGE_BYTECODE,
 	STAGE_REPL,
 	STAGE_EXIT,
 } Stage;
@@ -33,6 +32,9 @@ typedef struct {
 	// Whether to display information about JIT compiled loops during
 	// execution or not.
 	bool show_jit_info;
+
+	// Whether to just output bytecode instead of actually executing code.
+	bool show_bytecode;
 
 	// Which stage of execution to reach before stopping.
 	Stage stage;
