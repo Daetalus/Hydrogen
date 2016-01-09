@@ -1,4 +1,4 @@
-// hello|world|another test|3|6|3|3|4|4
+// hello|world|another test|3|6|3|3|4|4|120|720
 
 import "err"
 
@@ -66,3 +66,15 @@ fn (Test) ret() {
 }
 
 err.println(a.ret())
+
+
+fn (Test) factorial(n) {
+	if n <= 1 {
+		return 1
+	} else {
+		return n * self.factorial(n - 1)
+	}
+}
+
+err.println(a.factorial(5))
+err.println(a.factorial(6))
