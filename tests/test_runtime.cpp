@@ -106,11 +106,19 @@ RUNTIME_TEST(If, IfElseIfsElse, "if/if_elseifs_else.hy");
 RUNTIME_TEST(If, Nested, "if/nested.hy");
 RUNTIME_TEST(If, ComplexCondition, "if/complex_condition.hy");
 
-// Functions
-RUNTIME_TEST(Fn, Call, "fn/call.hy");
-RUNTIME_TEST(Fn, Recursion, "fn/recursion.hy");
-
 // While loops
 RUNTIME_TEST(While, Basic, "while/basic.hy");
 RUNTIME_TEST(While, Break, "while/break.hy");
 RUNTIME_TEST(While, Nested, "while/nested.hy");
+RUNTIME_TEST(While, NestedBreak, "while/nested_break.hy");
+
+// Infinite loops
+RUNTIME_TEST(Loop, Basic, "loop/basic.hy");
+RUNTIME_TEST(Loop, Nested, "loop/nested.hy");
+
+// Functions
+RUNTIME_TEST(Fn, Call, "fn/call.hy");
+RUNTIME_TEST(Fn, Recursion, "fn/recursion.hy");
+
+// Closures
+RUNTIME_TEST(Closure, Upvalues, "closure/upvalues.hy");
