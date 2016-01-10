@@ -4,6 +4,7 @@
 //
 
 #include "value.h"
+#include "vm.h"
 
 
 // Implicitly converts a value to a boolean, not triggering an error.

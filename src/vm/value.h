@@ -8,8 +8,6 @@
 
 #include <stdlib.h>
 
-#include "vm.h"
-
 
 // Integer tags for primitive values.
 #define NIL_TAG   1
@@ -83,14 +81,14 @@ typedef enum {
 
 
 // Used to represent all structs and strings during runtime.
-typedef struct {
+typedef struct object {
 	// The type of this object (a struct or string).
 	ObjectType type;
 
 	union {
 		struct {
 			// A pointer to the struct definition.
-			StructDefinition *definition;
+			struct struct_definition *definition;
 
 			// The fields of the struct.
 			uint64_t fields[0];
@@ -99,6 +97,10 @@ typedef struct {
 		// The contents of a string.
 		char string[0];
 	};
+
+	// The next object in the linked list of all objects for the garbage
+	// collector.
+	struct object *next;
 } Object;
 
 

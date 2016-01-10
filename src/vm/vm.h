@@ -13,6 +13,7 @@
 #include <hydrogen.h>
 
 #include "util.h"
+#include "gc.h"
 
 
 // The maximum number of upvalues that can be defined in a function.
@@ -71,7 +72,7 @@ typedef struct {
 
 
 // A struct definition.
-typedef struct {
+typedef struct struct_definition {
 	// The name of the struct.
 	char *name;
 	size_t length;
@@ -192,6 +193,9 @@ typedef struct vm {
 
 	// Struct field names encountered during compilation.
 	ARRAY(Identifier, fields);
+
+	// The garbage collector.
+	GarbageCollector gc;
 
 	// A heap allocated error object, set to a value if an error occurs.
 	HyError *err;

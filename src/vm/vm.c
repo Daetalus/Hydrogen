@@ -19,6 +19,7 @@
 // Create a new interpreter state.
 HyVM * hy_new(void) {
 	VirtualMachine *vm = malloc(sizeof(VirtualMachine));
+	vm->gc = gc_new();
 	vm->err = NULL;
 
 	// Allocate memory for arrays
@@ -152,12 +153,6 @@ HyError * hy_run_file(HyVM *vm, char *path) {
 // Directly triggers an error.
 void hy_trigger_error(HyVM *vm, char *message) {
 	err_fatal(vm, message);
-}
-
-
-// Run the garbage collector.
-void hy_collect_garbage(HyVM *vm) {
-	// TODO
 }
 
 
@@ -905,6 +900,7 @@ HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	Function *functions = vm->functions;
 	StructDefinition *structs = vm->structs;
 	Identifier *struct_fields = vm->fields;
+	GarbageCollector *gc = &vm->gc;
 
 	// The instruction pointer for the currently executing function (the top
 	// most on the call frame stack)
@@ -1120,12 +1116,14 @@ _UPVALUE_CLOSE:
 	//
 
 _STRUCT_NEW: {
+	gc_check(gc);
 	StructDefinition *def = &structs[ARG2];
 	Object *obj = malloc(sizeof(Object) + sizeof(HyValue) * def->fields_count);
 	obj->type = OBJ_STRUCT;
 	obj->obj.definition = def;
 	memcpy(obj->obj.fields, def->values, sizeof(HyValue) * def->fields_count);
 	ARG1_L = ptr_to_val(obj);
+	gc_add(gc, obj);
 	NEXT();
 }
 
@@ -1167,6 +1165,7 @@ error:
 	printf("FAILED! %d\n", err);
 
 finish:
+	gc_free(vm);
 	free(stack);
 	free(frames);
 	return NULL;
