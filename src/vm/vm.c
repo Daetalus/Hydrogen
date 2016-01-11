@@ -656,138 +656,6 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 		goto error;                                             \
 	}
 
-// Shorthand for defining a set of arithmetic operations.
-#define ARITHMETIC_OPERATION(prefix, op)                                      \
-	_ ## prefix ## _LL:                                                       \
-		ENSURE_NUMBERS(ARG2_L, ARG3_L);                                       \
-		ARG1_L = num_to_val(val_to_num(ARG2_L) op val_to_num(ARG3_L));        \
-		NEXT();                                                               \
-	_ ## prefix ## _LI:                                                       \
-		ENSURE_NUMBER(ARG2_L);                                                \
-		ARG1_L = num_to_val(val_to_num(ARG2_L) op UINT16_TO_NUM(ARG3));       \
-		NEXT();                                                               \
-	_ ## prefix ## _LN:                                                       \
-		ENSURE_NUMBER(ARG2_L);                                                \
-		ARG1_L = num_to_val(val_to_num(ARG2_L) op                             \
-			val_to_num(numbers[ARG3]));                                       \
-		NEXT();                                                               \
-	_ ## prefix ## _IL:                                                       \
-		ENSURE_NUMBER(ARG3_L);                                                \
-		ARG1_L = num_to_val(UINT16_TO_NUM(ARG2) op val_to_num(ARG3_L));       \
-		NEXT();                                                               \
-	_ ## prefix ## _NL:                                                       \
-		ENSURE_NUMBER(ARG3_L);                                                \
-		ARG1_L = num_to_val(val_to_num(numbers[ARG2]) op val_to_num(ARG3_L)); \
-		NEXT();
-
-// Shorthand for defining a set of equality operations.
-#define EQUALITY_OPERATION(prefix, binary, unary)                          \
-	_ ## prefix ## _LL:                                                    \
-		if (unary ((ARG1_L == ARG2_L) ||                                   \
-				(IS_STRING_VALUE(ARG1_L) && IS_STRING_VALUE(ARG2_L) &&     \
-					strcmp(TO_STR(ARG1_L), TO_STR(ARG2_L)) == 0) ||        \
-				(IS_OBJ_VALUE(ARG1_L) && IS_OBJ_VALUE(ARG1_L) &&           \
-					FIELDS_COUNT(ARG1_L) == FIELDS_COUNT(ARG2_L) &&        \
-					memcmp(TO_FIELDS(ARG1_L), TO_FIELDS(ARG2_L),           \
-						FIELDS_COUNT(ARG1_L) * sizeof(uint64_t)) == 0))) { \
-			ip++;                                                          \
-		}                                                                  \
-		NEXT();                                                            \
-	_ ## prefix ## _LI:                                                    \
-		if (ARG1_L binary UINT16_TO_VAL(ARG2)) {                           \
-			ip++;                                                          \
-		}                                                                  \
-		NEXT();                                                            \
-	_ ## prefix ## _LN:                                                    \
-		if (ARG1_L binary numbers[ARG2]) {                                 \
-			ip++;                                                          \
-		}                                                                  \
-		NEXT();                                                            \
-	_ ## prefix ## _LS:                                                    \
-		if (unary (IS_STRING_VALUE(ARG1_L) &&                              \
-				strcmp(TO_STR(ARG1_L), strings[ARG2]->contents) == 0)) {   \
-			ip++;                                                          \
-		}                                                                  \
-		NEXT();                                                            \
-	_ ## prefix ## _LP:                                                    \
-		if (ARG1_L binary PRIMITIVE_FROM_TAG(ARG2)) {                      \
-			ip++;                                                          \
-		}                                                                  \
-		NEXT();                                                            \
-	_ ## prefix ## _LF:                                                    \
-		if (unary (IS_FN_VALUE(ARG1_L) &&                                  \
-				VALUE_TO_INDEX(ARG1_L, FN_TAG) == ARG2)) {                 \
-			ip++;                                                          \
-		}                                                                  \
-		NEXT();
-
-// Shorthand for defining an order operation.
-#define ORDER_OPERATION(prefix, operator)                            \
-	_ ## prefix ## _LL:                                              \
-		ENSURE_NUMBERS(ARG1_L, ARG2_L);                              \
-		if (val_to_num(ARG1_L) operator val_to_num(ARG2_L)) {        \
-			ip++;                                                    \
-		}                                                            \
-		NEXT();                                                      \
-	_ ## prefix ## _LI:                                              \
-		ENSURE_NUMBER(ARG1_L);                                       \
-		if (val_to_num(ARG1_L) operator UINT16_TO_NUM(ARG2)) {       \
-			ip++;                                                    \
-		}                                                            \
-		NEXT();                                                      \
-	_ ## prefix ## _LN:                                              \
-		ENSURE_NUMBER(ARG1_L);                                       \
-		if (val_to_num(ARG1_L) operator val_to_num(numbers[ARG2])) { \
-			ip++;                                                    \
-		}                                                            \
-		NEXT();
-
-// Call a function.
-#define CALL(fn_index, call_arity, argument_start, fn_return_slot)         \
-	frames[frames_count - 1].ip = ip;                                      \
-	fn = &functions[(fn_index)];                                           \
-	if (fn->arity != (call_arity)) {                                       \
-		err = ERR_INCORRECT_ARITY;                                         \
-		goto error;                                                        \
-	}                                                                      \
-	frames_count++;                                                        \
-	frames[frames_count - 1].fn = fn;                                      \
-	frames[frames_count - 1].stack_start = stack_start + (argument_start); \
-	frames[frames_count - 1].return_slot = stack_start + (fn_return_slot); \
-	ip = fn->bytecode;                                                     \
-	stack_start = frames[frames_count - 1].stack_start;                    \
-	for (uint32_t i = 0; i < fn->defined_upvalues_count; i++) {            \
-		fn->defined_upvalues[i]->fn_stack_start = stack_start;             \
-	}
-
-// Return from a function.
-#define RETURN(value)                                      \
-	if (frames_count == 1) {                               \
-		goto finish;                                       \
-	}                                                      \
-	stack[frames[frames_count - 1].return_slot] = (value); \
-	frames_count--;                                        \
-	stack_start = frames[frames_count - 1].stack_start;    \
-	fn = frames[frames_count - 1].fn;                      \
-	ip = frames[frames_count - 1].ip;
-
-// Sets the field of a struct.
-#define STRUCT_SET_FIELD(value) {                                          \
-	ENSURE_STRUCT(ARG1_L);                                                 \
-	Identifier *ident = &struct_fields[ARG2];                              \
-	Struct *obj = (Struct *) val_to_ptr(ARG1_L);                           \
-	StructDefinition *def = obj->definition;                               \
-	for (uint32_t i = 0; i < def->fields_count; i++) {                     \
-		Identifier *field = &def->fields[i];                               \
-		if (ident->length == field->length &&                              \
-				strncmp(ident->start, field->start, ident->length) == 0) { \
-			obj->fields[i] = (value);                                      \
-			NEXT();                                                        \
-		}                                                                  \
-	}                                                                      \
-	goto error;                                                            \
-}
-
 // Converts an argument (uint16) to a number (double).
 #define UINT16_TO_NUM(uint16) ((double) uint16_to_int16(uint16))
 
@@ -800,10 +668,6 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 // Jumps to the next instruction using a dispatch table for computed gotos by
 // incrementing the instruction pointer.
 #define NEXT() ip++; DISPATCH();
-
-// The stack slot of an open upvalue.
-#define UPVALUE_STACK_SLOT(index) \
-	(upvalues[index].fn_stack_start + upvalues[index].slot)
 
 
 // Copies a string into a new heap allocated one.
@@ -858,10 +722,10 @@ typedef enum {
 
 // Executes a compiled function on the virtual machine.
 HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
-	// Table of labels for computed gotos.
+	// Table of labels for computed gotos
 	static void *dispatch_table[] = {
 		&&_MOV_LL, &&_MOV_LI, &&_MOV_LN, &&_MOV_LS, &&_MOV_LP, &&_MOV_LF,
-		&&_MOV_LU, &&_MOV_UL,
+		&&_MOV_LU, &&_MOV_UL, &&_UPVALUE_CLOSE,
 		&&_MOV_LT, &&_MOV_TL,
 
 		&&_ADD_LL, &&_ADD_LI, &&_ADD_LN, &&_ADD_IL, &&_ADD_NL,
@@ -881,15 +745,8 @@ HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 		&&_GE_LL, &&_GE_LI, &&_GE_LN,
 
 		&&_JMP, &&_LOOP,
-
-		&&_CALL_L, &&_CALL_F, &&_CALL_NATIVE,
-		&&_RET, &&_RET_L, &&_RET_I, &&_RET_N, &&_RET_S, &&_RET_P, &&_RET_F,
-
-		&&_UPVALUE_CLOSE,
-
-		&&_STRUCT_NEW, &&_STRUCT_FIELD,
-		&&_STRUCT_SET_L, &&_STRUCT_SET_I, &&_STRUCT_SET_N, &&_STRUCT_SET_S,
-		&&_STRUCT_SET_P, &&_STRUCT_SET_F,
+		&&_CALL_L, &&_CALL_F, &&_CALL_NATIVE, &&_RET0, &&_RET1,
+		&&_STRUCT_NEW, &&_STRUCT_FIELD, &&_STRUCT_SET,
 	};
 
 	Function *fn = &vm->functions[main_fn];
@@ -960,6 +817,11 @@ _MOV_LF:
 	ARG1_L = INDEX_TO_VALUE(ARG2, FN_TAG);
 	NEXT();
 
+
+// The stack slot of an open upvalue.
+#define UPVALUE_STACK_SLOT(index) \
+	(upvalues[index].fn_stack_start + upvalues[index].slot)
+
 _MOV_LU:
 	if (upvalues[ARG2].open) {
 		ARG1_L = stack[UPVALUE_STACK_SLOT(ARG2)];
@@ -974,6 +836,11 @@ _MOV_UL:
 		upvalues[ARG1].value = ARG2_L;
 	}
 	NEXT();
+_UPVALUE_CLOSE:
+	upvalues[ARG1].open = false;
+	upvalues[ARG1].value = stack[UPVALUE_STACK_SLOT(ARG1)];
+	NEXT();
+
 
 _MOV_LT:
 	ARG1_L = packages[ARG2].values[ARG3];
@@ -987,6 +854,30 @@ _MOV_TL:
 	//  Math
 	//
 
+// Shorthand for defining a set of arithmetic operations.
+#define ARITHMETIC_OPERATION(prefix, op)                                      \
+	_ ## prefix ## _LL:                                                       \
+		ENSURE_NUMBERS(ARG2_L, ARG3_L);                                       \
+		ARG1_L = num_to_val(val_to_num(ARG2_L) op val_to_num(ARG3_L));        \
+		NEXT();                                                               \
+	_ ## prefix ## _LI:                                                       \
+		ENSURE_NUMBER(ARG2_L);                                                \
+		ARG1_L = num_to_val(val_to_num(ARG2_L) op UINT16_TO_NUM(ARG3));       \
+		NEXT();                                                               \
+	_ ## prefix ## _LN:                                                       \
+		ENSURE_NUMBER(ARG2_L);                                                \
+		ARG1_L = num_to_val(val_to_num(ARG2_L) op                             \
+			val_to_num(numbers[ARG3]));                                       \
+		NEXT();                                                               \
+	_ ## prefix ## _IL:                                                       \
+		ENSURE_NUMBER(ARG3_L);                                                \
+		ARG1_L = num_to_val(UINT16_TO_NUM(ARG2) op val_to_num(ARG3_L));       \
+		NEXT();                                                               \
+	_ ## prefix ## _NL:                                                       \
+		ENSURE_NUMBER(ARG3_L);                                                \
+		ARG1_L = num_to_val(val_to_num(numbers[ARG2]) op val_to_num(ARG3_L)); \
+		NEXT();
+
 	ARITHMETIC_OPERATION(ADD, +)
 	ARITHMETIC_OPERATION(SUB, -)
 	ARITHMETIC_OPERATION(MUL, *)
@@ -994,8 +885,7 @@ _MOV_TL:
 
 _MOD_LL:
 	ENSURE_NUMBERS(ARG2_L, ARG3_L);
-	ARG1_L = num_to_val(fmod(val_to_num(ARG2_L),
-		val_to_num(ARG3_L)));
+	ARG1_L = num_to_val(fmod(val_to_num(ARG2_L), val_to_num(ARG3_L)));
 	NEXT();
 _MOD_LI:
 	ENSURE_NUMBER(ARG2_L);
@@ -1065,8 +955,73 @@ _IS_FALSE_L:
 	}
 	NEXT();
 
+
+// Shorthand for defining a set of equality operations.
+#define EQUALITY_OPERATION(prefix, binary, unary)                          \
+	_ ## prefix ## _LL:                                                    \
+		if (unary ((ARG1_L == ARG2_L) ||                                   \
+				(IS_STRING_VALUE(ARG1_L) && IS_STRING_VALUE(ARG2_L) &&     \
+					strcmp(TO_STR(ARG1_L), TO_STR(ARG2_L)) == 0) ||        \
+				(IS_OBJ_VALUE(ARG1_L) && IS_OBJ_VALUE(ARG1_L) &&           \
+					FIELDS_COUNT(ARG1_L) == FIELDS_COUNT(ARG2_L) &&        \
+					memcmp(TO_FIELDS(ARG1_L), TO_FIELDS(ARG2_L),           \
+						FIELDS_COUNT(ARG1_L) * sizeof(uint64_t)) == 0))) { \
+			ip++;                                                          \
+		}                                                                  \
+		NEXT();                                                            \
+	_ ## prefix ## _LI:                                                    \
+		if (ARG1_L binary UINT16_TO_VAL(ARG2)) {                           \
+			ip++;                                                          \
+		}                                                                  \
+		NEXT();                                                            \
+	_ ## prefix ## _LN:                                                    \
+		if (ARG1_L binary numbers[ARG2]) {                                 \
+			ip++;                                                          \
+		}                                                                  \
+		NEXT();                                                            \
+	_ ## prefix ## _LS:                                                    \
+		if (unary (IS_STRING_VALUE(ARG1_L) &&                              \
+				strcmp(TO_STR(ARG1_L), strings[ARG2]->contents) == 0)) {   \
+			ip++;                                                          \
+		}                                                                  \
+		NEXT();                                                            \
+	_ ## prefix ## _LP:                                                    \
+		if (ARG1_L binary PRIMITIVE_FROM_TAG(ARG2)) {                      \
+			ip++;                                                          \
+		}                                                                  \
+		NEXT();                                                            \
+	_ ## prefix ## _LF:                                                    \
+		if (unary (IS_FN_VALUE(ARG1_L) &&                                  \
+				VALUE_TO_INDEX(ARG1_L, FN_TAG) == ARG2)) {                 \
+			ip++;                                                          \
+		}                                                                  \
+		NEXT();
+
 	EQUALITY_OPERATION(EQ, !=, !)
 	EQUALITY_OPERATION(NEQ, ==, )
+
+
+// Shorthand for defining an order operation.
+#define ORDER_OPERATION(prefix, operator)                            \
+	_ ## prefix ## _LL:                                              \
+		ENSURE_NUMBERS(ARG1_L, ARG2_L);                              \
+		if (val_to_num(ARG1_L) operator val_to_num(ARG2_L)) {        \
+			ip++;                                                    \
+		}                                                            \
+		NEXT();                                                      \
+	_ ## prefix ## _LI:                                              \
+		ENSURE_NUMBER(ARG1_L);                                       \
+		if (val_to_num(ARG1_L) operator UINT16_TO_NUM(ARG2)) {       \
+			ip++;                                                    \
+		}                                                            \
+		NEXT();                                                      \
+	_ ## prefix ## _LN:                                              \
+		ENSURE_NUMBER(ARG1_L);                                       \
+		if (val_to_num(ARG1_L) operator val_to_num(numbers[ARG2])) { \
+			ip++;                                                    \
+		}                                                            \
+		NEXT();
+
 	ORDER_OPERATION(LT, >=)
 	ORDER_OPERATION(LE, >)
 	ORDER_OPERATION(GT, <=)
@@ -1089,6 +1044,24 @@ _LOOP:
 	//  Functions
 	//
 
+// Call a function.
+#define CALL(fn_index, call_arity, argument_start, fn_return_slot)         \
+	frames[frames_count - 1].ip = ip;                                      \
+	fn = &functions[(fn_index)];                                           \
+	if (fn->arity != (call_arity)) {                                       \
+		err = ERR_INCORRECT_ARITY;                                         \
+		goto error;                                                        \
+	}                                                                      \
+	frames_count++;                                                        \
+	frames[frames_count - 1].fn = fn;                                      \
+	frames[frames_count - 1].stack_start = stack_start + (argument_start); \
+	frames[frames_count - 1].return_slot = stack_start + (fn_return_slot); \
+	ip = fn->bytecode;                                                     \
+	stack_start = frames[frames_count - 1].stack_start;                    \
+	for (uint32_t i = 0; i < fn->defined_upvalues_count; i++) {            \
+		fn->defined_upvalues[i]->fn_stack_start = stack_start;             \
+	}
+
 _CALL_L:
 	ENSURE_FN(ARG1_L);
 	CALL(VALUE_TO_INDEX(ARG1_L, FN_TAG), ARG0, ARG2, ARG3);
@@ -1105,37 +1078,23 @@ _CALL_NATIVE: {
 	NEXT();
 }
 
-_RET:
+
+// Return from a function.
+#define RETURN(value)                                      \
+	if (frames_count == 1) {                               \
+		goto finish;                                       \
+	}                                                      \
+	stack[frames[frames_count - 1].return_slot] = (value); \
+	frames_count--;                                        \
+	stack_start = frames[frames_count - 1].stack_start;    \
+	fn = frames[frames_count - 1].fn;                      \
+	ip = frames[frames_count - 1].ip;
+
+_RET0:
 	RETURN(NIL_VALUE);
 	NEXT();
-_RET_L:
+_RET1:
 	RETURN(ARG1_L);
-	NEXT();
-_RET_I:
-	RETURN(UINT16_TO_VAL(ARG1));
-	NEXT();
-_RET_N:
-	RETURN(numbers[ARG1]);
-	NEXT();
-_RET_S:
-	// TODO: Move string onto heap and add it to the GC
-	RETURN(NIL_VALUE);
-	NEXT();
-_RET_P:
-	RETURN(PRIMITIVE_FROM_TAG(ARG1));
-	NEXT();
-_RET_F:
-	RETURN(INDEX_TO_VALUE(ARG1, FN_TAG));
-	NEXT();
-
-
-	//
-	//  Upvalues
-	//
-
-_UPVALUE_CLOSE:
-	upvalues[ARG1].open = false;
-	upvalues[ARG1].value = stack[UPVALUE_STACK_SLOT(ARG1)];
 	NEXT();
 
 
@@ -1176,19 +1135,20 @@ _STRUCT_FIELD: {
 	goto error;
 }
 
-_STRUCT_SET_L:
-	STRUCT_SET_FIELD(ARG3_L);
-_STRUCT_SET_I:
-	STRUCT_SET_FIELD(UINT16_TO_VAL(ARG3));
-_STRUCT_SET_N:
-	STRUCT_SET_FIELD(numbers[ARG3]);
-_STRUCT_SET_S:
-	// TODO: Add string to GC
-	STRUCT_SET_FIELD(NIL_VALUE);
-_STRUCT_SET_P:
-	STRUCT_SET_FIELD(PRIMITIVE_FROM_TAG(ARG3));
-_STRUCT_SET_F:
-	STRUCT_SET_FIELD(INDEX_TO_VALUE(ARG3, FN_TAG));
+_STRUCT_SET:
+	ENSURE_STRUCT(ARG1_L);
+	Identifier *ident = &struct_fields[ARG2];
+	Struct *obj = (Struct *) val_to_ptr(ARG1_L);
+	StructDefinition *def = obj->definition;
+	for (uint32_t i = 0; i < def->fields_count; i++) {
+		Identifier *field = &def->fields[i];
+		if (ident->length == field->length &&
+				strncmp(ident->start, field->start, ident->length) == 0) {
+			obj->fields[i] = ARG3_L;
+			NEXT();
+		}
+	}
+	goto error;
 
 error:
 	printf("FAILED! %d\n", err);

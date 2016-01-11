@@ -40,15 +40,13 @@ typedef enum {
 	MOV_LL,
 	MOV_LI,
 	MOV_LN,
-
-	// Argument 3: the size of the stack (for the GC to know how many elements
-	// on the stack act as roots)
-	MOV_LS,
+	MOV_LS, // 3rd argument is stack size (for the GC)
 	MOV_LP,
 	MOV_LF,
 
 	MOV_LU,
 	MOV_UL,
+	UPVALUE_CLOSE,
 
 	// Arguments:
 	// * `local`: stack slot to place top level variable in
@@ -97,6 +95,7 @@ typedef enum {
 	MOD_IL,
 	MOD_NL,
 
+	// 3rd argument is stack size (for the GC)
 	CONCAT_LL,
 	CONCAT_LS,
 	CONCAT_SL,
@@ -186,24 +185,11 @@ typedef enum {
 	// * `return_slot`: the stack slot to store the return value of the function
 	CALL_NATIVE,
 
-	// Returns nothing from a function (moves nil into the return slot).
-	RET,
+	// Return nothing from a function (moves nil into the return slot).
+	RET0,
 
-	// Returns a value from a function.
-	RET_L,
-	RET_I,
-	RET_N,
-	// Argument 3: stack size, for the GC
-	RET_S,
-	RET_P,
-	RET_F,
-
-
-	//
-	//  Upvalues
-	//
-
-	UPVALUE_CLOSE,
+	// Return a value in a stack slot.
+	RET1,
 
 
 	//
@@ -234,13 +220,8 @@ typedef enum {
 	// * `slot`: the stack slot of the struct
 	// * `field_name`: the name of the field, as an index into the VM's struct
 	//   field name list
-	// * `value`: the value to set the field to
-	STRUCT_SET_L,
-	STRUCT_SET_I,
-	STRUCT_SET_N,
-	STRUCT_SET_S,
-	STRUCT_SET_P,
-	STRUCT_SET_F,
+	// * `value`: the stack slot of the value to set
+	STRUCT_SET,
 
 
 	//

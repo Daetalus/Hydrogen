@@ -150,14 +150,19 @@ void parse_assignment(Parser *parser, Identifier *left, int count) {
 	uint16_t expr_slot;
 	local_new(parser, &expr_slot);
 	Operand operand = expr(parser, expr_slot);
-	if (operand.type == OP_JUMP) {
+	uint16_t result_slot;
+	if (operand.type != OP_LOCAL) {
 		expr_discharge(parser, expr_slot, operand);
+		result_slot = expr_slot;
+	} else {
+		// Don't bother emitting a MOV_LL instruction into `expr_slot`, store
+		// the local directly
+		result_slot = operand.slot;
 	}
 
 	// Set the field of the struct in `slot` to `operand`
-	Opcode opcode = STRUCT_SET_L + operand.type;
 	uint16_t index = vm_add_field(parser->vm, left[count - 1]);
-	emit(fn, instr_new(opcode, slot, index, operand.value));
+	emit(fn, instr_new(STRUCT_SET, slot, index, result_slot));
 
 	// Free the scope we created
 	scope_free(parser);

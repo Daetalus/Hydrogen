@@ -782,7 +782,7 @@ void expr_discharge(Parser *parser, uint16_t slot, Operand operand) {
 	Function *fn = &parser->vm->functions[parser->fn_index];
 
 	if (operand.type == OP_LOCAL) {
-		// Copy a local if isn't in a deallocated scope
+		// Copy a local if isn't in a deallocated slot
 		if (operand.slot != slot && operand.slot < parser->locals_count) {
 			emit(fn, instr_new(MOV_LL, slot, operand.slot, 0));
 		}

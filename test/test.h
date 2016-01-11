@@ -106,7 +106,7 @@ extern "C" {
 
 
 // Asserts the next instruction is an empty return.
-#define ASSERT_RET() ASSERT_INSTR(RET, 0, 0, 0)
+#define ASSERT_RET() ASSERT_INSTR(RET0, 0, 0, 0)
 
 
 // Asserts the next instruction is a jump, and that it will jump forward by

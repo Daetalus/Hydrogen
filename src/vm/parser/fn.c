@@ -86,7 +86,7 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
 	parse_block(&child, TOKEN_CLOSE_BRACE);
 
 	// Emit a return instruction at the end of the body
-	emit(child_fn, instr_new(RET, 0, 0, 0));
+	emit(child_fn, instr_new(RET0, 0, 0, 0));
 
 	// Expect a closing brace
 	if (lexer->token.type != TOKEN_CLOSE_BRACE) {
@@ -496,20 +496,19 @@ void parse_return(Parser *parser) {
 		local_close_upvalues(parser);
 
 		// No return value
-		emit(fn, instr_new(RET, 0, 0, 0));
+		emit(fn, instr_new(RET0, 0, 0, 0));
 	} else {
 		// Parse expression into a new local
 		uint16_t slot;
 		scope_new(parser);
 		local_new(parser, &slot);
-		Operand operand = expr(parser, slot);
+		expr_emit(parser, slot);
 		scope_free(parser);
 
 		// Emit close upvalue instructions for all locals in this function
 		local_close_upvalues(parser);
 
 		// Emit return instruction
-		Opcode opcode = RET_L + operand.type;
-		emit(fn, instr_new(opcode, operand.value, 0, 0));
+		emit(fn, instr_new(RET1, slot, 0, 0));
 	}
 }

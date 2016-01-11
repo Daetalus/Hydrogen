@@ -115,7 +115,7 @@ TEST(Functions, ReturnValue) {
 	FN(1);
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
 	ASSERT_INSTR(ADD_LI, 1, 0, 3);
-	ASSERT_INSTR(RET_L, 1, 0, 0);
+	ASSERT_INSTR(RET1, 1, 0, 0);
 
 	COMPILER_FREE();
 }
@@ -138,7 +138,7 @@ TEST(Functions, ArgumentsAndReturn) {
 	FN(1);
 	ASSERT_INSTR(MUL_LL, 2, 0, 1);
 	ASSERT_INSTR(MUL_LI, 2, 2, 2);
-	ASSERT_INSTR(RET_L, 2, 0, 0);
+	ASSERT_INSTR(RET1, 2, 0, 0);
 
 	COMPILER_FREE();
 }
@@ -240,7 +240,8 @@ TEST(Functions, CallWithReturnValue) {
 	ASSERT_RET();
 
 	FN(1);
-	ASSERT_INSTR(RET_I, 3, 0, 0);
+	ASSERT_INSTR(MOV_LI, 0, 3, 0);
+	ASSERT_INSTR(RET1, 0, 0, 0);
 
 	COMPILER_FREE();
 }
@@ -266,11 +267,11 @@ TEST(Functions, MultipleDefinitions) {
 
 	FN(1);
 	ASSERT_INSTR(MUL_LL, 1, 0, 0);
-	ASSERT_INSTR(RET_L, 1, 0, 0);
+	ASSERT_INSTR(RET1, 1, 0, 0);
 
 	FN(2);
 	ASSERT_INSTR(MUL_LL, 2, 0, 1);
-	ASSERT_INSTR(RET_L, 2, 0, 0);
+	ASSERT_INSTR(RET1, 2, 0, 0);
 
 	COMPILER_FREE();
 }
@@ -299,7 +300,7 @@ TEST(Functions, CallAsArgument) {
 
 	FN(1);
 	ASSERT_INSTR(ADD_LI, 1, 0, 1);
-	ASSERT_INSTR(RET_L, 1, 0, 0);
+	ASSERT_INSTR(RET1, 1, 0, 0);
 
 	COMPILER_FREE();
 }
@@ -325,7 +326,7 @@ TEST(Functions, AnonymousFunction) {
 
 	FN(1);
 	ASSERT_INSTR(ADD_LL, 2, 0, 1);
-	ASSERT_INSTR(RET_L, 2, 0, 0);
+	ASSERT_INSTR(RET1, 2, 0, 0);
 
 	COMPILER_FREE();
 }
@@ -349,7 +350,7 @@ TEST(Functions, CallAnonymousFunction) {
 
 	FN(1);
 	ASSERT_INSTR(ADD_LL, 2, 0, 1);
-	ASSERT_INSTR(RET_L, 2, 0, 0);
+	ASSERT_INSTR(RET1, 2, 0, 0);
 
 	COMPILER_FREE();
 }

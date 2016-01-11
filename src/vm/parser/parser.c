@@ -80,7 +80,7 @@ void parse_package(VirtualMachine *vm, Package *package) {
 
 	// Append a return instruction
 	Function *fn = &vm->functions[parser.fn_index];
-	emit(fn, instr_new(RET, 0, 0, 0));
+	emit(fn, instr_new(RET0, 0, 0, 0));
 
 	// Free the parser we allocated
 	parser_free(&parser);
