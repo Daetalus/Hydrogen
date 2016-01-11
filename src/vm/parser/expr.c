@@ -81,6 +81,8 @@ Precedence binary_prec(TokenType operator) {
 		return PREC_BIT_OR;
 	case TOKEN_BIT_XOR:
 		return PREC_BIT_XOR;
+	case TOKEN_CONCAT:
+		return PREC_CONCAT;
 	default:
 		return PREC_NONE;
 	}

@@ -806,12 +806,23 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 	(upvalues[index].fn_stack_start + upvalues[index].slot)
 
 
+// Copies a string into a new heap allocated one.
+static inline String * str_copy(String *original) {
+	size_t size = sizeof(String) + original->length + 1;
+	String *str = malloc(size);
+	memcpy(str, original, size);
+	return str;
+}
+
+
 // Concatenates two strings.
-static inline char * concat_str(char *left, char *right) {
-	int length = strlen(left);
-	char *str = malloc(sizeof(char) * (length + strlen(right) + 1));
-	strcpy(str, left);
-	strcpy(&str[length], right);
+static inline String * str_concat(String *left, String *right) {
+	size_t length = left->length + right->length;
+	String *str = malloc(sizeof(String) + length + 1);
+	str->type = OBJ_STRING;
+	str->length = length;
+	strcpy(str->contents, left->contents);
+	strcpy(&str->contents[left->length], right->contents);
 	return str;
 }
 
@@ -937,9 +948,7 @@ _MOV_LN:
 	NEXT();
 _MOV_LS: {
 	gc_check(vm);
-	String *original = strings[ARG2];
-	String *str = malloc(sizeof(String) + original->length);
-	memcpy(str, original, sizeof(String) + original->length);
+	String *str = str_copy(strings[ARG2]);
 	ARG1_L = ptr_to_val(str);
 	gc_add(gc, (Object *) str);
 	NEXT();
@@ -1005,21 +1014,30 @@ _MOD_NL:
 	ARG1_L = num_to_val(fmod(val_to_num(numbers[ARG2]), val_to_num(ARG3_L)));
 	NEXT();
 
-_CONCAT_LL:
+_CONCAT_LL: {
 	ENSURE_STRS(ARG2_L, ARG3_L);
-	// TODO: Implement with GC strings
-	// ARG1_L = ptr_to_val(concat_str(val_to_ptr(ARG2_L), val_to_ptr(ARG3_L)));
+	gc_check(vm);
+	String *str = str_concat(val_to_ptr(ARG2_L), val_to_ptr(ARG3_L));
+	ARG1_L = ptr_to_val(str);
+	gc_add(gc, (Object *) str);
 	NEXT();
-_CONCAT_LS:
+}
+_CONCAT_LS: {
 	ENSURE_STR(ARG2_L);
-	// TODO: Implement with GC strings
-	// ARG1_L = ptr_to_val(concat_str(val_to_ptr(ARG2_L), TO_STR(strings[ARG3])));
+	gc_check(vm);
+	String *str = str_concat(val_to_ptr(ARG2_L), strings[ARG3]);
+	ARG1_L = ptr_to_val(str);
+	gc_add(gc, (Object *) str);
 	NEXT();
-_CONCAT_SL:
-	ENSURE_STR(ARG2_L);
-	// TODO: Implement with GC strings
-	// ARG1_L = ptr_to_val(concat_str(TO_STR(strings[ARG2]), val_to_ptr(ARG3_L)));
+}
+_CONCAT_SL: {
+	ENSURE_STR(ARG3_L);
+	gc_check(vm);
+	String *str = str_concat(strings[ARG2], val_to_ptr(ARG3_L));
+	ARG1_L = ptr_to_val(str);
+	gc_add(gc, (Object *) str);
 	NEXT();
+}
 
 _NEG_L:
 	ENSURE_NUMBER(ARG1_L);
