@@ -14,6 +14,7 @@
 
 #include "util.h"
 #include "gc.h"
+#include "value.h"
 
 
 // The maximum number of upvalues that can be defined in a function.
@@ -183,7 +184,7 @@ typedef struct vm {
 	ARRAY(HyValue, numbers);
 
 	// Strings encountered during compilation.
-	ARRAY(HyValue, strings);
+	ARRAY(String *, strings);
 
 	// Upvalues found during compilation.
 	ARRAY(Upvalue, upvalues);

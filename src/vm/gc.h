@@ -9,6 +9,10 @@
 #include "value.h"
 
 
+// Forward declaration of VM.
+struct vm;
+
+
 // Data required by the garbage collector.
 typedef struct garbage_collector {
 	// The first object in the linked list of all instantiated objects.
@@ -29,10 +33,10 @@ GarbageCollector gc_new(void);
 void gc_free(GarbageCollector *gc);
 
 // Collects garbage.
-void gc_collect(VirtualMachine *vm);
+void gc_collect(struct vm *vm);
 
 // Checks if a GC run is necessary, and runs one if it is.
-void gc_check(VirtualMachine *vm);
+void gc_check(struct vm *vm);
 
 // Adds an object to a GC's object list.
 static inline void gc_add(GarbageCollector *gc, struct object *obj) {

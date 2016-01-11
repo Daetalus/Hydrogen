@@ -28,7 +28,7 @@ HyVM * hy_new(void) {
 	ARRAY_INIT(vm->native_packages, HyNativePackage, 4);
 	ARRAY_INIT(vm->native_fns, NativeFn, 8);
 	ARRAY_INIT(vm->numbers, HyValue, 16);
-	ARRAY_INIT(vm->strings, HyValue, 16);
+	ARRAY_INIT(vm->strings, String *, 16);
 	ARRAY_INIT(vm->upvalues, Upvalue, 4);
 	ARRAY_INIT(vm->structs, StructDefinition, 4);
 	ARRAY_INIT(vm->fields, Identifier, 4);
@@ -59,7 +59,7 @@ void hy_free(HyVM *vm) {
 
 	// Strings
 	for (uint32_t i = 0; i < vm->strings_count; i++) {
-		free(val_to_ptr(vm->strings[i]));
+		free(vm->strings[i]);
 	}
 
 	// Functions
@@ -165,20 +165,20 @@ void hy_trigger_error(HyVM *vm, char *message) {
 // string.
 uint16_t vm_add_string(VirtualMachine *vm, char *string) {
 	uint16_t index = vm->strings_count++;
-	ARRAY_REALLOC(vm->strings, HyValue);
+	ARRAY_REALLOC(vm->strings, String *);
 
-	Object *obj = malloc(sizeof(Object) + sizeof(char) * (strlen(string) + 1));
-	obj->type = OBJ_STRING;
-	strcpy(&obj->string[0], string);
-	vm->strings[index] = ptr_to_val(obj);
+	String *str = malloc(sizeof(String) + strlen(string) + 1);
+	str->type = OBJ_STRING;
+	str->length = strlen(string);
+	strcpy(&str->contents[0], string);
+	vm->strings[index] = str;
 	return index;
 }
 
 
 // Returns the string at `index` in the VM's strings list.
 char * vm_string(VirtualMachine *vm, int index) {
-	Object *obj = val_to_ptr(vm->strings[index]);
-	return &obj->string[0];
+	return &vm->strings[index]->contents[0];
 }
 
 
@@ -649,11 +649,11 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 	}
 
 // Triggers an error if an argument isn't an object.
-#define ENSURE_OBJECT(arg)                                        \
-	if (!IS_PTR_VALUE(arg) ||                                     \
+#define ENSURE_STRUCT(arg)                                      \
+	if (!IS_PTR_VALUE(arg) ||                                   \
 			((Object *) val_to_ptr(arg))->type != OBJ_STRUCT) { \
-		err = ERR_INVALID_FIELD_ACCESS;                           \
-		goto error;                                               \
+		err = ERR_INVALID_FIELD_ACCESS;                         \
+		goto error;                                             \
 	}
 
 // Shorthand for defining a set of arithmetic operations.
@@ -705,7 +705,7 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 		NEXT();                                                            \
 	_ ## prefix ## _LS:                                                    \
 		if (unary (IS_STRING_VALUE(ARG1_L) &&                              \
-				strcmp(TO_STR(ARG1_L), TO_STR(strings[ARG2])) == 0)) {     \
+				strcmp(TO_STR(ARG1_L), strings[ARG2]->contents) == 0)) {   \
 			ip++;                                                          \
 		}                                                                  \
 		NEXT();                                                            \
@@ -773,15 +773,15 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 
 // Sets the field of a struct.
 #define STRUCT_SET_FIELD(value) {                                          \
-	ENSURE_OBJECT(ARG1_L);                                                 \
+	ENSURE_STRUCT(ARG1_L);                                                 \
 	Identifier *ident = &struct_fields[ARG2];                              \
-	Object *obj = (Object *) val_to_ptr(ARG1_L);                           \
-	StructDefinition *def = obj->obj.definition;                           \
+	Struct *obj = (Struct *) val_to_ptr(ARG1_L);                           \
+	StructDefinition *def = obj->definition;                               \
 	for (uint32_t i = 0; i < def->fields_count; i++) {                     \
 		Identifier *field = &def->fields[i];                               \
 		if (ident->length == field->length &&                              \
 				strncmp(ident->start, field->start, ident->length) == 0) { \
-			obj->obj.fields[i] = (value);                                  \
+			obj->fields[i] = (value);                                      \
 			NEXT();                                                        \
 		}                                                                  \
 	}                                                                      \
@@ -896,7 +896,7 @@ HyError * fn_exec(VirtualMachine *vm, uint16_t main_fn) {
 	NativeFn *native_fns = vm->native_fns;
 	Upvalue *upvalues = vm->upvalues;
 	HyValue *numbers = vm->numbers;
-	HyValue *strings = vm->strings;
+	String **strings = vm->strings;
 	Function *functions = vm->functions;
 	StructDefinition *structs = vm->structs;
 	Identifier *struct_fields = vm->fields;
@@ -935,9 +935,15 @@ _MOV_LI:
 _MOV_LN:
 	ARG1_L = numbers[ARG2];
 	NEXT();
-_MOV_LS:
-	ARG1_L = strings[ARG2];
+_MOV_LS: {
+	gc_check(vm);
+	String *original = strings[ARG2];
+	String *str = malloc(sizeof(String) + original->length);
+	memcpy(str, original, sizeof(String) + original->length);
+	ARG1_L = ptr_to_val(str);
+	gc_add(gc, (Object *) str);
 	NEXT();
+}
 _MOV_LP:
 	ARG1_L = PRIMITIVE_FROM_TAG(ARG2);
 	NEXT();
@@ -1001,15 +1007,18 @@ _MOD_NL:
 
 _CONCAT_LL:
 	ENSURE_STRS(ARG2_L, ARG3_L);
-	ARG1_L = ptr_to_val(concat_str(val_to_ptr(ARG2_L), val_to_ptr(ARG3_L)));
+	// TODO: Implement with GC strings
+	// ARG1_L = ptr_to_val(concat_str(val_to_ptr(ARG2_L), val_to_ptr(ARG3_L)));
 	NEXT();
 _CONCAT_LS:
 	ENSURE_STR(ARG2_L);
-	ARG1_L = ptr_to_val(concat_str(val_to_ptr(ARG2_L), TO_STR(strings[ARG3])));
+	// TODO: Implement with GC strings
+	// ARG1_L = ptr_to_val(concat_str(val_to_ptr(ARG2_L), TO_STR(strings[ARG3])));
 	NEXT();
 _CONCAT_SL:
 	ENSURE_STR(ARG2_L);
-	ARG1_L = ptr_to_val(concat_str(TO_STR(strings[ARG2]), val_to_ptr(ARG3_L)));
+	// TODO: Implement with GC strings
+	// ARG1_L = ptr_to_val(concat_str(TO_STR(strings[ARG2]), val_to_ptr(ARG3_L)));
 	NEXT();
 
 _NEG_L:
@@ -1091,7 +1100,8 @@ _RET_N:
 	RETURN(numbers[ARG1]);
 	NEXT();
 _RET_S:
-	RETURN(strings[ARG1]);
+	// TODO: Move string onto heap and add it to the GC
+	RETURN(NIL_VALUE);
 	NEXT();
 _RET_P:
 	RETURN(PRIMITIVE_FROM_TAG(ARG1));
@@ -1116,29 +1126,29 @@ _UPVALUE_CLOSE:
 	//
 
 _STRUCT_NEW: {
-	gc_check(gc);
+	gc_check(vm);
 	StructDefinition *def = &structs[ARG2];
-	Object *obj = malloc(sizeof(Object) + sizeof(HyValue) * def->fields_count);
+	Struct *obj = malloc(sizeof(Struct) + sizeof(HyValue) * def->fields_count);
 	obj->type = OBJ_STRUCT;
-	obj->obj.definition = def;
-	memcpy(obj->obj.fields, def->values, sizeof(HyValue) * def->fields_count);
+	obj->definition = def;
+	memcpy(obj->fields, def->values, sizeof(HyValue) * def->fields_count);
 	ARG1_L = ptr_to_val(obj);
-	gc_add(gc, obj);
+	gc_add(gc, (Object *) obj);
 	NEXT();
 }
 
 _STRUCT_FIELD: {
-	ENSURE_OBJECT(ARG2_L);
+	ENSURE_STRUCT(ARG2_L);
 	Identifier *ident = &struct_fields[ARG3];
-	Object *obj = (Object *) val_to_ptr(ARG2_L);
-	StructDefinition *def = obj->obj.definition;
+	Struct *obj = (Struct *) val_to_ptr(ARG2_L);
+	StructDefinition *def = obj->definition;
 
 	// Look for the field
 	for (uint32_t i = 0; i < def->fields_count; i++) {
 		Identifier *field = &def->fields[i];
 		if (ident->length == field->length &&
 				strncmp(ident->start, field->start, ident->length) == 0) {
-			ARG1_L = obj->obj.fields[i];
+			ARG1_L = obj->fields[i];
 			NEXT();
 		}
 	}
@@ -1155,7 +1165,8 @@ _STRUCT_SET_I:
 _STRUCT_SET_N:
 	STRUCT_SET_FIELD(numbers[ARG3]);
 _STRUCT_SET_S:
-	STRUCT_SET_FIELD(strings[ARG3]);
+	// TODO: Add string to GC
+	STRUCT_SET_FIELD(NIL_VALUE);
 _STRUCT_SET_P:
 	STRUCT_SET_FIELD(PRIMITIVE_FROM_TAG(ARG3));
 _STRUCT_SET_F:
@@ -1165,7 +1176,7 @@ error:
 	printf("FAILED! %d\n", err);
 
 finish:
-	gc_free(vm);
+	gc_free(gc);
 	free(stack);
 	free(frames);
 	return NULL;

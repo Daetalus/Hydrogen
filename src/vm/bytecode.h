@@ -40,6 +40,9 @@ typedef enum {
 	MOV_LL,
 	MOV_LI,
 	MOV_LN,
+
+	// Argument 3: the size of the stack (for the GC to know how many elements
+	// on the stack act as roots)
 	MOV_LS,
 	MOV_LP,
 	MOV_LF,
@@ -162,7 +165,7 @@ typedef enum {
 	// specified by the contents of a local. Arguments to the function must be
 	// placed in consecutive positions on the stack.
 	//
-	// Arguments: `arity`, `slot`, `argument_start`, `return_slot`
+	// Arguments:
 	// * `arity`: number of arguments given to the function call
 	// * `slot`: the local the function's index is taken from
 	// * `argument_start`: the stack slot of the first argument
@@ -190,6 +193,7 @@ typedef enum {
 	RET_L,
 	RET_I,
 	RET_N,
+	// Argument 3: stack size, for the GC
 	RET_S,
 	RET_P,
 	RET_F,
@@ -211,6 +215,8 @@ typedef enum {
 	// Arguments:
 	// * `slot`: where to store the new struct on the stack
 	// * `struct_index`: the index of the struct's definition in the VM's list
+	// * `stack_size`: the number of elements on the stack (for the GC if it's
+	//   triggered)
 	STRUCT_NEW,
 
 	// Moves the contents of a struct's field into a local slot

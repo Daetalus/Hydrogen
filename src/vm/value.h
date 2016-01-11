@@ -62,15 +62,15 @@
 
 // Evaluates to a string from a value.
 #define TO_STR(value) \
-	(&(((Object *) val_to_ptr((value)))->string[0]))
+	(&(((String *) val_to_ptr((value)))->contents[0]))
 
 // Evaluates to a struct's fields array.
 #define TO_FIELDS(value) \
-	(&(((Object *) val_to_ptr((value)))->obj.fields[0]))
+	(&(((Struct *) val_to_ptr((value)))->fields[0]))
 
 // Evaluates to the number of fields in a struct.
 #define FIELDS_COUNT(value) \
-	(((Object *) val_to_ptr((value)))->obj.definition->fields_count)
+	(((Struct *) val_to_ptr((value)))->definition->fields_count)
 
 
 // The type of an object.
@@ -80,28 +80,46 @@ typedef enum {
 } ObjectType;
 
 
-// Used to represent all structs and strings during runtime.
+// A generic object.
 typedef struct object {
-	// The type of this object (a struct or string).
+	// The type of this object (struct or string).
 	ObjectType type;
 
-	union {
-		struct {
-			// A pointer to the struct definition.
-			struct struct_definition *definition;
-
-			// The fields of the struct.
-			uint64_t fields[0];
-		} obj;
-
-		// The contents of a string.
-		char string[0];
-	};
-
-	// The next object in the linked list of all objects for the garbage
-	// collector.
+	// The next object in the linked list of all objects (for the GC).
 	struct object *next;
 } Object;
+
+
+// Used to represent strings.
+typedef struct string {
+	// The type of this object (must be the first element in the struct).
+	ObjectType type;
+
+	// The next object in the linked list of all objects (for the GC).
+	struct object *next;
+
+	// The length of this string.
+	size_t length;
+
+	// The contents of the string (with a NULL terminator).
+	char contents[0];
+} String;
+
+
+// Used to represent structs.
+typedef struct {
+	// The type of this object (must be the first element in the struct).
+	ObjectType type;
+
+	// The next object in the linked list of all objects (for the GC).
+	struct object *next;
+
+	// A pointer to the struct definition.
+	struct struct_definition *definition;
+
+	// The fields of the struct.
+	uint64_t fields[0];
+} Struct;
 
 
 
