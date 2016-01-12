@@ -12,12 +12,9 @@
 // The maximum length of an opcode's name.
 #define MAX_NAME_LENGTH 50
 
-// The number of opcodes.
-#define OPCODE_COUNT 87
 
-
-// The name of every opcode.
-char OPCODE_NAMES[OPCODE_COUNT][MAX_NAME_LENGTH] = {
+// The name of each opcode, in the exact order they were defined in.
+static char OPCODE_NAMES[][MAX_NAME_LENGTH] = {
 	"MOV_LL", "MOV_LI", "MOV_LN", "MOV_LS", "MOV_LP", "MOV_LF",
 	"MOV_LU", "MOV_UL", "UPVALUE_CLOSE",
 	"MOV_LT", "MOV_TL",
@@ -46,8 +43,9 @@ char OPCODE_NAMES[OPCODE_COUNT][MAX_NAME_LENGTH] = {
 };
 
 
-// The number of arguments each opcode requires.
-int ARGUMENT_COUNT[OPCODE_COUNT] = {
+// The number of arguments each opcode accepts, in the same order in which they
+// were defined.
+static uint32_t ARGUMENT_COUNT[] = {
 	2, /* MOV_LL */ 2, /* MOV_LI */ 2, /* MOV_LN */ 2, /* MOV_LS */
 	2, /* MOV_LP */ 2, /* MOV_LF */
 	2, /* MOV_LU */ 2, /* MOV_UL */ 1, /* UPVALUE_CLOSE */
@@ -86,41 +84,65 @@ int ARGUMENT_COUNT[OPCODE_COUNT] = {
 };
 
 
-// Pretty prints `instruction` to the standard output.
-void debug_print_instruction(int i, uint64_t instruction) {
-	// Index
-	printf("%4d: ", i);
-
-	// Opcode
+// Prints the opcode of an instruction.
+static void debug_opcode(uint64_t instruction) {
 	uint16_t opcode = instr_opcode(instruction);
-	char *name = &OPCODE_NAMES[opcode][0];
+	char *name = OPCODE_NAMES[opcode];
 	printf("%-12s ", name);
+}
 
-	// Arguments
-	int argument_count = ARGUMENT_COUNT[opcode];
-	for (int i = 0; i < argument_count; i++) {
-		int index = (argument_count == 4) ? i : i + 1;
+
+// Prints the arguments to an instruction.
+static void debug_arguments(uint64_t instruction) {
+	uint16_t opcode = instr_opcode(instruction);
+	uint32_t count = ARGUMENT_COUNT[opcode];
+	for (uint32_t i = 0; i < count; i++) {
+		// If this is a 4 argument opcode, we need to start indexing arguments
+		// at 0 (to print the 4th, 8 bit argument)
+		uint32_t index = (count == 4) ? i : i + 1;
 		uint16_t arg = instr_argument(instruction, index);
 		printf("%-6u ", arg);
 	}
+}
 
-	// Jump destination
-	if (opcode == JMP) {
-		uint32_t destination = i + instr_argument(instruction, 1);
-		printf("==> %d", destination);
-	} else if (opcode == LOOP) {
-		uint32_t destination = i - instr_argument(instruction, 1) + 1;
-		printf("==> %d", destination);
+
+// Prints the destination for a jump or loop instruction.
+static void debug_jump_destination(uint32_t index, uint64_t instruction) {
+	uint16_t opcode = instr_opcode(instruction);
+
+	// Only for jump or loop instructions
+	if (opcode != JMP && opcode != LOOP) {
+		return;
 	}
 
+	int32_t offset = instr_argument(instruction, 1);
+
+	// Subtract the offset, rather than add it, for a loop, since loops jump
+	// backwards in the bytecode
+	if (opcode == LOOP) {
+		offset *= -1;
+	}
+
+	uint32_t destination = index + offset;
+	printf("==> %d", destination);
+}
+
+
+// Pretty prints `instruction` to the standard output. `index` specifies the
+// index of the instruction in the bytecode, used to calculate the destination
+// for a jump instruction.
+void debug_instruction(uint32_t index, uint64_t instruction) {
+	printf("%8d: ", index);
+	debug_opcode(instruction);
+	debug_arguments(instruction);
+	debug_jump_destination(index, instruction);
 	printf("\n");
 }
 
 
-// Pretty prints all instructions in a function's bytecode to the standard
-// output.
-void debug_print_bytecode(Function *fn) {
+// Pretty prints `fn`'s bytecode to the standard output.
+void debug_bytecode(Function *fn) {
 	for (uint32_t i = 0; i < fn->bytecode_count; i++) {
-		debug_print_instruction(i, fn->bytecode[i]);
+		debug_instruction(i, fn->bytecode[i]);
 	}
 }

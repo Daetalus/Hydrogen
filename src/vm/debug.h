@@ -8,11 +8,12 @@
 
 #include "vm.h"
 
-// Pretty prints `instruction` to the standard output.
-void debug_print_instruction(int i, uint64_t instruction);
+// Pretty prints `instruction` to the standard output. `index` specifies the
+// index of the instruction in the bytecode, used to calculate the destination
+// for a jump instruction.
+void debug_instruction(uint32_t index, uint64_t instruction);
 
-// Pretty prints all instructions in a function's bytecode to the standard
-// output.
-void debug_print_bytecode(Function *fn);
+// Pretty prints `fn`'s bytecode to the standard output.
+void debug_bytecode(Function *fn);
 
 #endif
