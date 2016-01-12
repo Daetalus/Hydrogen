@@ -664,33 +664,15 @@ int struct_find(VirtualMachine *vm, char *name, size_t length) {
 // Converts an argument (uint16) to a number (a double) as a value (uint64).
 #define UINT16_TO_VAL(uint16) num_to_val(UINT16_TO_NUM(uint16))
 
+// Evaluates to the current stack size.
+#define STACK_SIZE() (fn->stack_size[ip - fn->bytecode])
+
 // Jumps to the next instruction.
 #define DISPATCH() goto *dispatch_table[INSTR_OPCODE(*ip)];
 
 // Jumps to the next instruction using a dispatch table for computed gotos by
 // incrementing the instruction pointer.
 #define NEXT() ip++; DISPATCH();
-
-
-// Copies a string into a new heap allocated one.
-static inline String * str_copy(String *original) {
-	size_t size = sizeof(String) + original->length + 1;
-	String *str = malloc(size);
-	memcpy(str, original, size);
-	return str;
-}
-
-
-// Concatenates two strings.
-static inline String * str_concat(String *left, String *right) {
-	size_t length = left->length + right->length;
-	String *str = malloc(sizeof(String) + length + 1);
-	str->type = OBJ_STRING;
-	str->length = length;
-	strcpy(str->contents, left->contents);
-	strcpy(&str->contents[left->length], right->contents);
-	return str;
-}
 
 
 // A function frame on the call stack.
@@ -805,21 +787,31 @@ _MOV_LI:
 _MOV_LN:
 	ARG1_L = numbers[ARG2];
 	NEXT();
-_MOV_LS: {
-	// TODO: Only alloc a string when we're modifying it (reduce memory
-	// allocations)
-	gc_check(vm);
-	String *str = str_copy(strings[ARG2]);
-	ARG1_L = ptr_to_val(str);
-	gc_add(gc, (Object *) str);
-	NEXT();
-}
 _MOV_LP:
 	ARG1_L = PRIMITIVE_FROM_TAG(ARG2);
 	NEXT();
 _MOV_LF:
 	ARG1_L = INDEX_TO_VALUE(ARG2, FN_TAG);
 	NEXT();
+
+
+// Allocates a copy of a string using the garbage collector.
+#define STR_COPY(result, original) {                       \
+	size_t size = sizeof(String) + (original)->length + 1; \
+	String *str = malloc(size);                            \
+	memcpy(str, (original), size);                         \
+	str->mark = gc->mark ^ 0x01;                           \
+	gc_add(gc, (Object *) str, size);                      \
+	gc_check(gc, vm, stack, STACK_SIZE());                 \
+	result = ptr_to_val(str);                              \
+}
+
+_MOV_LS: {
+	// TODO: Only alloc a string when we're modifying it (reduce memory
+	// allocations)
+	STR_COPY(ARG1_L, strings[ARG2]);
+	NEXT();
+}
 
 
 // The stack slot of an open upvalue.
@@ -908,28 +900,37 @@ _MOD_NL:
 	ARG1_L = num_to_val(fmod(val_to_num(numbers[ARG2]), val_to_num(ARG3_L)));
 	NEXT();
 
+
+// Concatenates two strings.
+#define STR_CONCAT(result, left_val, right_val) {          \
+	String *left = (left_val);                             \
+	String *right = (right_val);                           \
+	size_t length = left->length + right->length;          \
+	size_t size = sizeof(String) + length + 1;             \
+	String *str = malloc(size);                            \
+	str->type = OBJ_STRING;                                \
+	str->length = length;                                  \
+	strcpy(str->contents, left->contents);                 \
+	strcpy(&str->contents[left->length], right->contents); \
+	str->mark = gc->mark ^ 0x01;                           \
+	gc_add(gc, (Object *) str, size);                      \
+	gc_check(gc, vm, stack, STACK_SIZE());                 \
+	result = ptr_to_val(str);                              \
+}
+
 _CONCAT_LL: {
 	ENSURE_STRS(ARG2_L, ARG3_L);
-	gc_check(vm);
-	String *str = str_concat(val_to_ptr(ARG2_L), val_to_ptr(ARG3_L));
-	ARG1_L = ptr_to_val(str);
-	gc_add(gc, (Object *) str);
+	STR_CONCAT(ARG1_L, val_to_ptr(ARG2_L), val_to_ptr(ARG3_L));
 	NEXT();
 }
 _CONCAT_LS: {
 	ENSURE_STR(ARG2_L);
-	gc_check(vm);
-	String *str = str_concat(val_to_ptr(ARG2_L), strings[ARG3]);
-	ARG1_L = ptr_to_val(str);
-	gc_add(gc, (Object *) str);
+	STR_CONCAT(ARG1_L, val_to_ptr(ARG2_L), strings[ARG3]);
 	NEXT();
 }
 _CONCAT_SL: {
 	ENSURE_STR(ARG3_L);
-	gc_check(vm);
-	String *str = str_concat(strings[ARG2], val_to_ptr(ARG3_L));
-	ARG1_L = ptr_to_val(str);
-	gc_add(gc, (Object *) str);
+	STR_CONCAT(ARG1_L, strings[ARG2], val_to_ptr(ARG3_L));
 	NEXT();
 }
 
@@ -1107,14 +1108,16 @@ _RET1:
 	//
 
 _STRUCT_NEW: {
-	gc_check(vm);
+	gc_check(gc, vm, stack, fn->stack_size[ip - fn->bytecode]);
 	StructDefinition *def = &structs[ARG2];
-	Struct *obj = malloc(sizeof(Struct) + sizeof(HyValue) * def->fields_count);
+	size_t size = sizeof(Struct) + sizeof(HyValue) * def->fields_count;
+	Struct *obj = malloc(size);
 	obj->type = OBJ_STRUCT;
 	obj->definition = def;
+	obj->mark = gc->mark ^ 0x01;
 	memcpy(obj->fields, def->values, sizeof(HyValue) * def->fields_count);
 	ARG1_L = ptr_to_val(obj);
-	gc_add(gc, (Object *) obj);
+	gc_add(gc, (Object *) obj, size);
 	NEXT();
 }
 

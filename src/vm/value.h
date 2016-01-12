@@ -87,16 +87,18 @@ typedef struct object {
 
 	// The next object in the linked list of all objects (for the GC).
 	struct object *next;
+
+	// Mark bit for the garbage collector.
+	uint8_t mark;
 } Object;
 
 
 // Used to represent strings.
 typedef struct string {
-	// The type of this object (must be the first element in the struct).
+	// Values inherited from an object.
 	ObjectType type;
-
-	// The next object in the linked list of all objects (for the GC).
 	struct object *next;
+	uint8_t mark;
 
 	// The length of this string.
 	size_t length;
@@ -108,11 +110,10 @@ typedef struct string {
 
 // Used to represent structs.
 typedef struct {
-	// The type of this object (must be the first element in the struct).
+	// Values inherited from an object.
 	ObjectType type;
-
-	// The next object in the linked list of all objects (for the GC).
 	struct object *next;
+	uint8_t mark;
 
 	// A pointer to the struct definition.
 	struct struct_definition *definition;
