@@ -7,17 +7,6 @@
 #include "vm.h"
 
 
-// * A traditional mark and sweep garbage collector
-// * Keeps track of how much memory is allocated
-// * Triggers the GC once this allocation count hits a threshold (which grows
-//   every time it's hit)
-// * Iterates over all accessible values (called roots), which can come from the
-//   stack, upvalues, or top level locals in packages
-// * Marks each of these values as "in use"
-// * Then iterates over all objects currently allocated (stored in a linked
-//   list), freeing any of them that aren't marked
-
-
 // The initial threshold for the garbage collector.
 #define INITIAL_THRESHOLD (10 * 1024 * 1024)
 
@@ -52,6 +41,7 @@ void gc_free(GarbageCollector *gc) {
 
 
 // Mark a value (checking to make sure it's an object).
+// TODO: Mark field members of the object!
 static void gc_mark_object(uint64_t value) {
 	// Only mark objects, ignore the value otherwise
 	if (IS_PTR_VALUE(value)) {

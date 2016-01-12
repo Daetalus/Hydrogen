@@ -9,6 +9,17 @@
 #include "value.h"
 
 
+// * A traditional mark and sweep garbage collector
+// * Keeps track of how much memory is allocated
+// * Triggers the GC once this allocation count hits a threshold (which grows
+//   every time it's hit)
+// * Iterates over all accessible values (called roots), which can come from the
+//   stack, upvalues, or top level locals in packages
+// * Marks each of these values as "in use"
+// * Then iterates over all objects currently allocated (stored in a linked
+//   list), freeing any of them that aren't marked
+
+
 // The multiplier applied to the GC's threshold each time the GC is triggered.
 #define GROWTH_RATE 1.5
 
@@ -40,14 +51,13 @@ GarbageCollector gc_new(void);
 // Frees all objects the garbage collector is keeping track of.
 void gc_free(GarbageCollector *gc);
 
-// Run the garbage collector.
+// Triggers the garbage collector.
 void gc_collect(GarbageCollector *gc, struct vm *vm, uint64_t *stack,
 		uint32_t stack_size);
 
-
-// Checks if a GC run is necessary, and runs one if it is.
-static inline void gc_check(GarbageCollector *gc, struct vm *vm, uint64_t *stack,
-		uint32_t stack_size) {
+// Triggers a garbage collection if it's necessary.
+static inline void gc_check(GarbageCollector *gc, struct vm *vm,
+		uint64_t *stack, uint32_t stack_size) {
 	if (gc->allocated >= gc->threshold) {
 		gc_collect(gc, vm, stack, stack_size);
 
@@ -56,11 +66,10 @@ static inline void gc_check(GarbageCollector *gc, struct vm *vm, uint64_t *stack
 	}
 }
 
-
-// Adds an object to a GC's object list. The size is needed so we can increment
-// the GC's allocation count.
-static inline void gc_add(GarbageCollector *gc, struct object *obj,
-		size_t size) {
+// Appends a heap allocated object to the garbage collector for future
+// collection. The allocated size is needed so we can increment the GC's
+// allocation count.
+static inline void gc_add(GarbageCollector *gc, Object *obj, size_t size) {
 	obj->next = gc->head;
 	gc->head = obj;
 	gc->allocated += size;

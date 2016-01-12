@@ -788,10 +788,10 @@ _MOV_LN:
 	ARG1_L = numbers[ARG2];
 	NEXT();
 _MOV_LP:
-	ARG1_L = PRIMITIVE_FROM_TAG(ARG2);
+	ARG1_L = FROM_PRIMITIVE(ARG2);
 	NEXT();
 _MOV_LF:
-	ARG1_L = INDEX_TO_VALUE(ARG2, FN_TAG);
+	ARG1_L = FROM_FN(ARG2);
 	NEXT();
 
 
@@ -991,13 +991,12 @@ _IS_FALSE_L:
 		}                                                                  \
 		NEXT();                                                            \
 	_ ## prefix ## _LP:                                                    \
-		if (ARG1_L binary PRIMITIVE_FROM_TAG(ARG2)) {                      \
+		if (ARG1_L binary FROM_PRIMITIVE(ARG2)) {                          \
 			ip++;                                                          \
 		}                                                                  \
 		NEXT();                                                            \
 	_ ## prefix ## _LF:                                                    \
-		if (unary (IS_FN_VALUE(ARG1_L) &&                                  \
-				VALUE_TO_INDEX(ARG1_L, FN_TAG) == ARG2)) {                 \
+		if (unary (IS_FN_VALUE(ARG1_L) && TO_FN(ARG1_L) == ARG2)) {        \
 			ip++;                                                          \
 		}                                                                  \
 		NEXT();
@@ -1069,7 +1068,7 @@ _LOOP:
 
 _CALL_L:
 	ENSURE_FN(ARG1_L);
-	CALL(VALUE_TO_INDEX(ARG1_L, FN_TAG), ARG0, ARG2, ARG3);
+	CALL(TO_FN(ARG1_L), ARG0, ARG2, ARG3);
 	DISPATCH();
 _CALL_F:
 	CALL(ARG1, ARG0, ARG2, ARG3);

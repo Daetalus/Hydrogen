@@ -154,7 +154,7 @@ void parse_method_definition(Parser *parser) {
 	field->length = length;
 
 	// Set the default value of the struct field
-	def->values[index] = INDEX_TO_VALUE(fn_index, FN_TAG);
+	def->values[index] = FROM_FN(fn_index);
 }
 
 
