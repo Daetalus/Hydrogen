@@ -1075,6 +1075,7 @@ _CALL_F:
 	CALL(ARG1, ARG0, ARG2, ARG3);
 	DISPATCH();
 _CALL_NATIVE: {
+	// TODO: Wrap in error guard in case native code triggers an error
 	HyArgs args;
 	args.arity = ARG0;
 	args.stack = stack;

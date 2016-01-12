@@ -20,11 +20,13 @@ typedef struct {
 	// A description of the error.
 	char *description;
 
-	// The line of source code the error occurred on.
-	uint32_t line;
+	// The line of source code the error occurred on. -1 if there's no line
+	// number associated with the error.
+	int line;
 
-	// The column of the line in the source code the error occurred on.
-	uint32_t column;
+	// The column of the line in the source code the error occurred on. -1 if
+	// there is no column associated with the error.
+	int column;
 
 	// The name of the package the error occurred in, or NULL if the error
 	// occurred in the main package.
