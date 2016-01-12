@@ -67,7 +67,6 @@ void parse_struct_definition(Parser *parser) {
 // TODO: instantiate structs from other packages
 void parse_struct_instantiation(Parser *parser, uint16_t slot) {
 	Lexer *lexer = parser->lexer;
-	Function *fn = &parser->vm->functions[parser->fn_index];
 
 	// Skip the `new` token
 	lexer_next(lexer);
@@ -88,7 +87,7 @@ void parse_struct_instantiation(Parser *parser, uint16_t slot) {
 	StructDefinition *def = &parser->vm->structs[index];
 
 	// Emit bytecode to create the struct
-	emit(fn, instr_new(STRUCT_NEW, slot, index, 0));
+	parser_emit(parser, STRUCT_NEW, slot, index, 0);
 
 	// Call the constructor, if it exists
 	if (def->constructor != -1) {

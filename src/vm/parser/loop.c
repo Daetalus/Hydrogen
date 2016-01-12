@@ -41,7 +41,7 @@ void parse_loop(Parser *parser) {
 
 	// Insert a jump statement to return to the start of the loop
 	uint32_t offset = fn->bytecode_count - start;
-	emit(fn, instr_new(LOOP, offset, 0, 0));
+	parser_emit(parser, LOOP, offset, 0, 0);
 
 	// Patch break statements to here
 	if (loop.jump >= 0) {
@@ -93,7 +93,7 @@ void parse_while(Parser *parser) {
 
 	// Insert a jump statement to return to the start of the loop
 	uint32_t offset = fn->bytecode_count - start;
-	emit(fn, instr_new(LOOP, offset, 0, 0));
+	parser_emit(parser, LOOP, offset, 0, 0);
 
 	// Point the condition's false case here
 	uint32_t after = fn->bytecode_count;
@@ -121,7 +121,7 @@ void parse_break(Parser *parser) {
 	}
 
 	// Emit a jump instruction
-	uint32_t jump = jmp_new(fn);
+	uint32_t jump = jmp_new(parser);
 
 	// Add it to the loop's jump list
 	Loop *loop = parser->loop;

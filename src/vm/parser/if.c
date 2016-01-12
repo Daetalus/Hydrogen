@@ -73,11 +73,10 @@ void parse_if(Parser *parser) {
 	// Parse following else if statements
 	while (lexer->token.type == TOKEN_ELSE_IF) {
 		// Insert a jump at the end of the previous if body
-		int new_jump = jmp_new(fn);
+		int new_jump = jmp_new(parser);
 		if (jump == -1) {
 			jump = new_jump;
 		} else {
-
 			jmp_append(fn, new_jump, jump);
 			jump = new_jump;
 		}
@@ -92,7 +91,7 @@ void parse_if(Parser *parser) {
 	// Check for an else statement
 	if (lexer->token.type == TOKEN_ELSE) {
 		// Insert a jump at the end of the previous if body
-		int new_jump = jmp_new(fn);
+		int new_jump = jmp_new(parser);
 		if (jump == -1) {
 			jump = new_jump;
 		} else {

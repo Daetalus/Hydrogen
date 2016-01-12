@@ -134,7 +134,7 @@ Variable local_capture(Parser *parser, char *name, size_t length) {
 
 
 // Returns true if a local exists in a parent compiler.
-bool local_exists_all(Parser *parser, char *name, size_t length) {
+static bool local_exists_all(Parser *parser, char *name, size_t length) {
 	if (parser == NULL) {
 		// Reached top level compiler, variable must be unique
 		return false;
@@ -188,18 +188,21 @@ bool local_exists(Parser *parser, char *name, size_t length) {
 }
 
 
+// Closes an upvalue.
+static void local_close_upvalue(Parser *parser, Local *local) {
+	int upvalue = local->upvalue_index;
+	if (upvalue >= 0) {
+		parser_emit(parser, UPVALUE_CLOSE, upvalue, 0, 0);
+	}
+}
+
+
 // Emits close upvalue instructions for all locals still on the parser's local
 // stack.
 void local_close_upvalues(Parser *parser) {
-	Function *fn = &parser->vm->functions[parser->fn_index];
-
 	// Emit in reverse order
 	for (int i = parser->locals_count; i >= 0; i--) {
-		int upvalue = parser->locals[i].upvalue_index;
-		if (upvalue >= 0) {
-			// Emit close upvalue instruction
-			emit(fn, instr_new(UPVALUE_CLOSE, upvalue, 0, 0));
-		}
+		local_close_upvalue(parser, &parser->locals[i]);
 	}
 }
 
@@ -213,7 +216,6 @@ void scope_new(Parser *parser) {
 // Decrements the parser's scope depth, removing all locals from the stack
 // created in that scope and closing any upvalues.
 void scope_free(Parser *parser) {
-	Function *fn = &parser->vm->functions[parser->fn_index];
 	parser->scope_depth--;
 
 	// Since the locals are stored in order of stack depth, with the locals
@@ -222,13 +224,7 @@ void scope_free(Parser *parser) {
 	// scope that is still active
 	int i = parser->locals_count - 1;
 	while (i >= 0 && parser->locals[i].scope_depth > parser->scope_depth) {
-		// Check if the local was used as an upvalue
-		int upvalue = parser->locals[i].upvalue_index;
-		if (upvalue >= 0) {
-			// Close the upvalue
-			emit(fn, instr_new(UPVALUE_CLOSE, upvalue, 0, 0));
-		}
-
+		local_close_upvalue(parser, &parser->locals[i]);
 		parser->locals_count--;
 		i--;
 	}

@@ -62,6 +62,10 @@ typedef struct {
 	// The compiled bytecode for the function.
 	ARRAY(uint64_t, bytecode);
 
+	// The size of the stack at each instruction in the bytecode, for the
+	// garbage collector.
+	ARRAY(uint32_t, stack_size);
+
 	// The package the function was defined in.
 	Package *package;
 

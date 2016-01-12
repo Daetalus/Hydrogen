@@ -11,6 +11,7 @@
 
 #include "../vm.h"
 #include "../error.h"
+#include "../bytecode.h"
 
 #include "lexer.h"
 
@@ -95,6 +96,18 @@ Parser parser_new(Parser *parent);
 
 // Frees resources allocated by a parser.
 void parser_free(Parser *parser);
+
+// Emits a bytecode instruction for the parser's function.
+uint32_t parser_emit(Parser *parser, Opcode opcode, uint16_t arg1,
+	uint16_t arg2, uint16_t arg3);
+
+// Emits a 4 argument bytecode instruction.
+uint32_t parser_emit_4(Parser *parser, Opcode opcode, uint8_t arg0,
+	uint16_t arg1, uint16_t arg2, uint16_t arg3);
+
+// Appends an empty jump instruction (with no target set) to the end of a
+// function's bytecode. Returns the index of the jump instruction.
+int jmp_new(Parser *parser);
 
 // Returns true if a parser is currently parsing the top level of a file.
 bool parser_is_top_level(Parser *parser);

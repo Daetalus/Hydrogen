@@ -232,7 +232,7 @@ bool unary_valid(Opcode operator, OperandType operand) {
 void expr_top_level_to_local(Parser *parser, uint16_t slot, uint16_t index) {
 	Function *fn = &parser->vm->functions[parser->fn_index];
 	uint16_t package_index = fn->package - parser->vm->packages;
-	emit(fn, instr_new(MOV_LT, slot, package_index, index));
+	parser_emit(parser, MOV_LT, slot, package_index, index);
 }
 
 
@@ -545,13 +545,12 @@ void invert_condition(Function *fn, int index) {
 
 // Emits bytecode to convert a local operand into a jump.
 Operand operand_to_jump(Parser *parser, Operand operand) {
-	Function *fn = &parser->vm->functions[parser->fn_index];
 	Operand result;
 	result.type = OP_JUMP;
 
 	// Emit a comparison and empty jump instruction
-	emit(fn, instr_new(IS_FALSE_L, operand.slot, 0, 0));
-	result.jump = jmp_new(fn);
+	parser_emit(parser, IS_FALSE_L, operand.slot, 0, 0);
+	result.jump = jmp_new(parser);
 	return result;
 }
 
@@ -637,7 +636,6 @@ Operand expr_or(Parser *parser, Operand left, Operand right) {
 // Emits bytecode for a binary operator.
 Operand expr_binary(Parser *parser, uint16_t slot, TokenType operator,
 		Operand left, Operand right) {
-	Function *fn = &parser->vm->functions[parser->fn_index];
 	Operand operand = operand_new();
 
 	// Ensure the operands are valid for the operator
@@ -664,7 +662,7 @@ Operand expr_binary(Parser *parser, uint16_t slot, TokenType operator,
 
 		// Emit the operation
 		Opcode opcode = arithmetic_opcode(operator, left.type, right.type);
-		emit(fn, instr_new(opcode, slot, left.value, right.value));
+		parser_emit(parser, opcode, slot, left.value, right.value);
 	} else if (operator >= TOKEN_EQ && operator <= TOKEN_GE) {
 		// Comparison
 		operand.type = OP_JUMP;
@@ -685,8 +683,8 @@ Operand expr_binary(Parser *parser, uint16_t slot, TokenType operator,
 		}
 
 		// Emit the comparison and the empty jump instruction following it
-		emit(fn, instr_new(opcode, left_value, right_value, 0));
-		operand.jump = jmp_new(fn);
+		parser_emit(parser, opcode, left_value, right_value, 0);
+		operand.jump = jmp_new(parser);
 	}
 
 	return operand;
@@ -733,7 +731,6 @@ Operand fold_unary(Parser *parser, Opcode opcode, Operand right) {
 // Emits bytecode for a unary operator.
 Operand expr_unary(Parser *parser, Opcode opcode, Operand right) {
 	Operand operand = operand_new();
-	Function *fn = &parser->vm->functions[parser->fn_index];
 
 	// Ensure the operand is valid for the operator
 	if (!unary_valid(opcode, right.type)) {
@@ -753,7 +750,7 @@ Operand expr_unary(Parser *parser, Opcode opcode, Operand right) {
 	local_new(parser, &operand.slot);
 
 	// Emit operation
-	emit(fn, instr_new(opcode, operand.slot, right.value, 0));
+	parser_emit(parser, opcode, operand.slot, right.value, 0);
 
 	// Return a the local in which we stored the result of the operation
 	return operand;
@@ -779,25 +776,23 @@ void expr_patch_false_case(Parser *parser, Operand operand, int false_case) {
 
 // Stores the value of an operand into `slot` on the stack.
 void expr_discharge(Parser *parser, uint16_t slot, Operand operand) {
-	Function *fn = &parser->vm->functions[parser->fn_index];
-
 	if (operand.type == OP_LOCAL) {
 		// Copy a local if isn't in a deallocated slot
 		if (operand.slot != slot && operand.slot < parser->locals_count) {
-			emit(fn, instr_new(MOV_LL, slot, operand.slot, 0));
+			parser_emit(parser, MOV_LL, slot, operand.slot, 0);
 		}
 	} else if (operand.type == OP_JUMP) {
 		// Emit true case, jump over false case, and false case
-		emit(fn, instr_new(MOV_LP, slot, TRUE_TAG, 0));
-		emit(fn, instr_new(JMP, 2, 0, 0));
-		uint32_t false_case = emit(fn, instr_new(MOV_LP, slot, FALSE_TAG, 0));
+		parser_emit(parser, MOV_LP, slot, TRUE_TAG, 0);
+		parser_emit(parser, JMP, 2, 0, 0);
+		uint32_t false_case = parser_emit(parser, MOV_LP, slot, FALSE_TAG, 0);
 
 		// Finish the condition now that we know the location of the false case
 		expr_patch_false_case(parser, operand, false_case);
 	} else {
 		// Emit a store instruction for the appropriate type
 		Opcode opcode = MOV_LL + operand.type;
-		emit(fn, instr_new(opcode, slot, operand.value, 0));
+		parser_emit(parser, opcode, slot, operand.value, 0);
 	}
 }
 
@@ -844,7 +839,7 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 			operand.self.slot = var.slot;
 		} else if (var.type == VAR_UPVALUE) {
 			// Store the upvalue into a local slot
-			emit(fn, instr_new(MOV_LU, slot, var.slot, 0));
+			parser_emit(parser, MOV_LU, slot, var.slot, 0);
 			operand.type = OP_LOCAL;
 
 			operand.slot = slot;
@@ -967,8 +962,6 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t slot) {
 			return result;
 		}
 
-		Function *fn = &parser->vm->functions[parser->fn_index];
-
 		// Skip the dot
 		lexer_next(lexer);
 
@@ -985,7 +978,7 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t slot) {
 			ident.start = lexer->token.start;
 			ident.length = lexer->token.length;
 			uint16_t index = vm_add_field(parser->vm, ident);
-			emit(fn, instr_new(STRUCT_FIELD, slot, operand.slot, index));
+			parser_emit(parser, STRUCT_FIELD, slot, operand.slot, index);
 
 			// Set the struct the local was referenced from in case of a
 			// function call, when we need to give the struct to the method
@@ -1015,7 +1008,7 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t slot) {
 			}
 
 			// Emit package top level variable access
-			emit(fn, instr_new(MOV_LT, slot, operand.index, index));
+			parser_emit(parser, MOV_LT, slot, operand.index, index);
 
 			// Set the struct slot
 			result.self.type = SELF_TOP_LEVEL;
@@ -1137,11 +1130,11 @@ void expr_emit_local(Parser *parser, char *name, size_t length) {
 
 		if (var.type == VAR_UPVALUE) {
 			// Store the local into an upvalue
-			emit(fn, instr_new(MOV_UL, var.slot, slot, 0));
+			parser_emit(parser, MOV_UL, var.slot, slot, 0);
 		} else {
 			// Store the local into a top level variable
 			uint16_t package_index = fn->package - parser->vm->packages;
-			emit(fn, instr_new(MOV_TL, var.slot, package_index, slot));
+			parser_emit(parser, MOV_TL, var.slot, package_index, slot);
 		}
 	} else if (var.type == VAR_PACKAGE) {
 		ERROR("Attempt to assign to package `%.*s`", length, name);

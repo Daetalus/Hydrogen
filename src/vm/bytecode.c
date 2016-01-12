@@ -75,16 +75,13 @@ uint64_t instr_modify_argument(uint64_t instruction, int n,
 
 // Appends an instruction to the end of a function's bytecode. Returns the index
 // of the instruction in the function's bytecode.
-int emit(Function *fn, uint64_t instruction) {
+int emit(Function *fn, uint32_t stack_size, uint64_t instruction) {
 	int index = fn->bytecode_count++;
 	ARRAY_REALLOC(fn->bytecode, uint64_t);
 	fn->bytecode[index] = instruction;
+
+	index = fn->stack_size_count++;
+	ARRAY_REALLOC(fn->stack_size, uint32_t);
+	fn->stack_size[index] = stack_size;
 	return index;
-}
-
-
-// Appends an empty jump instruction (with no target set) to the end of a
-// function's bytecode. Returns the index of the jump instruction.
-int jmp_new(Function *fn) {
-	return emit(fn, instr_new(JMP, 0, 0, 0));
 }

@@ -46,6 +46,35 @@ void parser_free(Parser *parser) {
 }
 
 
+// Emits a bytecode instruction for the parser's function.
+uint32_t parser_emit(Parser *parser, Opcode opcode, uint16_t arg1,
+		uint16_t arg2, uint16_t arg3) {
+	return emit(
+		&parser->vm->functions[parser->fn_index],
+		parser->locals_count,
+		instr_new(opcode, arg1, arg2, arg3)
+	);
+}
+
+
+// Emits a 4 argument bytecode instruction.
+uint32_t parser_emit_4(Parser *parser, Opcode opcode, uint8_t arg0,
+		uint16_t arg1, uint16_t arg2, uint16_t arg3) {
+	return emit(
+		&parser->vm->functions[parser->fn_index],
+		parser->locals_count,
+		instr_new_4(opcode, arg0, arg1, arg2, arg3)
+	);
+}
+
+
+// Appends an empty jump instruction (with no target set) to the end of a
+// function's bytecode. Returns the index of the jump instruction.
+int jmp_new(Parser *parser) {
+	return parser_emit(parser, JMP, 0, 0, 0);
+}
+
+
 // Returns true if a parser is currently parsing the top level of a file.
 bool parser_is_top_level(Parser *parser) {
 	return parser->parent == NULL && parser->scope_depth == 1;
@@ -79,8 +108,7 @@ void parse_package(VirtualMachine *vm, Package *package) {
 	parse_block(&parser, TOKEN_EOF);
 
 	// Append a return instruction
-	Function *fn = &vm->functions[parser.fn_index];
-	emit(fn, instr_new(RET0, 0, 0, 0));
+	parser_emit(&parser, RET0, 0, 0, 0);
 
 	// Free the parser we allocated
 	parser_free(&parser);

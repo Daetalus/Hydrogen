@@ -433,6 +433,7 @@ Function * fn_new(VirtualMachine *vm, Package *package, uint16_t *index) {
 	fn->package = package;
 	fn->defined_upvalues_count = 0;
 	ARRAY_INIT(fn->bytecode, uint64_t, 64);
+	ARRAY_INIT(fn->stack_size, uint32_t, 64);
 
 	// Add the function to the package's function list
 	if (package != NULL) {
@@ -448,6 +449,7 @@ Function * fn_new(VirtualMachine *vm, Package *package, uint16_t *index) {
 // Frees resources allocated by a function.
 void fn_free(Function *fn) {
 	free(fn->bytecode);
+	free(fn->stack_size);
 }
 
 
@@ -804,6 +806,8 @@ _MOV_LN:
 	ARG1_L = numbers[ARG2];
 	NEXT();
 _MOV_LS: {
+	// TODO: Only alloc a string when we're modifying it (reduce memory
+	// allocations)
 	gc_check(vm);
 	String *str = str_copy(strings[ARG2]);
 	ARG1_L = ptr_to_val(str);
