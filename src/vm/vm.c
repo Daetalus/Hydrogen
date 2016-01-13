@@ -74,7 +74,6 @@ void hy_free(HyVM *vm) {
 		struct_free(def);
 	}
 
-	// Arrays
 	free(vm->packages);
 	free(vm->functions);
 	free(vm->native_packages);
@@ -84,8 +83,6 @@ void hy_free(HyVM *vm) {
 	free(vm->upvalues);
 	free(vm->structs);
 	free(vm->fields);
-
-	// The VM itself
 	free(vm);
 }
 

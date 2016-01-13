@@ -257,6 +257,8 @@ TEST(Struct, UpvalueCallMethod) {
 	ASSERT_INSTR(MOV_LU, 1, 0, 0);
 	ASSERT_CALL(CALL_L, 0, 1, 1, 0);
 	ASSERT_RET();
+
+	COMPILER_FREE();
 }
 
 
