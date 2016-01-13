@@ -470,6 +470,20 @@ int fn_find(VirtualMachine *vm, char *name, size_t length) {
 }
 
 
+// Appends an instruction to the end of a function's bytecode. Returns the index
+// of the instruction in the function's bytecode.
+int fn_emit(Function *fn, uint32_t stack_size, uint64_t instruction) {
+	int index = fn->bytecode_count++;
+	ARRAY_REALLOC(fn->bytecode, uint64_t);
+	fn->bytecode[index] = instruction;
+
+	index = fn->stack_size_count++;
+	ARRAY_REALLOC(fn->stack_size, uint32_t);
+	fn->stack_size[index] = stack_size;
+	return index;
+}
+
+
 
 //
 //  Upvalues

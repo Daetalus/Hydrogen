@@ -49,7 +49,7 @@ void parser_free(Parser *parser) {
 // Emits a bytecode instruction for the parser's function.
 uint32_t parser_emit(Parser *parser, Opcode opcode, uint16_t arg1,
 		uint16_t arg2, uint16_t arg3) {
-	return emit(
+	return fn_emit(
 		&parser->vm->functions[parser->fn_index],
 		parser->locals_count,
 		instr_new(opcode, arg1, arg2, arg3)
@@ -60,7 +60,7 @@ uint32_t parser_emit(Parser *parser, Opcode opcode, uint16_t arg1,
 // Emits a 4 argument bytecode instruction.
 uint32_t parser_emit_4(Parser *parser, Opcode opcode, uint8_t arg0,
 		uint16_t arg1, uint16_t arg2, uint16_t arg3) {
-	return emit(
+	return fn_emit(
 		&parser->vm->functions[parser->fn_index],
 		parser->locals_count,
 		instr_new_4(opcode, arg0, arg1, arg2, arg3)

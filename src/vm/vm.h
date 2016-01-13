@@ -269,6 +269,10 @@ void fn_free(Function *fn);
 // list, or -1 if one couldn't be found.
 int fn_find(VirtualMachine *vm, char *name, size_t length);
 
+// Appends an instruction to the end of a function's bytecode. Returns the index
+// of the instruction in the function's bytecode.
+int fn_emit(Function *fn, uint32_t stack_size, uint64_t instruction);
+
 
 // Creates a new upvalue.
 Upvalue * upvalue_new(VirtualMachine *vm, int *index);

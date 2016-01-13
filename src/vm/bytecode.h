@@ -13,16 +13,16 @@
 // * Each instruction is a 64 bit unsigned integer
 // * Each instruction has an operation code (opcode) and 4 arguments
 // * The opcode is stored in the lowest 1 byte
-// * The 0th argument is stored in the next lowest byte
-// * The 1st argument is stored in the next 2 bytes
-// * The 2nd and 3rd arguments are each 2 bytes
+// * The 0th argument is stored in the next lowest byte (8 bits long)
+// * The 1st, 2nd and 3rd arguments are stored in the next 6 bytes (16 bits
+//   each)
 //
-// * There are a maximum of 256 opcodes (since it must fit in 1 byte)
+// * There are a maximum of 256 opcodes (since the opcode must fit in 1 byte)
 
 
 // Instruction operation codes.
 //
-// Postfixes:
+// Postfix meanings:
 // * L: local
 // * I: integer
 // * N: number
@@ -40,7 +40,7 @@ typedef enum {
 	MOV_LL,
 	MOV_LI,
 	MOV_LN,
-	MOV_LS, // 3rd argument is stack size (for the GC)
+	MOV_LS,
 	MOV_LP,
 	MOV_LF,
 
@@ -95,7 +95,6 @@ typedef enum {
 	MOD_IL,
 	MOD_NL,
 
-	// 3rd argument is stack size (for the GC)
 	CONCAT_LL,
 	CONCAT_LS,
 	CONCAT_SL,
@@ -108,8 +107,7 @@ typedef enum {
 	//
 
 	// * A comparison instruction must be followed by a JMP instruction
-	// * The following JMP instruction will only be executed if the comparison
-	//   is true
+	// * The JMP instruction will only be executed if the comparison is true
 
 	IS_TRUE_L,
 	IS_FALSE_L,
@@ -176,13 +174,8 @@ typedef enum {
 	// itself.
 	CALL_F,
 
-	// Calls a C function in a native package.
-	//
-	// Arguments:
-	// * `arity`: number of arguments given to the function call
-	// * `fn`: index of the function in the VM's native function list
-	// * `argument_start`: the stack slot of the first argument
-	// * `return_slot`: the stack slot to store the return value of the function
+	// Calls a C function in a native package, where the function index is an
+	// index into the VM's native functions list.
 	CALL_NATIVE,
 
 	// Return nothing from a function (moves nil into the return slot).
@@ -196,7 +189,7 @@ typedef enum {
 	//  Structs
 	//
 
-	// Creates a new struct described by `struct_index` in `slot`.
+	// Creates an instance of a struct.
 	//
 	// Arguments:
 	// * `slot`: where to store the new struct on the stack
@@ -209,9 +202,9 @@ typedef enum {
 	//
 	// Arguments:
 	// * `slot`: where to store the contents of the field
-	// * `struct_slot`: the slot the struct is in
-	// * `field_name`: the name of the field, as an index into the VM's struct
-	//   field name list
+	// * `struct_slot`: the stack slot of the struct
+	// * `field_name`: the name of the field to get, as an index into the VM's
+	//   struct field name list
 	STRUCT_FIELD,
 
 	// Sets the contents of a struct's field.
@@ -220,7 +213,7 @@ typedef enum {
 	// * `slot`: the stack slot of the struct
 	// * `field_name`: the name of the field, as an index into the VM's struct
 	//   field name list
-	// * `value`: the stack slot of the value to set
+	// * `value`: set the field to the value contained in this stack slot
 	STRUCT_SET,
 
 
@@ -231,10 +224,6 @@ typedef enum {
 	NO_OP,
 } Opcode;
 
-
-//
-//  Instructions
-//
 
 // Creates an instruction from an opcode and 3 arguments. Sets the 0th argument
 // to 0.
@@ -256,14 +245,5 @@ uint64_t instr_modify_opcode(uint64_t instruction, Opcode new_opcode);
 // Returns `instruction` with the `n`th argument modified.
 uint64_t instr_modify_argument(uint64_t instruction, int n,
 	uint16_t new_argument);
-
-
-//
-//  Bytecode
-//
-
-// Appends an instruction to the end of a function's bytecode. Returns the index
-// of the instruction in the function's bytecode.
-int emit(Function *fn, uint32_t stack_size, uint64_t instruction);
 
 #endif

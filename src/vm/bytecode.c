@@ -7,10 +7,6 @@
 #include "util.h"
 
 
-//
-//  Instructions
-//
-
 // Creates an instruction from an opcode and 3 arguments. Sets the 0th argument
 // to 0.
 uint64_t instr_new(Opcode opcode, uint16_t arg1, uint16_t arg2, uint16_t arg3) {
@@ -65,23 +61,4 @@ uint64_t instr_modify_argument(uint64_t instruction, int n,
 		uint64_t cleared = instruction & (((uint64_t) 0xffffffffffffffff) ^ xor);
 		return cleared | (((uint64_t) new_argument) << offset);
 	}
-}
-
-
-
-//
-//  Bytecode
-//
-
-// Appends an instruction to the end of a function's bytecode. Returns the index
-// of the instruction in the function's bytecode.
-int emit(Function *fn, uint32_t stack_size, uint64_t instruction) {
-	int index = fn->bytecode_count++;
-	ARRAY_REALLOC(fn->bytecode, uint64_t);
-	fn->bytecode[index] = instruction;
-
-	index = fn->stack_size_count++;
-	ARRAY_REALLOC(fn->stack_size, uint32_t);
-	fn->stack_size[index] = stack_size;
-	return index;
 }
