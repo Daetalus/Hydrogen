@@ -40,7 +40,7 @@ char * import_package_path(Package *importer, char *path) {
 	} else {
 		// Append the path to the importing package's path (excluding the last
 		// path component of the importing package's path)
-		char *result = (char *) malloc(sizeof(char) * (strlen(path) + last + 2));
+		char *result = (char *) malloc(strlen(path) + last + 2);
 		strncpy(result, importer->file, last + 1);
 		strcpy(&result[last + 1], path);
 		return result;
@@ -115,11 +115,11 @@ char * import_package_name(char *path) {
 	char *name;
 	if (last_path < 0 && last_dot < 0) {
 		// Copy into a new string
-		name = (char *) malloc(sizeof(char) * (length + 1));
+		name = (char *) malloc(length + 1);
 		strcpy(name, path);
 	} else if (last_path < 0) {
 		// File extension
-		name = (char *) malloc(sizeof(char) * last_dot);
+		name = (char *) malloc(last_dot + 1);
 		strncpy(name, path, last_dot);
 		name[last_dot] = '\0';
 	} else {
@@ -131,8 +131,8 @@ char * import_package_name(char *path) {
 
 		// Extract the last component into a new string
 		// The length includes the + 1 for the NULL terminator
-		size_t last_length = length - last_path;
-		name = (char *) malloc(sizeof(char) * last_length);
+		size_t last_length = stop - last_path;
+		name = (char *) malloc(last_length);
 		for (size_t i = last_path + 1; i < stop; i++) {
 			name[i - (last_path + 1)] = path[i];
 		}

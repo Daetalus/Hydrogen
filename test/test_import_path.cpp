@@ -48,43 +48,65 @@ TEST(ImportPath, Validation) {
 }
 
 
+// Asserts a package path is equal to its expected value.
+#define ASSERT_PACKAGE_PATH(package, expected) {                 \
+	char *package_heap = (char *) malloc(strlen(package) + 1);   \
+	strcpy(package_heap, package);                               \
+	char *result = import_package_path(&importer, package_heap); \
+	ASSERT_STREQ(result, expected);                              \
+	free(result);                                                \
+	if (result != package_heap) {                                \
+		free(package_heap);                                      \
+	}                                                            \
+}
+
+
 // Tests resolving import paths to their actual locations on the filesystem
 // using the parent package.
 TEST(ImportPath, PathResolution) {
 	Package importer;
 
 	importer.file = NULL;
-	ASSERT_STREQ(import_package_path(&importer, "hello"), "hello");
-	ASSERT_STREQ(import_package_path(&importer, "test/ing"), "test/ing");
-	ASSERT_STREQ(import_package_path(&importer, "/abs/path"), "/abs/path");
+	ASSERT_PACKAGE_PATH("hello", "hello");
+	ASSERT_PACKAGE_PATH("test/ing", "test/ing");
+	ASSERT_PACKAGE_PATH("/abs/path", "/abs/path");
 
 	importer.file = "testing";
-	ASSERT_STREQ(import_package_path(&importer, "hello"), "hello");
-	ASSERT_STREQ(import_package_path(&importer, "test/ing"), "test/ing");
-	ASSERT_STREQ(import_package_path(&importer, "/abs/path"), "/abs/path");
+	ASSERT_PACKAGE_PATH("hello", "hello");
+	ASSERT_PACKAGE_PATH("test/ing", "test/ing");
+	ASSERT_PACKAGE_PATH("/abs/path", "/abs/path");
 
 	importer.file = "test/testing";
-	ASSERT_STREQ(import_package_path(&importer, "hello"), "test/hello");
-	ASSERT_STREQ(import_package_path(&importer, "test/ing"), "test/test/ing");
-	ASSERT_STREQ(import_package_path(&importer, "/abs/path"), "/abs/path");
+	ASSERT_PACKAGE_PATH("hello", "test/hello");
+	ASSERT_PACKAGE_PATH("test/ing", "test/test/ing");
+	ASSERT_PACKAGE_PATH("/abs/path", "/abs/path");
 
 	importer.file = "/test";
-	ASSERT_STREQ(import_package_path(&importer, "hello"), "/hello");
-	ASSERT_STREQ(import_package_path(&importer, "test/ing"), "/test/ing");
-	ASSERT_STREQ(import_package_path(&importer, "/abs/path"), "/abs/path");
+	ASSERT_PACKAGE_PATH("hello", "/hello");
+	ASSERT_PACKAGE_PATH("test/ing", "/test/ing");
+	ASSERT_PACKAGE_PATH("/abs/path", "/abs/path");
+}
+
+
+// Asserts a package name matches its expected value.
+#define ASSERT_PACKAGE_NAME(path, expected) { \
+	char *name = import_package_name(path);   \
+	ASSERT_STREQ(name, expected);             \
+	free(name);                               \
 }
 
 
 // Tests extracting the name of a package from its path.
 TEST(ImportPath, PackageName) {
-	ASSERT_STREQ(import_package_name("test"), "test");
-	ASSERT_STREQ(import_package_name("a"), "a");
-	ASSERT_STREQ(import_package_name("test/testing"), "testing");
-	ASSERT_STREQ(import_package_name("../test/../testing"), "testing");
-	ASSERT_STREQ(import_package_name("/absolute/path"), "path");
-	ASSERT_STREQ(import_package_name("test.hy"), "test");
-	ASSERT_STREQ(import_package_name("thing/test.hy"), "test");
-	ASSERT_STREQ(import_package_name("../test.hy"), "test");
-	ASSERT_STREQ(import_package_name("another/../test.hy"), "test");
-	ASSERT_STREQ(import_package_name("../another/../test.hy"), "test");
+	ASSERT_PACKAGE_NAME("test", "test");
+	ASSERT_PACKAGE_NAME("a", "a");
+	ASSERT_PACKAGE_NAME("test/testing", "testing");
+	ASSERT_PACKAGE_NAME("../test/../testing", "testing");
+	ASSERT_PACKAGE_NAME("/absolute/path", "path");
+	ASSERT_PACKAGE_NAME("test.hy", "test");
+
+	ASSERT_PACKAGE_NAME("thing/test.hy", "test");
+	ASSERT_PACKAGE_NAME("../test.hy", "test");
+	ASSERT_PACKAGE_NAME("another/../test.hy", "test");
+	ASSERT_PACKAGE_NAME("../another/../test.hy", "test");
 }

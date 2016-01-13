@@ -9,17 +9,6 @@
 #include <stdlib.h>
 
 
-// A string with a specified length (rather than NULL terminated).
-typedef struct {
-	char *start;
-	size_t length;
-} Identifier;
-
-
-// Returns the contents of a file as a heap allocated string.
-char * read_file(char *path);
-
-
 // Creates a new array in a struct.
 #define ARRAY(type, name)       \
     type *name;                 \
@@ -45,5 +34,16 @@ char * read_file(char *path);
 		}                                                                   \
 		array = (type *) realloc(array, array ## _capacity * sizeof(type)); \
     }
+
+
+// A string with an associated length (rather than NULL terminated).
+typedef struct {
+	char *start;
+	size_t length;
+} Identifier;
+
+
+// Returns the contents of a file as a heap allocated string.
+char * read_file(char *path);
 
 #endif
