@@ -50,17 +50,17 @@ extern "C" {
 
 
 // Creates a function with the given bytecode.
-#define FUNCTION(...)                                                      \
-	uint16_t bytecode[] = {__VA_ARGS__};                                   \
-	int count = sizeof(bytecode) / sizeof(uint16_t);                       \
-	Function fn;                                                           \
-	fn.name = NULL;                                                        \
-	fn.length = 0;                                                         \
-	ARRAY_INIT(fn.bytecode, uint64_t, count / 4);                          \
-	fn.package = NULL;                                                     \
-	for (int i = 0; i < count; i += 4) {                                   \
-		fn.bytecode[fn.bytecode_count++] = instr_new((Opcode) bytecode[i], \
-			bytecode[i + 1], bytecode[i + 2], bytecode[i + 3]);            \
+#define FUNCTION(...)                                                    \
+	uint16_t bytecode[] = {__VA_ARGS__};                                 \
+	int count = sizeof(bytecode) / sizeof(uint16_t);                     \
+	Function fn;                                                         \
+	fn.name = NULL;                                                      \
+	fn.length = 0;                                                       \
+	ARRAY_INIT(fn.bytecode, uint64_t, count / 4);                        \
+	fn.package = NULL;                                                   \
+	for (int i = 0; i < count; i += 4) {                                 \
+		fn.bytecode[fn.bytecode_count++] = ins_new((Opcode) bytecode[i], \
+			bytecode[i + 1], bytecode[i + 2], bytecode[i + 3]);          \
 	}
 
 
@@ -99,13 +99,13 @@ extern "C" {
 
 // Asserts the next instruction's opcode and arguments are equal to the given
 // values.
-#define ASSERT_INSTR(opcode, arg1, arg2, arg3) {     \
-	ASSERT_NE(index, fn->bytecode_count);            \
-	uint64_t instruction = fn->bytecode[index++];    \
-	ASSERT_EQ(instr_opcode(instruction), opcode);    \
-	ASSERT_EQ(instr_argument(instruction, 1), arg1); \
-	ASSERT_EQ(instr_argument(instruction, 2), arg2); \
-	ASSERT_EQ(instr_argument(instruction, 3), arg3); \
+#define ASSERT_INSTR(opcode, arg1, arg2, arg3) {  \
+	ASSERT_NE(index, fn->bytecode_count);         \
+	uint64_t instruction = fn->bytecode[index++]; \
+	ASSERT_EQ(ins_opcode(instruction), opcode);   \
+	ASSERT_EQ(ins_arg(instruction, 1), arg1);     \
+	ASSERT_EQ(ins_arg(instruction, 2), arg2);     \
+	ASSERT_EQ(ins_arg(instruction, 3), arg3);     \
 }
 
 
@@ -115,11 +115,11 @@ extern "C" {
 
 // Asserts the next instruction is a jump, and that it will jump forward by
 // `amount`.
-#define ASSERT_JMP(amount) {                           \
-	ASSERT_NE(index, fn->bytecode_count);              \
-	uint64_t instruction = fn->bytecode[index++];      \
-	ASSERT_EQ(instr_opcode(instruction), JMP);         \
-	ASSERT_EQ(instr_argument(instruction, 1), amount); \
+#define ASSERT_JMP(amount) {                      \
+	ASSERT_NE(index, fn->bytecode_count);         \
+	uint64_t instruction = fn->bytecode[index++]; \
+	ASSERT_EQ(ins_opcode(instruction), JMP);      \
+	ASSERT_EQ(ins_arg(instruction, 1), amount);   \
 }
 
 
@@ -127,11 +127,11 @@ extern "C" {
 #define ASSERT_CALL(opcode, fn_index, arg_start, arity, return_slot) { \
 	ASSERT_NE(index, fn->bytecode_count);                              \
 	uint64_t instruction = fn->bytecode[index++];                      \
-	ASSERT_EQ(instr_opcode(instruction), opcode);                      \
-	ASSERT_EQ(instr_argument(instruction, 0), arity);                  \
-	ASSERT_EQ(instr_argument(instruction, 1), fn_index);               \
-	ASSERT_EQ(instr_argument(instruction, 2), arg_start);              \
-	ASSERT_EQ(instr_argument(instruction, 3), return_slot);            \
+	ASSERT_EQ(ins_opcode(instruction), opcode);                        \
+	ASSERT_EQ(ins_arg(instruction, 0), arity);                         \
+	ASSERT_EQ(ins_arg(instruction, 1), fn_index);                      \
+	ASSERT_EQ(ins_arg(instruction, 2), arg_start);                     \
+	ASSERT_EQ(ins_arg(instruction, 3), return_slot);                   \
 }
 
 

@@ -167,6 +167,7 @@ TEST(Expression, And) {
 		"}\n"
 	);
 
+	debug_bytecode(fn);
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
 	ASSERT_INSTR(MOV_LI, 1, 4, 0);
 

@@ -53,7 +53,7 @@ void gc_free(GarbageCollector *gc);
 
 // Triggers the garbage collector.
 void gc_collect(GarbageCollector *gc, struct vm *vm, uint64_t *stack,
-		uint32_t stack_size);
+	uint32_t stack_size);
 
 // Triggers a garbage collection if it's necessary.
 static inline void gc_check(GarbageCollector *gc, struct vm *vm,
@@ -62,6 +62,8 @@ static inline void gc_check(GarbageCollector *gc, struct vm *vm,
 		gc_collect(gc, vm, stack, stack_size);
 
 		// Grow threshold
+		// TODO: Improve behaviour so we only increase the threshold when
+		// needed (don't do it if we deallocated a lot of space in the sweep)
 		gc->threshold *= GROWTH_RATE;
 	}
 }

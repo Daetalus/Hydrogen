@@ -86,7 +86,7 @@ static uint32_t ARGUMENT_COUNT[] = {
 
 // Prints the opcode of an instruction.
 static void debug_opcode(uint64_t instruction) {
-	uint16_t opcode = instr_opcode(instruction);
+	uint16_t opcode = ins_opcode(instruction);
 	char *name = OPCODE_NAMES[opcode];
 	printf("%-12s ", name);
 }
@@ -94,13 +94,13 @@ static void debug_opcode(uint64_t instruction) {
 
 // Prints the arguments to an instruction.
 static void debug_arguments(uint64_t instruction) {
-	uint16_t opcode = instr_opcode(instruction);
+	uint16_t opcode = ins_opcode(instruction);
 	uint32_t count = ARGUMENT_COUNT[opcode];
 	for (uint32_t i = 0; i < count; i++) {
 		// If this is a 4 argument opcode, we need to start indexing arguments
 		// at 0 (to print the 4th, 8 bit argument)
 		uint32_t index = (count == 4) ? i : i + 1;
-		uint16_t arg = instr_argument(instruction, index);
+		uint16_t arg = ins_arg(instruction, index);
 		printf("%-6u ", arg);
 	}
 }
@@ -108,14 +108,14 @@ static void debug_arguments(uint64_t instruction) {
 
 // Prints the destination for a jump or loop instruction.
 static void debug_jump_destination(uint32_t index, uint64_t instruction) {
-	uint16_t opcode = instr_opcode(instruction);
+	uint16_t opcode = ins_opcode(instruction);
 
 	// Only for jump or loop instructions
 	if (opcode != JMP && opcode != LOOP) {
 		return;
 	}
 
-	int32_t offset = instr_argument(instruction, 1);
+	int32_t offset = ins_arg(instruction, 1);
 
 	// Subtract the offset, rather than add it, for a loop, since loops jump
 	// backwards in the bytecode

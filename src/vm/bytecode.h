@@ -225,25 +225,24 @@ typedef enum {
 } Opcode;
 
 
-// Creates an instruction from an opcode and 3 arguments. Sets the 0th argument
-// to 0.
-uint64_t instr_new(Opcode opcode, uint16_t arg1, uint16_t arg2, uint16_t arg3);
+// Creates an instruction from an opcode and 3 arguments. The 0th argument is
+// set to 0.
+uint64_t ins_new(Opcode opcode, uint16_t arg1, uint16_t arg2, uint16_t arg3);
 
 // Creates an instruction from an opcode and 4 arguments.
-uint64_t instr_new_4(Opcode opcode, uint8_t arg0, uint16_t arg1, uint16_t arg2,
+uint64_t ins_full(Opcode opcode, uint8_t arg0, uint16_t arg1, uint16_t arg2,
 	uint16_t arg3);
 
 // Returns an instruction's opcode.
-Opcode instr_opcode(uint64_t instruction);
+Opcode ins_opcode(uint64_t instruction);
 
-// Returns the `n`th argument of an instruction.
-uint16_t instr_argument(uint64_t instruction, int n);
+// Returns the `arg`th argument of an instruction.
+uint16_t ins_arg(uint64_t instruction, int arg);
 
 // Returns `instruction` with a modified opcode.
-uint64_t instr_modify_opcode(uint64_t instruction, Opcode new_opcode);
+uint64_t ins_set_opcode(uint64_t instruction, Opcode opcode);
 
-// Returns `instruction` with the `n`th argument modified.
-uint64_t instr_modify_argument(uint64_t instruction, int n,
-	uint16_t new_argument);
+// Returns `instruction` with the `arg`th argument modified.
+uint64_t ins_set_arg(uint64_t instruction, int arg, uint16_t value);
 
 #endif

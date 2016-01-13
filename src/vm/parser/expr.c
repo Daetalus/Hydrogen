@@ -537,9 +537,9 @@ Opcode inverted_conditional_opcode(Opcode opcode) {
 // Inverts the condition of a conditional instruction.
 void invert_condition(Function *fn, int index) {
 	uint64_t condition = fn->bytecode[index];
-	Opcode current = (Opcode) instr_opcode(condition);
+	Opcode current = (Opcode) ins_opcode(condition);
 	Opcode inverted = inverted_conditional_opcode(current);
-	fn->bytecode[index] = instr_modify_opcode(condition, inverted);
+	fn->bytecode[index] = ins_set_opcode(condition, inverted);
 }
 
 
