@@ -64,6 +64,10 @@ extern "C" {
 	}
 
 
+// Frees resources allocated when creating a function.
+#define FN_FREE() free(fn.bytecode);
+
+
 // Creates a mock compiler with the given source code.
 #define COMPILER(code)                                                      \
 	char *source = (char *) (code);                                         \

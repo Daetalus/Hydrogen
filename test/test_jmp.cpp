@@ -28,6 +28,8 @@ TEST(Jump, Next) {
 	ASSERT_EQ(jump, 1);
 	jump = jmp_next(&fn, jump);
 	ASSERT_EQ(jump, -1);
+
+	FN_FREE();
 }
 
 
@@ -48,4 +50,6 @@ TEST(Jump, Last) {
 
 	ASSERT_EQ(jmp_last(&fn, 5), 1);
 	ASSERT_EQ(jmp_last(&fn, 3), 1);
+
+	FN_FREE();
 }
