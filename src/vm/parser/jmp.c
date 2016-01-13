@@ -7,14 +7,16 @@
 #include "../bytecode.h"
 
 
-// The argument in a jump instruction used to store it's target offset.
+// The index of the argument in a jump instruction used to store the offset to
+// its target.
 #define JMP_TARGET_ARG 1
 
-// The argument in a jump instruction used to store it's jump list pointer.
+// The index of the argument in a jump instruction used to store it's jump list
+// pointer (where the next element in the jump list is).
 #define JMP_LIST_ARG 2
 
-// The argument in a jump instruction used to store the type of condition the
-// jump belongs to.
+// The index of the argument in a jump instruction used to store the type of
+// condition the jump belongs to (and, or, none).
 #define JMP_TYPE_ARG 3
 
 

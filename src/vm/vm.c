@@ -115,8 +115,9 @@ HyError * hy_exec(HyVM *vm, Package *main) {
 HyError * hy_run(HyVM *vm, char *source) {
 	Package *main = package_new(vm, NULL);
 
-	// Copy across the source code
-	main->source = malloc(sizeof(char) * (strlen(source) + 1));
+	// Copy across the source code into our own heap allocated string, since
+	// God knows what the user has given us
+	main->source = malloc(strlen(source) + 1);
 	strcpy(main->source, source);
 
 	// Run
@@ -129,7 +130,7 @@ HyError * hy_run_file(HyVM *vm, char *path) {
 	Package *main = package_new(vm, NULL);
 
 	// Copy the path into the package
-	main->file = (char *) malloc(sizeof(char) * (strlen(path) + 1));
+	main->file = (char *) malloc(strlen(path) + 1);
 	strcpy(main->file, path);
 
 	// Read the source code
@@ -316,7 +317,7 @@ HyNativePackage * hy_package_new(HyVM *vm, char *name) {
 
 	// Make a heap allocated copy of the string, because God knows what the user
 	// has given us
-	package->name = malloc(sizeof(char) * (strlen(name) + 1));
+	package->name = malloc(strlen(name) + 1);
 	strcpy(package->name, name);
 
 	return package;
@@ -379,7 +380,7 @@ void hy_fn_new(HyNativePackage *package, char *name, int arity, HyNativeFn fn) {
 	native->fn = fn;
 
 	// Make a heap allocated copy of the name
-	native->name = malloc(sizeof(char) * (strlen(name) + 1));
+	native->name = malloc(strlen(name) + 1);
 	strcpy(native->name, name);
 
 	// Add the function to the package's function list

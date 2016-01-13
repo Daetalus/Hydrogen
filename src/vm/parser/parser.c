@@ -17,6 +17,41 @@
 #define MAX_PATH_DEPTH 64
 
 
+// Creates a new function on `vm`, used as `package`'s main function, and
+// populates the function's bytecode based on `package`'s source code.
+void parse_package(VirtualMachine *vm, Package *package) {
+	// Create a lexer on the stack for all child parsers
+	Lexer lexer = lexer_new(vm, package->file, package->name, package->source);
+	lexer_next(&lexer);
+
+	// Create a new parser
+	Parser parser = parser_new(NULL);
+	parser.vm = vm;
+	parser.lexer = &lexer;
+	fn_new(vm, package, &parser.fn_index);
+	package->main_fn = parser.fn_index;
+
+	// Create the imports list on the stack so all child compilers can access
+	// the same list
+	Imports imports;
+	ARRAY_INIT(imports.imports, Import, 4);
+	parser.imports = &imports;
+
+	// Parse import statements at the top of the file
+	parse_imports(&parser);
+
+	// Parse the rest of the file
+	parse_block(&parser, TOKEN_EOF);
+
+	// Append a return instruction
+	parser_emit(&parser, RET0, 0, 0, 0);
+
+	// Free the parser we allocated
+	parser_free(&parser);
+	free(imports.imports);
+}
+
+
 // Creates a new parser. Does not create a new function for the parser.
 Parser parser_new(Parser *parent) {
 	Parser parser;
@@ -78,41 +113,6 @@ int jmp_new(Parser *parser) {
 // Returns true if a parser is currently parsing the top level of a file.
 bool parser_is_top_level(Parser *parser) {
 	return parser->parent == NULL && parser->scope_depth == 1;
-}
-
-
-// Creates a new function on `vm`, used as `package`'s main function, and
-// populates the function's bytecode based on `package`'s source code.
-void parse_package(VirtualMachine *vm, Package *package) {
-	// Create a lexer on the stack for all child parsers
-	Lexer lexer = lexer_new(vm, package->file, package->name, package->source);
-	lexer_next(&lexer);
-
-	// Create a new parser
-	Parser parser = parser_new(NULL);
-	parser.vm = vm;
-	parser.lexer = &lexer;
-	fn_new(vm, package, &parser.fn_index);
-	package->main_fn = parser.fn_index;
-
-	// Create the imports list on the stack so all child compilers can access
-	// the same list
-	Imports imports;
-	ARRAY_INIT(imports.imports, Import, 4);
-	parser.imports = &imports;
-
-	// Parse import statements at the top of the file
-	parse_imports(&parser);
-
-	// Parse the rest of the file
-	parse_block(&parser, TOKEN_EOF);
-
-	// Append a return instruction
-	parser_emit(&parser, RET0, 0, 0, 0);
-
-	// Free the parser we allocated
-	parser_free(&parser);
-	free(imports.imports);
 }
 
 

@@ -59,12 +59,12 @@
 
 
 // A parser, which converts lexed source code into bytecode.
-typedef struct _parser {
+typedef struct parser {
 	// The virtual machine we're parsing for.
 	VirtualMachine *vm;
 
 	// A pointer to the parent parser. NULL if this parser is top level.
-	struct _parser *parent;
+	struct parser *parent;
 
 	// The lexer.
 	Lexer *lexer;
