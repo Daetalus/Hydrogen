@@ -101,13 +101,9 @@ void parser_free(Parser *parser);
 uint32_t parser_emit(Parser *parser, Opcode opcode, uint16_t arg1,
 	uint16_t arg2, uint16_t arg3);
 
-// Emits a 4 argument bytecode instruction.
-uint32_t parser_emit_4(Parser *parser, Opcode opcode, uint8_t arg0,
-	uint16_t arg1, uint16_t arg2, uint16_t arg3);
-
-// Appends an empty jump instruction (with no target set) to the end of a
-// function's bytecode. Returns the index of the jump instruction.
-int jmp_new(Parser *parser);
+// Emits a call instruction.
+uint32_t parser_emit_call(Parser *parser, Opcode opcode, uint8_t arity,
+	uint16_t index, uint16_t arg_start, uint16_t return_slot);
 
 // Returns true if a parser is currently parsing the top level of a file.
 bool parser_is_top_level(Parser *parser);

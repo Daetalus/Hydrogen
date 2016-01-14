@@ -169,7 +169,7 @@ uint32_t import_user(Parser *parser, char *path, char *name) {
 	parse_package(parser->vm, package);
 
 	// Call the package's main function
-	parser_emit_4(parser, CALL_F, 0, package->main_fn, 0, 0);
+	parser_emit_call(parser, CALL_F, 0, package->main_fn, 0, 0);
 	return index;
 }
 

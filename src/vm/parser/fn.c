@@ -308,7 +308,7 @@ void parse_fn_call_self(Parser *parser, Opcode call, uint16_t slot,
 	}
 
 	// Emit the function call
-	parser_emit_4(parser, call, arity, slot, argument_start, return_slot);
+	parser_emit_call(parser, call, arity, slot, argument_start, return_slot);
 }
 
 

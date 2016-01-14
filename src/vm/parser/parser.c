@@ -55,6 +55,7 @@ Parser parser_new(Parser *parent) {
 	ARRAY_INIT(parser.locals, Local, 64);
 
 	if (parent != NULL) {
+		// Copy across the imports pointer so we can access imports
 		parser.imports = parent->imports;
 		parser.imports_count = parent->imports_count;
 		parser.imports_capacity = parent->imports_capacity;
@@ -94,21 +95,14 @@ uint32_t parser_emit(Parser *parser, Opcode opcode, uint16_t arg1,
 }
 
 
-// Emits a 4 argument bytecode instruction.
-uint32_t parser_emit_4(Parser *parser, Opcode opcode, uint8_t arg0,
-		uint16_t arg1, uint16_t arg2, uint16_t arg3) {
+// Emits a call instruction.
+uint32_t parser_emit_call(Parser *parser, Opcode opcode, uint8_t arity,
+		uint16_t index, uint16_t arg_start, uint16_t return_slot) {
 	return fn_emit(
 		&parser->vm->functions[parser->fn_index],
 		parser->locals_count,
-		ins_full(opcode, arg0, arg1, arg2, arg3)
+		ins_full(opcode, arity, index, arg_start, return_slot)
 	);
-}
-
-
-// Appends an empty jump instruction (with no target set) to the end of a
-// function's bytecode. Returns the index of the jump instruction.
-int jmp_new(Parser *parser) {
-	return parser_emit(parser, JMP, 0, 0, 0);
 }
 
 

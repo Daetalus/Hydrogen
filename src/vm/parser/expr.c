@@ -550,7 +550,7 @@ Operand operand_to_jump(Parser *parser, Operand operand) {
 
 	// Emit a comparison and empty jump instruction
 	parser_emit(parser, IS_FALSE_L, operand.slot, 0, 0);
-	result.jump = jmp_new(parser);
+	result.jump = parser_emit(parser, JMP, 0, 0, 0);
 	return result;
 }
 
@@ -684,7 +684,7 @@ Operand expr_binary(Parser *parser, uint16_t slot, TokenType operator,
 
 		// Emit the comparison and the empty jump instruction following it
 		parser_emit(parser, opcode, left_value, right_value, 0);
-		operand.jump = jmp_new(parser);
+		operand.jump = parser_emit(parser, JMP, 0, 0, 0);
 	}
 
 	return operand;

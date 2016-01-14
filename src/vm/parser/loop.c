@@ -121,7 +121,7 @@ void parse_break(Parser *parser) {
 	}
 
 	// Emit a jump instruction
-	uint32_t jump = jmp_new(parser);
+	uint32_t jump = parser_emit(parser, JMP, 0, 0, 0);
 
 	// Add it to the loop's jump list
 	Loop *loop = parser->loop;
