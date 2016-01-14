@@ -13,6 +13,7 @@
 #include "fn.h"
 #include "struct.h"
 
+
 // The maximum number of elements in a path.
 #define MAX_PATH_DEPTH 64
 
@@ -22,7 +23,6 @@
 void parse_package(VirtualMachine *vm, Package *package) {
 	// Create a lexer on the stack for all child parsers
 	Lexer lexer = lexer_new(vm, package->file, package->name, package->source);
-	lexer_next(&lexer);
 
 	// Create a new parser
 	Parser parser = parser_new(NULL);
@@ -55,14 +55,11 @@ Parser parser_new(Parser *parent) {
 	ARRAY_INIT(parser.locals, Local, 64);
 
 	if (parent != NULL) {
-		// Copy across the imports pointer so we can access imports
 		parser.imports = parent->imports;
 		parser.imports_count = parent->imports_count;
 		parser.imports_capacity = parent->imports_capacity;
-
 		parser.lexer = parent->lexer;
 		parser.vm = parent->vm;
-		parser.imports = parent->imports;
 	} else {
 		ARRAY_INIT(parser.imports, Import, 4);
 		parser.lexer = NULL;
@@ -77,12 +74,32 @@ Parser parser_new(Parser *parent) {
 void parser_free(Parser *parser) {
 	free(parser->locals);
 
-	// If we're freeing the top level parser
+	// Since the imports array was allocated on the top level compiler only and
+	// copied down to children, free the import array only on the top level
+	// parser
 	if (parser->parent == NULL) {
 		free(parser->imports);
 	}
 }
 
+
+// Returns true if a parser is currently parsing the top level of a file.
+bool parser_is_top_level(Parser *parser) {
+	return parser->parent == NULL && parser->scope_depth == 1;
+}
+
+
+// Returns the index of the package we're compiling.
+uint16_t parser_package_index(Parser *parser) {
+	Function *fn = &parser->vm->functions[parser->fn_index];
+	return fn->package - parser->vm->packages;
+}
+
+
+
+//
+//  Bytecode Emission
+//
 
 // Emits a bytecode instruction for the parser's function.
 uint32_t parser_emit(Parser *parser, Opcode opcode, uint16_t arg1,
@@ -106,11 +123,10 @@ uint32_t parser_emit_call(Parser *parser, Opcode opcode, uint8_t arity,
 }
 
 
-// Returns true if a parser is currently parsing the top level of a file.
-bool parser_is_top_level(Parser *parser) {
-	return parser->parent == NULL && parser->scope_depth == 1;
-}
 
+//
+//  Blocks
+//
 
 // Parses a path (a sequence of identifiers separated by dots). Returns the
 // number of elements in the path, putting the identifiers into the given list.
@@ -120,8 +136,9 @@ int parse_path(Parser *parser, Identifier *path) {
 	// Parse a sequence of identifiers
 	int count = 0;
 	while (lexer->token.type == TOKEN_IDENTIFIER) {
-		path[count++].start = lexer->token.start;
-		path[count - 1].length = lexer->token.length;
+		Identifier *ident = &path[count++];
+		ident->start = lexer->token.start;
+		ident->length = lexer->token.length;
 		lexer_next(lexer);
 
 		// Expect a dot
@@ -139,30 +156,30 @@ int parse_path(Parser *parser, Identifier *path) {
 // Parses an assignment or function call. Returns false if neither could be
 // parsed.
 bool parse_call_or_assignment(Parser *parser) {
-	Lexer *lexer = parser->lexer;
-
 	// Parse an identifier list
 	Identifier path[MAX_PATH_DEPTH];
 	int count = parse_path(parser, path);
-	if (count <= 0) {
+	if (count == 0) {
+		// Couldn't parse a path
 		return false;
 	}
 
 	// Check the next character
-	if (lexer->token.type == TOKEN_OPEN_PARENTHESIS) {
+	TokenType token = parser->lexer->token.type;
+	if (token == TOKEN_OPEN_PARENTHESIS) {
 		// Function call
 		parse_fn_call(parser, path, count);
-		return true;
-	} else if (lexer->token.type >= TOKEN_ASSIGN &&
-			lexer->token.type <= TOKEN_DIV_ASSIGN) {
+	} else if (token >= TOKEN_ASSIGN && token <= TOKEN_DIV_ASSIGN) {
 		// Assignment
 		parse_assignment(parser, path, count);
-		return true;
+	} else {
+		// Unrecognised token after path
+		// TODO: The wrong token will be shown in the error here, reset the
+		// token to the first one in the path we parsed
+		return false;
 	}
 
-	// TODO: The wrong token will be shown in the error here, reset the token
-	// to the first one in the `path` we parsed
-	return false;
+	return true;
 }
 
 
@@ -208,6 +225,7 @@ void parse_statement(Parser *parser) {
 		break;
 
 	case TOKEN_OPEN_BRACE:
+		// Unconditional block
 		lexer_next(lexer);
 		parse_block(parser, TOKEN_CLOSE_BRACE);
 		EXPECT(TOKEN_CLOSE_BRACE, "Expected `}` to close block");
@@ -215,7 +233,7 @@ void parse_statement(Parser *parser) {
 		break;
 
 	default:
-		// Could be a function call or an assignment
+		// Function call or assignment
 		if (parse_call_or_assignment(parser)) {
 			break;
 		}
@@ -227,7 +245,8 @@ void parse_statement(Parser *parser) {
 }
 
 
-// Parses a block of statements, terminated by `terminator`.
+// Parses a block of statements, terminated by `terminator` (usually a closing
+// brace or the end of the file).
 void parse_block(Parser *parser, TokenType terminator) {
 	Lexer *lexer = parser->lexer;
 

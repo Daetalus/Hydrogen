@@ -131,6 +131,9 @@ Lexer lexer_new(VirtualMachine *vm, char *file, char *package, char *source) {
 	lexer.token.line_start = source;
 	lexer.token.file = file;
 	lexer.token.package = package;
+
+	// Consume the first token
+	lexer_next(&lexer);
 	return lexer;
 }
 

@@ -34,8 +34,7 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
 
 	// Create the new child parser
 	Parser child = parser_new(parser);
-	fn_new(parser->vm, fn->package, &child.fn_index);
-	Function *child_fn = &parser->vm->functions[child.fn_index];
+	Function *child_fn = fn_new(parser->vm, fn->package, &child.fn_index);
 	child_fn->name = name;
 	child_fn->length = length;
 
@@ -44,25 +43,23 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
 		Local *local = local_new(&child, NULL);
 		local->name = method_self_name;
 		local->length = 4;
-		local->scope_depth = 0;
-		local->upvalue_index = -1;
 		child_fn->arity++;
 	}
 
 	// Parse the arguments list into the child parser's locals list
 	while (lexer->token.type == TOKEN_IDENTIFIER) {
 		// Save the argument
-		Local *local = &child.locals[child.locals_count++];
+		Local *local = local_new(&child, NULL);
 		local->name = lexer->token.start;
 		local->length = lexer->token.length;
-		local->scope_depth = 0;
-		local->upvalue_index = -1;
-		lexer_next(lexer);
 		child_fn->arity++;
+		lexer_next(lexer);
 
 		// Skip a comma
 		if (lexer->token.type == TOKEN_COMMA) {
 			lexer_next(lexer);
+		} else {
+			break;
 		}
 	}
 
@@ -102,7 +99,6 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
 
 
 // Parses a method definition.
-// TODO: Method recursion
 void parse_method_definition(Parser *parser) {
 	Lexer *lexer = parser->lexer;
 
@@ -217,7 +213,7 @@ void parse_fn_definition(Parser *parser) {
 		scope_free(parser);
 
 		// Create a new top level variable
-		uint16_t package_index = fn->package - parser->vm->packages;
+		uint16_t package_index = parser_package_index(parser);
 		parser_emit(parser, MOV_TL, top_level_index, package_index, slot);
 	}
 }
@@ -358,8 +354,6 @@ void parse_native_fn_call(Parser *parser, uint32_t index, uint16_t return_slot) 
 // Parses a function call, starting at the opening parenthesis of the arguments
 // list.
 void parse_fn_call(Parser *parser, Identifier *left, int count) {
-	Function *fn = &parser->vm->functions[parser->fn_index];
-
 	// Parse the result of the function call into a temporary slot
 	uint16_t return_slot;
 	scope_new(parser);
@@ -378,7 +372,6 @@ void parse_fn_call(Parser *parser, Identifier *left, int count) {
 	uint16_t previous = var.slot;
 	uint16_t slot = var.slot;
 
-	// TODO: Remove duplication between here and parse_assignment
 	if (var.type == VAR_PACKAGE) {
 		// Find the top level variable
 		Package *package = &parser->vm->packages[var.slot];
@@ -439,10 +432,11 @@ void parse_fn_call(Parser *parser, Identifier *left, int count) {
 			self.type = SELF_UPVALUE;
 			self.slot = var.slot;
 		} else {
-			expr_top_level_to_local(parser, slot, var.slot);
+			uint16_t package_index = parser_package_index(parser);
+			parser_emit(parser, MOV_LT, slot, package_index, var.slot);
 			self.type = SELF_TOP_LEVEL;
 			self.slot = var.slot;
-			self.package_index = fn->package - parser->vm->packages;
+			self.package_index = package_index;
 		}
 	} else if (var.type == VAR_UNDEFINED) {
 		ERROR("Undefined variable `%.*s` in function call", left[0].length,

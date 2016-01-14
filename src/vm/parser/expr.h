@@ -88,9 +88,9 @@ void expr_discharge(Parser *parser, uint16_t slot, Operand operand);
 // Parses an expression, storing the result into `slot`.
 void expr_emit(Parser *parser, uint16_t slot);
 
-// Parses an expression, storing the result into the local with the given name.
-// Triggers an error if the local doesn't exist.
-void expr_emit_local(Parser *parser, char *name, size_t length);
+// Parses an expression into a temporary slot, returning the slot the expression
+// was stored in.
+uint16_t expr_emit_temporary(Parser *parser);
 
 // Returns true if `token` can begin an expression.
 bool expr_exists(TokenType token);
@@ -98,10 +98,6 @@ bool expr_exists(TokenType token);
 // Modifies the targets of the jump instructions in a conditional expression
 // to update the location of the false case to `false_case`.
 void expr_patch_false_case(Parser *parser, Operand operand, int false_case);
-
-// Moves a top level variable at `index` in the parser's function's package
-// into the given stack slot.
-void expr_top_level_to_local(Parser *parser, uint16_t slot, uint16_t index);
 
 // Emits bytecode to convert a local operand into a jump.
 Operand operand_to_jump(Parser *parser, Operand operand);

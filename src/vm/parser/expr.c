@@ -8,14 +8,13 @@
 #include <string.h>
 #include <limits.h>
 
-#include "../bytecode.h"
-#include "../value.h"
-
 #include "expr.h"
 #include "jmp.h"
 #include "local.h"
 #include "fn.h"
 #include "struct.h"
+#include "../bytecode.h"
+#include "../value.h"
 
 
 // Possible operator precedences.
@@ -224,15 +223,6 @@ bool unary_valid(Opcode operator, OperandType operand) {
 	default:
 		return false;
 	}
-}
-
-
-// Moves a top level variable at `index` in the parser's function's package
-// into the given stack slot.
-void expr_top_level_to_local(Parser *parser, uint16_t slot, uint16_t index) {
-	Function *fn = &parser->vm->functions[parser->fn_index];
-	uint16_t package_index = fn->package - parser->vm->packages;
-	parser_emit(parser, MOV_LT, slot, package_index, index);
 }
 
 
@@ -829,7 +819,6 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 		char *name = lexer->token.start;
 		size_t length = lexer->token.length;
 		Variable var = local_capture(parser, name, length);
-		Function *fn = &parser->vm->functions[parser->fn_index];
 
 		if (var.type == VAR_LOCAL) {
 			operand.type = OP_LOCAL;
@@ -859,13 +848,14 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 			break;
 		} else if (var.type == VAR_TOP_LEVEL) {
 			// Store the top level variable into a local
-			expr_top_level_to_local(parser, slot, var.slot);
+			uint16_t package_index = parser_package_index(parser);
+			parser_emit(parser, MOV_LT, slot, package_index, var.slot);
 			operand.type = OP_LOCAL;
 			operand.slot = slot;
 
 			operand.self.type = SELF_TOP_LEVEL;
 			operand.self.slot = var.slot;
-			operand.self.package_index = fn->package - parser->vm->packages;
+			operand.self.package_index = package_index;
 		} else {
 			// Undefined
 			ERROR("Undefined variable `%.*s` in expression", length, name);
@@ -1111,36 +1101,15 @@ void expr_emit(Parser *parser, uint16_t slot) {
 }
 
 
-// Parses an expression, storing the result into the local with the given name.
-// Triggers an error if the local doesn't exist.
-void expr_emit_local(Parser *parser, char *name, size_t length) {
-	Variable var = local_capture(parser, name, length);
-	if (var.type == VAR_LOCAL) {
-		// Parse an expression
-		expr_emit(parser, var.slot);
-	} else if (var.type == VAR_UPVALUE || var.type == VAR_TOP_LEVEL) {
-		Function *fn = &parser->vm->functions[parser->fn_index];
-
-		// Parse an expression into an empty local slot
-		scope_new(parser);
-		uint16_t slot;
-		local_new(parser, &slot);
-		expr_emit(parser, slot);
-		scope_free(parser);
-
-		if (var.type == VAR_UPVALUE) {
-			// Store the local into an upvalue
-			parser_emit(parser, MOV_UL, var.slot, slot, 0);
-		} else {
-			// Store the local into a top level variable
-			uint16_t package_index = fn->package - parser->vm->packages;
-			parser_emit(parser, MOV_TL, var.slot, package_index, slot);
-		}
-	} else if (var.type == VAR_PACKAGE) {
-		ERROR("Attempt to assign to package `%.*s`", length, name);
-	} else {
-		ERROR("Assigning to undefined variable `%.*s`", length, name);
-	}
+// Parses an expression into a temporary slot, returning the slot the expression
+// was stored in.
+uint16_t expr_emit_temporary(Parser *parser) {
+	uint16_t slot;
+	scope_new(parser);
+	local_new(parser, &slot);
+	expr_emit(parser, slot);
+	scope_free(parser);
+	return slot;
 }
 
 

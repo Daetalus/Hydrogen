@@ -108,7 +108,11 @@ uint32_t parser_emit_call(Parser *parser, Opcode opcode, uint8_t arity,
 // Returns true if a parser is currently parsing the top level of a file.
 bool parser_is_top_level(Parser *parser);
 
-// Parses a block of statements, terminated by `terminator`.
+// Returns the index of the package we're compiling.
+uint16_t parser_package_index(Parser *parser);
+
+// Parses a block of statements, terminated by `terminator` (usually a closing
+// brace or the end of the file).
 void parse_block(Parser *parser, TokenType terminator);
 
 #endif

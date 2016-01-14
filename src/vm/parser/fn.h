@@ -6,9 +6,10 @@
 #ifndef FN_H
 #define FN_H
 
+#include "../bytecode.h"
+
 #include "parser.h"
 #include "expr.h"
-#include "../bytecode.h"
 
 // Parses a function or method definition.
 void parse_fn_definition(Parser *parser);
@@ -19,7 +20,7 @@ void parse_fn_definition(Parser *parser);
 // local on the child function's local stack. Creates a new function on the
 // VM and returns its index.
 uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
-		bool is_method);
+	bool is_method);
 
 // Parses a call to the function in `slot`, storing the return value in
 // `return_slot`. Starts at the opening parenthesis of the arguments list.
@@ -28,12 +29,12 @@ uint16_t parse_fn_definition_body(Parser *parser, char *name, size_t length,
 // the argument's list. The `self` value is reconstructed from the data in the
 // given argument.
 void parse_fn_call_self(Parser *parser, Opcode call, uint16_t slot,
-		uint16_t return_slot, OperandSelf *self);
+	uint16_t return_slot, OperandSelf *self);
 
 // Parses a call to the function in `slot`, storing the return value in
 // `return_slot`. Starts at the opening parenthesis of the arguments list.
 void parse_fn_call_slot(Parser *parser, Opcode call, uint16_t slot,
-		uint16_t return_slot);
+	uint16_t return_slot);
 
 // Parses a function call, starting at the opening parenthesis of the arguments
 // list.

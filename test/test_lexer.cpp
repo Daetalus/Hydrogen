@@ -13,23 +13,22 @@
 
 
 // Reads the next token from the lexer and ensures it matches the given type.
-#define ASSERT_TOKEN(required) \
-	lexer_next(&lexer);        \
-	ASSERT_EQ(lexer.token.type, required);
+#define ASSERT_TOKEN(required)             \
+	ASSERT_EQ(lexer.token.type, required); \
+	lexer_next(&lexer);
 
 
 // Ensures the next token is an identifier with the given name.
 #define ASSERT_IDENTIFIER(contents)                               \
-	lexer_next(&lexer);                                           \
 	ASSERT_EQ(lexer.token.type, TOKEN_IDENTIFIER);                \
 	ASSERT_EQ(lexer.token.length, strlen(contents));              \
 	ASSERT_STREQN(lexer.token.start, contents, strlen(contents)); \
+	lexer_next(&lexer);
 
 
 
 // Ensures the next token matches the given string.
 #define ASSERT_STRING(contents, parsed) {                             \
-	lexer_next(&lexer);                                               \
 	ASSERT_EQ(lexer.token.type, TOKEN_STRING);                        \
 	ASSERT_EQ(lexer.token.length, strlen(contents) + 2);              \
 	ASSERT_STREQN(lexer.token.start + 1, contents, strlen(contents)); \
@@ -37,21 +36,22 @@
 	ASSERT_NE(extracted, (char *) NULL);                              \
 	ASSERT_STREQ(extracted, parsed);                                  \
 	free(extracted);                                                  \
+	lexer_next(&lexer);                                               \
 }
 
 
 // Ensures the next token matches the given number.
 #define ASSERT_NUMBER(expected)                \
-	lexer_next(&lexer);                        \
 	ASSERT_EQ(lexer.token.type, TOKEN_NUMBER); \
 	ASSERT_EQ(lexer.token.number, expected);   \
+	lexer_next(&lexer);
 
 
 // Ensures the next token matches the given integer.
 #define ASSERT_INTEGER(expected)                \
-	lexer_next(&lexer);                         \
 	ASSERT_EQ(lexer.token.type, TOKEN_INTEGER); \
 	ASSERT_EQ(lexer.token.integer, expected);   \
+	lexer_next(&lexer);
 
 
 // Tests all mathematical tokens.

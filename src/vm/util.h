@@ -15,13 +15,11 @@
     uint32_t name ## _count;    \
     uint32_t name ## _capacity; \
 
-
 // Initialises an array.
 #define ARRAY_INIT(array, type, initial_capacity) \
 	array ## _count = 0;                          \
 	array ## _capacity = (initial_capacity);      \
 	array = (type *) malloc(array ## _capacity * sizeof(type));
-
 
 // Increases the capacity of the array if its size is larger than it's capacity.
 // You need to increase the size of the array before actually setting any data.

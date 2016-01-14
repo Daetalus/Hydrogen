@@ -54,7 +54,7 @@ void parse_initial_assignment(Parser *parser) {
 		int index = package_local_new(fn->package, name, length);
 
 		// Store the result of the expression into the top level variable
-		uint16_t package_index = fn->package - parser->vm->packages;
+		uint16_t package_index = parser_package_index(parser);
 		parser_emit(parser, MOV_TL, index, package_index, slot);
 	} else {
 		// Save the local's name
@@ -64,104 +64,159 @@ void parse_initial_assignment(Parser *parser) {
 }
 
 
-// Parses an assignment to an already initialised variable.
-void parse_assignment(Parser *parser, Identifier *left, int count) {
-	Lexer *lexer = parser->lexer;
-
-	// Save the token used to perform the assignment
-	// TODO: Add modifier assignment token support
-	TokenType assign = lexer->token.type;
-	lexer_next(lexer);
-
-	// If we're only assigning to a single variable
-	if (count == 1) {
-		expr_emit_local(parser, left[0].start, left[0].length);
-		return;
-	}
-
-	// Assigning to a struct field (at least 2 elements in the identifier list)
-	scope_new(parser);
-
-	// Move the first element in the left variable list into a local
-	Variable var = local_capture(parser, left[0].start, left[0].length);
-	uint16_t previous = var.slot;
-	uint16_t slot = var.slot;
-
-	if (var.type == VAR_PACKAGE) {
-		// Find the top level variable in the package from the first element
-		// after the first `.` in the left hand side variable list
-		Package *package = &parser->vm->packages[var.slot];
-		char *var_name = left[1].start;
-		size_t var_length = left[1].length;
-		int pkg_var_index = package_local_find(package, var_name, var_length);
-		if (pkg_var_index == -1) {
-			ERROR("Attempt to assign to undefined top level variable `%.*s`"
-				"in package `%s`", var_length, var_name, package->name);
-			return;
-		}
-
-		// If we're assigning directly to a top level variable
-		if (count == 2) {
-			// Parse an expression into an empty slot
-			local_new(parser, &slot);
-			expr_emit(parser, slot);
-			scope_free(parser);
-
-			// Move the result into the top level variable
-			parser_emit(parser, MOV_TL, pkg_var_index, var.slot, slot);
-			return;
-		} else {
-			// Assigning to a struct field on a top level variable
-			// Store the top level variable into a new slot
-			local_new(parser, &slot);
-			previous = slot;
-			parser_emit(parser, MOV_LT, slot, var.slot, pkg_var_index);
-		}
-	} else if (var.type == VAR_LOCAL && count > 2) {
-		// If this is a local and we have to replace this local with one of its
-		// fields in the next step, allocate a new stack position for this local
-		local_new(parser, &slot);
+// Assigns an expression directly to a local (with no field access).
+static void assign_local(Parser *parser, char *name, size_t length) {
+	Variable var = local_capture(parser, name, length);
+	if (var.type == VAR_LOCAL) {
+		// Parse an expression directly into the variable's slot
+		expr_emit(parser, var.slot);
 	} else if (var.type == VAR_UPVALUE || var.type == VAR_TOP_LEVEL) {
-		// Create a new local to store the upvalue/top level variable in
-		local_new(parser, &slot);
-		previous = slot;
+		// Parse an expression into an empty local slot
+		uint16_t index = var.slot;
+		uint16_t slot = expr_emit_temporary(parser);
 
 		if (var.type == VAR_UPVALUE) {
-			parser_emit(parser, MOV_LU, slot, var.slot, 0);
+			// Store the local into an upvalue
+			parser_emit(parser, MOV_UL, index, slot, 0);
 		} else {
-			expr_top_level_to_local(parser, slot, var.slot);
+			// Store the local into a top level variable
+			uint16_t package_index = parser_package_index(parser);
+			parser_emit(parser, MOV_TL, index, package_index, slot);
 		}
-	} else if (var.type == VAR_UNDEFINED) {
-		ERROR("Assigning to undefined variable `%.*s`", left[0].length,
-			left[0].start);
-		return;
+	} else if (var.type == VAR_PACKAGE) {
+		ERROR("Attempt to assign to package `%.*s`", length, name);
+	} else {
+		ERROR("Assigning to undefined variable `%.*s`", length, name);
 	}
+}
 
-	// Index all left hand variables except the last one
-	for (int i = 1; i < count - 1; i++) {
-		// Replace the struct that's in the slot at the moment
-		uint16_t index = vm_add_field(parser->vm, left[i]);
-		parser_emit(parser, STRUCT_FIELD, slot, previous, index);
-		previous = slot;
+
+// Assigns an expression to a struct field.
+static void assign_struct_field(Parser *parser, Identifier *left, int count,
+		uint16_t struct_slot) {
+	// If we're not directly assigning to a field
+	if (count > 2) {
+		// Create a new slot for the field
+		uint16_t field_slot;
+		local_new(parser, &field_slot);
+
+		// Emit struct field access for all variables except the last one
+		for (int i = 1; i < count - 1; i++) {
+			// Emit a field access
+			uint16_t index = vm_add_field(parser->vm, left[i]);
+			parser_emit(parser, STRUCT_FIELD, field_slot, struct_slot, index);
+
+			// The next field access will be on the field we just emitted
+			struct_slot = field_slot;
+		}
 	}
 
 	// Parse an expression into a temporary local
 	uint16_t expr_slot;
 	local_new(parser, &expr_slot);
 	Operand operand = expr(parser, expr_slot);
+
 	uint16_t result_slot;
-	if (operand.type != OP_LOCAL) {
+	if (operand.type == OP_LOCAL) {
+		// Normally, discharging an operand will emit a MOV_LL instruction, so
+		// just store the local directly
+		result_slot = operand.slot;
+	} else {
+		// Need to discharge the operand into a local
 		expr_discharge(parser, expr_slot, operand);
 		result_slot = expr_slot;
-	} else {
-		// Don't bother emitting a MOV_LL instruction into `expr_slot`, store
-		// the local directly
-		result_slot = operand.slot;
 	}
 
 	// Set the field of the struct in `slot` to `operand`
 	uint16_t index = vm_add_field(parser->vm, left[count - 1]);
-	parser_emit(parser, STRUCT_SET, slot, index, result_slot);
+	parser_emit(parser, STRUCT_SET, struct_slot, index, result_slot);
+}
+
+
+// Parses an assignment to an already initialised variable.
+// TODO: Add modifier assignment token support
+void parse_assignment(Parser *parser, Identifier *left, int count) {
+	Lexer *lexer = parser->lexer;
+
+	// Skip the assignment token
+	lexer_next(lexer);
+
+	// If we're only assigning to a single variable
+	if (count == 1) {
+		assign_local(parser, left[0].start, left[0].length);
+		return;
+	}
+
+	// Assigning to a struct field or top level local on another package
+	scope_new(parser);
+
+	// The first element in the left list must be a capture-able
+	char *struct_name = left[0].start;
+	size_t struct_length = left[0].length;
+	uint16_t struct_slot;
+	Variable var = local_capture(parser, struct_name, struct_length);
+
+	switch (var.type) {
+	case VAR_PACKAGE: {
+		uint32_t package_index = var.slot;
+		Package *package = &parser->vm->packages[package_index];
+
+		// Find the top level variable in the package from the first element
+		// after the first `.` in the left hand side variable list
+		char *field_name = left[1].start;
+		size_t field_length = left[1].length;
+		int field_index = package_local_find(package, field_name, field_length);
+		if (field_index == -1) {
+			ERROR("Attempt to assign to undefined top level variable `%.*s`"
+				"in package `%s`", field_length, field_name, package->name);
+			return;
+		}
+
+		if (count == 2) {
+			// Assigning directly to a top level variable
+			scope_free(parser);
+
+			// Parse the expression into a temporary slot and store it into
+			// the top level local
+			uint16_t slot = expr_emit_temporary(parser);
+			parser_emit(parser, MOV_TL, field_index, package_index, slot);
+			return;
+		} else {
+			// Assigning to a struct field on a top level variable
+			// Store the top level variable into a new slot
+			local_new(parser, &struct_slot);
+			parser_emit(parser, MOV_LT, struct_slot, package_index, field_index);
+			break;
+		}
+	}
+
+	case VAR_UPVALUE:
+		// Move the upvalue into a slot
+		local_new(parser, &struct_slot);
+		parser_emit(parser, MOV_LU, struct_slot, var.slot, 0);
+		break;
+
+	case VAR_TOP_LEVEL: {
+		// Move the top level local into a slot
+		uint16_t package_index = parser_package_index(parser);
+		local_new(parser, &struct_slot);
+		parser_emit(parser, MOV_LT, struct_slot, package_index, var.slot);
+		break;
+	}
+
+	case VAR_UNDEFINED:
+		// Undefined variable
+		ERROR("Assigning to undefined variable `%.*s`", struct_length,
+			struct_name);
+		return;
+
+	default:
+		struct_slot = var.slot;
+		break;
+	}
+
+	// Assign an expression to the struct field
+	assign_struct_field(parser, left, count, struct_slot);
 
 	// Free the scope we created
 	scope_free(parser);
