@@ -94,7 +94,8 @@ static void assign_local(Parser *parser, char *name, size_t length) {
 // Assigns an expression to a struct field.
 static void assign_struct_field(Parser *parser, Identifier *left, int count,
 		uint16_t struct_slot) {
-	// If we're not directly assigning to a field
+	// If we're not directly assigning to a field in the struct
+	// Eg. `struct.field1.field2... = ...`
 	if (count > 2) {
 		// Create a new slot for the field
 		uint16_t field_slot;
@@ -118,8 +119,8 @@ static void assign_struct_field(Parser *parser, Identifier *left, int count,
 
 	uint16_t result_slot;
 	if (operand.type == OP_LOCAL) {
-		// Normally, discharging an operand will emit a MOV_LL instruction, so
-		// just store the local directly
+		// Normally, discharging an operand will emit a MOV_LL instruction which
+		// is unnecessary in this case, so just store the local directly
 		result_slot = operand.slot;
 	} else {
 		// Need to discharge the operand into a local
@@ -147,10 +148,11 @@ void parse_assignment(Parser *parser, Identifier *left, int count) {
 		return;
 	}
 
+	// There must be at least 2 elements in the left list now
 	// Assigning to a struct field or top level local on another package
 	scope_new(parser);
 
-	// The first element in the left list must be a capture-able
+	// Capture the first element in the left list
 	char *struct_name = left[0].start;
 	size_t struct_length = left[0].length;
 	uint16_t struct_slot;
@@ -158,6 +160,9 @@ void parse_assignment(Parser *parser, Identifier *left, int count) {
 
 	switch (var.type) {
 	case VAR_PACKAGE: {
+		// Either assigning to a top level local in an external package, or
+		// to a struct field on a top level local in an external package
+		// Eg. `pkg.top_level = ...` or `pkg.top_level.struct_field = ...`
 		uint32_t package_index = var.slot;
 		Package *package = &parser->vm->packages[package_index];
 
@@ -174,6 +179,7 @@ void parse_assignment(Parser *parser, Identifier *left, int count) {
 
 		if (count == 2) {
 			// Assigning directly to a top level variable
+			// Eg. `pkg.top_level = ...`
 			scope_free(parser);
 
 			// Parse the expression into a temporary slot and store it into

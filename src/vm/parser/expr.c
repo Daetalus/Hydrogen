@@ -155,6 +155,7 @@ bool binary_valid(TokenType operator, OperandType left, OperandType right) {
 			(right == OP_STRING || right == OP_LOCAL);
 	case TOKEN_EQ:
 	case TOKEN_NEQ:
+		// TODO: Support passing OP_JUMP to equality testing
 		return (left >= OP_LOCAL && left <= OP_PRIMITIVE) &&
 			(right >= OP_LOCAL && right <= OP_PRIMITIVE);
 	case TOKEN_AND:
@@ -250,7 +251,7 @@ double operand_to_number(Parser *parser, Operand operand) {
 
 // Converts an operand (that isn't a local) into a true or false value.
 bool operand_to_boolean(Operand operand) {
-	return operand.type == OP_PRIMITIVE && operand.primitive == TRUE_TAG;
+	return operand.type != OP_PRIMITIVE || operand.primitive == TRUE_TAG;
 }
 
 
@@ -583,8 +584,7 @@ Operand expr_or(Parser *parser, Operand left, Operand right) {
 
 	// Point end of right's jump list to left
 	int last = jmp_last(fn, right.jump);
-	jmp_append
-		(fn, last, left.jump);
+	jmp_append(fn, last, left.jump);
 
 	// Invert left's condition
 	invert_condition(fn, left.jump - 1);
@@ -829,8 +829,8 @@ Operand expr_operand(Parser *parser, uint16_t slot) {
 			// Store the upvalue into a local slot
 			parser_emit(parser, MOV_LU, slot, var.slot, 0);
 			operand.type = OP_LOCAL;
-
 			operand.slot = slot;
+
 			operand.self.type = SELF_UPVALUE;
 			operand.self.slot = var.slot;
 		} else if (var.type == VAR_PACKAGE) {
@@ -962,6 +962,7 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t slot) {
 		result.slot = slot;
 
 		if (operand.type == OP_LOCAL) {
+			// Struct field access on a local
 			// Emit field access
 			Identifier ident;
 			ident.start = lexer->token.start;
@@ -982,7 +983,8 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t slot) {
 				result.self = operand.self;
 				result.self.is_method = true;
 			}
-		} else {
+		} else if (operand.type == OP_PACKAGE) {
+			// Top level local access on a package
 			// Get the index of the top level variable
 			char *name = lexer->token.start;
 			size_t length = lexer->token.length;
