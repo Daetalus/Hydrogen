@@ -97,6 +97,10 @@ extern "C" {
 	index = 0;
 
 
+// Converts a negative value into an unsigned one in a bitwise fashion.
+#define TO_UNSIGNED(value) int16_to_uint16(value)
+
+
 // Asserts the next instruction's opcode and arguments are equal to the given
 // values.
 #define ASSERT_INSTR(opcode, arg1, arg2, arg3) {  \

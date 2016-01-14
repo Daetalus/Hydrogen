@@ -107,6 +107,34 @@ TEST(Expression, Parentheses) {
 }
 
 
+// Tests the unary negation operator.
+TEST(Expression, Negation) {
+	COMPILER(
+		"{\n"
+		"let a = -3\n"
+		"let b = -(3 + 8 - 2)\n"
+		"let c = -a\n"
+		"let d = -a + b\n"
+		"let e = b * -a + c\n"
+		"}\n"
+	);
+
+	ASSERT_INSTR(MOV_LI, 0, TO_UNSIGNED(-3), 0);
+	ASSERT_INSTR(MOV_LI, 1, TO_UNSIGNED(-9), 0);
+	ASSERT_INSTR(NEG_L, 2, 0, 0);
+
+	ASSERT_INSTR(NEG_L, 3, 0, 0);
+	ASSERT_INSTR(ADD_LL, 3, 3, 1);
+
+	ASSERT_INSTR(NEG_L, 5, 0, 0);
+	ASSERT_INSTR(MUL_LL, 4, 1, 5);
+	ASSERT_INSTR(ADD_LL, 4, 4, 2);
+
+	ASSERT_RET();
+	COMPILER_FREE();
+}
+
+
 // Tests conditional operations when assigning to variables.
 TEST(Expression, Conditional) {
 	COMPILER(
@@ -167,7 +195,6 @@ TEST(Expression, And) {
 		"}\n"
 	);
 
-	debug_bytecode(fn);
 	ASSERT_INSTR(MOV_LI, 0, 3, 0);
 	ASSERT_INSTR(MOV_LI, 1, 4, 0);
 

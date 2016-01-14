@@ -719,7 +719,7 @@ Operand fold_unary(Parser *parser, Opcode opcode, Operand right) {
 
 
 // Emits bytecode for a unary operator.
-Operand expr_unary(Parser *parser, Opcode opcode, Operand right) {
+Operand expr_unary(Parser *parser, uint16_t slot, Opcode opcode, Operand right) {
 	Operand operand = operand_new();
 
 	// Ensure the operand is valid for the operator
@@ -736,13 +736,12 @@ Operand expr_unary(Parser *parser, Opcode opcode, Operand right) {
 
 	// Allocate a temporary local on the stack
 	operand.type = OP_LOCAL;
-	scope_new(parser);
-	local_new(parser, &operand.slot);
+	operand.slot = slot;
 
 	// Emit operation
 	parser_emit(parser, opcode, operand.slot, right.value, 0);
 
-	// Return a the local in which we stored the result of the operation
+	// Return the local in which we stored the result of the operation
 	return operand;
 }
 
@@ -1034,7 +1033,7 @@ Operand expr_left(Parser *parser, uint16_t slot) {
 		Operand right = expr_left(parser, slot);
 
 		// Emit the unary operand instruction
-		return expr_unary(parser, opcode, right);
+		return expr_unary(parser, slot, opcode, right);
 	} else {
 		// Parse an operand
 		Operand operand = expr_operand(parser, slot);
