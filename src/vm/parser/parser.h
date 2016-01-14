@@ -63,11 +63,14 @@ typedef struct parser {
 	// The virtual machine we're parsing for.
 	VirtualMachine *vm;
 
-	// A pointer to the parent parser. NULL if this parser is top level.
-	struct parser *parent;
-
 	// The lexer.
 	Lexer *lexer;
+
+	// All imported packages (native and user).
+	ARRAY(struct import, imports);
+
+	// A pointer to the parent parser. NULL if this parser is top level.
+	struct parser *parent;
 
 	// The index of the function we're compiling.
 	uint16_t fn_index;
@@ -81,9 +84,6 @@ typedef struct parser {
 
 	// All defined locals.
 	ARRAY(struct local, locals);
-
-	// All imported packages (native and user).
-	struct imports *imports;
 } Parser;
 
 

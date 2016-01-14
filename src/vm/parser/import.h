@@ -26,12 +26,6 @@ typedef struct import {
 } Import;
 
 
-// All imported packages.
-typedef struct imports {
-	ARRAY(Import, imports);
-} Imports;
-
-
 // Searches for an imported package in the parser with the given name,
 // returning NULL if the package couldn't be found.
 Import * import_package_find(Parser *parser, char *name, size_t length);
