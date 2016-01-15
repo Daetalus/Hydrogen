@@ -928,6 +928,9 @@ Operand expr_postfix(Parser *parser, Operand operand, uint16_t slot) {
 	switch (lexer->token.type) {
 	case TOKEN_OPEN_PARENTHESIS: {
 		// Function call
+		// TODO: Fix any function as a field on a struct being passed the struct
+		// as the first argument. Functions assigned like
+		// `struct.field = fn() {...}` should not be passed the `self` argument
 		if (operand.type == OP_LOCAL) {
 			parse_fn_call_self(parser, CALL_L, operand.slot, slot,
 				&operand.self);

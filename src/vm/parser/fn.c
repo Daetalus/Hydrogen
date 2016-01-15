@@ -140,7 +140,7 @@ void parse_method_definition(Parser *parser) {
 	field->start = name;
 	field->length = length;
 
-	// Set the default value of the struct field
+	// Set the default value for this field to be the method function
 	def->values[index] = FROM_FN(fn_index);
 }
 
@@ -356,44 +356,28 @@ void parse_fn_call(Parser *parser, Identifier *left, int count) {
 
 	// Create a `self` variable in case this is a method call
 	OperandSelf self;
-	self.is_method = false;
+	self.is_method = (count > 1);
 
 	// Move the first element in the left into a variable
-	Variable var = local_capture(parser, left[0].start, left[0].length);
-	uint16_t previous = var.slot;
-	uint16_t slot = var.slot;
+	char *root_name = left[0].start;
+	size_t root_length = left[0].length;
+	Variable var = local_capture(parser, root_name, root_length);
+	uint16_t root_slot;
 
-	if (var.type == VAR_PACKAGE) {
-		// Find the top level variable
-		Package *package = &parser->vm->packages[var.slot];
-		char *var_name = left[1].start;
-		size_t var_length = left[1].length;
-		int pkg_var_index = package_local_find(package, var_name, var_length);
-		if (pkg_var_index == -1) {
-			ERROR("Attempt to assign to undefined top level variable `%.*s`"
-				"in package `%s`", var_length, var_name, package->name);
-			return;
-		}
-
-		// Move value into a local
-		local_new(parser, &slot);
-		previous = slot;
-		parser_emit(parser, MOV_LT, slot, var.slot, pkg_var_index);
-		self.type = SELF_TOP_LEVEL;
-		self.package_index = var.slot;
-		self.slot = pkg_var_index;
-	} else if (var.type == VAR_NATIVE_PACKAGE) {
-		// Expect only one other element in the variable list
+	switch (var.type) {
+	case VAR_NATIVE_PACKAGE: {
+		// Parse a native package call only
 		if (count > 2) {
-			ERROR("Expected `()` after identifier in native package function "
-				"call");
+			// Expect only one other element in the variable list
+			ERROR("Expected `()` after identifier in native function call");
 			return;
 		}
 
-		// Look for the native function
 		char *name = left[1].start;
 		size_t length = left[1].length;
 		HyNativePackage *package = &parser->vm->native_packages[var.slot];
+
+		// Look for the native function
 		int fn_index = native_fn_find(package, name, length);
 		if (fn_index == -1) {
 			ERROR("Undefined native function `%.*s` on native package `%s`",
@@ -407,53 +391,74 @@ void parse_fn_call(Parser *parser, Identifier *left, int count) {
 		// Free the scope we allocated for the struct fields
 		scope_free(parser);
 		return;
-	} else if (var.type == VAR_LOCAL && count > 1) {
-		// If we have to replace this local with one of its fields, allocate
-		// a new local for it
-		local_new(parser, &slot);
-		self.type = SELF_LOCAL;
-		self.slot = var.slot;
-	} else if (var.type == VAR_UPVALUE || var.type == VAR_TOP_LEVEL) {
-		// Create a new local to store the upvalue/top level variable in
-		local_new(parser, &slot);
-		previous = slot;
+	}
 
-		if (var.type == VAR_UPVALUE) {
-			parser_emit(parser, MOV_LU, slot, var.slot, 0);
-			self.type = SELF_UPVALUE;
-			self.slot = var.slot;
-		} else {
-			uint16_t package_index = parser_package_index(parser);
-			parser_emit(parser, MOV_LT, slot, package_index, var.slot);
-			self.type = SELF_TOP_LEVEL;
-			self.slot = var.slot;
-			self.package_index = package_index;
+	case VAR_PACKAGE: {
+		uint16_t package_index = var.slot;
+		Package *package = &parser->vm->packages[package_index];
+		char *field_name = left[1].start;
+		size_t field_length = left[1].length;
+
+		// Find the top level variable
+		int field_index = package_local_find(package, field_name, field_length);
+		if (field_index == -1) {
+			ERROR("Attempt to assign to undefined top level variable `%.*s`"
+				"in package `%s`", field_length, field_name, package->name);
+			return;
 		}
-	} else if (var.type == VAR_UNDEFINED) {
-		ERROR("Undefined variable `%.*s` in function call", left[0].length,
-			left[0].start);
+
+		// Move value into a local
+		local_new(parser, &root_slot);
+		parser_emit(parser, MOV_LT, root_slot, package_index, field_index);
+
+		self.type = SELF_TOP_LEVEL;
+		self.package_index = package_index;
+		self.slot = field_index;
+		break;
+	}
+
+	case VAR_UPVALUE:
+		// Store the upvalue into a new local
+		local_new(parser, &root_slot);
+		parser_emit(parser, MOV_LU, root_slot, var.slot, 0);
+		self.type = SELF_UPVALUE;
+		self.slot = var.slot;
+		break;
+
+	case VAR_TOP_LEVEL: {
+		// Store the top level variable into a new local
+		uint16_t package_index = parser_package_index(parser);
+		local_new(parser, &root_slot);
+		parser_emit(parser, MOV_LT, root_slot, package_index, var.slot);
+
+		self.type = SELF_TOP_LEVEL;
+		self.slot = var.slot;
+		self.package_index = package_index;
+		break;
+	}
+
+	case VAR_UNDEFINED:
+		// Undefined variable
+		ERROR("Undefined variable `%.*s` in function call", root_length,
+			root_name);
 		return;
+
+	default:
+		root_slot = var.slot;
+		self.type = SELF_LOCAL;
+		self.slot = root_slot;
+		break;
 	}
 
 	// Index all left variables
 	for (int i = 1; i < count; i++) {
 		// Replace the struct in the current slot with its field
 		uint16_t index = vm_add_field(parser->vm, left[i]);
-		parser_emit(parser, STRUCT_FIELD, slot, previous, index);
-		previous = slot;
-
-		// Update the `self` value
-		if (self.is_method) {
-			// Up to third index (ie. `a.b.c`)
-			self.type = SELF_LOCAL;
-			self.slot = slot;
-		} else {
-			self.is_method = true;
-		}
+		parser_emit(parser, STRUCT_FIELD, root_slot, root_slot, index);
 	}
 
 	// Parse a function call
-	parse_fn_call_self(parser, CALL_L, slot, return_slot, &self);
+	parse_fn_call_self(parser, CALL_L, root_slot, return_slot, &self);
 
 	// Free the scope we created for struct fields
 	scope_free(parser);
@@ -474,24 +479,20 @@ void parse_return(Parser *parser) {
 	lexer_next(lexer);
 
 	// Check for a return value
-	if (!expr_exists(lexer->token.type)) {
-		// Emit close upvalue instructions for all locals in this function
-		local_close_upvalues(parser);
-
-		// No return value
-		parser_emit(parser, RET0, 0, 0, 0);
-	} else {
+	Opcode opcode;
+	uint16_t slot;
+	if (expr_exists(lexer->token.type)) {
 		// Parse expression into a new local
-		uint16_t slot;
-		scope_new(parser);
-		local_new(parser, &slot);
-		expr_emit(parser, slot);
-		scope_free(parser);
-
-		// Emit close upvalue instructions for all locals in this function
-		local_close_upvalues(parser);
-
-		// Emit return instruction
-		parser_emit(parser, RET1, slot, 0, 0);
+		slot = expr_emit_temporary(parser);
+		opcode = RET1;
+	} else {
+		slot = 0;
+		opcode = RET0;
 	}
+
+	// Emit close upvalue instructions for all locals in this function
+	local_close_upvalues(parser);
+
+	// Return instruction
+	parser_emit(parser, opcode, slot, 0, 0);
 }
