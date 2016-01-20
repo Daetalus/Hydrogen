@@ -11,7 +11,7 @@
 #include <stdbool.h>
 
 
-// An interpreter state, used to execute Hydrogen source code. Variables,
+// The interpreter state, used to execute Hydrogen source code. Variables,
 // functions, etc. are preserved by the state across calls to `hy_run`.
 typedef struct hy_state HyState;
 
@@ -21,6 +21,13 @@ typedef uint32_t HyPackage;
 
 // A type that represents all possible values a variable can hold.
 typedef uint64_t HyValue;
+
+// A list of arguments passed to a native function.
+typedef struct hy_args HyArgs;
+
+
+// The prototype for a native function.
+typedef HyValue (* HyNativeFn)(HyState *state, HyArgs *args);
 
 
 // The origin of an element in a stack trace.
@@ -107,6 +114,7 @@ char * hy_package_name(char *path);
 // packages.
 void hy_search(HyState *state, HyPackage pkg, char *path);
 
+
 // Execute a file on a package. The file's contents will be read and executed
 // as source code. The file's path will be used in relevant errors. An error
 // object is returned if one occurs, otherwise NULL is returned.
@@ -116,6 +124,7 @@ HyError * hy_package_run_file(HyState *state, HyPackage pkg, char *path);
 // occurs, otherwise NULL is returned.
 HyError * hy_package_run_string(HyState *state, HyPackage pkg, char *source);
 
+
 // Read source code from a file and compile it into bytecode, printing it to
 // the standard output.
 HyError * hy_print_bytecode_file(HyState *state, HyPackage pkg, char *path);
@@ -124,5 +133,12 @@ HyError * hy_print_bytecode_file(HyState *state, HyPackage pkg, char *path);
 // error object is returned if one occurred during compilation, otherwise NULL
 // is returned.
 HyError * hy_print_bytecode_string(HyState *state, HyPackage pkg, char *source);
+
+
+// Add a native function to a package. `arity` is the number of arguments the
+// function accepts. If it is set to -1, then the function can accept any number
+// of arguments.
+void hy_add_native(HyState *state, HyPackage pkg, char *name, int32_t arity,
+	HyNativeFn fn);
 
 #endif
