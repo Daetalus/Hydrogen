@@ -41,7 +41,7 @@ void print_help(void) {
 		"Usage:\n"
 		"  hydrogen [options] [path to file]\n"
 		"\n"
-		"If no file is specified, the standard input is used\n"
+		"A REPL is run if no file is given.\n"
 		"\n"
 		"Options:\n"
 		"  -b             Print the bytecode for a program\n"

@@ -8,59 +8,325 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "config.h"
+#include "help.h"
+
+#if !defined(_WIN32) && !defined(_WIN64)
+#define WINDOWS
+#endif
+
+#ifndef WINDOWS
+#include <unistd.h>
+#endif
 
 
-// Pretty prints an error.
-void print_err(HyError *err) {
-	printf("Error: %s\n", err->description);
-	printf("Line: %d\n", err->line);
+// Color codes
+#define COLOR_NONE    "\x1B[0m"
+#define COLOR_RED     "\x1B[31m"
+#define COLOR_GREEN   "\x1B[32m"
+#define COLOR_YELLOW  "\x1B[33m"
+#define COLOR_BLUE    "\x1B[34m"
+#define COLOR_MAGENTA "\x1B[35m"
+#define COLOR_CYAN    "\x1B[36m"
+#define COLOR_WHITE   "\x1B[37m"
+#define COLOR_BOLD    "\x1B[1m"
+
+// The maximum length of an input line of code for the REPL.
+#define MAX_REPL_INPUT_SIZE 2047
+
+
+
+//
+//  Error Printing
+//
+
+// Prints a color code to the standard output if we are able to display colors.
+static inline void print_color(char *color) {
+	// Only print colors on non-windows machines
+#ifndef WINDOWS
+	// If we're outputting to a terminal
+	if (isatty(fileno(stdout))) {
+		printf("%s", color);
+	}
+#endif
 }
 
+
+// Prints the description part of an error.
+static int print_description(HyError *err) {
+	// Header
+	int prefix = printf("%s:%d:%d", err->file, err->line_number, err->column);
+	print_color(COLOR_RED);
+
+	// Tag
+	print_color(COLOR_BOLD);
+	printf(" [Error]");
+	print_color(COLOR_NONE);
+
+	// Description
+	print_color(COLOR_WHITE);
+	printf(" %s\n", err->description);
+	print_color(COLOR_NONE);
+	return prefix;
+}
+
+
+// Prints the line of source code and an underline underneath the part causing
+// the error.
+static void print_code(HyError *err, int description_prefix) {
+	// Header
+	int code_prefix = printf("%s:%d", err->file, err->line_number);
+
+	// Padding
+	for (int i = 0; i < description_prefix - code_prefix + 1; i++) {
+		printf(" ");
+	}
+
+	// Code
+	print_color(COLOR_WHITE);
+	printf("%s\n", err->line);
+
+	// Underline padding
+	for (int i = 0; i < description_prefix + err->column - 1; i++) {
+		printf(" ");
+	}
+
+	// Underline
+	printf("^");
+	for (int i = 0; i < err->length - 1; i++) {
+		printf("~");
+	}
+
+	print_color(COLOR_NONE);
+}
+
+
+// Returns the number of digits in a number.
+static int digits(int number) {
+	int count = 0;
+	while (number > 0) {
+		count++;
+		number /= 10;
+	}
+	return count;
+}
+
+
+// Prints the type of a stack trace element.
+static void print_stack_trace_type(HyStackTraceType type) {
+	switch (type) {
+	case HY_TRACE_FUNCTION:
+		printf("function");
+		break;
+	case HY_TRACE_METHOD:
+		printf("method");
+		break;
+	case HY_TRACE_PACKAGE:
+		printf("package");
+		break;
+	case HY_TRACE_ANONYMOUS_PACKAGE:
+		printf("anonymous package");
+		break;
+	}
+}
+
+
+// Prints an element in a stack trace.
+static void print_stack_trace_element(HyStackTrace trace, int longest_path,
+		int longest_line_number) {
+	// Header
+	printf("%*s:%-*d ", longest_path, trace.file, longest_line_number,
+		trace.line);
+
+	// Type
+	print_color(COLOR_WHITE);
+	printf("in ");
+	print_stack_trace_type(trace.type);
+
+	// Name
+	if (trace.name != NULL) {
+		printf(" `%s`", trace.name);
+	}
+
+	// Newline
+	printf("\n");
+	print_color(COLOR_NONE);
+}
+
+
+// Prints a stack trace.
+static void print_stack_trace(HyStackTrace *trace, uint32_t count) {
+	// Find the longest file path and line number
+	int longest_path = 0;
+	int longest_line_number = 0;
+	for (int i = 0; i < count; i++) {
+		// File path
+		int length = strlen(trace[i].file);
+		if (length > longest_path) {
+			longest_path = length;
+		}
+
+		// Line number
+		length = digits(trace[i].line_number);
+		if (length > longest_line_number) {
+			longest_line_number = length;
+		}
+	}
+
+	// Tag padding
+	for (int i = 0; i < longest_path + longest_line_number + 1; i++) {
+		printf(" ");
+	}
+
+	// Tag
+	print_color(COLOR_CYAN);
+	print_color(COLOR_BOLD);
+	printf("[Stack Trace]\n");
+	print_color(COLOR_NONE);
+
+	// Each element in the stack trace
+	for (int i = 0; i < count; i++) {
+		print_stack_trace_element(trace[i], longest_path, longest_line_number);
+	}
+}
+
+
+// Prints an error to the standard output.
+static void print_err(HyError *err) {
+	if (err == NULL) {
+		return;
+	}
+
+	int prefix = print_description(err);
+	print_code(err, prefix);
+
+	// Stack trace
+	if (err->stack_trace != NULL) {
+		printf("\n");
+		print_stack_trace(err->stack_trace, err->stack_trace_length);
+	}
+
+	hy_err_free(err);
+}
+
+
+
+//
+//  REPL
+//
+
+// Read a line of input from the standard input in a REPL loop.
+static char * repl_read_input(void) {
+	printf("> ");
+	char *input = malloc(MAX_REPL_INPUT_SIZE + 1);
+	scanf("%.*s", MAX_REPL_INPUT_SIZE, &input);
+	return input;
+}
+
+
+// Run the REPL.
+static void repl(Config *config) {
+	// Print version information
+	print_version();
+
+	// Create a new interpreter state and package
+	// TODO: Add exit() native function to package for clean exit
+	HyState *state = hy_new();
+	HyPackage pkg = hy_package_new(state, NULL);
+
+	// REPL loop
+	while (true) {
+		char *input = repl_read_input();
+		if (config->show_bytecode) {
+			print_err(hy_print_bytecode_string(state, pkg, input));
+		} else {
+			print_err(hy_package_run_string(state, pkg, input));
+		}
+	}
+
+	// Release resources
+	hy_free(state);
+}
+
+
+
+//
+//  Execution
+//
+
+// Print the bytecode of some input specified by the configuration.
+static int print_bytecode(Config *config) {
+	// Create a new interpreter state
+	HyState *state = hy_new();
+
+	// Find the package name
+	char *name = NULL;
+	if (config->input_type == INPUT_FILE) {
+		name = hy_package_name(config->input);
+	}
+
+	// Create a new package
+	HyPackage pkg = hy_package_new(state, name);
+
+	// Depending on the type of the input
+	switch (config->input_type) {
+	case INPUT_SOURCE:
+		print_err(hy_print_bytecode_string(state, pkg, config->input));
+		break;
+	case INPUT_FILE:
+		print_err(hy_print_bytecode_file(state, pkg, config));
+		break;
+	}
+
+	// Release resources
+	hy_free(state);
+}
+
+
+// Run some input specified by the configuration.
+static int run(Config *config) {
+	// Execute source code depending on the input type
+	switch (config->input_type) {
+	case INPUT_SOURCE:
+		print_err(hy_run_string(config->input));
+		break;
+	case INPUT_FILE:
+		print_err(hy_run_file(config->input));
+		break;
+	}
+}
+
+
+
+//
+//  Main
+//
 
 // Main entry point.
 int main(int argc, char *argv[]) {
 	// Parse options
 	Config config = config_new(argc, argv);
-	if (config.stage == STAGE_EXIT) {
-		// Help or version information was displayed and we don't want to do
-		// anything else
+	if (config.type == EXEC_EXIT) {
+		// Help information was displayed, so exit
 		return EXIT_SUCCESS;
 	}
 
-	// Create a VM
-	HyVM *vm = hy_new();
-	hy_add_stdlib(vm);
-
-	int result = EXIT_SUCCESS;
-	if (config.stage == STAGE_NORMAL) {
-		if (!config.show_bytecode) {
-			// Run the input
-			HyError *err;
-			if (config.input_type == INPUT_FILE) {
-				err = hy_run_file(vm, config.input);
-			} else {
-				err = hy_run(vm, config.input);
-			}
-
-			// Check for an error
-			if (err != NULL) {
-				print_err(err);
-				hy_err_free(err);
-				result = EXIT_FAILURE;
-			}
-		} else {
-			printf("Some bytecode\n");
-		}
-	} else if (config.stage == STAGE_REPL) {
+	int success;
+	if (config.type == EXEC_REPL) {
 		// Start a REPL
-		printf("Sorry, REPL isn't implemented yet :(\n");
+		repl(&config);
+		success = EXIT_SUCCESS;
+	} else if (config.type == EXEC_RUN) {
+		if (config->show_bytecode) {
+			success = print_bytecode(&config);
+		} else {
+			success = run(&config);
+		}
 	}
 
 	// Free resources
-	hy_free(vm);
 	config_free(&config);
-
-    return result;
+    return success;
 }

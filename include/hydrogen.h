@@ -7,139 +7,122 @@
 #ifndef HYDROGEN_H
 #define HYDROGEN_H
 
-#include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 
 
-// The interpreter state.
-typedef struct vm HyVM;
+// An interpreter state, used to execute Hydrogen source code. Variables,
+// functions, etc. are preserved by the state across calls to `hy_run`.
+typedef struct hy_state HyState;
+
+// Stores package specific data like functions and structs defined in the
+// package.
+typedef uint32_t HyPackage;
+
+// A type that represents all possible values a variable can hold.
+typedef uint64_t HyValue;
 
 
-// A runtime or compile error.
+// The origin of an element in a stack trace.
+typedef enum {
+	HY_TRACE_FUNCTION,
+	HY_TRACE_METHOD,
+	HY_TRACE_PACKAGE,
+	HY_TRACE_ANONYMOUS_PACKAGE,
+} HyStackTraceType;
+
+
+// An element in a stack trace. Describes the location of a function call.
 typedef struct {
-	// A description of the error.
+	// The type of the stack trace element.
+	HyStackTraceType type;
+
+	// The path to the file containing the function call.
+	char *file;
+
+	// The line number in the file the function call is on.
+	uint32_t line;
+
+	// The name of the function being called. NULL if the type is an anonymous
+	// package (which doesn't have a name).
+	char *name;
+} HyStackTrace;
+
+
+// Contains data describing an error.
+typedef struct {
+	// A description of the error that occurred.
 	char *description;
 
-	// The line of source code the error occurred on. -1 if there's no line
-	// number associated with the error.
-	int line;
-
-	// The column of the line in the source code the error occurred on. -1 if
-	// there is no column associated with the error.
-	int column;
-
-	// The name of the package the error occurred in, or NULL if the error
-	// occurred in the main package.
-	char *package;
-
-	// The path to the file the error occurred in, or NULL if the source code
-	// the error occurred in is not located in a file.
+	// The path to the file the error occurred in.
 	char *file;
+
+	// The contents of the line in the file the error occurred on.
+	char *line;
+
+	// The line number in the file the error occurred on.
+	uint32_t line_number;
+
+	// The column on the line the error occurred on.
+	uint32_t column;
+
+	// The length of the token that triggered the error.
+	uint32_t length;
+
+	// The state of the call stack at the point during runtime the error
+	// occurred. If the error was during compilation, this is set to NULL, and
+	// the length is set to 0.
+	HyStackTrace *stack_trace;
+	uint32_t stack_trace_length;
 } HyError;
 
 
+// Executes a file by creating a new interpreter state, reading the contents of
+// the file, and executing the source code. Acts as a wrapper around other API
+// functions. Returns an error if one occurred, or NULL otherwise. The error
+// must be freed by calling `hy_err_free`.
+HyError * hy_run_file(char *path);
+
+// Executes some source code from a string. Returns an error if one occurred, or
+// NULL otherwise. The error must be freed by calling `hy_err_free`.
+HyError * hy_run_string(char *source);
+
+
 // Create a new interpreter state.
-HyVM * hy_new(void);
+HyState * hy_new(void);
 
-// Free an interpreter's state.
-void hy_free(HyVM *vm);
+// Release all resources allocated by an interpreter state.
+void hy_free(HyState *state);
 
-// Runs the given source code string, returning a pointer to an error object
-// if an error occurred, or NULL otherwise. The returned error object must be
-// freed.
-HyError * hy_run(HyVM *vm, char *source);
+// Create a new package on the interpreter state. The name of the package is
+// used when other packages want to import it. It can only consist of ASCII
+// letters (lowercase and uppercase), numbers, and underscores.
+HyPackage hy_package_new(HyState *state, char *name);
 
-// Runs a file, returning an error if one occurred, or NULL otherwise.
-HyError * hy_run_file(HyVM *vm, char *path);
+// Returns a heap allocated string (that needs to be freed) containing the name
+// of a package based off its file path.
+char * hy_package_name(char *path);
 
-// Frees an error.
-void hy_err_free(HyError *err);
+// Add a folder to search through when resolving the file paths of imported
+// packages.
+void hy_search(HyState *state, HyPackage pkg, char *path);
 
+// Execute a file on a package. The file's contents will be read and executed
+// as source code. The file's path will be used in relevant errors. An error
+// object is returned if one occurs, otherwise NULL is returned.
+HyError * hy_package_run_file(HyState *state, HyPackage pkg, char *path);
 
+// Execute some source code on a package. An error object is returned if one
+// occurs, otherwise NULL is returned.
+HyError * hy_package_run_string(HyState *state, HyPackage pkg, char *source);
 
-//
-//  API
-//
+// Read source code from a file and compile it into bytecode, printing it to
+// the standard output.
+HyError * hy_print_bytecode_file(HyState *state, HyPackage pkg, char *path);
 
-// A value of a variable.
-typedef uint64_t HyValue;
-
-// A native package.
-typedef struct native_package HyNativePackage;
-
-// Arguments to a native function
-typedef struct fn_args HyArgs;
-
-// A native function.
-typedef HyValue (* HyNativeFn)(HyVM *, HyArgs *);
-
-// The type of a variable.
-typedef enum {
-	HY_NUMBER,
-	HY_STRING,
-	HY_STRUCT,
-	HY_FN,
-	HY_BOOLEAN,
-	HY_NIL,
-} HyType;
-
-
-// Define a native package on an interpreter with the given name.
-HyNativePackage * hy_package_new(HyVM *vm, char *name);
-
-// Defines a native function on a package with the given name and number of
-// arguments. If `arity` is -1, then the function can accept an arbitrary
-// number of arguments.
-void hy_fn_new(HyNativePackage *package, char *name, int arity, HyNativeFn fn);
-
-
-// Directly triggers an error.
-// TODO: Make varargs
-void hy_trigger_error(HyVM *vm, char *message);
-
-// Run the garbage collector.
-void hy_collect_garbage(HyVM *vm);
-
-
-// Returns the number of arguments supplied to a function.
-uint32_t hy_args_count(HyArgs *args);
-
-// Returns the `n`th argument supplied to a native function. Returns nil if the
-// requested argument's index is greater than the number of arguments supplied
-// to the function.
-HyValue hy_arg(HyArgs *args, uint32_t n);
-
-// Implicitly converts a value to a boolean, not triggering an error.
-bool hy_to_bool(HyValue value);
-
-// Expects a boolean value.
-bool hy_expect_bool(HyValue value);
-
-// Expects a value to be a number, triggreing an error if it isn't.
-double hy_expect_number(HyValue value);
-
-// Expects a value to be a string, triggering an error if it isn't. Do not
-// attempt to free the returned string! It will be garbage collected at a later
-// point.
-char * hy_expect_string(HyValue value);
-
-
-// Returns a nil value.
-HyValue hy_nil(void);
-
-// Converts a boolean into a value.
-HyValue hy_bool(bool value);
-
-// Converts a string into a value.
-HyValue hy_string(char *value);
-
-// Converts a number into a value.
-HyValue hy_number(double value);
-
-// Returns the type of a variable.
-HyType hy_type(HyValue value);
-
-
-// TODO: Native structs, struct reflection
+// Compile source code into bytecode and print it to the standard output. An
+// error object is returned if one occurred during compilation, otherwise NULL
+// is returned.
+HyError * hy_print_bytecode_string(HyState *state, HyPackage pkg, char *source);
 
 #endif

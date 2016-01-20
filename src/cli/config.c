@@ -12,7 +12,7 @@
 
 
 // Read from stdin until an EOF is reached.
-char * read_stdin(void) {
+static char * read_stdin(void) {
 	int length = 0;
 	int capacity = 4096;
 	char *contents = malloc(capacity);
@@ -32,15 +32,15 @@ char * read_stdin(void) {
 
 
 // Parse an option.
-void config_opt(Config *config, char *opt) {
+static void config_opt(Config *config, char *opt) {
 	if (strcmp(opt, "--help") == 0 || strcmp(opt, "-h") == 0) {
 		// Help
 		print_help();
-		config->stage = STAGE_EXIT;
+		config->type = EXEC_EXIT;
 	} else if (strcmp(opt, "--version") == 0 || strcmp(opt, "-v") == 0) {
 		// Version
 		print_version();
-		config->stage = STAGE_EXIT;
+		config->type = EXEC_EXIT;
 	} else if (strcmp(opt, "--jinfo") == 0) {
 		// Show JIT info
 		config->show_jit_info = true;
@@ -52,18 +52,18 @@ void config_opt(Config *config, char *opt) {
 		config->show_bytecode = true;
 	} else if (strcmp(opt, "--stdin") == 0) {
 		// Read from stdin
-		config->stage = STAGE_NORMAL;
+		config->type = EXEC_RUN;
 		config->input_type = INPUT_SOURCE;
 	} else if (opt[0] != '-') {
 		// Path to input
-		config->stage = STAGE_NORMAL;
+		config->type = EXEC_RUN;
 		config->input_type = INPUT_FILE;
 		config->input = opt;
 	} else {
 		// Invalid option
 		printf("Unrecognised option `%s`\n", opt);
 		print_usage();
-		config->stage = STAGE_EXIT;
+		config->type = EXEC_EXIT;
 	}
 }
 
@@ -74,17 +74,17 @@ Config config_new(int argc, char *argv[]) {
 	config.enable_jit = true;
 	config.show_jit_info = false;
 	config.show_bytecode = false;
-	config.stage = STAGE_REPL;
+	config.type = EXEC_REPL;
 	config.input_type = INPUT_FILE;
 	config.input = NULL;
 
 	// Parse options
-	for (int i = 1; i < argc && config.stage != STAGE_EXIT; i++) {
+	for (int i = 1; i < argc && config.type != EXEC_EXIT; i++) {
 		config_opt(&config, argv[i]);
 	}
 
 	// Read the source from the standard input
-	if (config.stage != STAGE_EXIT && config.input_type == INPUT_SOURCE) {
+	if (config.type != EXEC_EXIT && config.input_type == INPUT_SOURCE) {
 		config.input = read_stdin();
 	}
 

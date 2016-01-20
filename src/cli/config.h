@@ -9,15 +9,15 @@
 #include <stdbool.h>
 
 
-// Which stage of execution to reach before exiting.
+// The possible types of execution.
 typedef enum {
-	STAGE_NORMAL,
-	STAGE_REPL,
-	STAGE_EXIT,
-} Stage;
+	EXEC_RUN,
+	EXEC_REPL,
+	EXEC_EXIT,
+} ExecutionType;
 
 
-// The type of input we're giving to Hydrogen.
+// The type of input we're given.
 typedef enum {
 	INPUT_SOURCE,
 	INPUT_FILE,
@@ -33,11 +33,11 @@ typedef struct {
 	// execution or not.
 	bool show_jit_info;
 
-	// Whether to just output bytecode instead of actually executing code.
+	// Whether to output bytecode or execute code.
 	bool show_bytecode;
 
-	// Which stage of execution to reach before stopping.
-	Stage stage;
+	// What type of execution is requested.
+	ExecutionType type;
 
 	// Input data (either source code or a path to a file).
 	InputType input_type;
@@ -45,7 +45,7 @@ typedef struct {
 } Config;
 
 
-// Load configuration options from the given command line options.
+// Load configuration from the given command line options.
 Config config_new(int argc, char *argv[]);
 
 // Free a configuration object.
