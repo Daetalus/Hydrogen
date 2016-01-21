@@ -10,6 +10,7 @@
 #include <stdbool.h>
 
 #include "vec.h"
+#include "pkg.h"
 
 
 // Data associated with a loop so we know where to point break statement's jump
@@ -56,6 +57,10 @@ typedef struct {
 	// created on.
 	HyState *state;
 
+	// The index of the package the source code we're compiling is associated
+	// with.
+	Index pkg;
+
 	// The lexer, emitting tokens from source code that the parser transforms
 	// into more cohesive language structures.
 	Lexer lexer;
@@ -75,5 +80,18 @@ typedef struct {
 	// currently being parsed).
 	FunctionScope *scope;
 } Parser;
+
+
+// Creates a new parser, which will append all functions, packages, etc it needs
+// to define to the interpreter `state`, associating them with the package
+// `pkg`.
+Parser parser_new(HyState *state, Index pkg);
+
+// Releases resources allocated by a parser.
+void parser_free(Parser *parser);
+
+// Parses some source code, creating a function for the top level code in the
+// source. Returns the index of this function.
+Index parser_parse(Parser *parser, Index source);
 
 #endif

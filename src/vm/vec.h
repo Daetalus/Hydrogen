@@ -36,13 +36,17 @@ typedef struct {
 
 
 // Initialises an undefined vector.
-#define vec_init(type, capacity)                     \
+#define vec_new(type, capacity)                      \
 	{                                                \
 		.values = malloc(sizeof(type) * (capacity)), \
 		.element_size = sizeof(type),                \
 		.length = -1,                                \
 		.capacity = (capacity),                      \
 	}
+
+
+// Frees a vector.
+#define vec_free(array) (free((array).values))
 
 
 // Evaluates to the element at an index (used for setting or getting an
@@ -52,6 +56,10 @@ typedef struct {
 
 // Returns the length of a vector.
 #define vec_len(array) ((array).length)
+
+
+// Returns a pointer to the last element in the vector.
+#define vec_last(array) (&vec_at(array, vec_len(array) - 1))
 
 
 // Returns the capacity of a vector.
@@ -68,10 +76,9 @@ typedef struct {
 	}
 
 
-// Appends an element to the end of a vector.
-#define vec_append(array, element) \
-	vec_check_capacity(array);     \
-	(array).length++;              \
-	vec_at(array, vec_len(array)) = (element);
+// Increases the length of the vector by 1.
+#define vec_add(array)          \
+	vec_check_capacity(array);  \
+	(array).length++;
 
 #endif

@@ -41,7 +41,7 @@ typedef struct {
 	// external packages, and therefore can't be defined on the stack. They're
 	// instead stored here, in the package itself. The name of each local is
 	// stored in a separate array.
-	Vec()
+	Vec(Identifier) names;
 	Vec(HyValue) locals;
 } Package;
 
@@ -52,6 +52,16 @@ Index pkg_new(HyState *state);
 
 // Releases resources allocated by a package.
 void pkg_free(Package *pkg);
+
+// Executes a source object on a package by compiling into bytecode and
+// executing the result.
+HyError * pkg_run(Package *pkg, Index source);
+
+// Adds a file as a source on the package.
+Index pkg_add_file(Package *pkg, char *path);
+
+// Adds a string as a source on the package.
+Index pkg_add_string(Package *pkg, char *source);
 
 // Finds a package with the name `name`.
 Index pkg_find(HyState *state, char *name, uint32_t length);

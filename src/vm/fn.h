@@ -46,7 +46,10 @@ typedef struct {
 
 
 // Defines a new function on the interpreter state.
-Index fn_new(HyState *state, char *name, uint32_t length, uint32_t arity);
+Index fn_new(HyState *state);
+
+// Frees resources allocated by a function.
+void fn_free(Function *fn);
 
 // Appends a bytecode instruction to the end of the function's instruction list.
 Index fn_emit(Function *fn, BytecodeOpcode opcode, uint16_t arg1, uint16_t arg2,
@@ -70,5 +73,12 @@ typedef struct {
 	// The C function pointer.
 	HyNativeFn fn;
 } NativeFunction;
+
+
+// Defines a new native function on the interpreter state.
+Index native_new(HyState *state, char *name);
+
+// Frees resources allocated by a native function.
+void native_free(NativeFunction *fn);
 
 #endif

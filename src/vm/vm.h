@@ -27,7 +27,6 @@ struct hy_state {
 	Vec(Function) functions;
 	Vec(NativeFunction) natives;
 	Vec(StructDefinition) structs;
-	Vec(Upvalue) upvalues;
 
 	// We can't store 64 bit values like numbers (doubles) and strings
 	// (pointers) directly in the bytecode (because each argument is only 16
@@ -37,7 +36,7 @@ struct hy_state {
 	// `const`. Struct fields are stored as the hash of the field name.
 	Vec(HyValue) constants;
 	Vec(String *) strings;
-	Vec(StringHash) fields;
+	Vec(Identifier) fields;
 
 	// We use longjmp/setjmp for errors, which requires a jump buffer, which we
 	// store in the state (instead of as a global variable).
@@ -47,5 +46,9 @@ struct hy_state {
 	// we can return it to the user calling the API function.
 	HyError *error;
 };
+
+
+// Executes a function on the interpreter state.
+HyError * vm_run_fn(HyState *state, Index fn);
 
 #endif
