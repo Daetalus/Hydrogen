@@ -32,15 +32,15 @@ typedef struct {
 } StructDefinition;
 
 
-// Creates a new struct definition on the interpreter state.
-Index struct_new(HyState *state);
+// Creates a new struct definition on the package `pkg`.
+Index struct_new(HyState *state, Index pkg);
+
+// Frees resources allocated by a struct definition.
+void struct_free(StructDefinition *def);
 
 // Returns the index of the struct with the name `name` that is in the package
 // `pkg`.
 Index struct_find(HyState *state, Index pkg, char *name, uint32_t length);
-
-// Frees resources allocated by a struct definition.
-void struct_free(StructDefinition *def);
 
 // Returns the index of a field with the name `name`.
 Index struct_field_find(StructDefinition *def, char *name, uint32_t length);
