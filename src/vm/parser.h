@@ -11,6 +11,7 @@
 
 #include "vec.h"
 #include "pkg.h"
+#include "lexer.h"
 
 
 // Data associated with a loop so we know where to point break statement's jump

@@ -8,6 +8,8 @@
 
 #include <hydrogen.h>
 
+#include "parser.h"
+
 
 // Some source code, either from a file or string.
 typedef struct {
