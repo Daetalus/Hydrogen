@@ -35,7 +35,8 @@ void struct_free(StructDefinition *def) {
 Index struct_find(HyState *state, Index pkg, char *name, uint32_t length) {
 	for (uint32_t i = 0; i < vec_len(state->structs); i++) {
 		StructDefinition *def = &vec_at(state->structs, i);
-		if (length == def->length && strncmp(name, def->name, length) == 0) {
+		if (pkg == def->package && length == def->length &&
+				strncmp(name, def->name, length) == 0) {
 			return i;
 		}
 	}

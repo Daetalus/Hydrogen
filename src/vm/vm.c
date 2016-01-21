@@ -3,6 +3,8 @@
 //  Virtual Machine
 //
 
+#include <stdio.h>
+
 #include "vm.h"
 
 

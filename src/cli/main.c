@@ -59,7 +59,7 @@ static inline void print_color(char *color) {
 // Prints the description part of an error.
 static int print_description(HyError *err) {
 	// Header
-	int prefix = printf("%s:%d:%d", err->file, err->line_number, err->column);
+		int prefix = printf("%s:%d:%d", err->file, err->line, err->column);
 	print_color(COLOR_RED);
 
 	// Tag
@@ -79,7 +79,7 @@ static int print_description(HyError *err) {
 // the error.
 static void print_code(HyError *err, int description_prefix) {
 	// Header
-	int code_prefix = printf("%s:%d", err->file, err->line_number);
+	int code_prefix = printf("%s:%d", err->file, err->line);
 
 	// Padding
 	for (int i = 0; i < description_prefix - code_prefix + 1; i++) {
@@ -88,16 +88,16 @@ static void print_code(HyError *err, int description_prefix) {
 
 	// Code
 	print_color(COLOR_WHITE);
-	printf("%s\n", err->line);
+	printf("%s\n", err->line_contents);
 
 	// Underline padding
-	for (uint32_t i = 0; i < description_prefix + err->column - 1; i++) {
+	for (int32_t i = 0; i < description_prefix + err->column - 1; i++) {
 		printf(" ");
 	}
 
 	// Underline
 	printf("^");
-	for (uint32_t i = 0; i < err->length - 1; i++) {
+	for (int32_t i = 0; i < err->length - 1; i++) {
 		printf("~");
 	}
 

@@ -33,13 +33,6 @@ char * hy_package_name(char *path) {
 }
 
 
-// Add a folder to search through when resolving the file paths of imported
-// packages.
-void hy_search(HyState *state, HyPackage pkg, char *path) {
-	// TODO
-}
-
-
 // Defines a new package on the interpreter state. Returns the index of the
 // package.
 Index pkg_new(HyState *state) {

@@ -61,20 +61,23 @@ typedef struct {
 	// A description of the error that occurred.
 	char *description;
 
-	// The path to the file the error occurred in.
+	// The path to the file the error occurred in, or NULL if the error didn't
+	// occur in a file.
 	char *file;
 
-	// The contents of the line in the file the error occurred on.
-	char *line;
+	// The contents of the line in the file the error occurred on, or NULL if
+	// the error has no associated source code. Does not include the newline
+	// character at the end of the line.
+	char *line_contents;
 
-	// The line number in the file the error occurred on.
-	uint32_t line_number;
+	// The line number and column in the file the error occurred on, or -1 if
+	// the error has no associated source code.
+	int32_t line;
+	int32_t column;
 
-	// The column on the line the error occurred on.
-	uint32_t column;
-
-	// The length of the token that triggered the error.
-	uint32_t length;
+	// The length of the token that triggered the error, or -1 if the error has
+	// no associated source code.
+	int32_t length;
 
 	// The state of the call stack at the point during runtime the error
 	// occurred. If the error was during compilation, this is set to NULL, and
@@ -112,10 +115,6 @@ HyPackage hy_package_new(HyState *state, char *name);
 // Returns a heap allocated string (that needs to be freed) containing the name
 // of a package based off its file path.
 char * hy_package_name(char *path);
-
-// Add a folder to search through when resolving the file paths of imported
-// packages.
-void hy_search(HyState *state, HyPackage pkg, char *path);
 
 
 // Execute a file on a package. The file's contents will be read and executed
