@@ -25,10 +25,8 @@ HyError * hy_run_file(char *path) {
 // NULL otherwise. The error must be freed by calling `hy_err_free`.
 HyError * hy_run_string(char *source) {
 	HyState *state = hy_new();
-	char *name = hy_package_name(path);
-	HyPackage pkg = hy_package_new(state, name);
+	HyPackage pkg = hy_package_new(state, NULL);
 	HyError *err = hy_package_run_string(state, pkg, source);
-	free(name);
 	hy_free(state);
 	return err;
 }
@@ -37,13 +35,13 @@ HyError * hy_run_string(char *source) {
 // Create a new interpreter state.
 HyState * hy_new(void) {
 	HyState *state = malloc(sizeof(HyState));
-	state->packages = vec_init(Package, 4);
-	state->functions = vec_init(Function, 8);
-	state->natives = vec_init(NativeFunction, 8);
-	state->structs = vec_init(StructDefinition, 8);
-	state->constants = vec_init(HyValue, 32);
-	state->strings = vec_init(String *, 16);
-	state->fields = vec_init(StringHash, 16);
+	vec_new(state->packages, Package, 4);
+	vec_new(state->functions, Function, 8);
+	vec_new(state->natives, NativeFunction, 8);
+	vec_new(state->structs, StructDefinition, 8);
+	vec_new(state->constants, HyValue, 32);
+	vec_new(state->strings, String *, 16);
+	vec_new(state->fields, Identifier, 16);
 	state->error = NULL;
 	return state;
 }
@@ -51,20 +49,20 @@ HyState * hy_new(void) {
 
 // Release all resources allocated by an interpreter state.
 void hy_free(HyState *state) {
-	for (int i = 0; i < vec_len(state->packages); i++) {
+	for (uint32_t i = 0; i < vec_len(state->packages); i++) {
 		pkg_free(&vec_at(state->packages, i));
 	}
-	for (int i = 0; i < vec_len(state->functions); i++) {
+	for (uint32_t i = 0; i < vec_len(state->functions); i++) {
 		fn_free(&vec_at(state->functions, i));
 	}
-	for (int i = 0; i < vec_len(state->natives); i++) {
+	for (uint32_t i = 0; i < vec_len(state->natives); i++) {
 		native_free(&vec_at(state->natives, i));
 	}
-	for (int i = 0; i < vec_len(state->structs); i++) {
+	for (uint32_t i = 0; i < vec_len(state->structs); i++) {
 		struct_free(&vec_at(state->structs, i));
 	}
-	for (int i = 0; i < vec_len(state->strings); i++) {
-		string_free(vec_at(state->strings, i));
+	for (uint32_t i = 0; i < vec_len(state->strings); i++) {
+		free(vec_at(state->strings, i));
 	}
 
 	vec_free(state->packages);
@@ -96,10 +94,10 @@ HyError * hy_package_run_file(HyState *state, HyPackage index, char *path) {
 
 // Execute some source code on a package. An error object is returned if one
 // occurs, otherwise NULL is returned.
-HyError * hy_package_run_string(HyState *state, HyPackage pkg, char *source) {
+HyError * hy_package_run_string(HyState *state, HyPackage index, char *source) {
 	Package *pkg = &vec_at(state->packages, index);
-	Index source = pkg_add_string(pkg, source);
-	return pkg_run(pkg, source);
+	Index source_index = pkg_add_string(pkg, source);
+	return pkg_run(pkg, source_index);
 }
 
 

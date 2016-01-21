@@ -27,8 +27,8 @@ file(GLOB_RECURSE VM_SOURCES src/vm/*)
 add_library(hydrogen STATIC ${VM_SOURCES})
 
 # Standard library
-# file(GLOB_RECURSE STDLIB_SOURCES src/std/*)
-# add_library(hystdlib STATIC ${STDLIB_SOURCES})
+file(GLOB_RECURSE STDLIB_SOURCES src/std/*)
+add_library(hystdlib STATIC ${STDLIB_SOURCES})
 
 # Command line interface
 file(GLOB_RECURSE CLI_SOURCES src/cli/*)

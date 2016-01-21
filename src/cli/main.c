@@ -8,12 +8,13 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdbool.h>
 
 #include "config.h"
 #include "help.h"
 
-#if !defined(_WIN32) && !defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64)
 #define WINDOWS
 #endif
 
@@ -35,6 +36,7 @@
 
 // The maximum length of an input line of code for the REPL.
 #define MAX_REPL_INPUT_SIZE 2047
+#define MAX_REPL_INPUT_SIZE_STR "2047"
 
 
 
@@ -89,13 +91,13 @@ static void print_code(HyError *err, int description_prefix) {
 	printf("%s\n", err->line);
 
 	// Underline padding
-	for (int i = 0; i < description_prefix + err->column - 1; i++) {
+	for (uint32_t i = 0; i < description_prefix + err->column - 1; i++) {
 		printf(" ");
 	}
 
 	// Underline
 	printf("^");
-	for (int i = 0; i < err->length - 1; i++) {
+	for (uint32_t i = 0; i < err->length - 1; i++) {
 		printf("~");
 	}
 
@@ -161,7 +163,7 @@ static void print_stack_trace(HyStackTrace *trace, uint32_t count) {
 	// Find the longest file path and line number
 	int longest_path = 0;
 	int longest_line_number = 0;
-	for (int i = 0; i < count; i++) {
+	for (uint32_t i = 0; i < count; i++) {
 		// File path
 		int length = strlen(trace[i].file);
 		if (length > longest_path) {
@@ -169,7 +171,7 @@ static void print_stack_trace(HyStackTrace *trace, uint32_t count) {
 		}
 
 		// Line number
-		length = digits(trace[i].line_number);
+		length = digits(trace[i].line);
 		if (length > longest_line_number) {
 			longest_line_number = length;
 		}
@@ -187,7 +189,7 @@ static void print_stack_trace(HyStackTrace *trace, uint32_t count) {
 	print_color(COLOR_NONE);
 
 	// Each element in the stack trace
-	for (int i = 0; i < count; i++) {
+	for (uint32_t i = 0; i < count; i++) {
 		print_stack_trace_element(trace[i], longest_path, longest_line_number);
 	}
 }
@@ -221,7 +223,7 @@ static void print_err(HyError *err) {
 static char * repl_read_input(void) {
 	printf("> ");
 	char *input = malloc(MAX_REPL_INPUT_SIZE + 1);
-	scanf("%.*s", MAX_REPL_INPUT_SIZE, &input);
+	scanf("%" MAX_REPL_INPUT_SIZE_STR "s", input);
 	return input;
 }
 
@@ -257,7 +259,7 @@ static void repl(Config *config) {
 //
 
 // Print the bytecode of some input specified by the configuration.
-static int print_bytecode(Config *config) {
+static void print_bytecode(Config *config) {
 	// Create a new interpreter state
 	HyState *state = hy_new();
 
@@ -276,7 +278,7 @@ static int print_bytecode(Config *config) {
 		print_err(hy_print_bytecode_string(state, pkg, config->input));
 		break;
 	case INPUT_FILE:
-		print_err(hy_print_bytecode_file(state, pkg, config));
+		print_err(hy_print_bytecode_file(state, pkg, config->input));
 		break;
 	}
 
@@ -286,7 +288,7 @@ static int print_bytecode(Config *config) {
 
 
 // Run some input specified by the configuration.
-static int run(Config *config) {
+static void run(Config *config) {
 	// Execute source code depending on the input type
 	switch (config->input_type) {
 	case INPUT_SOURCE:
@@ -313,20 +315,18 @@ int main(int argc, char *argv[]) {
 		return EXIT_SUCCESS;
 	}
 
-	int success;
 	if (config.type == EXEC_REPL) {
 		// Start a REPL
 		repl(&config);
-		success = EXIT_SUCCESS;
 	} else if (config.type == EXEC_RUN) {
-		if (config->show_bytecode) {
-			success = print_bytecode(&config);
+		if (config.show_bytecode) {
+			print_bytecode(&config);
 		} else {
-			success = run(&config);
+			run(&config);
 		}
 	}
 
 	// Free resources
 	config_free(&config);
-    return success;
+    return EXIT_SUCCESS;
 }

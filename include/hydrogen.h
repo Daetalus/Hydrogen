@@ -101,6 +101,9 @@ HyState * hy_new(void);
 // Release all resources allocated by an interpreter state.
 void hy_free(HyState *state);
 
+// Release resources allocated by an error object.
+void hy_err_free(HyError *err);
+
 // Create a new package on the interpreter state. The name of the package is
 // used when other packages want to import it. It can only consist of ASCII
 // letters (lowercase and uppercase), numbers, and underscores.

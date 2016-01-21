@@ -10,8 +10,8 @@
 #include <stdbool.h>
 
 #include "vec.h"
-#include "pkg.h"
 #include "lexer.h"
+#include "bytecode.h"
 
 
 // Data associated with a loop so we know where to point break statement's jump
@@ -50,6 +50,14 @@ typedef struct function_scope {
 	// of the linked list (this pointer).
 	Loop *loop;
 } FunctionScope;
+
+
+// A named local variable on the parser's locals stack.
+typedef struct {
+	// The name of this variable.
+	char *name;
+	uint32_t length;
+} Local;
 
 
 // Parses source code into bytecode instructions.

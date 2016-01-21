@@ -27,8 +27,8 @@ typedef struct {
 	// The hash of the name of all fields contained in this struct, and their
 	// default values. The default values are `memcpy`'d into instances of the
 	// struct when they are instantiated.
-	Array(Identifier) fields;
-	Array(HyValue) values;
+	Vec(Identifier) fields;
+	Vec(HyValue) values;
 } StructDefinition;
 
 

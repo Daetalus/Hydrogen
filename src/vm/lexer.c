@@ -8,19 +8,21 @@
 #include <limits.h>
 
 #include "lexer.h"
+#include "vm.h"
+#include "pkg.h"
 
 
 // Create a new lexer on an interpreter state in the package `pkg`, lexing the
 // source code at `source`.
-Lexer lexer_new(HyState *state, Index pkg, Index source) {
-	Package *pkg = &vec_at(state->packages, pkg);
+Lexer lexer_new(HyState *state, Index pkg_index, Index source) {
+	Package *pkg = &vec_at(state->packages, pkg_index);
 	Source *src = &vec_at(pkg->sources, source);
 
 	Lexer lexer;
 	lexer.state = state;
 	lexer.source = src->contents;
 	lexer.cursor = src->contents;
-	lexer.token.package = pkg;
+	lexer.token.package = pkg_index;
 	lexer.token.source = source;
 	return lexer;
 }
@@ -112,7 +114,7 @@ static inline bool matches(Lexer *lexer, char *string) {
 static inline bool matches_identifier(Lexer *lexer, char *string) {
 	uint32_t length = strlen(string);
 	return strncmp(lexer->cursor, string, length) == 0 &&
-		!is_identifier(lexer_peek(lexer, length));
+		!is_identifier(peek(lexer, length));
 }
 
 
@@ -240,6 +242,7 @@ static bool number_is_float(Lexer *lexer, int base) {
 
 		// If the following character is a `.` followed by a digit, then we have
 		// a float
+		char ch = peek(lexer, position);
 		return ch == '.' && is_decimal(peek(lexer, position + 1));
 	}
 
@@ -272,12 +275,12 @@ static void floating_point(Lexer *lexer) {
 
 
 // Lexes an integer.
-static void integer(Lexer *lexer) {
+static void integer(Lexer *lexer, int base) {
 	Token *token = &lexer->token;
 
 	// Parse integer
 	char *end;
-	uint64_t value = strtoull(lexer->cursor, &end);
+	uint64_t value = strtoull(lexer->cursor, &end, base);
 	token->length = end - lexer->cursor;
 	lexer->cursor = end;
 
@@ -316,7 +319,7 @@ static bool number(Lexer *lexer) {
 		floating_point(lexer);
 	} else {
 		// Skip the base prefix
-		forward(2);
+		forward(lexer, 2);
 		integer(lexer, base);
 	}
 
@@ -325,12 +328,12 @@ static bool number(Lexer *lexer) {
 
 
 // Convenience method for defining a keyword.
-#define KEYWORD(name, keyword)          \
-	else if (matches(lexer, (name))) {  \
-		token->type = (keyword);        \
-		token->length = strlen((name)); \
-		forward(lexer, token->length);  \
-		return true;                    \
+#define KEYWORD(name, keyword)                    \
+	else if (matches_identifier(lexer, (name))) { \
+		token->type = (keyword);                  \
+		token->length = strlen((name));           \
+		forward(lexer, token->length);            \
+		return true;                              \
 	}
 
 
@@ -597,8 +600,8 @@ uint32_t lexer_extract_string(Lexer *lexer, Token *token, char *buffer) {
 	// Since the token's starting position and length take into account the two
 	// surrounding quotes, start at 1 and finish before the end of the token's
 	// length
-	char *end = token->string + token->length - 1;
-	for (char *cursor = &token->string[1]; cursor < end; cursor++) {
+	char *end = token->start + token->length - 1;
+	for (char *cursor = &token->start[1]; cursor < end; cursor++) {
 		// Check for an escape sequence
 		if (*cursor == '\\') {
 			cursor++;

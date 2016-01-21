@@ -141,3 +141,5 @@ void lexer_next(Lexer *lexer);
 // token->length - 1 (since the token length includes the two surrounding
 // quotes). Returns the length of the parsed string.
 uint32_t lexer_extract_string(Lexer *lexer, Token *token, char *buffer);
+
+#endif

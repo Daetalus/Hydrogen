@@ -3,7 +3,11 @@
 //  Parser
 //
 
+#include <stdlib.h>
+
 #include "parser.h"
+#include "fn.h"
+#include "pkg.h"
 
 
 
@@ -16,6 +20,7 @@ static FunctionScope scope_new(Parser *parser) {
 	FunctionScope scope;
 	scope.parent = NULL;
 	scope.fn_index = fn_new(parser->state);
+	return scope;
 }
 
 
@@ -39,10 +44,10 @@ static void scope_pop(Parser *parser) {
 
 // Creates a new parser, which will append all functions, packages, etc it needs
 // to define to the interpreter `state`.
-Parser parser_new(HyState *state) {
+Parser parser_new(HyState *state, Index pkg) {
 	Parser parser;
 	parser.state = state;
-	parser.locals = vec_new(Local, 8);
+	vec_new(parser.locals, Local, 8);
 	parser.locals_count = 0;
 	parser.scope = NULL;
 	return parser;
@@ -57,6 +62,6 @@ void parser_free(Parser *parser) {
 
 // Parses some source code, creating a function for the top level code in the
 // source.
-void parser_parse(Parser *parser, Source *source) {
-	parser.lexer = lexer_new(source);
+Index parser_parse(Parser *parser, Index source) {
+	return NOT_FOUND;
 }

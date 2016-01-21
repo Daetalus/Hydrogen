@@ -9,6 +9,8 @@
 #include <hydrogen.h>
 
 #include "vec.h"
+#include "bytecode.h"
+#include "ins.h"
 
 
 // A function is a collection of bytecode instructions that can be executed by
@@ -36,12 +38,6 @@ typedef struct {
 	// An array of bytecode instructions. This is the actual contents of the
 	// function.
 	Vec(Instruction) instructions;
-
-	// When an upvalue is open, we need to know its absolute location on the
-	// stack. That depends on the stack starting location of the function
-	// that defines it when the function is called. Therefore we need to keep
-	// track of which upvalues are defined by each function.
-	Upvalue *upvalues;
 } Function;
 
 

@@ -6,7 +6,7 @@
 #ifndef VEC_H
 #define VEC_H
 
-#include <stdint.h>
+#include <stdlib.h>
 
 
 // An index into a vector.
@@ -36,13 +36,11 @@ typedef struct {
 
 
 // Initialises an undefined vector.
-#define vec_new(type, capacity)                      \
-	{                                                \
-		.values = malloc(sizeof(type) * (capacity)), \
-		.element_size = sizeof(type),                \
-		.length = -1,                                \
-		.capacity = (capacity),                      \
-	}
+#define vec_new(array, type, initial_capacity)                  \
+	(array).values = malloc(sizeof(type) * (initial_capacity)); \
+	(array).element_size = sizeof(type);                        \
+	(array).length = 0;                                         \
+	(array).capacity = (initial_capacity);
 
 
 // Frees a vector.

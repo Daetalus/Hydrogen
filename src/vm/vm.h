@@ -7,12 +7,14 @@
 #define VM_H
 
 #include <hydrogen.h>
+#include <setjmp.h>
 
 #include "vec.h"
 #include "pkg.h"
 #include "fn.h"
 #include "struct.h"
 #include "parser.h"
+#include "value.h"
 
 
 // The interpreter state, used to execute Hydrogen source code. Variables,

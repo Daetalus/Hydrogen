@@ -4,8 +4,10 @@
 //
 
 #include <string.h>
+#include <stdio.h>
 
 #include "pkg.h"
+#include "vm.h"
 
 
 // Create a new package on the interpreter state. The name of the package is
@@ -14,7 +16,7 @@
 HyPackage hy_package_new(HyState *state, char *name) {
 	// Create a new package
 	Index index = pkg_new(state);
-	Package *pkg = vec_at(state->packages, index);
+	Package *pkg = &vec_at(state->packages, index);
 
 	// Copy the name of the package across into a new heap allocated string
 	pkg->name = malloc(strlen(name) + 1);
@@ -44,17 +46,17 @@ Index pkg_new(HyState *state) {
 	vec_add(state->packages);
 	Package *pkg = vec_last(state->packages);
 	pkg->name = NULL;
-	pkg->sources = vec_new(Source, 4);
-	pkg->parser = parser_new(state);
-	pkg->names = vec_new(Identifier, 8);
-	pkg->locals = vec_new(HyValue, 8);
+	vec_new(pkg->sources, Source, 4);
+	pkg->parser = parser_new(state, vec_len(state->packages) - 1);
+	vec_new(pkg->names, Identifier, 8);
+	vec_new(pkg->locals, HyValue, 8);
 	return vec_len(state->packages) - 1;
 }
 
 
 // Releases resources allocated by a package.
 void pkg_free(Package *pkg) {
-	for (int i = 0; i < vec_len(pkg->sources); i++) {
+	for (uint32_t i = 0; i < vec_len(pkg->sources); i++) {
 		Source *src = &vec_at(pkg->sources, i);
 		free(src->file);
 		free(src->contents);
@@ -76,7 +78,7 @@ HyError * pkg_run(Package *pkg, Index source) {
 	Index main_fn = NOT_FOUND;
 	if (setjmp(state->error_jmp) == 0) {
 		// Compile source code
-		main_fn = parser_parse(&pkg->parser, &vec_at(pkg->sources, source));
+		main_fn = parser_parse(&pkg->parser, source);
 	}
 
 	// Check for compilation error
