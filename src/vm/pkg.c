@@ -44,7 +44,7 @@ void hy_search(HyState *state, HyPackage pkg, char *path) {
 // package.
 Index pkg_new(HyState *state) {
 	vec_add(state->packages);
-	Package *pkg = vec_last(state->packages);
+	Package *pkg = &vec_last(state->packages);
 	pkg->name = NULL;
 	vec_new(pkg->sources, Source, 4);
 	pkg->parser = parser_new(state, vec_len(state->packages) - 1);
@@ -127,7 +127,7 @@ Index pkg_add_file(Package *pkg, char *path) {
 	}
 
 	vec_add(pkg->sources);
-	Source *src = vec_last(pkg->sources);
+	Source *src = &vec_last(pkg->sources);
 	src->contents = contents;
 
 	// Copy the file path into our own heap allocated string
@@ -140,7 +140,7 @@ Index pkg_add_file(Package *pkg, char *path) {
 // Adds a string as a source on the package.
 Index pkg_add_string(Package *pkg, char *source) {
 	vec_add(pkg->sources);
-	Source *src = vec_last(pkg->sources);
+	Source *src = &vec_last(pkg->sources);
 	src->file = NULL;
 
 	// Copy the source code into our own heap allocated string
@@ -168,7 +168,7 @@ Index pkg_local_add(Package *pkg, char *name, uint32_t length, HyValue value) {
 	vec_add(pkg->locals);
 	vec_add(pkg->names);
 
-	Identifier *ident = vec_last(pkg->names);
+	Identifier *ident = &vec_last(pkg->names);
 	ident->name = name;
 	ident->length = length;
 	vec_at(pkg->locals, vec_len(pkg->locals) - 1) = value;

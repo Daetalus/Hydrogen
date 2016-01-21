@@ -19,7 +19,7 @@
 static FunctionScope scope_new(Parser *parser) {
 	FunctionScope scope;
 	scope.parent = NULL;
-	scope.fn_index = fn_new(parser->state);
+	scope.fn_index = fn_new(parser->state, parser->package);
 	return scope;
 }
 

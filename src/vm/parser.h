@@ -68,7 +68,7 @@ typedef struct {
 
 	// The index of the package the source code we're compiling is associated
 	// with.
-	Index pkg;
+	Index package;
 
 	// The lexer, emitting tokens from source code that the parser transforms
 	// into more cohesive language structures.

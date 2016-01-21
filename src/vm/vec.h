@@ -57,7 +57,7 @@ typedef struct {
 
 
 // Returns a pointer to the last element in the vector.
-#define vec_last(array) (&vec_at(array, vec_len(array) - 1))
+#define vec_last(array) (vec_at(array, vec_len(array) - 1))
 
 
 // Returns the capacity of a vector.

@@ -41,8 +41,8 @@ typedef struct {
 } Function;
 
 
-// Defines a new function on the interpreter state.
-Index fn_new(HyState *state);
+// Defines a new function on the package `pkg`.
+Index fn_new(HyState *state, Index pkg);
 
 // Frees resources allocated by a function.
 void fn_free(Function *fn);
@@ -56,7 +56,7 @@ Index fn_emit(Function *fn, BytecodeOpcode opcode, uint16_t arg1, uint16_t arg2,
 // Hydrogen code to interact with native C code.
 typedef struct {
 	// The name of the native function, used when resolving identifiers during
-	// compilation.
+	// compilation. Heap allocated, will be freed.
 	char *name;
 
 	// The index of the package this native function is defined in.
@@ -71,8 +71,8 @@ typedef struct {
 } NativeFunction;
 
 
-// Defines a new native function on the interpreter state.
-Index native_new(HyState *state, char *name);
+// Defines a new native function on the package `pkg`.
+Index native_new(HyState *state, Index pkg, char *name);
 
 // Frees resources allocated by a native function.
 void native_free(NativeFunction *fn);
