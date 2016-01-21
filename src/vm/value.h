@@ -11,6 +11,29 @@
 #include "vec.h"
 
 
+// * Values during runtime are stored as NaN tagged 64 bit unsigned integers
+// * An IEEE double precision floating point number can represent "not a
+//   number" (NaN)
+// * When this is done, only 11 of the 64 bits are used, so we can store extra
+//   information in the other 53
+// * This allows for fast arithmetic of numbers and extraction of other
+//   information at runtime
+// * Pointers, even on a 64 bit system, only ever use the first 48 bits,
+//   allowing us to fit them into NaN tagged doubles
+// * Values are stored as follows:
+//     * Numbers: NaN bits are not all set
+//     * Pointers: sign bit is set, pointer stored in first 48 bits
+//     * Functions: sign bit unset, 17th bit set, index stored in first 16 bits
+//     * Primitives (nil, false, true): sign bit unset, tag in first 2 bits
+//
+// * Objects are stored as pointers to heap allocated structs
+// * All objects have basic information located at the start of their struct,
+//   with type-specific information after this
+// * Objects are stored using the "C struct hack", where we use a 0 length
+//   array as the last member of a struct definition, then heap allocate as
+//   much memory as we need at runtime
+
+
 // The type of an object stored on the heap.
 typedef enum {
 	OBJ_STRING,

@@ -6,6 +6,18 @@
 #ifndef BYTECODE_H
 #define BYTECODE_H
 
+
+// * A function's bytecode is a list of instructions
+// * Each instruction is a 64 bit unsigned integer
+// * Each instruction has an operation code (opcode) and 4 arguments
+// * The opcode is stored in the lowest 1 byte
+// * The 0th argument is stored in the next lowest byte (8 bits long)
+// * The 1st, 2nd and 3rd arguments are stored in the next 6 bytes (16 bits
+//   each)
+//
+// * There are a maximum of 256 opcodes (since the opcode must fit in 1 byte)
+
+
 // Instruction operation codes for Hydrogen bytecode.
 //
 // Postfix meanings:
