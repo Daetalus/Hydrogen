@@ -72,9 +72,7 @@ char * hy_package_name(char *path) {
 		// The length includes the + 1 for the NULL terminator
 		size_t last_length = stop - last_path;
 		name = malloc(last_length);
-		for (size_t i = last_path + 1; i < stop; i++) {
-			name[i - (last_path + 1)] = path[i];
-		}
+		strncpy(name, &path[last_path + 1], stop - last_path - 1);
 		name[last_length - 1] = '\0';
 	}
 
