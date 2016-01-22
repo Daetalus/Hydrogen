@@ -104,6 +104,7 @@ void pkg_free(Package *pkg) {
 
 	free(pkg->name);
 	vec_free(pkg->sources);
+	parser_free(&pkg->parser);
 	vec_free(pkg->names);
 	vec_free(pkg->locals);
 }
