@@ -18,8 +18,12 @@ typedef struct {
 	char *name;
 	uint32_t length;
 
-	// The package the struct was defined in.
+	// The package and source code object the struct was defined in.
 	Index package;
+	Index source;
+
+	// The line of in the source code the struct was defined on.
+	uint32_t line;
 
 	// The struct's constructor function, or -1 if no constructor is assigned.
 	Index constructor;

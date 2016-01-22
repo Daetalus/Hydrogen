@@ -21,13 +21,13 @@ typedef struct {
 	char *name;
 	uint32_t length;
 
-	// The line on which the function was defined.
-	uint32_t line;
-
 	// The index of the package and source code file the function was defined
 	// in.
 	Index package;
 	Index source;
+
+	// The line on which the function was defined.
+	uint32_t line;
 
 	// The number of arguments this function accepts. This is recorded so we can
 	// verify it against the number of arguments passed to the function when it

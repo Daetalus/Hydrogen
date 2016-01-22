@@ -78,6 +78,14 @@ void hy_free(HyState *state) {
 }
 
 
+// Resets an interpreter state's error, returning the current error.
+HyError * vm_reset_error(HyState *state) {
+	HyError *err = state->error;
+	state->error = NULL;
+	return err;
+}
+
+
 // Execute a file on a package. The file's contents will be read and executed
 // as source code. The file's path will be used in relevant errors. An error
 // object is returned if one occurs, otherwise NULL is returned.
@@ -88,12 +96,10 @@ HyError * hy_package_run_file(HyState *state, HyPackage index, char *path) {
 	// Check we could find the file
 	if (source == NOT_FOUND) {
 		// Failed to open file
-		HyError *err = err_new();
-		err_print(err, "Failed to open file `%s`", path);
-		return err;
-	} else {
-		return pkg_run(pkg, source);
+		return err_failed_to_open_file(path);
 	}
+
+	return pkg_run(pkg, source);
 }
 
 

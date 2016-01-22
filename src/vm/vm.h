@@ -53,4 +53,7 @@ struct hy_state {
 // Executes a function on the interpreter state.
 HyError * vm_run_fn(HyState *state, Index fn);
 
+// Resets an interpreter state's error, returning the current error.
+HyError * vm_reset_error(HyState *state);
+
 #endif

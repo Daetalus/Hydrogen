@@ -8,6 +8,7 @@
 #include "debug.h"
 #include "vm.h"
 #include "pkg.h"
+#include "err.h"
 
 
 // The maximum length of an opcode's name.
@@ -154,14 +155,15 @@ static int digits(int number) {
 }
 
 
-// Prints the file and line a function was defined on.
-static void print_fn(HyState *state, Function *fn) {
-	Package *pkg = &vec_at(state->packages, fn->package);
-	Source *src = &vec_at(pkg->sources, fn->source);
+// Prints a line in a source code object.
+static void print_location(HyState *state, Index pkg_index, Index src_index,
+		uint32_t line) {
+	Package *pkg = &vec_at(state->packages, pkg_index);
+	Source *src = &vec_at(pkg->sources, src_index);
 	if (src->file == NULL) {
-		printf("<string>:%d", fn->line);
+		printf("<string>:%d", line);
 	} else {
-		printf("%s:%d", src->file, fn->line);
+		printf("%s:%d", src->file, line);
 	}
 }
 
@@ -249,7 +251,7 @@ static void print_info(HyState *state, Index ins_index, Instruction ins) {
 	case STRUCT_SET_F: {
 		Function *fn = &vec_at(state->functions, ins_arg(ins, 2));
 		printf("    ; ");
-		print_fn(state, fn);
+		print_location(state, fn->package, fn->source, fn->line);
 		break;
 	}
 
@@ -305,7 +307,7 @@ void debug_fn(HyState *state, Function *fn) {
 	}
 
 	// File and line
-	print_fn(state, fn);
+	print_location(state, fn->package, fn->source, fn->line);
 	printf("\n");
 
 	// Bytecode
@@ -315,17 +317,112 @@ void debug_fn(HyState *state, Function *fn) {
 }
 
 
+// Prints a selection of a struct definition's fields to the standard output.
+// Prints a field if (field_value == NIL_VALUE) == value_predicate.
+static void print_fields(StructDefinition *def, bool value_predicate) {
+	bool found_one = false;
+	for (uint32_t i = 0; i < vec_len(def->fields); i++) {
+		Identifier *field = &vec_at(def->fields, i);
+
+		// Methods will have their value set to something other than nil, so to
+		// chose whether we print only methods or only fields, we use the value
+		// predicate
+		if ((vec_at(def->values, i) == NIL_VALUE) == value_predicate) {
+			continue;
+		}
+		found_one = true;
+
+		// Name
+		printf("%.*s", field->length, field->name);
+
+		// Only print a comma if this isn't the last field
+		if (i < vec_len(def->fields) - 1) {
+			printf(", ");
+		}
+	}
+
+	if (!found_one) {
+		// No fields to print
+		printf("<none>");
+	}
+
+	// Trailing newline
+	printf("\n");
+}
+
+
+// Pretty prints a struct definition to the standard output.
+void debug_struct(HyState *state, StructDefinition *def) {
+	// Name
+	printf("Struct `%.*s`, ", def->length, def->name);
+	print_location(state, def->package, def->source, def->line);
+
+	// Fields
+	printf("    fields: ");
+	print_fields(def, true);
+
+	// Methods
+	printf("    methods: ");
+	print_fields(def, false);
+}
+
+
+// Compile a source code object on a package into bytecode and print it to the
+// standard output.
+HyError * print_bytecode(HyState *state, Index index, Index source) {
+	Package *pkg = &vec_at(state->packages, index);
+
+	// Save the lengths of the functions and struct definitions arrays so we
+	// only print the newly added items
+	uint32_t functions_length = vec_len(state->functions);
+	uint32_t structs_length = vec_len(state->structs);
+
+	// Compile source code
+	pkg_compile(pkg, source);
+
+	// Check for compilation error
+	if (state->error != NULL) {
+		return vm_reset_error(state);
+	}
+
+	// Print new struct definitions
+	for (uint32_t i = structs_length; i < vec_len(state->structs); i++) {
+		debug_struct(state, &vec_at(state->structs, i));
+		printf("\n");
+	}
+
+	// Print new function definitions
+	for (uint32_t i = functions_length; i < vec_len(state->functions); i++) {
+		debug_fn(state, &vec_at(state->functions, i));
+		printf("\n");
+	}
+
+	// No error can occur when printing debug information, so don't bother with
+	// error checking or catching
+	return NULL;
+}
+
+
 // Read source code from a file and compile it into bytecode, printing it to
 // the standard output.
-HyError * hy_print_bytecode_file(HyState *state, HyPackage pkg, char *path) {
-	return NULL;
+HyError * hy_print_bytecode_file(HyState *state, HyPackage index, char *path) {
+	Package *pkg = &vec_at(state->packages, index);
+	Index source = pkg_add_file(pkg, path);
+
+	// Check we could open the file
+	if (source == NOT_FOUND) {
+		return err_failed_to_open_file(path);
+	}
+
+	return print_bytecode(state, index, source);
 }
 
 
 // Compile source code into bytecode and print it to the standard output. An
 // error object is returned if one occurred during compilation, otherwise NULL
 // is returned.
-HyError * hy_print_bytecode_string(HyState *state, HyPackage pkg,
-		char *source) {
-	return NULL;
+HyError * hy_print_bytecode_string(HyState *state, HyPackage index, char *src) {
+	Package *pkg = &vec_at(state->packages, index);
+	Index source = pkg_add_string(pkg, src);
+	return print_bytecode(state, index, source);
 }

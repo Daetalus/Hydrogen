@@ -109,21 +109,28 @@ void pkg_free(Package *pkg) {
 }
 
 
+// Compiles some source code, returning the index of the main function.
+Index pkg_compile(Package *pkg, Index source) {
+	HyState *state = pkg->parser.state;
+
+	// Catch errors using `setjmp`
+	if (setjmp(state->error_jmp) == 0) {
+		return parser_parse(&pkg->parser, source);
+	}
+	return NOT_FOUND;
+}
+
+
 // Executes a source object on a package by compiling into bytecode and
 // executing the result.
 HyError * pkg_run(Package *pkg, Index source) {
 	HyState *state = pkg->parser.state;
-
-	// Catch errors
-	Index main_fn = NOT_FOUND;
-	if (setjmp(state->error_jmp) == 0) {
-		// Compile source code
-		main_fn = parser_parse(&pkg->parser, source);
-	}
+	Index main_fn = pkg_compile(pkg, source);
 
 	// Check for compilation error
 	if (state->error != NULL) {
-		return state->error;
+		// Reset the error
+		return vm_reset_error(state);
 	}
 
 	// Catch errors
@@ -132,8 +139,8 @@ HyError * pkg_run(Package *pkg, Index source) {
 		vm_run_fn(state, main_fn);
 	}
 
-	// Return runtime error
-	return state->error;
+	// Reset the error
+	return vm_reset_error(state);
 }
 
 

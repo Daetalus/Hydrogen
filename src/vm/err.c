@@ -39,6 +39,14 @@ HyError * err_new(void) {
 }
 
 
+// Creates a new failed to open file error.
+HyError * err_failed_to_open_file(char *path) {
+	HyError *err = err_new();
+	err_print(err, "Failed to open file `%s`", path);
+	return err;
+}
+
+
 // Release resources allocated by an error object.
 void hy_err_free(HyError *err) {
 	free(err->description);

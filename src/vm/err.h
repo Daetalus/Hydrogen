@@ -15,6 +15,9 @@
 // be constructed using the building functions below.
 HyError * err_new(void);
 
+// Creates a new failed to open file error.
+HyError * err_failed_to_open_file(char *path);
+
 // Prints a string to an error's description.
 void err_print(HyError *err, char *fmt, ...);
 
