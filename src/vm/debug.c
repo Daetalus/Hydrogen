@@ -3,7 +3,11 @@
 //  Debug
 //
 
+#include <stdio.h>
+
 #include "debug.h"
+#include "vm.h"
+#include "pkg.h"
 
 
 // The maximum length of an opcode's name.
@@ -82,7 +86,7 @@ static uint32_t argument_count[] = {
 	2, /* GE_LL */ 2, /* GE_LI */ 2, /* GE_LN */
 
 	1, /* JMP */ 1, /* LOOP */
-	3, /* CALL */, 0, /* RET0 */ 2, /* RET */
+	3, /* CALL */ 0, /* RET0 */ 2, /* RET */
 
 	2, /* STRUCT_NEW */ 3, /* STRUCT_FIELD */
 	3, /* STRUCT_SET_L */ 3, /* STRUCT_SET_I */ 3, /* STRUCT_SET_N */
@@ -130,7 +134,7 @@ static uint32_t integer_argument[] = {
 	0, /* GE_LL */ 2, /* GE_LI */ 0, /* GE_LN */
 
 	0, /* JMP */ 0, /* LOOP */
-	0, /* CALL */, 0, /* RET0 */ 0, /* RET */
+	0, /* CALL */ 0, /* RET0 */ 0, /* RET */
 
 	0, /* STRUCT_NEW */ 0, /* STRUCT_FIELD */
 	0, /* STRUCT_SET_L */ 2, /* STRUCT_SET_I */ 0, /* STRUCT_SET_N */
@@ -178,6 +182,7 @@ static void print_opcode(Instruction ins) {
 
 // Prints an instruction's arguments.
 static void print_arguments(Instruction ins) {
+	BytecodeOpcode opcode = ins_arg(ins, 0);
 	for (uint32_t i = 1; i <= argument_count[opcode]; i++) {
 		if (i == integer_argument[opcode]) {
 			// Convert to signed integer
@@ -219,6 +224,7 @@ static void print_info(HyState *state, Index ins_index, Instruction ins) {
 			opcode == MUL_NL || opcode == DIV_NL || opcode == MOD_NL) ? 1 : 2;
 		double value = val_to_num(vec_at(state->constants, ins_arg(ins, arg)));
 		printf("    ; %.15g", value);
+		break;
 	}
 
 		// Strings
@@ -233,6 +239,7 @@ static void print_info(HyState *state, Index ins_index, Instruction ins) {
 		uint32_t arg = (opcode == CONCAT_SL) ? 1 : 2;
 		char *str = &(vec_at(state->strings, arg)->contents[0]);
 		printf("    ; \"%s\"", str);
+		break;
 	}
 
 		// Function name and source code location
@@ -243,6 +250,7 @@ static void print_info(HyState *state, Index ins_index, Instruction ins) {
 		Function *fn = &vec_at(state->functions, ins_arg(ins, 2));
 		printf("    ; ");
 		print_fn(state, fn);
+		break;
 	}
 
 		// Native function name
@@ -253,13 +261,19 @@ static void print_info(HyState *state, Index ins_index, Instruction ins) {
 		NativeFunction *native = &vec_at(state->natives, ins_arg(ins, 2));
 		printf("    ; ");
 		print_native(state, native);
+		break;
 	}
 
 		// Jump destination
 	case JMP:
 		printf("    => %d", ins_index + ins_arg(ins, 1));
+		break;
 	case LOOP:
 		printf("    => %d", ins_index - ins_arg(ins, 1));
+		break;
+
+	default:
+		break;
 	}
 }
 
@@ -274,7 +288,7 @@ void debug_ins(HyState *state, Function *fn, Index ins_index) {
 	Instruction ins = vec_at(fn->instructions, ins_index);
 	print_opcode(ins);
 	print_arguments(ins);
-	print_info(state, ins);
+	print_info(state, ins_index, ins);
 
 	// Final newline
 	printf("\n");
@@ -285,7 +299,7 @@ void debug_ins(HyState *state, Function *fn, Index ins_index) {
 void debug_fn(HyState *state, Function *fn) {
 	// Name
 	if (fn->name != NULL) {
-		printf("Function `%.*s`, ");
+		printf("Function `%.*s`, ", fn->length, fn->name);
 	} else {
 		printf("Anonymous Function, ");
 	}
