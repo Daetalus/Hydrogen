@@ -56,12 +56,6 @@ typedef enum {
 	UPVALUE_CLOSE,
 
 	// Arguments:
-	// * `local`: stack slot to place top level variable in
-	// * `package`: index of package containing top level local
-	// * `var`: index of top level local in package
-	MOV_LT,
-
-	// Arguments:
 	// * `var`: index of top level local in package
 	// * `value`: value to set top level local to
 	// * `package`: index of package containing top level local to set
@@ -72,6 +66,12 @@ typedef enum {
 	MOV_TP,
 	MOV_TF,
 	MOV_TV,
+
+	// Arguments:
+	// * `local`: stack slot to place top level variable in
+	// * `var`: index of top level local in package
+	// * `package`: index of package containing top level local
+	MOV_LT,
 
 
 	//
@@ -218,9 +218,9 @@ typedef enum {
 	//
 	// Arguments:
 	// * `slot`: the stack slot of the struct
+	// * `value`: set the field to this value
 	// * `field_name`: the name of the field, as an index into the VM's struct
 	//   field name list
-	// * `value`: set the field to this value
 	STRUCT_SET_L,
 	STRUCT_SET_I,
 	STRUCT_SET_N,

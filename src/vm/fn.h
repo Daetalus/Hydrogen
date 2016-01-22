@@ -21,9 +21,13 @@ typedef struct {
 	char *name;
 	uint32_t length;
 
-	// The index of the package the function was defined in.
-	// TODO: Is this field actually used anywhere??
+	// The line on which the function was defined.
+	uint32_t line;
+
+	// The index of the package and source code file the function was defined
+	// in.
 	Index package;
+	Index source;
 
 	// The number of arguments this function accepts. This is recorded so we can
 	// verify it against the number of arguments passed to the function when it
