@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #include "vm.h"
+#include "err.h"
 
 
 // Executes a file by creating a new interpreter state, reading the contents of

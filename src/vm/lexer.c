@@ -10,6 +10,7 @@
 #include "lexer.h"
 #include "vm.h"
 #include "pkg.h"
+#include "err.h"
 
 
 // Create a new lexer on an interpreter state in the package `pkg`, lexing the
@@ -620,7 +621,7 @@ void invalid_escape_sequence(Lexer *lexer, Token *string, char *start) {
 	// don't have a newline in the sequence)
 	bool display_sequence = true;
 	token.length = (*(start + 1) == 'x') ? 4 : 2;
-	for (int i = 0; i < token.length; i++) {
+	for (uint32_t i = 0; i < token.length; i++) {
 		char ch = *(start + i);
 		if (ch == '\n' || ch == '\r' || ch == '\0') {
 			display_sequence = false;
@@ -634,7 +635,7 @@ void invalid_escape_sequence(Lexer *lexer, Token *string, char *start) {
 	if (display_sequence) {
 		err_print(err, " `%.*s`", token.length, token.start);
 	}
-	err_token(lexer->state, err, &sequence);
+	err_token(lexer->state, err, &token);
 	err_trigger(lexer->state, err);
 }
 
