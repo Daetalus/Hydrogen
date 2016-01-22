@@ -61,7 +61,7 @@ macro(test name)
 endmacro()
 
 # Add tests
-# test(lexer)
+test(lexer)
 # test(bytecode)
 # test(jmp)
 # test(assign)

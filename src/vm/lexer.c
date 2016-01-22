@@ -25,6 +25,9 @@ Lexer lexer_new(HyState *state, Index pkg_index, Index source) {
 	lexer.cursor = src->contents;
 	lexer.token.package = pkg_index;
 	lexer.token.source = source;
+
+	// Lex the first token
+	lexer_next(&lexer);
 	return lexer;
 }
 
@@ -75,7 +78,7 @@ static inline char current(Lexer *lexer) {
 // Does not protect against buffer overflow, so we must be certain before
 // calling this function that cursor + amount does not extend past the end of
 // the string.
-static inline char peek(Lexer *lexer, uint32_t amount) {
+static inline char peek(Lexer *lexer, int32_t amount) {
 	return *(lexer->cursor + amount);
 }
 
@@ -98,7 +101,7 @@ static inline void consume(Lexer *lexer) {
 // Moves the cursor forward by an amount. Doesn't check for buffer overflow so
 // the caller must be sure cursor + amount doesn't extend past the end of the
 // source.
-static inline void forward(Lexer *lexer, uint32_t amount) {
+static inline void forward(Lexer *lexer, int32_t amount) {
 	lexer->cursor += amount;
 }
 
@@ -180,6 +183,7 @@ static void string(Lexer *lexer) {
 	while (!eof(lexer) &&
 			!(current(lexer) == quote && peek(lexer, -1) != '\\')) {
 		token->length++;
+		consume(lexer);
 	}
 
 	// Check the string has a terminating quote
@@ -200,7 +204,7 @@ static void string(Lexer *lexer) {
 // Lexes a number prefix (doesn't consume it), returning the base.
 static int number_prefix(Lexer *lexer) {
 	// Must start with 0
-	if (current(lexer) != '0') {
+	if (current(lexer) != '0' || !is_identifier(peek(lexer, 1))) {
 		return 10;
 	}
 
@@ -240,7 +244,7 @@ static bool number_is_float(Lexer *lexer, int base) {
 			(ch == '.' && is_hex(peek(lexer, position + 1)));
 	} else if (base == 10) {
 		// Skip the first sequence of decimal digits
-		uint32_t position = 2;
+		uint32_t position = 0;
 		while (is_decimal(peek(lexer, position))) {
 			position++;
 		}
@@ -340,7 +344,10 @@ static bool number(Lexer *lexer) {
 		floating_point(lexer);
 	} else {
 		// Skip the base prefix
-		forward(lexer, 2);
+		if (base != 10) {
+			forward(lexer, 2);
+		}
+
 		integer(lexer, base);
 	}
 
@@ -507,13 +514,17 @@ void lexer_next(Lexer *lexer) {
 	case '{': set1(lexer, TOKEN_OPEN_BRACE); break;
 	case '}': set1(lexer, TOKEN_CLOSE_BRACE); break;
 	case ',': set1(lexer, TOKEN_COMMA); break;
-	case '<': set3(lexer, TOKEN_LT, '=', TOKEN_LE, '<', TOKEN_LEFT_SHIFT); break;
-	case '>': set3(lexer, TOKEN_GT, '=', TOKEN_GE, '>', TOKEN_RIGHT_SHIFT); break;
+	case '<': set3(lexer, TOKEN_LT, '=', TOKEN_LE, '<', TOKEN_LSHIFT); break;
+	case '>': set3(lexer, TOKEN_GT, '=', TOKEN_GE, '>', TOKEN_RSHIFT); break;
 
 		// Comment or division
 	case '/':
 		if (comment(lexer)) {
 			lexer_next(lexer);
+		} else if (current(lexer) == '=') {
+			consume(lexer);
+			token->type = TOKEN_DIV_ASSIGN;
+			token->length = 2;
 		} else {
 			token->type = TOKEN_DIV;
 			token->length = 1;

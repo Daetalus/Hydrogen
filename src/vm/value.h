@@ -279,10 +279,9 @@ static inline HyValue * val_to_fields(HyValue val) {
 
 
 // Returns the number of fields on a struct instance.
-static inline uint32_t val_field_count(Vec(StructDefinition) defs,
-		HyValue val) {
+static inline uint32_t val_field_count(StructDefinition *defs, HyValue val) {
 	Index index = ((Struct *) val_to_ptr(val))->definition;
-	return vec_len(vec_at(defs, index));
+	return vec_len(defs[index].fields);
 }
 
 #endif

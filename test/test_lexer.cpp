@@ -3,13 +3,34 @@
 //  Lexer Tests
 //
 
-#include "test.h"
+extern "C" {
+#include <hydrogen.h>
+#include <lexer.h>
+#include <vm.h>
+}
+
+#include <gtest/gtest.h>
 
 
 // Creates a new lexer.
-#define LEXER(code)              \
-	const char *source = (code); \
-	Lexer lexer = lexer_new(NULL, NULL, NULL, (char *) source);
+#define LEXER(code)                                                       \
+	HyState *state = hy_new();                                            \
+	Index pkg = pkg_new(state);                                           \
+	Index source = pkg_add_string(&vec_at(state->packages, pkg), (code)); \
+	Lexer lexer = lexer_new(state, pkg, source);
+
+
+// Asserts two strings are equal up to the given length (since this function is
+// annoyingly missing from the Google test framework).
+#define ASSERT_STREQN(first, second, length) { \
+	char first_str[length + 1];                \
+	char second_str[length + 1];               \
+	strncpy(first_str, (first), length);       \
+	strncpy(second_str, (second), length);     \
+	first_str[length] = '\0';                  \
+	second_str[length] = '\0';                 \
+	ASSERT_STREQ(first_str, second_str);       \
+}
 
 
 // Reads the next token from the lexer and ensures it matches the given type.
@@ -26,14 +47,13 @@
 	lexer_next(&lexer);
 
 
-
 // Ensures the next token matches the given string.
 #define ASSERT_STRING(contents, parsed) {                             \
 	ASSERT_EQ(lexer.token.type, TOKEN_STRING);                        \
 	ASSERT_EQ(lexer.token.length, strlen(contents) + 2);              \
 	ASSERT_STREQN(lexer.token.start + 1, contents, strlen(contents)); \
-	char *extracted = lexer_extract_string(&lexer, &lexer.token);     \
-	ASSERT_NE(extracted, (char *) NULL);                              \
+	char *extracted = (char *) malloc(lexer.token.length + 1);        \
+	lexer_extract_string(&lexer, &lexer.token, extracted);            \
 	ASSERT_STREQ(extracted, parsed);                                  \
 	free(extracted);                                                  \
 	lexer_next(&lexer);                                               \
@@ -108,8 +128,8 @@ TEST(Lexer, Bitwise) {
 	ASSERT_TOKEN(TOKEN_BIT_OR);
 	ASSERT_TOKEN(TOKEN_BIT_NOT);
 	ASSERT_TOKEN(TOKEN_BIT_XOR);
-	ASSERT_TOKEN(TOKEN_LEFT_SHIFT);
-	ASSERT_TOKEN(TOKEN_RIGHT_SHIFT);
+	ASSERT_TOKEN(TOKEN_LSHIFT);
+	ASSERT_TOKEN(TOKEN_RSHIFT);
 	ASSERT_TOKEN(TOKEN_EOF);
 }
 
@@ -210,4 +230,11 @@ TEST(Lexer, BlockComments) {
 	ASSERT_TOKEN(TOKEN_SUB);
 	ASSERT_TOKEN(TOKEN_ELSE_IF);
 	ASSERT_TOKEN(TOKEN_EOF);
+}
+
+
+// Main entry point for a test case.
+int main(int argc, char *argv[]) {
+	::testing::InitGoogleTest(&argc, argv);
+	return RUN_ALL_TESTS();
 }
