@@ -25,11 +25,60 @@ HyPackage hy_package_new(HyState *state, char *name) {
 }
 
 
+// Returns the position of the last occurrence of the given character, or -1 if
+// the character can't be found.
+static int last_occurrence(char *string, char ch) {
+	int last = strlen(string) - 1;
+	while (last >= 0 && string[last] != ch) {
+		last--;
+	}
+	return last;
+}
+
+
 // Returns a heap allocated string (that needs to be freed) containing the name
 // of a package based off its file path.
 char * hy_package_name(char *path) {
-	// TODO
-	return NULL;
+	// Find the last path component
+	size_t length = strlen(path);
+	int last_path = last_occurrence(path, '/');
+
+	// Find the last `.` for the file extension
+	int last_dot = last_occurrence(path, '.');
+	if (last_dot < last_path) {
+		// The dot is before the final path component, so there's no file
+		// extension
+		last_dot = -1;
+	}
+
+	char *name;
+	if (last_path < 0 && last_dot < 0) {
+		// No path components and no file extension, the path itself is the name
+		name = malloc(length + 1);
+		strcpy(name, path);
+	} else if (last_path < 0) {
+		// File extension, but no path components
+		name = malloc(last_dot + 1);
+		strncpy(name, path, last_dot);
+		name[last_dot] = '\0';
+	} else {
+		// Stop before the file extension if one exists
+		size_t stop = length;
+		if (last_dot >= 0) {
+			stop = last_dot;
+		}
+
+		// Extract the last component into a new string
+		// The length includes the + 1 for the NULL terminator
+		size_t last_length = stop - last_path;
+		name = malloc(last_length);
+		for (size_t i = last_path + 1; i < stop; i++) {
+			name[i - (last_path + 1)] = path[i];
+		}
+		name[last_length - 1] = '\0';
+	}
+
+	return name;
 }
 
 
