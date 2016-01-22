@@ -56,16 +56,23 @@ void hy_err_free(HyError *err) {
 }
 
 
-// Prints a string to an error's description.
-void err_print(HyError *err, char *fmt, ...) {
+// Prints a string to an error's description using a `va_list` as arguments to
+// the format string.
+void err_print_varargs(HyError *err, char *fmt, va_list args) {
 	// Calculate the length and remaining capacity of the description
 	uint32_t length = strlen(err->description);
 	uint32_t capacity = MAX_DESCRIPTION_SIZE - length;
 
-	// Print our format string to the description
+	// Print the format string to the description
+	vsnprintf(&err->description[length], capacity, fmt, args);
+}
+
+
+// Prints a string to an error's description.
+void err_print(HyError *err, char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
-	vsnprintf(&err->description[length], capacity, fmt, args);
+	err_print_varargs(err, fmt, args);
 	va_end(args);
 }
 

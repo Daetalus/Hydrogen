@@ -18,6 +18,10 @@ HyError * err_new(void);
 // Creates a new failed to open file error.
 HyError * err_failed_to_open_file(char *path);
 
+// Prints a string to an error's description using a `va_list` as arguments to
+// the format string.
+void err_print_varargs(HyError *err, char *fmt, va_list args);
+
 // Prints a string to an error's description.
 void err_print(HyError *err, char *fmt, ...);
 

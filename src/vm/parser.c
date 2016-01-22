@@ -3,17 +3,50 @@
 //  Parser
 //
 
+#include <stdarg.h>
 #include <stdlib.h>
 
 #include "parser.h"
 #include "fn.h"
 #include "pkg.h"
 #include "vm.h"
+#include "err.h"
 
 
 // Returns a pointer to the current function we're emitting bytecode values to.
 static inline Function * parser_fn(Parser *parser) {
 	return &vec_at(parser->state->functions, parser->scope->fn_index);
+}
+
+
+// Forward declaration.
+static void parse_block(Parser *parser, TokenType terminator);
+
+
+
+//
+//  Error Handling
+//
+
+// Expects a token with type `type` to be the current token on the lexer,
+// triggering an error if it is not found.
+static void err_expect(Parser *parser, char *fmt, ...) {
+	HyError *err = err_new();
+
+	// Print format string
+	va_list args;
+	va_start(args, fmt);
+	err_print_varargs(err, fmt, args);
+	va_end(args);
+
+	// Print found token
+	err_print(err, ", found ");
+	Token *token = &parser->lexer.token;
+	err_print_token(err, token);
+
+	// Attach token and trigger error
+	err_token(parser->state, err, token);
+	err_trigger(parser->state, err);
 }
 
 
@@ -49,7 +82,8 @@ static void scope_push(Parser *parser, FunctionScope *scope) {
 
 // Pop a function from the parser's function scope stack.
 static void scope_pop(Parser *parser) {
-	// All blocks and locals should have been freed here
+	// All blocks and locals should have been freed here, so we're safe to pop
+	// the function scope
 	parser->scope = parser->scope->parent;
 }
 
@@ -92,7 +126,6 @@ static void local_free(Parser *parser) {
 	// Check if this was a named local
 	if (parser->locals_count < vec_len(parser->locals)) {
 		vec_len(parser->locals)--;
-		// TODO: Emit close upvalue instruction if needed
 	}
 }
 
@@ -118,12 +151,52 @@ static void block_free(Parser *parser) {
 
 
 //
+//  Variable Assignment
+//
+
+// Parses an initial variable declaration (using `let`).
+static void parse_declaration(Parser *parser) {
+
+}
+
+
+
+//
 //  Blocks and Statements
 //
 
+// Parses an unconditional block (a new scope for locals).
+static void parse_unconditional_block(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+
+	// Skip the opening brace
+	lexer_next(lexer);
+
+	// Parse a block
+	parse_block(parser, TOKEN_CLOSE_BRACE);
+
+	// Expect a closing brace
+	err_expect(parser, "Expected `{` to close unconditional block");
+	lexer_next(lexer);
+}
+
+
 // Parses a single statement, like an `if` or `while` construct.
 static void parse_statement(Parser *parser) {
+	switch (parser->lexer.token.type) {
+		// Local declaration
+	case TOKEN_LET:
+		parse_declaration(parser);
+		break;
 
+		// Unconditional block
+	case TOKEN_OPEN_BRACE:
+		parse_unconditional_block(parser);
+		break;
+
+	default:
+		break;
+	}
 }
 
 
