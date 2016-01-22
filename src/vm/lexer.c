@@ -181,9 +181,13 @@ static void string(Lexer *lexer) {
 		token->length++;
 	}
 
-	// Check the string isn't unterminated
+	// Check the string has a terminating quote
 	if (eof(lexer)) {
-		// TODO: Unterminated string error
+		HyError *err = err_new();
+		err_print(err, "Unterminated string literal ");
+		err_print_token(err, token);
+		err_token(lexer->state, err, token);
+		err_trigger(lexer->state, err);
 		return;
 	}
 
@@ -252,8 +256,15 @@ static bool number_is_float(Lexer *lexer, int base) {
 
 // Ensures the current character is not an identifier.
 static void ensure_not_identifier(Lexer *lexer) {
+	Token *token = &lexer->token;
+
+	// Trigger an error if the current character is part of an identifier
 	if (is_identifier(current(lexer))) {
-		// TODO: Number followed by letter error
+		HyError *err = err_new();
+		err_print(err, "Unexpected identifier after number ");
+		err_print_token(err, token);
+		err_token(lexer->state, err, token);
+		err_trigger(lexer->state, err);
 	}
 }
 
@@ -309,7 +320,16 @@ static bool number(Lexer *lexer) {
 
 	int base = number_prefix(lexer);
 	if (base == -1) {
-		// TODO: Invalid base error
+		// Invalid base prefix
+		Token *token = &lexer->token;
+		token->type = TOKEN_IDENTIFIER;
+		token->length = 2;
+
+		HyError *err = err_new();
+		err_print(err, "Invalid base prefix ");
+		err_print_token(err, token);
+		err_token(lexer->state, err, token);
+		err_trigger(lexer->state, err);
 		return false;
 	}
 
@@ -589,6 +609,36 @@ static char escape_sequence(char **cursor) {
 }
 
 
+// Triggers an invalid escape sequence error.
+void invalid_escape_sequence(Lexer *lexer, Token *string, char *start) {
+	// Create a token for the escape sequence
+	Token token = *string;
+	token.type = TOKEN_IDENTIFIER;
+	token.start = start;
+
+	// Check if we can display the sequence in the error message (ensure we
+	// don't have a newline in the sequence)
+	bool display_sequence = true;
+	token.length = (*(start + 1) == 'x') ? 4 : 2;
+	for (int i = 0; i < token.length; i++) {
+		char ch = *(start + i);
+		if (ch == '\n' || ch == '\r' || ch == '\0') {
+			display_sequence = false;
+			break;
+		}
+	}
+
+	// Trigger error
+	HyError *err = err_new();
+	err_print(err, "Invalid escape sequence");
+	if (display_sequence) {
+		err_print(err, " `%.*s`", token.length, token.start);
+	}
+	err_token(lexer->state, err, &sequence);
+	err_trigger(lexer->state, err);
+}
+
+
 // String literals need to be extracted from a token separately because escape
 // sequences need to be parsed into their proper values. Stores the extracted
 // string directly into `buffer`. Ensure that `buffer` is at least as long as
@@ -604,12 +654,14 @@ uint32_t lexer_extract_string(Lexer *lexer, Token *token, char *buffer) {
 	for (char *cursor = &token->start[1]; cursor < end; cursor++) {
 		// Check for an escape sequence
 		if (*cursor == '\\') {
+			char *start = cursor;
 			cursor++;
 
 			// Parse the escape sequence
 			char sequence = escape_sequence(&cursor);
 			if (sequence == '\0') {
-				// TODO: Invalid escape sequence error
+				// Invalid escape sequence
+				invalid_escape_sequence(lexer, token, start);
 				return 0;
 			}
 

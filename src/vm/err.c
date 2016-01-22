@@ -85,6 +85,17 @@ static void print_unrecognised(char *description, uint32_t capacity,
 }
 
 
+// Returns the length of the line starting at `cursor`.
+static uint32_t line_length(char *cursor) {
+	uint32_t length = 0;
+	while (*cursor != '\0' && *cursor != '\n' && *cursor != '\r') {
+		length++;
+		cursor++;
+	}
+	return length;
+}
+
+
 // Prints a token to an error's description, surrounded in grave accents.
 void err_print_token(HyError *err, Token *token) {
 	// Calculate the length and remaining capacity of the description
@@ -101,6 +112,12 @@ void err_print_token(HyError *err, Token *token) {
 		// because of the arbitrary amount of whitespace between the two words,
 		// so print it separately from the rest of the tokens
 		snprintf(description, capacity, "`else if`");
+	} else if (token->type == TOKEN_STRING) {
+		// Strings also have the potential to span multiple lines, so print
+		// only the first line
+		uint32_t line = line_length(token->start);
+		uint32_t actual = line < token->length ? line : token->length;
+		snprintf(description, capacity, "`%.*s`", actual, token->start);
 	} else if (token->length > 0) {
 		snprintf(description, capacity, "`%.*s`", token->length, token->start);
 	} else if (token->type == TOKEN_EOF) {
@@ -120,17 +137,6 @@ static char * line_start(char *cursor, char *source) {
 		cursor--;
 	}
 	return cursor + 1;
-}
-
-
-// Returns the length of the line starting at `cursor`.
-static uint32_t line_length(char *cursor) {
-	uint32_t length = 0;
-	while (*cursor != '\0' && *cursor != '\n' && *cursor != '\r') {
-		length++;
-		cursor++;
-	}
-	return length;
 }
 
 
@@ -173,15 +179,20 @@ void err_token(HyState *state, HyError *err, Token *token) {
 		strcpy(err->file, src->file);
 	}
 
-	// Copy across token length
-	err->length = token->length;
-
 	// Copy the line contents
 	char *start = line_start(token->start, src->contents);
 	uint32_t length = line_length(start);
 	err->line_contents = malloc(length + 1);
 	strncpy(err->line_contents, start, length);
 	err->line_contents[length] = '\0';
+
+	// Ensure the length of the token doesn't extend past the end of the line
+	uint32_t max_length = line_length(token->start);
+	if (token->length > max_length) {
+		err->length = max_length;
+	} else {
+		err->length = token->length;
+	}
 
 	// Copy across the line and column numbers
 	err->line = line_number(token->start, src->contents);

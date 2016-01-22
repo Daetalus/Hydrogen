@@ -86,8 +86,10 @@ HyError * hy_package_run_file(HyState *state, HyPackage index, char *path) {
 
 	// Check we could find the file
 	if (source == NOT_FOUND) {
-		// TODO: File not found error
-		return state->error;
+		// Failed to open file
+		HyError *err = err_new();
+		err_print(err, "Failed to open file `%s`", path);
+		return err;
 	} else {
 		return pkg_run(pkg, source);
 	}
