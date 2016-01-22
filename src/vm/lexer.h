@@ -119,8 +119,9 @@ typedef struct {
 	// A pointer to the start of the source code we are lexing.
 	char *source;
 
-	// The current cursor position in the source code.
+	// The current cursor position and line number in the source code.
 	char *cursor;
+	uint32_t line;
 
 	// The most recently lexed token, which is updated every time the
 	// `lexer_next` function is called.

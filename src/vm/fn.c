@@ -12,13 +12,13 @@
 //  Functions
 //
 
-// Defines a new function on the package `pkg`.
-Index fn_new(HyState *state, Index pkg) {
+// Defines a new function on the interpreter state.
+Index fn_new(HyState *state) {
 	vec_add(state->functions);
 	Function *fn = &vec_last(state->functions);
 	fn->name = NULL;
 	fn->length = 0;
-	fn->package = pkg;
+	fn->package = NOT_FOUND;
 	fn->arity = 0;
 	fn->frame_size = 0;
 	vec_new(fn->instructions, Instruction, 64);

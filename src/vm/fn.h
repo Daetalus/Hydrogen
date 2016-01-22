@@ -45,8 +45,8 @@ typedef struct {
 } Function;
 
 
-// Defines a new function on the package `pkg`.
-Index fn_new(HyState *state, Index pkg);
+// Defines a new function on the interpreter state.
+Index fn_new(HyState *state);
 
 // Frees resources allocated by a function.
 void fn_free(Function *fn);

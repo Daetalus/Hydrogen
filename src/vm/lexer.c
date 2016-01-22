@@ -90,17 +90,29 @@ static inline bool eof(Lexer *lexer) {
 
 
 // Moves the cursor 1 character forward.
-static inline void consume(Lexer *lexer) {
+static void consume(Lexer *lexer) {
 	// Don't do anything if we're at the end of the file
-	if (!eof(lexer)) {
-		lexer->cursor++;
+	if (eof(lexer)) {
+		return;
 	}
+
+	// Check for newlines so we can increment the current line
+	if (current(lexer) == '\n' || current(lexer) == '\r') {
+		// Treat \r\n as a single newline character
+		if (current(lexer) == '\r' && peek(lexer, 1) == '\n') {
+			lexer->cursor++;
+		}
+		lexer->line++;
+	}
+
+	lexer->cursor++;
 }
 
 
 // Moves the cursor forward by an amount. Doesn't check for buffer overflow so
 // the caller must be sure cursor + amount doesn't extend past the end of the
-// source.
+// source. Also doesn't check for newlines so the line count won't be updated if
+// the characters we're skipping contain newlines.
 static inline void forward(Lexer *lexer, int32_t amount) {
 	lexer->cursor += amount;
 }

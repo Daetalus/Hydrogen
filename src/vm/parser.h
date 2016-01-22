@@ -49,6 +49,11 @@ typedef struct function_scope {
 	// encounter a break statement. The inner most loop is stored at the head
 	// of the linked list (this pointer).
 	Loop *loop;
+
+	// The block scope depth inside the function, used to keep track of which
+	// locals were defined in the current scope so we can free them when we
+	// release a block.
+	uint32_t block_depth;
 } FunctionScope;
 
 
@@ -57,6 +62,9 @@ typedef struct {
 	// The name of this variable.
 	char *name;
 	uint32_t length;
+
+	// The block scope in which the variable was defined.
+	uint32_t block;
 } Local;
 
 
@@ -66,9 +74,9 @@ typedef struct {
 	// created on.
 	HyState *state;
 
-	// The index of the package the source code we're compiling is associated
-	// with.
+	// The index of the package and source code within it that we're compiling.
 	Index package;
+	Index source;
 
 	// The lexer, emitting tokens from source code that the parser transforms
 	// into more cohesive language structures.
