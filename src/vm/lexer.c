@@ -109,7 +109,7 @@ static inline void forward(Lexer *lexer, int32_t amount) {
 // Returns true if the string starting at the lexer's current cursor position
 // matchines `string`.
 static inline bool matches(Lexer *lexer, char *string) {
-	return strncmp(lexer->cursor, string, strlen(string));
+	return strncmp(lexer->cursor, string, strlen(string)) == 0;
 }
 
 
@@ -176,12 +176,11 @@ static void string(Lexer *lexer) {
 	token->length = 2;
 
 	// Save the opening quote and skip over it
-	char quote = current(lexer);
+	char ch = current(lexer);
 	consume(lexer);
 
 	// Consume characters until we reach the end of the string
-	while (!eof(lexer) &&
-			!(current(lexer) == quote && peek(lexer, -1) != '\\')) {
+	while (!eof(lexer) && !(current(lexer) == ch && peek(lexer, -1) != '\\')) {
 		token->length++;
 		consume(lexer);
 	}
@@ -371,14 +370,14 @@ static bool keyword(Lexer *lexer) {
 
 	// Since an `else if` token can have an unknown amount of whitespace between
 	// the `else` and `if`, we need to handle it separately
-	if (matches(lexer, "else")) {
+	if (matches_identifier(lexer, "else")) {
 		// Skip the `else`
 		char *start = lexer->cursor;
 		forward(lexer, 4);
 
 		// Check for a following `if`
 		consume_whitespace(lexer);
-		if (matches(lexer, "if")) {
+		if (matches_identifier(lexer, "if")) {
 			forward(lexer, 2);
 			token->type = TOKEN_ELSE_IF;
 			token->length = lexer->cursor - start;
@@ -421,6 +420,7 @@ static bool identifier(Lexer *lexer) {
 	token->length = 0;
 	while (is_identifier(current(lexer))) {
 		token->length++;
+		consume(lexer);
 	}
 
 	return true;
