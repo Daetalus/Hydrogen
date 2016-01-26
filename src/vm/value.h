@@ -43,9 +43,9 @@
 #define QUIET_NAN ((uint64_t) 0x7ffc000000000000)
 
 // Primitive value tags.
-#define NIL_TAG   1
+#define TRUE_TAG  1
 #define FALSE_TAG 2
-#define TRUE_TAG  3
+#define NIL_TAG   3
 
 // Primitive values.
 #define NIL_VALUE   (QUIET_NAN | NIL_TAG)

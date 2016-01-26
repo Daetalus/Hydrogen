@@ -33,8 +33,8 @@ static char opcode_names[][MAX_NAME_LENGTH] = {
 	"NEG_L",
 
 	"IS_TRUE_L", "IS_FALSE_L",
-	"EQ_LL", "EQ_LI", "EQ_LN", "EQ_LS", "EQ_LP", "EQ_LF",
-	"NEQ_LL", "NEQ_LI", "NEQ_LN", "NEQ_LS", "NEQ_LP", "NEQ_LF",
+	"EQ_LL", "EQ_LI", "EQ_LN", "EQ_LS", "EQ_LP", "EQ_LF", "EQ_LV",
+	"NEQ_LL", "NEQ_LI", "NEQ_LN", "NEQ_LS", "NEQ_LP", "NEQ_LF", "NEQ_LV",
 	"LT_LL", "LT_LI", "LT_LN",
 	"LE_LL", "LE_LI", "LE_LN",
 	"GT_LL", "GT_LI", "GT_LN",
@@ -78,9 +78,9 @@ static uint32_t argument_count[] = {
 
 	1, /* IS_TRUE_L */ 1, /* IS_FALSE_L */
 	2, /* EQ_LL */ 2, /* EQ_LI */ 2, /* EQ_LN */ 2, /* EQ_LS */ 2, /* EQ_LP */
-	2, /* EQ_LF */
+	2, /* EQ_LF */ 2, /* EQ_LV */
 	2, /* NEQ_LL */ 2, /* NEQ_LI */ 2, /* NEQ_LN */ 2, /* NEQ_LS */
-	2, /* NEQ_LP */ 2, /* NEQ_LF */
+	2, /* NEQ_LP */ 2, /* NEQ_LF */ 2, /* NEQ_LV */
 	2, /* LT_LL */ 2, /* LT_LI */ 2, /* LT_LN */
 	2, /* LE_LL */ 2, /* LE_LI */ 2, /* LE_LN */
 	2, /* GT_LL */ 2, /* GT_LI */ 2, /* GT_LN */

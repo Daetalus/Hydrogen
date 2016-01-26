@@ -112,6 +112,25 @@ HyError * hy_package_run_string(HyState *state, HyPackage index, char *source) {
 }
 
 
+// Adds a constant to the interpreter state, returning its index.
+Index state_add_constant(HyState *state, HyValue constant) {
+	vec_add(state->constants);
+	vec_last(state->constants) = constant;
+	return vec_len(state->constants) - 1;
+}
+
+
+// Creates a new string constant that is `length` bytes long.
+Index state_add_string(HyState *state, uint32_t length) {
+	vec_add(state->strings);
+	vec_last(state->strings) = malloc(sizeof(String) + length);
+	String *string = vec_last(state->strings);
+	string->length = length;
+	string->contents[0] = '\0';
+	return vec_len(state->strings) - 1;
+}
+
+
 
 //
 //  Execution

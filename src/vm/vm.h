@@ -50,6 +50,12 @@ struct hy_state {
 };
 
 
+// Adds a constant to the interpreter state, returning its index.
+Index state_add_constant(HyState *state, HyValue constant);
+
+// Creates a new string constant that is `length` bytes long.
+Index state_add_string(HyState *state, uint32_t length);
+
 // Executes a function on the interpreter state.
 HyError * vm_run_fn(HyState *state, Index fn);
 

@@ -63,7 +63,7 @@ typedef struct {
 	char *name;
 	uint32_t length;
 
-	// The block scope in which the variable was defined.
+	// The block scope in which the local was defined.
 	uint32_t block;
 } Local;
 

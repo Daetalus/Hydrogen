@@ -131,6 +131,7 @@ typedef enum {
 	EQ_LS,
 	EQ_LP,
 	EQ_LF,
+	EQ_LV,
 
 	NEQ_LL,
 	NEQ_LI,
@@ -138,6 +139,7 @@ typedef enum {
 	NEQ_LS,
 	NEQ_LP,
 	NEQ_LF,
+	NEQ_LV,
 
 	LT_LL,
 	LT_LI,
@@ -217,10 +219,10 @@ typedef enum {
 	// Sets the contents of a struct's field.
 	//
 	// Arguments:
-	// * `slot`: the stack slot of the struct
-	// * `value`: set the field to this value
 	// * `field_name`: the name of the field, as an index into the VM's struct
 	//   field name list
+	// * `value`: set the field to this value
+	// * `slot`: the stack slot of the struct
 	STRUCT_SET_L,
 	STRUCT_SET_I,
 	STRUCT_SET_N,
@@ -228,6 +230,13 @@ typedef enum {
 	STRUCT_SET_P,
 	STRUCT_SET_F,
 	STRUCT_SET_V,
+
+
+	//
+	//  No Operation
+	//
+
+	NO_OP,
 } BytecodeOpcode;
 
 #endif
