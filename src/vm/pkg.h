@@ -36,7 +36,7 @@ typedef struct {
 
 	// A parser, to generate bytecode from source code. This is kept in the
 	// package so we can save which variables we've defined, etc for each time
-	// we compile some source code into this package.
+	// we parse some source code into bytecode on this package.
 	Parser parser;
 
 	// Variables declared at the top of a source file must be available to
@@ -55,9 +55,9 @@ Index pkg_new(HyState *state);
 // Releases resources allocated by a package.
 void pkg_free(Package *pkg);
 
-// Compiles some source code into bytecode, returning the compilation error if
-// one occurred, and setting `main_fn` to the index of the function that will
-// execute the code at the top level of the provided source code.
+// Parses some source code into bytecode, returning an error if one occurred,
+// and setting `main_fn` to the index of the function that will execute the
+// code at the top level of the provided source code.
 HyError * pkg_parse(Package *pkg, Index source, Index *main_fn);
 
 // Adds a file as a source on the package.

@@ -28,7 +28,6 @@ static inline Package * parser_pkg(Parser *parser) {
 
 // Forward declaration.
 static void parse_block(Parser *parser, TokenType terminator);
-static Operand parse_expr(Parser *parser, uint16_t slot);
 
 
 
@@ -337,6 +336,10 @@ typedef struct {
 		Index jump;
 	};
 } Operand;
+
+
+// Forward declaration.
+static Operand parse_expr(Parser *parser, uint16_t slot);
 
 
 // The precedence level of operators, in the proper order.
@@ -950,7 +953,7 @@ static Operand parse_expr(Parser *parser, uint16_t slot) {
 // Parses an expression into the slot `slot`.
 static void expr_emit(Parser *parser, uint16_t slot) {
 	Operand operand = parse_expr(parser, slot);
-	expr_discharge(parser, operand, slot);
+	expr_discharge_local(parser, operand, slot);
 }
 
 
@@ -991,17 +994,12 @@ static void parse_statement(Parser *parser) {
 	Lexer *lexer = &parser->lexer;
 
 	switch (lexer->token.type) {
-		// Local declaration
-	case TOKEN_LET:
-		parse_declaration(parser);
-		break;
-
 		// Unconditional block
 	case TOKEN_OPEN_BRACE:
 		parse_unconditional_block(parser);
 		break;
 
-	default:
+	default: {
 		// Parse an expression
 		uint16_t slot = local_reserve(parser);
 		Token start = lexer->token;
@@ -1012,9 +1010,10 @@ static void parse_statement(Parser *parser) {
 			err_fatal(parser, &start, "Expression result unused");
 		}
 
-		expr_discharge(parser, operand, slot);
+		expr_discharge_local(parser, operand, slot);
 		local_free(parser);
 		break;
+	}
 	}
 }
 

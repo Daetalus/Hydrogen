@@ -14,7 +14,7 @@
 // A struct definition, specifying the fields and methods present on a struct.
 typedef struct {
 	// The name of the struct, used when searching through definitions to
-	// resolve an identifier during compilation.
+	// resolve an identifier during parsing.
 	char *name;
 	uint32_t length;
 

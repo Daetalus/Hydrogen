@@ -15,7 +15,7 @@
 
 
 // Data associated with a loop so we know where to point break statement's jump
-// instructions once the whole loop has been compiled.
+// instructions once the whole loop has been parsed.
 typedef struct loop {
 	// The outer loop this one is contained inside of, or NULL if there are no
 	// enclosing loops.
@@ -74,7 +74,7 @@ typedef struct {
 	// created on.
 	HyState *state;
 
-	// The index of the package and source code within it that we're compiling.
+	// The index of the package and source code within it that we're parsing.
 	Index package;
 	Index source;
 

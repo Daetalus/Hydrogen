@@ -122,7 +122,7 @@ HyError * hy_package_run_file(HyState *state, HyPackage index, char *path) {
 HyError * hy_package_run_string(HyState *state, HyPackage index, char *source) {
 	Package *pkg = &vec_at(state->packages, index);
 	Index source_index = pkg_add_string(pkg, source);
-	return vm_parse_and_run(state, pkg, source);
+	return vm_parse_and_run(state, pkg, source_index);
 }
 
 

@@ -367,7 +367,7 @@ void debug_struct(HyState *state, StructDefinition *def) {
 }
 
 
-// Compile a source code object on a package into bytecode and print it to the
+// Parse a source code object on a package into bytecode and print it to the
 // standard output.
 HyError * print_bytecode(HyState *state, Index index, Index source) {
 	Package *pkg = &vec_at(state->packages, index);
@@ -377,12 +377,10 @@ HyError * print_bytecode(HyState *state, Index index, Index source) {
 	uint32_t functions_length = vec_len(state->functions);
 	uint32_t structs_length = vec_len(state->structs);
 
-	// Compile source code
-	pkg_compile(pkg, source);
-
-	// Check for compilation error
-	if (state->error != NULL) {
-		return vm_reset_error(state);
+	// Parse source code
+	HyError *err = pkg_parse(pkg, source, NULL);
+	if (err != NULL) {
+		return err;
 	}
 
 	// Print new struct definitions
@@ -403,7 +401,7 @@ HyError * print_bytecode(HyState *state, Index index, Index source) {
 }
 
 
-// Read source code from a file and compile it into bytecode, printing it to
+// Read source code from a file and parse it into bytecode, printing it to
 // the standard output.
 HyError * hy_print_bytecode_file(HyState *state, HyPackage index, char *path) {
 	Package *pkg = &vec_at(state->packages, index);
@@ -418,8 +416,8 @@ HyError * hy_print_bytecode_file(HyState *state, HyPackage index, char *path) {
 }
 
 
-// Compile source code into bytecode and print it to the standard output. An
-// error object is returned if one occurred during compilation, otherwise NULL
+// Parse source code into bytecode and print it to the standard output. An
+// error object is returned if one occurred during parsing, otherwise NULL
 // is returned.
 HyError * hy_print_bytecode_string(HyState *state, HyPackage index, char *src) {
 	Package *pkg = &vec_at(state->packages, index);

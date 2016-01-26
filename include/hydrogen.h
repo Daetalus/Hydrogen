@@ -80,7 +80,7 @@ typedef struct {
 	int32_t length;
 
 	// The state of the call stack at the point during runtime the error
-	// occurred. If the error was during compilation, this is set to NULL, and
+	// occurred. If the error was during parsing, this is set to NULL, and
 	// the length is set to 0.
 	HyStackTrace *stack_trace;
 	uint32_t stack_trace_length;
@@ -127,12 +127,12 @@ HyError * hy_package_run_file(HyState *state, HyPackage pkg, char *path);
 HyError * hy_package_run_string(HyState *state, HyPackage pkg, char *source);
 
 
-// Read source code from a file and compile it into bytecode, printing it to
+// Read source code from a file and parse it into bytecode, printing it to
 // the standard output.
 HyError * hy_print_bytecode_file(HyState *state, HyPackage pkg, char *path);
 
-// Compile source code into bytecode and print it to the standard output. An
-// error object is returned if one occurred during compilation, otherwise NULL
+// Parse source code into bytecode and print it to the standard output. An
+// error object is returned if one occurred during parsing, otherwise NULL
 // is returned.
 HyError * hy_print_bytecode_string(HyState *state, HyPackage pkg, char *source);
 

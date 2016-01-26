@@ -17,7 +17,7 @@
 // another bytecode instruction. They are defined in Hydrogen source code.
 typedef struct {
 	// The name of the function, used for error messages and resolving
-	// identifiers during compilation.
+	// identifiers during parsing.
 	char *name;
 	uint32_t length;
 
