@@ -86,6 +86,20 @@ HyError * vm_reset_error(HyState *state) {
 }
 
 
+// Parses and runs some source code.
+HyError * vm_parse_and_run(HyState *state, Package *pkg, Index source) {
+	// Parse the source code
+	Index main_fn;
+	HyError *err = pkg_parse(pkg, source, &main_fn);
+	if (err != NULL) {
+		return err;
+	}
+
+	// Execute the main function
+	return vm_run_fn(state, main_fn);
+}
+
+
 // Execute a file on a package. The file's contents will be read and executed
 // as source code. The file's path will be used in relevant errors. An error
 // object is returned if one occurs, otherwise NULL is returned.
@@ -99,7 +113,7 @@ HyError * hy_package_run_file(HyState *state, HyPackage index, char *path) {
 		return err_failed_to_open_file(path);
 	}
 
-	return pkg_run(pkg, source);
+	return vm_parse_and_run(state, pkg, source);
 }
 
 
@@ -108,7 +122,7 @@ HyError * hy_package_run_file(HyState *state, HyPackage index, char *path) {
 HyError * hy_package_run_string(HyState *state, HyPackage index, char *source) {
 	Package *pkg = &vec_at(state->packages, index);
 	Index source_index = pkg_add_string(pkg, source);
-	return pkg_run(pkg, source_index);
+	return vm_parse_and_run(state, pkg, source);
 }
 
 

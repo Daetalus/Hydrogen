@@ -19,8 +19,11 @@ HyPackage hy_package_new(HyState *state, char *name) {
 	Package *pkg = &vec_at(state->packages, index);
 
 	// Copy the name of the package across into a new heap allocated string
-	pkg->name = malloc(strlen(name) + 1);
-	strcpy(pkg->name, name);
+	if (name != NULL) {
+		pkg->name = malloc(strlen(name) + 1);
+		strcpy(pkg->name, name);
+	}
+
 	return index;
 }
 
@@ -110,23 +113,18 @@ void pkg_free(Package *pkg) {
 }
 
 
-// Compiles some source code, returning the index of the main function.
-Index pkg_compile(Package *pkg, Index source) {
+// Compiles some source code into bytecode, returning the compilation error if
+// one occurred, and setting `main_fn` to the index of the function that will
+// execute the code at the top level of the provided source code.
+HyError * pkg_parse(Package *pkg, Index source, Index *main_fn) {
 	HyState *state = pkg->parser.state;
 
-	// Catch errors using `setjmp`
+	// Catch errors
+	Index index = NOT_FOUND;
 	if (setjmp(state->error_jmp) == 0) {
-		return parser_parse(&pkg->parser, source);
+		// Compile the source
+		index = parser_parse(&pkg->parser, source);
 	}
-	return NOT_FOUND;
-}
-
-
-// Executes a source object on a package by compiling into bytecode and
-// executing the result.
-HyError * pkg_run(Package *pkg, Index source) {
-	HyState *state = pkg->parser.state;
-	Index main_fn = pkg_compile(pkg, source);
 
 	// Check for compilation error
 	if (state->error != NULL) {
@@ -134,14 +132,12 @@ HyError * pkg_run(Package *pkg, Index source) {
 		return vm_reset_error(state);
 	}
 
-	// Catch errors
-	if (setjmp(state->error_jmp) == 0) {
-		// Execute compiled bytecode
-		vm_run_fn(state, main_fn);
+	// Set the main function's index
+	if (main_fn != NULL) {
+		*main_fn = index;
 	}
 
-	// Reset the error
-	return vm_reset_error(state);
+	return NULL;
 }
 
 

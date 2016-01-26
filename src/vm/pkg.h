@@ -55,12 +55,10 @@ Index pkg_new(HyState *state);
 // Releases resources allocated by a package.
 void pkg_free(Package *pkg);
 
-// Compiles some source code, returning the index of the main function.
-Index pkg_compile(Package *pkg, Index source);
-
-// Executes a source object on a package by compiling into bytecode and
-// executing the result.
-HyError * pkg_run(Package *pkg, Index source);
+// Compiles some source code into bytecode, returning the compilation error if
+// one occurred, and setting `main_fn` to the index of the function that will
+// execute the code at the top level of the provided source code.
+HyError * pkg_parse(Package *pkg, Index source, Index *main_fn);
 
 // Adds a file as a source on the package.
 Index pkg_add_file(Package *pkg, char *path);
