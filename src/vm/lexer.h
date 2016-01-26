@@ -36,6 +36,7 @@ typedef enum {
 	TOKEN_SUB_ASSIGN,
 	TOKEN_MUL_ASSIGN,
 	TOKEN_DIV_ASSIGN,
+	TOKEN_MOD_ASSIGN,
 
 	// Boolean operators
 	TOKEN_AND,

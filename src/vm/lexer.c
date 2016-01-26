@@ -511,7 +511,7 @@ void lexer_next(Lexer *lexer) {
 	case '+': set2(lexer, TOKEN_ADD, '=', TOKEN_ADD_ASSIGN); break;
 	case '-': set2(lexer, TOKEN_SUB, '=', TOKEN_SUB_ASSIGN); break;
 	case '*': set2(lexer, TOKEN_MUL, '=', TOKEN_MUL_ASSIGN); break;
-	case '%': set1(lexer, TOKEN_MOD); break;
+	case '%': set2(lexer, TOKEN_MOD, '=', TOKEN_MOD_ASSIGN); break;
 	case '=': set2(lexer, TOKEN_ASSIGN, '=', TOKEN_EQ); break;
 	case '!': set2(lexer, TOKEN_NOT, '=', TOKEN_NEQ); break;
 	case '&': set2(lexer, TOKEN_BIT_AND, '&', TOKEN_AND); break;

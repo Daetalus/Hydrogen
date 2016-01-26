@@ -345,6 +345,8 @@ static Operand parse_expr(Parser *parser, uint16_t slot);
 // The precedence level of operators, in the proper order.
 typedef enum {
 	PREC_NONE,
+	// Assignment
+	PREC_ASSIGN,
 	// Boolean operators
 	PREC_OR,
 	PREC_AND,
@@ -383,6 +385,13 @@ static Precedence prec_binary(TokenType operator) {
 	case TOKEN_GT:
 	case TOKEN_GE:
 		return PREC_ORD;
+	case TOKEN_ASSIGN:
+	case TOKEN_ADD_ASSIGN:
+	case TOKEN_SUB_ASSIGN:
+	case TOKEN_MUL_ASSIGN:
+	case TOKEN_DIV_ASSIGN:
+	case TOKEN_MOD_ASSIGN:
+		return PREC_ASSIGN;
 	case TOKEN_AND:
 		return PREC_AND;
 	case TOKEN_OR:
