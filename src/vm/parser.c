@@ -3,6 +3,8 @@
 //  Parser
 //
 
+#include <math.h>
+#include <limits.h>
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -483,36 +485,258 @@ static inline Operand operand_new(void) {
 }
 
 
+// Returns true if an operand is a number.
+static inline bool operand_is_number(OpType type) {
+	return type == OP_NUMBER || type == OP_INTEGER;
+}
+
+
+// Converts a number operand (integer or number) into its double value.
+static inline double operand_to_number(Parser *parser, Operand *operand) {
+	if (operand->type == OP_NUMBER) {
+		return val_to_num(vec_at(parser->state->constants, operand->value));
+	} else if (operand->type == OP_INTEGER) {
+		return (double) unsigned_to_signed(operand->value);
+	} else {
+		// Shouldn't happen
+		return 0;
+	}
+}
+
+
+// Converts a string operand into its underlying `char *` value.
+static inline char * operand_to_string(Parser *parser, Operand *operand) {
+	return &(vec_at(parser->state->strings, operand->value)->contents[0]);
+}
+
+
 // Returns true if a token is a unary operator.
 static inline bool operator_is_unary(TokenType operator) {
 	return operator == TOKEN_SUB || operator == TOKEN_NOT;
 }
 
 
+// Computes the result of an integer fold.
+static int32_t arith_integer(TokenType operator, int32_t left,
+		int32_t right) {
+	switch (operator) {
+	case TOKEN_ADD:
+		return left + right;
+	case TOKEN_SUB:
+		return left - right;
+	case TOKEN_MUL:
+		return left * right;
+	case TOKEN_DIV:
+		return left / right;
+	case TOKEN_MOD:
+		return left % right;
+	default:
+		// Shouldn't happen
+		return 0;
+	}
+}
+
+
+// Computes the result of a number fold.
+static double arith_number(TokenType operator, double left,
+		double right) {
+	switch (operator) {
+	case TOKEN_ADD:
+		return left + right;
+	case TOKEN_SUB:
+		return left - right;
+	case TOKEN_MUL:
+		return left * right;
+	case TOKEN_DIV:
+		return left / right;
+	case TOKEN_MOD:
+		return fmod(left, right);
+	default:
+		// Shouldn't happen
+		return 0.0;
+	}
+}
+
+
+// Attempt to fold an arithmetic operation on two integers.
+static bool fold_arith_integers(Parser *parser, TokenType operator,
+		Operand *left, Operand right) {
+	// Extract integer values as 32 bit signed integers
+	int32_t left_value = unsigned_to_signed(left->value);
+	int32_t right_value = unsigned_to_signed(right.value);
+
+	// If we're performing a division which results in a fractional answer, then
+	// we can't fold this as integers
+	if (operator == TOKEN_DIV && left_value % right_value != 0) {
+		return false;
+	}
+
+	// Compute the integer result as a 32 bit integer in case it exceeds the
+	// bounds of a 16 bit integer
+	int32_t result = arith_integer(operator, left_value, right_value);
+
+	// If the result exceeds the bounds of a signed 16 bit
+	if (result > SHRT_MAX || result < SHRT_MIN) {
+		// Store the result as a double
+		HyValue value = num_to_val((double) result);
+		left->type = OP_NUMBER;
+		left->value = state_add_constant(parser->state, value);
+	} else {
+		// Store the result as an integer
+		left->type = OP_INTEGER;
+		left->value = signed_to_unsigned((int16_t) result);
+	}
+
+	return true;
+}
+
+
 // Attempt to fold an arithmetic operation.
 static bool fold_arith(Parser *parser, TokenType operator, Operand *left,
 		Operand right) {
+	// Attempt to fold operation as integers
+	if (left->type == OP_INTEGER && right.type == OP_INTEGER &&
+			fold_arith_integers(parser, operator, left, right)) {
+		return true;
+	}
 
+	// Only fold if both are numbers
+	if (!operand_is_number(left->type) || !operand_is_number(right.type)) {
+		return false;
+	}
+
+	// Extract values and compute result
+	double left_value = operand_to_number(parser, left);
+	double right_value = operand_to_number(parser, &right);
+	double result = arith_number(operator, left_value, right_value);
+
+	// Set resulting operand
+	left->type = OP_NUMBER;
+	left->value = state_add_constant(parser->state, num_to_val(result));
+	return true;
 }
 
 
 // Attempt to fold a concatenation operation.
 static bool fold_concat(Parser *parser, Operand *left, Operand right) {
+	// Only fold if left and right are strings
+	if (left->type != OP_STRING || right.type != OP_STRING) {
+		return false;
+	}
 
+	// Extract string values
+	String *left_str = vec_at(parser->state->strings, left->value);
+	String *right_str = vec_at(parser->state->strings, right.value);
+
+	// Concatenate strings into result
+	uint32_t length = left_str->length + right_str->length;
+	Index index = state_add_string(parser->state, length);
+	String *result = vec_at(parser->state->strings, index);
+	strncpy(&result->contents[0], left_str->contents, left_str->length);
+	strncpy(&result->contents[left_str->length], right_str->contents,
+		right_str->length);
+	result->contents[length] = '\0';
+
+	// Add result as a string to the interpreter state
+	left->type = OP_STRING;
+	left->value = index;
+	return true;
 }
 
 
 // Attempt to fold an equality operation.
 static bool fold_eq(Parser *parser, TokenType operator, Operand *left,
 		Operand right) {
+	// Only fold if the types are equal
+	if (left->type != right.type) {
+		return false;
+	} else if (left->type == OP_JUMP) {
+		// Don't fold jump operands
+		return false;
+	}
 
+	// If their values are equal (used for everything but numbers and strings)
+	if (left->value == right.value) {
+		left->type = OP_PRIMITIVE;
+		left->value = (operator == TOKEN_EQ) ? TRUE_TAG : FALSE_TAG;
+		return true;
+	} else if (left->type == OP_LOCAL) {
+		// Don't fold locals that have different values
+		return false;
+	}
+
+	// Try special tests for numbers and strings
+	bool result = false;
+	if (left->type == OP_NUMBER) {
+		result = operand_to_number(parser, left) ==
+			operand_to_number(parser, &right);
+	} else if (left->type == OP_STRING) {
+		result = strcmp(operand_to_string(parser, left),
+			operand_to_string(parser, &right)) == 0;
+	}
+
+	// Invert the result if we're comparing inequality
+	if (operator == TOKEN_NEQ) {
+		result = !result;
+	}
+
+	// Set the resulting operand
+	left->type = OP_PRIMITIVE;
+	left->value = result ? TRUE_TAG : FALSE_TAG;
+	return true;
 }
+
+
+// Compute the result of an order operation on two numbers (integers or
+// doubles). Use a define for this so we can avoid having to write two
+// identical functions, one for integers and one for doubles.
+#define ord_number(result, operator, left, right) \
+	switch (operator) {                           \
+	case TOKEN_LT:                                \
+		result = (left) < (right);                \
+		break;                                    \
+	case TOKEN_LE:                                \
+		result = (left) <= (right);               \
+		break;                                    \
+	case TOKEN_GT:                                \
+		result = (left) > (right);                \
+		break;                                    \
+	case TOKEN_GE:                                \
+		result = (left) >= (right);               \
+		break;                                    \
+	default:                                      \
+		return false;                             \
+	}
 
 
 // Attempt to fold an order operation.
 static bool fold_ord(Parser *parser, TokenType operator, Operand *left,
 		Operand right) {
+	bool result = false;
 
+	// If we're comparing two identical locals (eg. `a < a`)
+	if (left->type == OP_LOCAL && right.type == OP_LOCAL &&
+			left->value == right.value) {
+		result = operator == TOKEN_GE || operator == TOKEN_LE;
+	} else if (left->type == OP_INTEGER && right.type == OP_INTEGER) {
+		// Comparing two integers
+		int16_t left_value = unsigned_to_signed(left->value);
+		int16_t right_value = unsigned_to_signed(right.value);
+		ord_number(result, operator, left_value, right_value);
+	} else if (operand_is_number(left->type) && operand_is_number(right.type)) {
+		// Comparing two numbers
+		double left_value = operand_to_number(parser, left);
+		double right_value = operand_to_number(parser, &right);
+		ord_number(result, operator, left_value, right_value);
+	} else {
+		// Can't fold
+		return false;
+	}
+
+	// Set the resulting operand
+	left->type = OP_PRIMITIVE;
+	left->value = result ? TRUE_TAG : FALSE_TAG;
+	return true;
 }
 
 
@@ -567,9 +791,8 @@ static bool fold_neg(Parser *parser, Operand *operand) {
 		HyValue raw = vec_at(parser->state->constants, operand->value);
 		double value = val_to_num(raw);
 
-		// Negate it and add it as a new constant
-		Index new_index = state_add_constant(parser->state, num_to_val(-value));
-		operand->value = new_index;
+		// Negate the double value and add it as a new constant
+		operand->value = state_add_constant(parser->state, num_to_val(-value));
 	} else if (operand->type == OP_INTEGER) {
 		// Negate the value stored directly in the operand
 		int16_t value = -(unsigned_to_signed(operand->value));

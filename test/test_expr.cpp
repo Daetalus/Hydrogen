@@ -144,8 +144,6 @@ TEST(Expression, TopLevelAssign) {
 		"let i = a\n"
 	);
 
-	debug_fn(state, fn);
-
 	INS(MOV_TI, 0, 3, 0);
 	INS(MOV_TI, 1, 4, 0);
 	INS(MOV_TS, 2, 0, 0);
@@ -174,8 +172,6 @@ TEST(Expression, TopLevelReassign) {
 		"a = 9\n"
 		"c = a\n"
 	);
-
-	debug_fn(state, fn);
 
 	INS(MOV_TI, 0, 3, 0);
 	INS(MOV_TI, 1, 4, 0);
