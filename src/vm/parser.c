@@ -452,31 +452,6 @@ static inline BytecodeOpcode opcode_ord(TokenType operator, OpType left,
 }
 
 
-// Returns the comparison opcode that is complementary to `opcode` (eg. < for
-// >=).
-static inline BytecodeOpcode opcode_invert_comparison(BytecodeOpcode opcode) {
-	if (opcode == IS_TRUE_L) {
-		return IS_FALSE_L;
-	} else if (opcode == IS_FALSE_L) {
-		return IS_TRUE_L;
-	} else if (opcode >= EQ_LL && opcode <= EQ_LP) {
-		return NEQ_LL + (opcode - EQ_LL);
-	} else if (opcode >= NEQ_LL && opcode <= NEQ_LP) {
-		return EQ_LL + (opcode - NEQ_LL);
-	} else if (opcode >= LT_LL && opcode <= LT_LN) {
-		return GE_LL + (opcode - LT_LL);
-	} else if (opcode >= LE_LL && opcode <= LE_LN) {
-		return GT_LL + (opcode - LE_LL);
-	} else if (opcode >= GT_LL && opcode <= GT_LN) {
-		return LE_LL + (opcode - GT_LL);
-	} else if (opcode >= GE_LL && opcode <= GE_LN) {
-		return LT_LL + (opcode - GE_LL);
-	} else {
-		return NO_OP;
-	}
-}
-
-
 // Create a new operand with type `OP_NONE`.
 static inline Operand operand_new(void) {
 	Operand operand;
@@ -997,15 +972,7 @@ static void binary_comp(Parser *parser, uint16_t slot, TokenType operator,
 	// Invert the operator, since we want to trigger the following jump only
 	// if the condition is false (since the jump shifts execution to the false
 	// case)
-	TokenType inverted = operator_invert_comparison(operator);
-
-	// Get the opcode
-	BytecodeOpcode opcode;
-	if (operator == TOKEN_EQ || operator == TOKEN_NEQ) {
-		opcode = opcode_eq(inverted, left->type, right.type);
-	} else {
-		opcode = opcode_ord(inverted, left->type, right.type);
-	}
+	operator = operator_invert_comparison(operator);
 
 	// The value for the left and right locals
 	uint16_t left_value = left->value;
@@ -1022,12 +989,20 @@ static void binary_comp(Parser *parser, uint16_t slot, TokenType operator,
 		// operand (unlike ordering), only invert the opcode if this is an
 		// order operation
 		if (operator != TOKEN_EQ && operator != TOKEN_NEQ) {
-			opcode = opcode_invert_comparison(opcode);
+			operator = operator_invert_comparison(operator);
 		}
 
 		// Swap the arguments to the instruction
 		left_value = right.value;
 		right_value = left->value;
+	}
+
+	// Get the opcode
+	BytecodeOpcode opcode;
+	if (operator == TOKEN_EQ || operator == TOKEN_NEQ) {
+		opcode = opcode_eq(operator, left->type, right.type);
+	} else {
+		opcode = opcode_ord(operator, left->type, right.type);
 	}
 
 	// Emit the comparison and the empty jump instruction following it

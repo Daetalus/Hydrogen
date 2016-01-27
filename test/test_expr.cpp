@@ -337,8 +337,6 @@ TEST(Expression, Conditional) {
 		"}\n"
 	);
 
-	debug_fn(state, fn);
-
 	INS(MOV_LI, 0, 3, 0);
 	INS(MOV_LI, 1, 4, 0);
 
@@ -385,7 +383,7 @@ TEST(Expression, Conditional) {
 	INS(MOV_LP, 7, FALSE_TAG, 0);
 
 	// 3 > a
-	INS(GE_LI, 0, 3, 0);
+	INS(GT_LI, 0, 3, 0);
 	JMP(3);
 	INS(MOV_LP, 8, TRUE_TAG, 0);
 	JMP(2);
