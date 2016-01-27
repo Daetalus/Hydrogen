@@ -269,6 +269,11 @@ static bool local_is_unique(Parser *parser, char *name, uint32_t length) {
 }
 
 
+
+//
+//  Blocks
+//
+
 // Create a new block scope for named locals.
 static void block_new(Parser *parser) {
 	// Increase block depth
@@ -462,8 +467,14 @@ static inline Operand operand_new(void) {
 
 
 // Returns true if an operand is a number.
-static inline bool operand_is_number(OpType type) {
-	return type == OP_NUMBER || type == OP_INTEGER;
+static inline bool operand_is_number(Operand *operand) {
+	return operand->type == OP_NUMBER || operand->type == OP_INTEGER;
+}
+
+
+// Returns true if an operand is a local or jump.
+static inline bool operand_is_jump_local(Operand *operand) {
+	return operand->type == OP_LOCAL || operand->type == OP_JUMP;
 }
 
 
@@ -483,6 +494,12 @@ static inline double operand_to_number(Parser *parser, Operand *operand) {
 // Converts a string operand into its underlying `char *` value.
 static inline char * operand_to_string(Parser *parser, Operand *operand) {
 	return &(vec_at(parser->state->strings, operand->value)->contents[0]);
+}
+
+
+// Converts an operand into a boolean.
+static inline bool operand_to_bool(Operand *operand) {
+	return operand->type != OP_PRIMITIVE || operand->value == TRUE_TAG;
 }
 
 
@@ -599,7 +616,7 @@ static bool fold_arith(Parser *parser, TokenType operator, Operand *left,
 	}
 
 	// Only fold if both are numbers
-	if (!operand_is_number(left->type) || !operand_is_number(right.type)) {
+	if (!operand_is_number(left) || !operand_is_number(&right)) {
 		return false;
 	}
 
@@ -721,7 +738,7 @@ static bool fold_ord(Parser *parser, TokenType operator, Operand *left,
 		int16_t left_value = unsigned_to_signed(left->value);
 		int16_t right_value = unsigned_to_signed(right.value);
 		ord_number(result, operator, left_value, right_value);
-	} else if (operand_is_number(left->type) && operand_is_number(right.type)) {
+	} else if (operand_is_number(left) && operand_is_number(&right)) {
 		// Comparing two numbers
 		double left_value = operand_to_number(parser, left);
 		double right_value = operand_to_number(parser, &right);
@@ -738,10 +755,69 @@ static bool fold_ord(Parser *parser, TokenType operator, Operand *left,
 }
 
 
+// Fold two operands given that both are non-locals.
+static void cond_non_locals(TokenType operator, Operand *left, Operand right) {
+	// Convert each operand into a boolean
+	bool left_bool = operand_to_bool(left);
+	bool right_bool = operand_to_bool(&right);
+
+	// Compute a result based on their boolean values
+	bool result = (operator == TOKEN_AND) ?
+		(left_bool && right_bool) :
+		(left_bool || right_bool);
+	left->type = OP_PRIMITIVE;
+	left->value = result ? TRUE_TAG : FALSE_TAG;
+}
+
+
+// Fold a conditional operation where one of the two operands is a local.
+static void cond_single_local(TokenType operator, Operand *result,
+		Operand *local, Operand *constant) {
+	// Convert the constant into a boolean
+	bool constant_bool = operand_to_bool(constant);
+
+	// Depending on the operator
+	if (operator == TOKEN_AND) {
+		// `and` condition
+		if (constant_bool) {
+			// <value> && true == <value>
+			*result = *local;
+		} else {
+			// <value> && false == false
+			result->type = OP_PRIMITIVE;
+			result->value = FALSE_TAG;
+		}
+	} else {
+		// `or` condition
+		if (constant_bool) {
+			// <value> || true == true
+			result->type = OP_PRIMITIVE;
+			result->value = TRUE_TAG;
+		} else {
+			// <value> || false == <value>
+			*result = *local;
+		}
+	}
+}
+
+
 // Attempt to fold a conditional operation (`and` or `or` operation).
 static bool fold_cond(Parser *parser, TokenType operator, Operand *left,
 		Operand right) {
-
+	if (!operand_is_jump_local(left) && !operand_is_jump_local(&right)) {
+		// Neither operand is a local (or jump)
+		cond_non_locals(operator, left, right);
+	} else if (operand_is_jump_local(left) && !operand_is_jump_local(&right)) {
+		// Left operand is local
+		cond_single_local(operator, left, left, &right);
+	} else if (!operand_is_jump_local(left) && operand_is_jump_local(&right)) {
+		// Right operand is local
+		cond_single_local(operator, left, &right, left);
+	} else {
+		// Can't fold (both are locals)
+		return false;
+	}
+	return true;
 }
 
 
