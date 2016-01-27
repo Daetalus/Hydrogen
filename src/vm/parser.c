@@ -1914,6 +1914,143 @@ static void parse_assignment_or_call(Parser *parser) {
 
 
 //
+//  If Statements
+//
+
+// Parses a block surrounded by braces.
+static void parse_braced_block(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+
+	// Opening brace
+	Token open = lexer->token;
+	err_expect(parser, TOKEN_OPEN_BRACE, &lexer->token,
+		"Expected `{`");
+	lexer_next(lexer);
+
+	// Block
+	parse_block(parser, TOKEN_CLOSE_BRACE);
+
+	// Closing brace
+	err_expect(parser, TOKEN_CLOSE_BRACE, &open,
+		"Expected `}` to close `{`");
+	lexer_next(lexer);
+}
+
+
+// Appends a jump instruction to the end of an if body to jump over subsequent
+// ifs.
+static void if_append_jump(Parser *parser, Index *jump) {
+	Lexer *lexer = &parser->lexer;
+
+	// Don't append the jump if there's no more else ifs or elses next
+	if (lexer->token.type != TOKEN_ELSE_IF && lexer->token.type != TOKEN_ELSE) {
+		return;
+	}
+
+	// Add the jump to the bytecode
+	Function *fn = parser_fn(parser);
+	Index final = fn_emit(fn, JMP, 0, 0, 0);
+
+	// Append the jump to the jump list
+	if (*jump != NOT_FOUND) {
+		jmp_append(fn, final, *jump);
+	}
+	*jump = final;
+}
+
+
+// Patches the condition of an if statement to after its body.
+static void if_patch_condition(Parser *parser, Operand condition) {
+	// Patch the condition's false case
+	Function *fn = parser_fn(parser);
+	jmp_false_case(fn, condition.jump, vec_len(fn->instructions));
+}
+
+
+// Parses the body of an if or else if (an `if` or `else if` token, followed by
+// an expression, followed by a block in braces). Will not emit the parsed
+// bytecode if `fold` is true (indicating a previous if had a constant true
+// condition). Returns true if the statement has a constant true condition.
+static bool parse_if_body(Parser *parser, Index *jump, bool fold) {
+	Lexer *lexer = &parser->lexer;
+
+	// Skip `if` or `else if` token
+	lexer_next(lexer);
+
+	// Save bytecode length so we know how many instructions to remove if we
+	// end up folding this if statement
+	Function *fn = parser_fn(parser);
+	uint32_t start = vec_len(fn->instructions);
+
+	// Parse conditional expression
+	uint16_t slot = local_reserve(parser);
+	Operand condition = parse_expr(parser, slot);
+	local_free(parser);
+
+	// Convert a local into a jump
+	if (condition.type == OP_LOCAL) {
+		operand_to_jump(parser, &condition);
+	}
+
+	// Parse block
+	parse_braced_block(parser);
+
+	// Check if the condition is constant
+	if (!operand_is_jump_local(&condition)) {
+		if (!operand_to_bool(&condition)) {
+			// Constant false condition, get rid of content
+			vec_len(fn->instructions) = start;
+		} else {
+			// Constant true condition
+			if_append_jump(parser, jump);
+			return true;
+		}
+	} else if (fold) {
+		// A previous if had a constant true condition, so get rid of content
+		vec_len(fn->instructions) = start;
+	} else {
+		// Non-constant condition
+		if_append_jump(parser, jump);
+		if_patch_condition(parser, condition);
+	}
+	return false;
+}
+
+
+// Parse an if statement, and any subsequent else ifs or else.
+static void parse_if(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+
+	// Trick the loop into thinking the first if is actually and else if
+	lexer->token.type = TOKEN_ELSE_IF;
+
+	// Keep a jump list of jumps at the end of if blocks, pointing them to after
+	// all the whole if statement
+	Index jump = NOT_FOUND;
+
+	// Continually parse if and else ifs
+	bool fold = false;
+	while (lexer->token.type == TOKEN_ELSE_IF) {
+		fold = fold || parse_if_body(parser, &jump, fold);
+	}
+
+	// Check for a final else
+	Function *fn = parser_fn(parser);
+	if (lexer->token.type == TOKEN_ELSE) {
+		// Skip the `else`
+		lexer_next(lexer);
+
+		// Parse block
+		parse_braced_block(parser);
+	}
+
+	// Point all jumps here
+	jmp_target_all(fn, jump, vec_len(fn->instructions));
+}
+
+
+
+//
 //  Blocks and Statements
 //
 
@@ -1942,6 +2079,11 @@ static void parse_statement(Parser *parser) {
 		// Local declaration
 	case TOKEN_LET:
 		parse_declaration(parser);
+		break;
+
+		// If statements
+	case TOKEN_IF:
+		parse_if(parser);
 		break;
 
 		// Unconditional block
