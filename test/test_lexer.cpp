@@ -231,10 +231,3 @@ TEST(Lexer, BlockComments) {
 	ASSERT_TOKEN(TOKEN_ELSE_IF);
 	ASSERT_TOKEN(TOKEN_EOF);
 }
-
-
-// Main entry point for a test case.
-int main(int argc, char *argv[]) {
-	::testing::InitGoogleTest(&argc, argv);
-	return RUN_ALL_TESTS();
-}
