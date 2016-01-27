@@ -36,10 +36,10 @@ typedef struct {
 
 
 // Initialises an undefined vector.
-#define vec_new(array, type, initial_capacity)                  \
-	(array).values = malloc(sizeof(type) * (initial_capacity)); \
-	(array).element_size = sizeof(type);                        \
-	(array).length = 0;                                         \
+#define vec_new(array, type, initial_capacity)                           \
+	(array).values = (type *) malloc(sizeof(type) * (initial_capacity)); \
+	(array).element_size = sizeof(type);                                 \
+	(array).length = 0;                                                  \
 	(array).capacity = (initial_capacity);
 
 

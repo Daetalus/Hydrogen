@@ -63,7 +63,7 @@ endmacro()
 # Add tests
 test(lexer)
 # test(bytecode)
-# test(jmp)
+test(jmp)
 # test(assign)
 test(expr)
 # test(if)

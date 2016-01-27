@@ -11,6 +11,7 @@
 
 #include "parser.h"
 #include "fn.h"
+#include "jmp.h"
 #include "pkg.h"
 #include "vm.h"
 #include "err.h"
@@ -510,6 +511,28 @@ static inline char * operand_to_string(Parser *parser, Operand *operand) {
 }
 
 
+// Returns the inverted operator for a comparison operation.
+static TokenType operator_invert_comparison(TokenType operator) {
+	switch (operator) {
+	case TOKEN_EQ:
+		return TOKEN_NEQ;
+	case TOKEN_NEQ:
+		return TOKEN_EQ;
+	case TOKEN_LT:
+		return TOKEN_GE;
+	case TOKEN_LE:
+		return TOKEN_GT;
+	case TOKEN_GT:
+		return TOKEN_LE;
+	case TOKEN_GE:
+		return TOKEN_LT;
+	default:
+		// Shouldn't happen
+		return TOKEN_UNRECOGNISED;
+	}
+}
+
+
 // Returns true if a token is a unary operator.
 static inline bool operator_is_unary(TokenType operator) {
 	return operator == TOKEN_SUB || operator == TOKEN_NOT;
@@ -819,7 +842,8 @@ static bool fold_unary(Parser *parser, TokenType operator, Operand *operand) {
 }
 
 
-// Reduces a jump into a local, keeping all other operands the same.
+// Reduces a jump into a local, top level, upvalue, or struct field, keeping all
+// other operands the same.
 static void expr_reduce(Parser *parser, Operand *operand, uint16_t slot,
 		BytecodeOpcode opcode, uint16_t arg3) {
 	// Only deal with jump operands
@@ -827,7 +851,20 @@ static void expr_reduce(Parser *parser, Operand *operand, uint16_t slot,
 		return;
 	}
 
-	// TODO: Reduce jump to local
+	// Emit true case, then jump over false case, then false case
+	Function *fn = parser_fn(parser);
+	fn_emit(fn, opcode, slot, TRUE_TAG, 0);
+	fn_emit(fn, JMP, 2, 0, 0);
+	Index false_case = fn_emit(fn, opcode, slot, FALSE_TAG, 0);
+
+	// Patch false case of jump operand to the emitted false case
+	jmp_false_case(fn, operand->jump, false_case);
+}
+
+
+// Reduces a jump into a local.
+static void expr_reduce_local(Parser *parser, Operand *operand, uint16_t slot) {
+	expr_reduce(parser, operand, slot, MOV_LP, 0);
 }
 
 
@@ -957,12 +994,17 @@ static void binary_concat(Parser *parser, uint16_t slot, Operand *left,
 // Emit bytecode for a comparison operation (equality or order).
 static void binary_comp(Parser *parser, uint16_t slot, TokenType operator,
 		Operand *left, Operand right) {
+	// Invert the operator, since we want to trigger the following jump only
+	// if the condition is false (since the jump shifts execution to the false
+	// case)
+	TokenType inverted = operator_invert_comparison(operator);
+
 	// Get the opcode
 	BytecodeOpcode opcode;
 	if (operator == TOKEN_EQ || operator == TOKEN_NEQ) {
-		opcode = opcode_eq(operator, left->type, right.type);
+		opcode = opcode_eq(inverted, left->type, right.type);
 	} else {
-		opcode = opcode_ord(operator, left->type, right.type);
+		opcode = opcode_ord(inverted, left->type, right.type);
 	}
 
 	// The value for the left and right locals

@@ -331,8 +331,13 @@ TEST(Expression, Conditional) {
 		"let d = a < b\n"
 		"let e = b >= c\n"
 		"let f = a != c\n"
+		"let g = a == 3\n"
+		"let h = 3 == a\n"
+		"let i = 3 > a\n"
 		"}\n"
 	);
+
+	debug_fn(state, fn);
 
 	INS(MOV_LI, 0, 3, 0);
 	INS(MOV_LI, 1, 4, 0);
@@ -364,6 +369,27 @@ TEST(Expression, Conditional) {
 	INS(MOV_LP, 5, TRUE_TAG, 0);
 	JMP(2);
 	INS(MOV_LP, 5, FALSE_TAG, 0);
+
+	// a == 3
+	INS(NEQ_LI, 0, 3, 0);
+	JMP(3);
+	INS(MOV_LP, 6, TRUE_TAG, 0);
+	JMP(2);
+	INS(MOV_LP, 6, FALSE_TAG, 0);
+
+	// 3 == a
+	INS(NEQ_LI, 0, 3, 0);
+	JMP(3);
+	INS(MOV_LP, 7, TRUE_TAG, 0);
+	JMP(2);
+	INS(MOV_LP, 7, FALSE_TAG, 0);
+
+	// 3 > a
+	INS(GE_LI, 0, 3, 0);
+	JMP(3);
+	INS(MOV_LP, 8, TRUE_TAG, 0);
+	JMP(2);
+	INS(MOV_LP, 8, FALSE_TAG, 0);
 
 	INS(RET0, 0, 0, 0);
 	FREE();
