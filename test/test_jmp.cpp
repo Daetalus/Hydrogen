@@ -41,13 +41,13 @@ extern "C" {
 TEST(Jump, Next) {
 	FUNCTION(
 		NEQ_LL, 0, 3, 0,
-		JMP, 5, 0, JUMP_AND,
+		JMP, 5, 0, JMP_AND,
 		NEQ_LL, 1, 4, 0,
-		JMP, 3, 2, JUMP_AND,
+		JMP, 3, 2, JMP_AND,
 		EQ_LL, 2, 5, 0,
-		JMP, 3, 2, JUMP_AND,
+		JMP, 3, 2, JMP_AND,
 		MOV_LP, 4, FALSE_TAG, 0,
-		JMP, 2, 0, JUMP_NONE,
+		JMP, 2, 0, JMP_NONE,
 		MOV_LP, 4, TRUE_TAG, 0,
 		RET0, 0, 0, 0
 	);
@@ -68,13 +68,13 @@ TEST(Jump, Next) {
 TEST(Jump, Last) {
 	FUNCTION(
 		NEQ_LL, 0, 3, 0,
-		JMP, 5, 0, JUMP_AND,
+		JMP, 5, 0, JMP_AND,
 		NEQ_LL, 1, 4, 0,
-		JMP, 3, 2, JUMP_AND,
+		JMP, 3, 2, JMP_AND,
 		EQ_LL, 2, 5, 0,
-		JMP, 3, 2, JUMP_AND,
+		JMP, 3, 2, JMP_AND,
 		MOV_LP, 4, FALSE_TAG, 0,
-		JMP, 2, 0, JUMP_NONE,
+		JMP, 2, 0, JMP_NONE,
 		MOV_LP, 4, TRUE_TAG, 0,
 		RET0, 0, 0, 0
 	);
@@ -130,6 +130,8 @@ TEST(Jump, Append) {
 
 	jmp_append(&fn, 2, 1);
 	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 2), 2), 1);
-	jmp_append(&fn, 1, 0);
+	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 1), 2), 0);
+	jmp_append(&fn, 2, 0);
+	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 2), 2), 1);
 	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 1), 2), 1);
 }

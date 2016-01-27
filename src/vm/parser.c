@@ -349,7 +349,6 @@ typedef struct {
 	// The value of the operand.
 	union {
 		uint16_t value;
-		uint32_t index;
 
 		// If the operand is a jump, then we need to store the index into the
 		// bytecode of the jump instruction instead of its value.
@@ -500,6 +499,18 @@ static inline char * operand_to_string(Parser *parser, Operand *operand) {
 // Converts an operand into a boolean.
 static inline bool operand_to_bool(Operand *operand) {
 	return operand->type != OP_PRIMITIVE || operand->value == TRUE_TAG;
+}
+
+
+// Converts an operand into a jump condition, emitting bytecode for this.
+static void operand_to_jump(Parser *parser, Operand *operand) {
+	Function *fn = parser_fn(parser);
+
+	// Emit comparison
+	fn_emit(fn, IS_FALSE_L, operand->value, 0, 0);
+
+	operand->type = OP_JUMP;
+	operand->jump = fn_emit(fn, JMP, 0, 0, 0);
 }
 
 
@@ -1091,14 +1102,67 @@ static void binary_comp(Parser *parser, uint16_t slot, TokenType operator,
 // Emit bytecode for an `and` operation.
 static void binary_and(Parser *parser, uint16_t slot, Operand *left,
 		Operand right) {
+	// Convert the right operand into a jump condition (the left operand was
+	// done by a call to `expr_binary_left`)
+	if (right.type == OP_LOCAL) {
+		operand_to_jump(parser, &right);
+	}
 
+	Function *fn = parser_fn(parser);
+
+	// Join the end of right's jump list to left
+	jmp_append(fn, right.jump, left->jump);
+
+	// Associate the left and right jumps with the `and` operation
+	jmp_set_type(fn, left->jump, JMP_AND);
+	jmp_set_type(fn, right.jump, JMP_AND);
+
+	// Let the operation evaluate to the right operand (since the left is
+	// joined to it by the jump list)
+	*left = right;
 }
 
 
 // Emit bytecode for an `or` operation.
 static void binary_or(Parser *parser, uint16_t slot, Operand *left,
 		Operand right) {
+	// Convert the right operand into a jump.
+	if (right.type == OP_LOCAL) {
+		operand_to_jump(parser, &right);
+	}
 
+	Function *fn = parser_fn(parser);
+
+	// Join the end of right's jump list to left
+	Index last = jmp_last(fn, right.jump);
+	jmp_append(fn, right.jump, left->jump);
+
+	// Invert left's condition
+	jmp_invert_condition(fn, left->jump);
+
+	// Iterate over left's jump list
+	Index current = left->jump;
+	while (current != NOT_FOUND) {
+		if (jmp_type(fn, current) == JMP_AND) {
+			// Point to last element in right's jump list (subtract 1 to point
+			// to condition before jump instruction)
+			jmp_target(fn, current, last - 1);
+		} else {
+			// Point to after right's jump list
+			jmp_target(fn, current, right.jump + 1);
+		}
+		current = jmp_next(fn, current);
+	}
+
+	// Point left to after right
+	jmp_target(fn, left->jump, right.jump + 1);
+
+	// Associate both operands with an `or` operation
+	jmp_set_type(fn, left->jump, JMP_OR);
+	jmp_set_type(fn, right.jump, JMP_OR);
+
+	// Return right operand
+	*left = right;
 }
 
 
@@ -1162,7 +1226,12 @@ static void expr_binary(Parser *parser, uint16_t slot, Token *op, Operand *left,
 // `IS_TRUE_L` or `IS_FALSE_L`).
 static void expr_binary_left(Parser *parser, TokenType operator,
 		Operand *left) {
-
+	// Convert the operand to a jump if it's a local and we're dealing with
+	// a conditional operator
+	if ((operator == TOKEN_AND || operator == TOKEN_OR) &&
+			left->type == OP_LOCAL) {
+		operand_to_jump(parser, left);
+	}
 }
 
 

@@ -34,10 +34,10 @@
 // needed so we can target jump instructions differently depending on whether
 // they belong to an `and` or `or` condition.
 typedef enum {
-	JUMP_NONE,
-	JUMP_AND,
-	JUMP_OR,
-} JumpType;
+	JMP_NONE,
+	JMP_AND,
+	JMP_OR,
+} JmpType;
 
 
 // Returns the index of the next jump instruction in the jump list starting at
@@ -89,42 +89,38 @@ static inline void jmp_target_all(Function *fn, Index jump, Index target) {
 }
 
 
-// Adds the jump instruction at index `to_append` to a jump list, after the
-// jump at `jump`.
+// Adds the jump instruction at index `to_append` to the end of the jump list to
+// which `jump` belongs.
 static inline void jmp_append(Function *fn, Index jump, Index to_append) {
-	uint16_t offset = jump - to_append;
-	Instruction ins = vec_at(fn->instructions, jump);
-	vec_at(fn->instructions, jump) = ins_set(ins, JMP_LIST_ARG, offset);
+	Index last = jmp_last(fn, jump);
+	uint16_t offset = last - to_append;
+	Instruction ins = vec_at(fn->instructions, last);
+	vec_at(fn->instructions, last) = ins_set(ins, JMP_LIST_ARG, offset);
 }
 
 
 // Returns the type of conditional the jump instruction at `jump` in `fn`'s
 // bytecode belongs to.
-static inline JumpType jmp_type(Function *fn, Index jump) {
-	return (JumpType) ins_arg(vec_at(fn->instructions, jump), JMP_TYPE_ARG);
+static inline JmpType jmp_type(Function *fn, Index jump) {
+	return (JmpType) ins_arg(vec_at(fn->instructions, jump), JMP_TYPE_ARG);
 }
 
 
 // Sets the type of conditional the jump instruction at `jump` in `fn`'s
-// bytecode belongs to.
-static inline void jmp_set_type(Function *fn, Index jump, JumpType type) {
-	Instruction ins = vec_at(fn->instructions, jump);
-	vec_at(fn->instructions, jump) = ins_set(ins, JMP_TYPE_ARG, type);
+// bytecode belongs to, if a value isn't already set.
+static inline void jmp_set_type(Function *fn, Index jump, JmpType type) {
+	if (jmp_type(fn, jump) == JMP_NONE) {
+		Instruction ins = vec_at(fn->instructions, jump);
+		vec_at(fn->instructions, jump) = ins_set(ins, JMP_TYPE_ARG, type);
+	}
 }
 
 
 // Modifies the target of all jumps in a conditional expression to point the
 // location of the false case to `target`.
-static inline void jmp_false_case(Function *fn, Index jump, Index target) {
-	// Iterate over jump list
-	Index current = jump;
-	while (current != NOT_FOUND) {
-		jmp_lazy_target(fn, current, target);
-		current = jmp_next(fn, current);
-	}
+void jmp_false_case(Function *fn, Index jump, Index target);
 
-	// Point the original jump to the false case
-	jmp_target(fn, jump, target);
-}
+// Inverts the condition of a conditional jump operation.
+void jmp_invert_condition(Function *fn, Index jump);
 
 #endif
