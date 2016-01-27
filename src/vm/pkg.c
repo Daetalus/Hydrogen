@@ -88,12 +88,13 @@ char * hy_package_name(char *path) {
 Index pkg_new(HyState *state) {
 	vec_add(state->packages);
 	Package *pkg = &vec_last(state->packages);
+	Index index = vec_len(state->packages) - 1;
 	pkg->name = NULL;
 	vec_new(pkg->sources, Source, 4);
-	pkg->parser = parser_new(state, vec_len(state->packages) - 1);
+	pkg->parser = parser_new(state, index);
 	vec_new(pkg->names, Identifier, 8);
 	vec_new(pkg->locals, HyValue, 8);
-	return vec_len(state->packages) - 1;
+	return index;
 }
 
 
@@ -198,7 +199,7 @@ Index pkg_add_string(Package *pkg, char *source) {
 Index pkg_find(HyState *state, char *name, uint32_t length) {
 	for (uint32_t i = 0; i < vec_len(state->packages); i++) {
 		Package *pkg = &vec_at(state->packages, i);
-		if (length == strlen(pkg->name) &&
+		if (pkg->name != NULL && length == strlen(pkg->name) &&
 				strncmp(name, pkg->name, length) == 0) {
 			return i;
 		}

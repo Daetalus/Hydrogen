@@ -56,6 +56,10 @@ Index state_add_constant(HyState *state, HyValue constant);
 // Creates a new string constant that is `length` bytes long.
 Index state_add_string(HyState *state, uint32_t length);
 
+// Adds a field name to the interpreter state's fields list. If a field matching
+// `ident` already exists, then it returns the index of the existing field.
+Index state_add_field(HyState *state, Identifier ident);
+
 // Executes a function on the interpreter state.
 HyError * vm_run_fn(HyState *state, Index fn);
 

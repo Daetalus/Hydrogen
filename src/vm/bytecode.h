@@ -180,19 +180,20 @@ typedef enum {
 	// The number of return values expected is given by `return`.
 	//
 	// Arguments:
-	// * `base`: the base stack slot
+	// * `base`: the stack slot containing the function to call and arguments to
+	//   the function after it
 	// * `arity`: the number of arguments to pass to the function
-	// * `return`: the number of return values expected by the caller
+	// * `return_slot`: the slot in which to store the return value of the
+	//   function
 	CALL,
 
 	// Returns nothing from a function.
 	RET0,
 
-	// Returns values from a function. They must be stored sequentially.
+	// Returns a value from a function.
 	//
 	// Arguments:
-	// * `base`: the starting slot of the return values
-	// * `count`: the number of return values
+	// * `value`: the slot of the return value
 	RET,
 
 

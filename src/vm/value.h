@@ -201,7 +201,7 @@ static inline uint16_t signed_to_unsigned(int16_t val) {
 //
 
 // Returns true if a value is a number (quiet NaN bits are not set).
-static inline bool val_is_number(HyValue val) {
+static inline bool val_is_num(HyValue val) {
 	return (val & QUIET_NAN) != QUIET_NAN;
 }
 

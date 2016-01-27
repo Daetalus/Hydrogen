@@ -19,6 +19,8 @@ Index fn_new(HyState *state) {
 	fn->name = NULL;
 	fn->length = 0;
 	fn->package = NOT_FOUND;
+	fn->source = 0;
+	fn->line = 0;
 	fn->arity = 0;
 	fn->frame_size = 0;
 	vec_new(fn->instructions, Instruction, 64);

@@ -253,6 +253,19 @@ static ResolvedLocal local_resolve(Parser *parser, char *name,
 }
 
 
+// Returns true if a name is unique enough to be used in a `let` statement (can
+// override locals outside the function scope and top level variables).
+static bool local_is_unique(Parser *parser, char *name, uint32_t length) {
+	return !(
+		// Locals in current scope
+		local_find(parser, name, length) != NOT_FOUND ||
+		// Top level variables if in outermost scope
+		(parser->scope->parent == NULL &&
+		 	pkg_local_find(parser_pkg(parser), name, length) != NOT_FOUND)
+	);
+}
+
+
 // Create a new block scope for named locals.
 static void block_new(Parser *parser) {
 	// Increase block depth
@@ -264,10 +277,9 @@ static void block_new(Parser *parser) {
 static void block_free(Parser *parser) {
 	// No temporary locals should be allocated here
 	// Free locals inside this block
-	if (vec_len(parser->locals) > 0) {
-		while (vec_last(parser->locals).block >= parser->scope->block_depth) {
-			local_free(parser);
-		}
+	while (vec_len(parser->locals) > 0 &&
+			vec_last(parser->locals).block >= parser->scope->block_depth) {
+		local_free(parser);
 	}
 
 	// Decrement block depth
@@ -276,22 +288,23 @@ static void block_free(Parser *parser) {
 
 
 // Emit bytecode to move an upvalue into a local slot.
-static void upvalue_demote(Parser *parser, uint32_t index, uint16_t local) {
+static void upvalue_demote(Parser *parser, uint16_t local, uint32_t index) {
 	fn_emit(parser_fn(parser), MOV_LU, local, index, 0);
 }
 
 
 // Emit bytecde to move a top level local into a local slot from an external
 // package (not the one we're parsing).
-static void top_level_demote_external(Parser *parser, Index pkg,
-		uint32_t top_level, uint16_t local) {
+static void top_level_demote_external(Parser *parser, uint16_t local,
+		uint32_t top_level, Index pkg) {
 	fn_emit(parser_fn(parser), MOV_LT, local, top_level, pkg);
 }
 
 
 // Emit bytecode to move a top level local into a local slot.
-static void top_level_demote(Parser *parser, uint32_t index, uint16_t local) {
-	top_level_demote_external(parser, parser->package, index, local);
+static void top_level_demote(Parser *parser, uint16_t local,
+		uint32_t top_level) {
+	top_level_demote_external(parser, local, top_level, parser->package);
 }
 
 
@@ -322,8 +335,7 @@ typedef struct {
 	// The type of the operand.
 	OpType type;
 
-	// Whether this operand has side effects (ie. is an assignment or function
-	// call).
+	// Whether this operand has side effects, like a function call.
 	bool has_side_effects;
 
 	// The value of the operand.
@@ -340,13 +352,12 @@ typedef struct {
 
 // Forward declaration.
 static Operand parse_expr(Parser *parser, uint16_t slot);
+static void expr_emit(Parser *parser, uint16_t slot);
 
 
 // The precedence level of operators, in the proper order.
 typedef enum {
 	PREC_NONE,
-	// Assignment
-	PREC_ASSIGN,
 	// Boolean operators
 	PREC_OR,
 	PREC_AND,
@@ -385,13 +396,6 @@ static Precedence prec_binary(TokenType operator) {
 	case TOKEN_GT:
 	case TOKEN_GE:
 		return PREC_ORD;
-	case TOKEN_ASSIGN:
-	case TOKEN_ADD_ASSIGN:
-	case TOKEN_SUB_ASSIGN:
-	case TOKEN_MUL_ASSIGN:
-	case TOKEN_DIV_ASSIGN:
-	case TOKEN_MOD_ASSIGN:
-		return PREC_ASSIGN;
 	case TOKEN_AND:
 		return PREC_AND;
 	case TOKEN_OR:
@@ -421,8 +425,7 @@ static inline BytecodeOpcode opcode_arith(TokenType operator, OpType left,
 
 // Returns the opcode for a concatenation operation. Either `left` or `right`
 // must be a local.
-static inline BytecodeOpcode opcode_concat(TokenType operator, OpType left,
-		OpType right) {
+static inline BytecodeOpcode opcode_concat(OpType left, OpType right) {
 	int offset = (right == OP_STRING ? 1 : (left == OP_STRING ? 2 : 0));
 	return CONCAT_LL + offset;
 }
@@ -446,19 +449,34 @@ static inline BytecodeOpcode opcode_ord(TokenType operator, OpType left,
 }
 
 
-// Returns the opcode for a unary operation. The argument to the unary operator
-// must be a local.
-static inline BytecodeOpcode opcode_unary(TokenType operator) {
-	switch (operator) {
-	case TOKEN_SUB: return NEG_L;
-	default: return NO_OP;
+// Returns the comparison opcode that is complementary to `opcode` (eg. < for
+// >=).
+static inline BytecodeOpcode opcode_invert_comparison(BytecodeOpcode opcode) {
+	if (opcode == IS_TRUE_L) {
+		return IS_FALSE_L;
+	} else if (opcode == IS_FALSE_L) {
+		return IS_TRUE_L;
+	} else if (opcode >= EQ_LL && opcode <= EQ_LP) {
+		return NEQ_LL + (opcode - EQ_LL);
+	} else if (opcode >= NEQ_LL && opcode <= NEQ_LP) {
+		return EQ_LL + (opcode - NEQ_LL);
+	} else if (opcode >= LT_LL && opcode <= LT_LN) {
+		return GE_LL + (opcode - LT_LL);
+	} else if (opcode >= LE_LL && opcode <= LE_LN) {
+		return GT_LL + (opcode - LE_LL);
+	} else if (opcode >= GT_LL && opcode <= GT_LN) {
+		return LE_LL + (opcode - GT_LL);
+	} else if (opcode >= GE_LL && opcode <= GE_LN) {
+		return LT_LL + (opcode - GE_LL);
+	} else {
+		return NO_OP;
 	}
 }
 
 
 // Create a new operand with type `OP_NONE`.
 static inline Operand operand_new(void) {
-	Operand operand = operand_new();
+	Operand operand;
 	operand.type = OP_NONE;
 	operand.has_side_effects = false;
 	return operand;
@@ -466,54 +484,48 @@ static inline Operand operand_new(void) {
 
 
 // Returns true if a token is a unary operator.
-static inline bool is_unary(TokenType operator) {
+static inline bool operator_is_unary(TokenType operator) {
 	return operator == TOKEN_SUB || operator == TOKEN_NOT;
 }
 
 
-// Returns true if a token is a postfix operator.
-static inline bool is_postfix(TokenType operator) {
-	return operator == TOKEN_DOT || operator == TOKEN_OPEN_PARENTHESIS;
-}
-
-
 // Attempt to fold an arithmetic operation.
-static Operand fold_arith(Parser *parser, TokenType operator, Operand left,
+static bool fold_arith(Parser *parser, TokenType operator, Operand *left,
 		Operand right) {
 
 }
 
 
 // Attempt to fold a concatenation operation.
-static Operand fold_concat(Parser *parser, Operand left, Operand right) {
+static bool fold_concat(Parser *parser, Operand *left, Operand right) {
 
 }
 
 
 // Attempt to fold an equality operation.
-static Operand fold_eq(Parser *parser, TokenType operator, Operand left,
+static bool fold_eq(Parser *parser, TokenType operator, Operand *left,
 		Operand right) {
 
 }
 
 
 // Attempt to fold an order operation.
-static Operand fold_ord(Parser *parser, TokenType operator, Operand left,
+static bool fold_ord(Parser *parser, TokenType operator, Operand *left,
 		Operand right) {
 
 }
 
 
 // Attempt to fold a conditional operation (`and` or `or` operation).
-static Operand fold_cond(Parser *parser, TokenType operator, Operand left,
-		Operand Right) {
+static bool fold_cond(Parser *parser, TokenType operator, Operand *left,
+		Operand right) {
 
 }
 
 
 // Attempt to fold a binary operation, returning an operand with type `OP_NONE`
 // if the operation cannot be folded.
-static Operand fold_binary(Parser *parser, TokenType operator, Operand left,
+static bool fold_binary(Parser *parser, TokenType operator, Operand *left,
 		Operand right) {
 	switch (operator) {
 	case TOKEN_ADD:
@@ -536,43 +548,60 @@ static Operand fold_binary(Parser *parser, TokenType operator, Operand left,
 	case TOKEN_OR:
 		return fold_cond(parser, operator, left, right);
 	default:
-		return operand_new();
+		return false;
 	}
 }
 
 
 // Attempt to fold a boolean `not` operation.
-static Operand fold_boolean_not(Parser *parser, Operand operand) {
-
+static bool fold_boolean_not(Parser *parser, Operand *operand) {
+	// TODO
+	return false;
 }
 
 
 // Attempt to fold an arithmetic negation operation.
-static Operand fold_neg(Parser *parser, Operand operand) {
+static bool fold_neg(Parser *parser, Operand *operand) {
+	if (operand->type == OP_NUMBER) {
+		// Fetch the current double value
+		HyValue raw = vec_at(parser->state->constants, operand->value);
+		double value = val_to_num(raw);
 
+		// Negate it and add it as a new constant
+		Index new_index = state_add_constant(parser->state, num_to_val(-value));
+		operand->value = new_index;
+	} else if (operand->type == OP_INTEGER) {
+		// Negate the value stored directly in the operand
+		int16_t value = -(unsigned_to_signed(operand->value));
+		operand->value = signed_to_unsigned(value);
+	} else {
+		// Can only fold numbers
+		return false;
+	}
+	return true;
 }
 
 
 // Attempt to fold a unary operation, returning an operand with type `OP_NONE`
 // if the operation cannot be folded.
-static Operand fold_unary(Parser *parser, TokenType operator, Operand operand) {
+static bool fold_unary(Parser *parser, TokenType operator, Operand *operand) {
 	switch (operator) {
 	case TOKEN_SUB:
 		return fold_neg(parser, operand);
 	case TOKEN_NOT:
 		return fold_boolean_not(parser, operand);
 	default:
-		return operand_new();
+		return false;
 	}
 }
 
 
 // Reduces a jump into a local, keeping all other operands the same.
-static Operand expr_reduce(Parser *parser, Operand operand, uint16_t slot,
+static void expr_reduce(Parser *parser, Operand *operand, uint16_t slot,
 		BytecodeOpcode opcode, uint16_t arg3) {
 	// Only deal with jump operands
-	if (operand.type != OP_JUMP) {
-		return operand;
+	if (operand->type != OP_JUMP) {
+		return;
 	}
 
 	// TODO: Reduce jump to local
@@ -586,13 +615,14 @@ static void expr_discharge(Parser *parser, Operand operand, uint16_t slot,
 	if (operand.type == OP_LOCAL) {
 		// Only emit a move local instruction if this isn't a temporary
 		// local
-		if (operand.value != slot && operand.value < parser->locals_count) {
+		if (base != MOV_LL || (operand.value != slot &&
+				operand.value < parser->locals_count)) {
 			fn_emit(parser_fn(parser), base, slot, operand.value, arg3);
 		}
 	} else if (operand.type == OP_JUMP) {
 		// Put the jump instruction into a local
 		BytecodeOpcode opcode = base + (MOV_LP - MOV_LL);
-		expr_reduce(parser, operand, slot, opcode, arg3);
+		expr_reduce(parser, &operand, slot, opcode, arg3);
 	} else {
 		// The operand is a constant, so move it using the correct opcode
 		BytecodeOpcode opcode = base + operand.type;
@@ -634,16 +664,179 @@ static void expr_discharge_top_level(Parser *parser, Operand operand,
 
 // Emits bytecode to discharge an operand into a struct field.
 static void expr_discharge_field(Parser *parser, Operand operand,
-		uint16_t field, uint16_t struct_slot) {
+		uint16_t struct_slot, uint16_t field) {
 	expr_discharge(parser, operand, field, STRUCT_SET_L, struct_slot);
+}
+
+
+// Returns true if the operand passed to the binary operator is valid (ie. a
+// meaningful result can be computed).
+static bool binary_is_valid(TokenType operator, OpType op) {
+	switch (operator) {
+	case TOKEN_ADD:
+	case TOKEN_SUB:
+	case TOKEN_MUL:
+	case TOKEN_DIV:
+	case TOKEN_MOD:
+	case TOKEN_LT:
+	case TOKEN_LE:
+	case TOKEN_GT:
+	case TOKEN_GE:
+	case TOKEN_BIT_AND:
+	case TOKEN_BIT_OR:
+	case TOKEN_BIT_XOR:
+		// Number or local
+		return op == OP_LOCAL || op == OP_NUMBER || op == OP_INTEGER;
+	case TOKEN_CONCAT:
+		// String or local
+		return op == OP_LOCAL || op == OP_STRING;
+	case TOKEN_EQ:
+	case TOKEN_NEQ:
+	case TOKEN_AND:
+	case TOKEN_OR:
+		// Anything
+		return true;
+	default:
+		// Invalid operator (shouldn't happen)
+		return false;
+	}
+}
+
+
+// Emit bytecode for a binary arithmetic operation.
+static void binary_arith(Parser *parser, uint16_t slot, TokenType operator,
+		Operand *left, Operand right) {
+	// Emit the operation
+	BytecodeOpcode opcode = opcode_arith(operator, left->type, right.type);
+	fn_emit(parser_fn(parser), opcode, slot, left->value, right.value);
+
+	// The result of the operation is the local we stored the arithmetic
+	// operation into
+	left->type = OP_LOCAL;
+	left->value = slot;
+}
+
+
+// Emit bytecode for a concatenation operation.
+static void binary_concat(Parser *parser, uint16_t slot, Operand *left,
+		Operand right) {
+	// Emit the operation
+	BytecodeOpcode opcode = opcode_concat(left->type, right.type);
+	fn_emit(parser_fn(parser), opcode, slot, left->value, right.value);
+
+	// The result of the operation is the local we stored the arithmetic
+	// operation into
+	left->type = OP_LOCAL;
+	left->value = slot;
+}
+
+
+// Emit bytecode for a comparison operation (equality or order).
+static void binary_comp(Parser *parser, uint16_t slot, TokenType operator,
+		Operand *left, Operand right) {
+	// Get the opcode
+	BytecodeOpcode opcode;
+	if (operator == TOKEN_EQ || operator == TOKEN_NEQ) {
+		opcode = opcode_eq(operator, left->type, right.type);
+	} else {
+		opcode = opcode_ord(operator, left->type, right.type);
+	}
+
+	// The value for the left and right locals
+	uint16_t left_value = left->value;
+	uint16_t right_value = right.value;
+
+	// If we're comparing a local and non-local, and the local is the right
+	// operand
+	if (left->type != OP_LOCAL && right.type == OP_LOCAL) {
+		// We need to swap the left and right operands (since the bytecode
+		// opcodes for comparison insist on having the local in the left hand
+		// operand)
+
+		// Since equality operations are independent of the order of their
+		// operand (unlike ordering), only invert the opcode if this is an
+		// order operation
+		if (operator != TOKEN_EQ && operator != TOKEN_NEQ) {
+			opcode = opcode_invert_comparison(opcode);
+		}
+
+		// Swap the arguments to the instruction
+		left_value = right.value;
+		right_value = left->value;
+	}
+
+	// Emit the comparison and the empty jump instruction following it
+	fn_emit(parser_fn(parser), opcode, left_value, right_value, 0);
+	left->type = OP_JUMP;
+	left->jump = fn_emit(parser_fn(parser), JMP, 0, 0, 0);
+}
+
+
+// Emit bytecode for an `and` operation.
+static void binary_and(Parser *parser, uint16_t slot, Operand *left,
+		Operand right) {
+
+}
+
+
+// Emit bytecode for an `or` operation.
+static void binary_or(Parser *parser, uint16_t slot, Operand *left,
+		Operand right) {
+
+}
+
+
+// Emit bytecode for a binary operation, assuming the operands are of a valid
+// type and no folding is possible.
+static void binary_emit(Parser *parser, uint16_t slot, TokenType operator,
+		Operand *left, Operand right) {
+	switch (operator) {
+	case TOKEN_ADD:
+	case TOKEN_SUB:
+	case TOKEN_MUL:
+	case TOKEN_DIV:
+	case TOKEN_MOD:
+		return binary_arith(parser, slot, operator, left, right);
+	case TOKEN_CONCAT:
+		return binary_concat(parser, slot, left, right);
+	case TOKEN_EQ:
+	case TOKEN_NEQ:
+	case TOKEN_LT:
+	case TOKEN_LE:
+	case TOKEN_GT:
+	case TOKEN_GE:
+		return binary_comp(parser, slot, operator, left, right);
+	case TOKEN_AND:
+		return binary_and(parser, slot, left, right);
+	case TOKEN_OR:
+		return binary_or(parser, slot, left, right);
+	default:
+		// Invalid operator (shouldn't happen)
+		return;
+	}
 }
 
 
 // Emit bytecode to perform a binary operation, storing the result into `slot`.
 // Returns the result of the binary operation.
-static Operand expr_binary(Parser *parser, uint16_t slot, TokenType operator,
-		Operand left, Operand right) {
+static void expr_binary(Parser *parser, uint16_t slot, Token *op, Operand *left,
+		Operand right) {
+	// Ensure the operands to the operator are of a valid type
+	if (!binary_is_valid(op->type, left->type) ||
+			!binary_is_valid(op->type, right.type)) {
+		// Trigger an invalid operand error
+		err_unexpected(parser, op, "Invalid operand to binary operator `%.*s`",
+			op->length, op->start);
+		return;
+	}
 
+	// Attempt to fold the binary operation
+	if (fold_binary(parser, op->type, left, right)) {
+		return;
+	}
+
+	// Emit bytecode for the operation
+	binary_emit(parser, slot, op->type, left, right);
 }
 
 
@@ -651,17 +844,208 @@ static Operand expr_binary(Parser *parser, uint16_t slot, TokenType operator,
 // operand is parsed. Used for things like converting the left operand of a
 // condition (ie. `and` or `or` statement) into a jump operand (by emitting an
 // `IS_TRUE_L` or `IS_FALSE_L`).
-static Operand expr_binary_left(Parser *parser, TokenType operator,
-		Operand left) {
+static void expr_binary_left(Parser *parser, TokenType operator,
+		Operand *left) {
+
+}
+
+
+// Returns true if the operand provided to a unary operator is of a valid type.
+static bool unary_is_valid(TokenType operator, OpType op) {
+	switch (operator) {
+	case TOKEN_SUB:
+		// Number
+		return op == OP_LOCAL || op == OP_NUMBER || op == OP_INTEGER;
+	case TOKEN_NOT:
+		// Anything
+		return true;
+	default:
+		// Invalid unary operator (shouldn't happen)
+		return false;
+	}
+}
+
+
+// Emit bytecode to perform a unary negation on an operand.
+static void unary_neg(Parser *parser, uint16_t slot, Operand *operand) {
+	// Emit negation instruction
+	fn_emit(parser_fn(parser), NEG_L, slot, operand->value, 0);
+
+	// Set operand to resulting local
+	operand->type = OP_LOCAL;
+	operand->value = slot;
+}
+
+
+// Emit bytecode to perform a boolean negation on an operand.
+static void unary_boolean_not(Parser *parser, uint16_t slot, Operand *operand) {
 
 }
 
 
 // Emit bytecode to perform a unary operation, storing the result into `slot`.
 // Returns the result of the unary operation.
-static Operand expr_unary(Parser *parser, uint16_t slot, TokenType operator,
-		Operand operand) {
+static void expr_unary(Parser *parser, uint16_t slot, Token *op,
+		Operand *operand) {
+	// Ensure operand is of a valid type
+	if (!unary_is_valid(op->type, operand->type)) {
+		// Trigger an invalid operand error
+		err_unexpected(parser, op, "Invalid operand to unary operator `%.*s`",
+			op->length, op->start);
+		return;
+	}
 
+	// Attempt to fold operation
+	if (fold_unary(parser, op->type, operand)) {
+		return;
+	}
+
+	// Depending on the operator
+	switch (op->type) {
+	case TOKEN_SUB:
+		unary_neg(parser, slot, operand);
+		break;
+	case TOKEN_NOT:
+		unary_boolean_not(parser, slot, operand);
+		break;
+	default:
+		// Shouldn't happen
+		break;
+	}
+}
+
+
+// Emit bytecode for a struct field access as a postfix operator. Stores the
+// resulting field in `slot`.
+static void postfix_field_access(Parser *parser, uint16_t slot,
+		Operand *operand) {
+	Lexer *lexer = &parser->lexer;
+
+	// Can only index locals
+	if (operand->type != OP_LOCAL) {
+		err_fatal(parser, &lexer->token, "Attempt to index non-local");
+		return;
+	}
+
+	// Skip the dot
+	Token dot = lexer->token;
+	lexer_next(lexer);
+
+	// Expect an identifier
+	err_expect(parser, TOKEN_IDENTIFIER, &dot, "Expected identifier after `.`");
+
+	// Add the field to the state's field list
+	Identifier ident;
+	ident.name = lexer->token.start;
+	ident.length = lexer->token.length;
+	Index field_index = state_add_field(parser->state, ident);
+	fn_emit(parser_fn(parser), STRUCT_FIELD, slot, operand->value, field_index);
+
+	// The field is now in `slot`
+	operand->type = OP_LOCAL;
+	operand->value = slot;
+}
+
+
+// Parse the arguments to a function call into consecutive local slots on the
+// top of the stack. Returns the arity of the function call.
+static uint16_t parse_call_args(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+
+	// Skip the opening parenthesis
+	Token open = lexer->token;
+	lexer_next(lexer);
+
+	// Parse consecutive arguments
+	uint16_t arity = 0;
+	while (lexer->token.type != TOKEN_EOF &&
+			lexer->token.type != TOKEN_CLOSE_PARENTHESIS) {
+		// Parse the argument into a slot on top of the stack
+		arity++;
+		uint16_t slot = local_reserve(parser);
+		expr_emit(parser, slot);
+
+		// Ensure we have a comma or closing parenthesis
+		if (lexer->token.type == TOKEN_CLOSE_PARENTHESIS) {
+			// Finished with arguments
+			break;
+		} else if (lexer->token.type == TOKEN_COMMA) {
+			// Skip the comma
+			lexer_next(lexer);
+		} else {
+			// Unexpected token
+			err_unexpected(parser, &lexer->token,
+				"Expected `,` after argument to function call");
+		}
+	}
+
+	// Ensure we have a closing parenthesis
+	err_expect(parser, TOKEN_CLOSE_PARENTHESIS, &open,
+		"Expected `)` to close `(` in function call");
+	lexer_next(lexer);
+	return arity;
+}
+
+
+// Emit bytecode for a function call as a postfix operator. Stores the return
+// value of the function call into `slot`.
+static void postfix_function_call(Parser *parser, uint16_t slot,
+		Operand *operand) {
+	Lexer *lexer = &parser->lexer;
+
+	// Save the number of locals on the top of the stack before we parse the
+	// function call, so we know how many locals we have to free
+	// Since we only allocate temporary locals (no named ones), we don't need
+	// to bother manipulating the `parser->locals` array
+	uint32_t locals_count = parser->locals_count;
+
+	// Operand must be a local, function, or native function
+	uint16_t base;
+	if (operand->type == OP_FUNCTION || operand->type == OP_NATIVE) {
+		// Move the function into a local on the top of the stack
+		base = local_reserve(parser);
+		expr_discharge_local(parser, *operand, base);
+	} else if (operand->type == OP_LOCAL) {
+		// Check that the local is on top of the stack
+		if (operand->value < parser->locals_count - 1) {
+			// Not on top of the stack, so move it to a temporary local there
+			base = local_reserve(parser);
+			fn_emit(parser_fn(parser), MOV_LL, base, operand->value, 0);
+		} else {
+			// On top of the stack
+			base = operand->value;
+		}
+	} else {
+		// Not calling a function
+		err_fatal(parser, &lexer->token, "Attempt to call non-function");
+		return;
+	}
+
+	// Parse the function arguments into consecutive slots on top of the stack
+	uint16_t arity = parse_call_args(parser);
+
+	// Emit the call instruction
+	fn_emit(parser_fn(parser), CALL, base, arity, slot);
+
+	// Free allocated locals
+	parser->locals_count = locals_count;
+
+	// Set resulting operand to return value of function
+	operand->type = OP_LOCAL;
+	operand->value = slot;
+}
+
+
+// Emit bytecode to perform a postfix operation which can be set. These are
+// struct field and array accesses.
+static bool postfix_accesses(Parser *parser, uint16_t slot, Operand *operand) {
+	switch (parser->lexer.token.type) {
+	case TOKEN_DOT:
+		postfix_field_access(parser, slot, operand);
+		return true;
+	default:
+		return false;
+	}
 }
 
 
@@ -669,9 +1053,14 @@ static Operand expr_unary(Parser *parser, uint16_t slot, TokenType operator,
 // function call, or array access. `operand` is the most recently parsed operand
 // just before the postfix operator, on which we're performing the postfix
 // operation.
-static Operand expr_postfix(Parser *parser, uint16_t slot, Operand operand) {
-	// TODO: postfix operators
-	return operand;
+static bool expr_postfix(Parser *parser, uint16_t slot, Operand *operand) {
+	switch (parser->lexer.token.type) {
+	case TOKEN_OPEN_PARENTHESIS:
+		postfix_function_call(parser, slot, operand);
+		return true;
+	default:
+		return postfix_accesses(parser, slot, operand);
+	}
 }
 
 
@@ -757,7 +1146,7 @@ static Operand operand_top_level(Parser *parser, Index package, uint16_t slot) {
 	lexer_next(lexer);
 
 	// Move the field on the package into a local
-	top_level_demote_external(parser, package, field, slot);
+	top_level_demote_external(parser, slot, field, package);
 
 	// Return the operand
 	Operand operand = operand_new();
@@ -786,25 +1175,25 @@ static Operand operand_identifier(Parser *parser, uint16_t slot) {
 
 	case RESOLVED_UPVALUE:
 		// Move the upvalue into the slot
-		upvalue_demote(parser, local.index, slot);
+		upvalue_demote(parser, slot, local.index);
 		result.value = slot;
 		break;
 
 	case RESOLVED_TOP_LEVEL:
 		// Move the top level local into the slot
-		top_level_demote(parser, local.index, slot);
+		top_level_demote(parser, slot, local.index);
 		result.value = slot;
 		break;
 
 	case RESOLVED_PACKAGE:
 		// Expect a field access after a struct name
 		// Return so we don't skip another token
-		return operand_top_level(parser, local.index, slot);
+		return operand_top_level(parser, slot, local.index);
 
 	default:
 		// Undefined variable
-		err_fatal(parser, &lexer->token,
-			"Undefined variable `%.*s` in expression", length, name);
+		err_fatal(parser, &lexer->token, "Undefined variable `%.*s`", length,
+			name);
 		break;
 	}
 
@@ -891,25 +1280,24 @@ static Operand expr_left(Parser *parser, uint16_t slot) {
 	Lexer *lexer = &parser->lexer;
 
 	// Check for unary operator
-	if (is_unary(lexer->token.type)) {
+	if (operator_is_unary(lexer->token.type)) {
 		// Save and skip the unary operator
-		TokenType operator = lexer->token.type;
+		Token operator = lexer->token;
 		lexer_next(lexer);
 
 		// Parse the operand to the unary operation
 		Operand operand = expr_left(parser, slot);
 
 		// Emit bytecode for the unary operation
-		return expr_unary(parser, slot, operator, operand);
+		expr_unary(parser, slot, &operator, &operand);
+		return operand;
 	} else {
 		// No more unary operators, parse an operand
 		Operand operand = expr_operand(parser, slot);
 
 		// Iteratively parse postfix operators like struct field access, array
 		// indexing, and function calls
-		while (is_postfix(lexer->token.type)) {
-			operand = expr_postfix(parser, slot, operand);
-		}
+		while (expr_postfix(parser, slot, &operand)) {}
 
 		return operand;
 	}
@@ -928,22 +1316,22 @@ static Operand expr_precedence(Parser *parser, uint16_t slot, Precedence prec) {
 	// the limit
 	while (prec_binary(lexer->token.type) > prec) {
 		// Skip operator
-		TokenType operator = lexer->token.type;
+		Token operator = lexer->token;
 		lexer_next(lexer);
 
 		// Emit bytecode for the left operand (like converting it to a jump
 		// operand if part of a condition)
-		expr_binary_left(parser, operator, left);
+		expr_binary_left(parser, operator.type, &left);
 
 		// Parse the right operand to the operation
 		uint16_t right_slot = local_reserve(parser);
-		Precedence right_prec = prec_binary(operator);
+		Precedence right_prec = prec_binary(operator.type);
 		Operand right = expr_precedence(parser, right_slot, right_prec);
 		local_free(parser);
 
 		// Emit the operation, where the result of the operation becomes the new
 		// left operand to the next binary operation
-		left = expr_binary(parser, slot, operator, left, right);
+		expr_binary(parser, slot, &operator, &left, right);
 	}
 
 	return left;
@@ -978,6 +1366,169 @@ static uint16_t expr_emit_temporary(Parser *parser) {
 
 
 //
+//  Assignment
+//
+
+// Parses an expression into a new local with the name `name`.
+static void parse_declaration_local(Parser *parser, char *name,
+		uint32_t length) {
+	// Allocate new local
+	uint16_t slot = local_new(parser);
+	Local *local = &vec_at(parser->locals, slot);
+	local->name = name;
+	local->length = length;
+
+	// Parse expression into new local
+	expr_emit(parser, slot);
+}
+
+
+// Parses an expression into a new top level local with the name `name`.
+static void parse_declaration_top_level(Parser *parser, char *name,
+		uint32_t length) {
+	// Allocate new top level local
+	Package *pkg = parser_pkg(parser);
+	Index top_level = pkg_local_add(pkg, name, length, NIL_VALUE);
+
+	// Parse expression into top level
+	uint16_t temp = local_reserve(parser);
+	Operand result = parse_expr(parser, temp);
+	expr_discharge_top_level(parser, result, top_level);
+	local_free(parser);
+}
+
+
+// Parses an initial assignment using the `let` token.
+static void parse_declaration(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+
+	// Skip the `let`
+	Token let = lexer->token;
+	lexer_next(lexer);
+
+	// Expect an identifier
+	err_expect(parser, TOKEN_IDENTIFIER, &let,
+		"Expected identifier after `let`");
+	Token name = lexer->token;
+	lexer_next(lexer);
+
+	// Expect an assignment token
+	err_expect(parser, TOKEN_ASSIGN, &name,
+		"Expected `=` after identifier in `let` assignment");
+	lexer_next(lexer);
+
+	// Ensure the local isn't already defined
+	if (!local_is_unique(parser, name.start, name.length)) {
+		err_fatal(parser, &name, "Variable `%.*s` already defined",
+			name.length, name.start);
+		return;
+	}
+
+	// Parse expression into top level local if this is the uppermost function
+	// scope
+	if (parser->scope->parent == NULL && parser->scope->block_depth == 1) {
+		parse_declaration_top_level(parser, name.start, name.length);
+	} else {
+		parse_declaration_local(parser, name.start, name.length);
+	}
+}
+
+
+// Parses the remainder of an assignment after and including the `=`. `operand`
+// is the operand containing information about the first identifier in the list
+// to the left of the `=`.
+static void parse_assignment(Parser *parser, Operand operand) {
+	Lexer *lexer = &parser->lexer;
+
+	// Skip the assignment token
+	lexer_next(lexer);
+
+	// Save the last retrieval instruction, which will need to be converted
+	// into a storage instruction after parsing the expression
+	Instruction retrieval = vec_last(parser_fn(parser)->instructions);
+	BytecodeOpcode opcode = ins_arg(retrieval, 0);
+
+	// If the retrieval was a specially emitted storage instruction, we need
+	// to get rid of it
+	if (opcode == MOV_LT || opcode == MOV_LU || opcode == STRUCT_FIELD) {
+		// Remove the last retrieval instruction
+		vec_len(parser_fn(parser)->instructions)--;
+	}
+
+	// Parse an expression into a temporary local
+	uint16_t expr_slot = local_reserve(parser);
+	Operand result = parse_expr(parser, expr_slot);
+
+	if (opcode == MOV_LT) {
+		// Top level
+		uint16_t top_level = ins_arg(retrieval, 2);
+		uint16_t package = ins_arg(retrieval, 3);
+		expr_discharge_top_level_external(parser, result, package, top_level);
+	} else if (opcode == MOV_LU) {
+		// Upvalue
+		uint16_t upvalue = ins_arg(retrieval, 2);
+		expr_discharge_upvalue(parser, result, upvalue);
+	} else if (opcode == STRUCT_FIELD) {
+		// Struct field
+		uint16_t struct_slot = ins_arg(retrieval, 2);
+		uint16_t field = ins_arg(retrieval, 3);
+		expr_discharge_field(parser, result, struct_slot, field);
+	} else {
+		// Local
+		expr_discharge_local(parser, result, operand.value);
+	}
+
+	// Free the temporary local we parsed the expression into
+	local_free(parser);
+}
+
+
+// Parses an assignment or function call (no way to tell between the two easily
+// as they both start with an identifier followed by field/array accesses).
+static void parse_assignment_or_call(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+
+	// Expect an identifier
+	err_expect(parser, TOKEN_IDENTIFIER, &lexer->token, "Expected identifier");
+	Token ident = lexer->token;
+
+	// Parse identifier into a temporary local
+	uint16_t slot = local_reserve(parser);
+	Operand operand = operand_identifier(parser, slot);
+
+	// Iteratively parse postfix struct field or array accesses
+	bool requires_slot = false;
+	while (postfix_accesses(parser, slot, &operand)) {
+		requires_slot = true;
+	}
+
+	// If we don't actually require storing the first identifier, then we can
+	// get rid of the allocated slot here and save a stack slot
+	if (!requires_slot) {
+		local_free(parser);
+	}
+
+	// Depending on the token after that
+	if (lexer->token.type == TOKEN_ASSIGN) {
+		// Assignment
+		parse_assignment(parser, operand);
+	} else if (lexer->token.type == TOKEN_OPEN_PARENTHESIS) {
+		// Function call, so just keep parsing postfix operators
+		while (expr_postfix(parser, slot, &operand)) {}
+	} else {
+		err_unexpected(parser, &ident, "Expected `=` or `(` after identifier");
+		return;
+	}
+
+	// Free the temporary local we allocated for the original identifier
+	if (requires_slot) {
+		local_free(parser);
+	}
+}
+
+
+
+//
 //  Blocks and Statements
 //
 
@@ -1003,26 +1554,20 @@ static void parse_statement(Parser *parser) {
 	Lexer *lexer = &parser->lexer;
 
 	switch (lexer->token.type) {
+		// Local declaration
+	case TOKEN_LET:
+		parse_declaration(parser);
+		break;
+
 		// Unconditional block
 	case TOKEN_OPEN_BRACE:
 		parse_unconditional_block(parser);
 		break;
 
-	default: {
-		// Parse an expression
-		uint16_t slot = local_reserve(parser);
-		Token start = lexer->token;
-		Operand operand = parse_expr(parser, slot);
-
-		// Lone expressions need side effects
-		if (!operand.has_side_effects) {
-			err_fatal(parser, &start, "Expression result unused");
-		}
-
-		expr_discharge_local(parser, operand, slot);
-		local_free(parser);
+		// Assignment or function call
+	default:
+		parse_assignment_or_call(parser);
 		break;
-	}
 	}
 }
 

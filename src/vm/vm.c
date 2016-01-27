@@ -3,6 +3,7 @@
 //  Virtual Machine
 //
 
+#include <string.h>
 #include <stdio.h>
 
 #include "vm.h"
@@ -142,6 +143,27 @@ Index state_add_string(HyState *state, uint32_t length) {
 	string->length = length;
 	string->contents[0] = '\0';
 	return vec_len(state->strings) - 1;
+}
+
+
+// Adds a field name to the interpreter state's fields list. If a field matching
+// `ident` already exists, then it returns the index of the existing field.
+Index state_add_field(HyState *state, Identifier ident) {
+	// Check for an existing field first (reverse order)
+	for (int i = vec_len(state->fields) - 1; i >= 0; i--) {
+		Identifier *match = &vec_at(state->fields, (uint32_t) i);
+		if (ident.length == match->length &&
+				strncmp(ident.name, match->name, ident.length) == 0) {
+			return i;
+		}
+	}
+
+	// No existing field, so add a new one
+	vec_add(state->fields);
+	Identifier *last = &vec_last(state->fields);
+	last->name = ident.name;
+	last->length = ident.length;
+	return vec_len(state->fields) - 1;
 }
 
 

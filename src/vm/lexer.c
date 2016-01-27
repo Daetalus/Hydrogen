@@ -23,6 +23,7 @@ Lexer lexer_new(HyState *state, Index pkg_index, Index source) {
 	lexer.state = state;
 	lexer.source = src->contents;
 	lexer.cursor = src->contents;
+	lexer.line = 1;
 	lexer.token.package = pkg_index;
 	lexer.token.source = source;
 

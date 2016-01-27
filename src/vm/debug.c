@@ -239,7 +239,7 @@ static void print_info(HyState *state, Index ins_index, Instruction ins) {
 	case CONCAT_SL:
 	case STRUCT_SET_S: {
 		uint32_t arg = (opcode == CONCAT_SL) ? 1 : 2;
-		char *str = &(vec_at(state->strings, arg)->contents[0]);
+		char *str = &(vec_at(state->strings, ins_arg(ins, arg))->contents[0]);
 		printf("    ; \"%s\"", str);
 		break;
 	}
@@ -284,7 +284,7 @@ static void print_info(HyState *state, Index ins_index, Instruction ins) {
 // output. The instruction index is used to calculate jump offsets.
 void debug_ins(HyState *state, Function *fn, Index ins_index) {
 	// Index
-	printf("%.*d    ", digits(vec_len(fn->instructions)), ins_index);
+	printf("%.*d    ", digits(vec_len(fn->instructions) - 1), ins_index);
 
 	// Opcode, arguments, argument information
 	Instruction ins = vec_at(fn->instructions, ins_index);
