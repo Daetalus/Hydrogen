@@ -84,3 +84,52 @@ TEST(Jump, Last) {
 
 	FREE();
 }
+
+
+// Tests setting the target of a jump instruction.
+TEST(Jump, Target) {
+	FUNCTION(
+		JMP, 0, 0, 0,
+		JMP, 0, 0, 0,
+		RET0, 0, 0, 0
+	);
+
+	jmp_target(&fn, 0, 2);
+	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 0), 1), 2);
+	jmp_target(&fn, 1, 2);
+	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 1), 1), 1);
+}
+
+
+// Tests setting the target of every jump instruction in a jump list.
+TEST(Jump, TargetAll) {
+	FUNCTION(
+		JMP, 0, 0, 0,
+		JMP, 0, 1, 0,
+		JMP, 0, 1, 0,
+		JMP, 0, 1, 0,
+		RET0, 0, 0, 0
+	);
+
+	jmp_target_all(&fn, 3, 4);
+	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 0), 1), 4);
+	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 1), 1), 3);
+	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 2), 1), 2);
+	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 3), 1), 1);
+}
+
+
+// Tests appending a jump instruction to a jump list.
+TEST(Jump, Append) {
+	FUNCTION(
+		JMP, 0, 0, 0,
+		JMP, 0, 0, 0,
+		JMP, 0, 0, 0,
+		RET0, 0, 0, 0
+	);
+
+	jmp_append(&fn, 2, 1);
+	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 2), 2), 1);
+	jmp_append(&fn, 1, 0);
+	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 1), 2), 1);
+}
