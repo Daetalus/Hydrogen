@@ -89,13 +89,21 @@ static inline void jmp_target_all(Function *fn, Index jump, Index target) {
 }
 
 
-// Adds the jump instruction at index `to_append` to the end of the jump list to
-// which `jump` belongs.
-static inline void jmp_append(Function *fn, Index jump, Index to_append) {
-	Index last = jmp_last(fn, jump);
+// Adds the jump at `to_append` to the end of the jump list `list`.
+static inline void jmp_append(Function *fn, Index list, Index to_append) {
+	Index last = jmp_last(fn, list);
 	uint16_t offset = last - to_append;
 	Instruction ins = vec_at(fn->instructions, last);
 	vec_at(fn->instructions, last) = ins_set(ins, JMP_LIST_ARG, offset);
+}
+
+
+// Adds the jump at `to_append` to the start of the jump list `list`.
+static inline void jmp_prepend(Function *fn, Index *list, Index to_append) {
+	if (*list != NOT_FOUND) {
+		jmp_append(fn, to_append, *list);
+	}
+	*list = to_append;
 }
 
 

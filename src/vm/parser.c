@@ -1833,38 +1833,37 @@ static void parse_assignment(Parser *parser, Operand operand) {
 	Instruction retrieval = vec_last(parser_fn(parser)->instructions);
 	BytecodeOpcode opcode = ins_arg(retrieval, 0);
 
-	// If the retrieval was a specially emitted storage instruction, we need
-	// to get rid of it
+	// If the retrieval was a specially emitted storage instruction
 	if (opcode == MOV_LT || opcode == MOV_LU || opcode == STRUCT_FIELD) {
 		// Remove the last retrieval instruction
 		vec_len(parser_fn(parser)->instructions)--;
-	}
 
-	// Parse an expression into a temporary local
-	uint16_t expr_slot = local_reserve(parser);
-	Operand result = parse_expr(parser, expr_slot);
+		// Parse an expression into a temporary local
+		uint16_t expr_slot = local_reserve(parser);
+		Operand result = parse_expr(parser, expr_slot);
 
-	if (opcode == MOV_LT) {
-		// Top level
-		uint16_t top_level = ins_arg(retrieval, 2);
-		uint16_t package = ins_arg(retrieval, 3);
-		expr_discharge_top_level_external(parser, result, package, top_level);
-	} else if (opcode == MOV_LU) {
-		// Upvalue
-		uint16_t upvalue = ins_arg(retrieval, 2);
-		expr_discharge_upvalue(parser, result, upvalue);
-	} else if (opcode == STRUCT_FIELD) {
-		// Struct field
-		uint16_t struct_slot = ins_arg(retrieval, 2);
-		uint16_t field = ins_arg(retrieval, 3);
-		expr_discharge_field(parser, result, struct_slot, field);
+		if (opcode == MOV_LT) {
+			// Top level
+			uint16_t top_level = ins_arg(retrieval, 2);
+			uint16_t package = ins_arg(retrieval, 3);
+			expr_discharge_top_level_external(parser, result, package, top_level);
+		} else if (opcode == MOV_LU) {
+			// Upvalue
+			uint16_t upvalue = ins_arg(retrieval, 2);
+			expr_discharge_upvalue(parser, result, upvalue);
+		} else if (opcode == STRUCT_FIELD) {
+			// Struct field
+			uint16_t struct_slot = ins_arg(retrieval, 2);
+			uint16_t field = ins_arg(retrieval, 3);
+			expr_discharge_field(parser, result, struct_slot, field);
+		}
+
+		// Free the temporary local we parsed the expression into
+		local_free(parser);
 	} else {
-		// Local
-		expr_discharge_local(parser, result, operand.value);
+		// Parse the expression directly into the local
+		expr_emit(parser, operand.value);
 	}
-
-	// Free the temporary local we parsed the expression into
-	local_free(parser);
 }
 
 
@@ -1937,18 +1936,8 @@ static void parse_braced_block(Parser *parser) {
 }
 
 
-// Appends the jump `final` at the end of an if statement branch's body to the
-// start of the jump list `list`.
-static void if_append_jump(Parser *parser, Index *list, Index final) {
-	if (*list != NOT_FOUND) {
-		jmp_append(parser_fn(parser), final, *list);
-	}
-	*list = final;
-}
-
-
 // Parses the condition of an if branch.
-static Operand if_parse_condition(Parser *parser) {
+static Operand parse_conditional_expr(Parser *parser) {
 	// Parse the condition
 	uint16_t slot = local_reserve(parser);
 	Operand condition = parse_expr(parser, slot);
@@ -1964,14 +1953,14 @@ static Operand if_parse_condition(Parser *parser) {
 
 
 // Returns true if a condition is constant and equivalent to false.
-static bool if_is_constant_false(Operand *condition) {
+static bool cond_is_const_false(Operand *condition) {
 	return condition->type == OP_PRIMITIVE && condition->value != TRUE_TAG;
 }
 
 
 // Returns true if a condition is constant and equivalent to true.
-static bool if_is_constant_true(Operand *condition) {
-	return !if_is_constant_false(condition) && condition->type != OP_JUMP;
+static bool cond_is_const_true(Operand *condition) {
+	return !cond_is_const_false(condition) && condition->type != OP_JUMP;
 }
 
 
@@ -2018,42 +2007,37 @@ static void parse_if(Parser *parser) {
 
 		// Parse the condition
 		Operand condition;
-		if (!is_else) {
-			condition = if_parse_condition(parser);
-		} else {
+		if (is_else) {
 			// Treat else branches as constant true else if branches
 			condition.type = OP_PRIMITIVE;
 			condition.value = TRUE_TAG;
+		} else {
+			condition = parse_conditional_expr(parser);
 		}
 
 		// If we're folding all future branches because we found a constant true
 		// condition earlier, or this branch is constant false
-		if (fold || if_is_constant_false(&condition)) {
+		if (fold || cond_is_const_false(&condition)) {
 			// Parse the block and get rid of its contents (including the
 			// potentially emitted jump for the previous branch)
 			parse_braced_block(parser);
 			vec_len(fn->instructions) = saved_length;
-
-			// Stop after parsing an else branch
-			if (is_else) {
-				break;
-			} else {
-				continue;
+		} else {
+			if (previous_condition.type == OP_JUMP) {
+				// Keep the previous branch's jump and patch its false case to after
+				// this jump
+				jmp_prepend(fn, &list, final_jump);
+				jmp_false_case(fn, previous_condition.jump, final_jump + 1);
 			}
-		} else if (previous_condition.type == OP_JUMP) {
-			// Keep the previous branch's jump and patch its false case to after
-			// this jump
-			if_append_jump(parser, &list, final_jump);
-			jmp_false_case(fn, previous_condition.jump, final_jump + 1);
-		}
 
-		// Parse the contents of this branch
-		parse_braced_block(parser);
-		previous_condition = condition;
+			// Parse the contents of this branch
+			parse_braced_block(parser);
+			previous_condition = condition;
 
-		// If the condition is constant true, fold all future branches
-		if (if_is_constant_true(&condition)) {
-			fold = true;
+			// If the condition is constant true, fold all future branches
+			if (cond_is_const_true(&condition)) {
+				fold = true;
+			}
 		}
 
 		// Stop after parsing an else branch
@@ -2075,25 +2059,84 @@ static void parse_if(Parser *parser) {
 
 
 //
-//  Blocks and Statements
+//  While Loop
 //
 
-// Parses an unconditional block (a new scope for locals).
-static void parse_unconditional_block(Parser *parser) {
+// Parse a while loop.
+static void parse_while(Parser *parser) {
 	Lexer *lexer = &parser->lexer;
+	Function *fn = parser_fn(parser);
 
-	// Skip the opening brace
+	// Skip `while` token
 	lexer_next(lexer);
 
-	// Parse a block
-	parse_block(parser, TOKEN_CLOSE_BRACE);
+	// Save the instruction length in case we need to fold the while loop
+	uint32_t start = vec_len(fn->instructions);
 
-	// Expect a closing brace
-	err_expect(parser, TOKEN_CLOSE_BRACE, &lexer->token,
-		"Expected `}` to close unconditional block");
-	lexer_next(lexer);
+	// Add a loop to the function's linked list
+	Loop loop;
+	loop.head = NOT_FOUND;
+	loop.parent = parser->scope->loop;
+	parser->scope->loop = &loop;
+
+	// Parse expression and body
+	Operand condition = parse_conditional_expr(parser);
+	parse_braced_block(parser);
+
+	// Remove the loop from the linked list
+	parser->scope->loop = loop.parent;
+
+	// Fold if condition is constant false
+	if (cond_is_const_false(&condition)) {
+		vec_len(fn->instructions) = start;
+		return;
+	}
+
+	// Insert a jump back to the loop's start
+	uint16_t offset = vec_len(fn->instructions) - start;
+	fn_emit(fn, LOOP, offset, 0, 0);
+
+	// Patch the condition's false case here
+	if (condition.type == OP_JUMP) {
+		jmp_false_case(fn, condition.jump, vec_len(fn->instructions));
+	}
+
+	// Patch break statement jumps here
+	jmp_target_all(fn, loop.head, vec_len(fn->instructions));
 }
 
+
+
+//
+//  Break Statements
+//
+
+// Parses a break statement.
+static void parse_break(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+	Function *fn = parser_fn(parser);
+
+	// Ensure we're inside a loop
+	if (parser->scope->loop == NULL) {
+		err_fatal(parser, &lexer->token, "`break` statement not inside loop");
+		return;
+	}
+
+	// Skip the break token
+	lexer_next(lexer);
+
+	// Insert an empty jump
+	Index jump = fn_emit(fn, JMP, 0, 0, 0);
+
+	// Append it to the loop's jump list
+	jmp_prepend(fn, &parser->scope->loop->head, jump);
+}
+
+
+
+//
+//  Blocks and Statements
+//
 
 // Parses a single statement, like an `if` or `while` construct.
 static void parse_statement(Parser *parser) {
@@ -2110,9 +2153,19 @@ static void parse_statement(Parser *parser) {
 		parse_if(parser);
 		break;
 
+		// While loops
+	case TOKEN_WHILE:
+		parse_while(parser);
+		break;
+
+		// Break statement
+	case TOKEN_BREAK:
+		parse_break(parser);
+		break;
+
 		// Unconditional block
 	case TOKEN_OPEN_BRACE:
-		parse_unconditional_block(parser);
+		parse_braced_block(parser);
 		break;
 
 		// Assignment or function call
