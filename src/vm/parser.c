@@ -1937,115 +1937,139 @@ static void parse_braced_block(Parser *parser) {
 }
 
 
-// Appends a jump instruction to the end of an if body to jump over subsequent
-// ifs.
-static void if_append_jump(Parser *parser, Index *jump) {
-	Lexer *lexer = &parser->lexer;
-
-	// Don't append the jump if there's no more else ifs or elses next
-	if (lexer->token.type != TOKEN_ELSE_IF && lexer->token.type != TOKEN_ELSE) {
-		return;
+// Appends the jump `final` at the end of an if statement branch's body to the
+// start of the jump list `list`.
+static void if_append_jump(Parser *parser, Index *list, Index final) {
+	if (*list != NOT_FOUND) {
+		jmp_append(parser_fn(parser), final, *list);
 	}
-
-	// Add the jump to the bytecode
-	Function *fn = parser_fn(parser);
-	Index final = fn_emit(fn, JMP, 0, 0, 0);
-
-	// Append the jump to the jump list
-	if (*jump != NOT_FOUND) {
-		jmp_append(fn, final, *jump);
-	}
-	*jump = final;
+	*list = final;
 }
 
 
-// Patches the condition of an if statement to after its body.
-static void if_patch_condition(Parser *parser, Operand condition) {
-	// Patch the condition's false case
-	Function *fn = parser_fn(parser);
-	jmp_false_case(fn, condition.jump, vec_len(fn->instructions));
-}
-
-
-// Parses the body of an if or else if (an `if` or `else if` token, followed by
-// an expression, followed by a block in braces). Will not emit the parsed
-// bytecode if `fold` is true (indicating a previous if had a constant true
-// condition). Returns true if the statement has a constant true condition.
-static bool parse_if_body(Parser *parser, Index *jump, bool fold) {
-	Lexer *lexer = &parser->lexer;
-
-	// Skip `if` or `else if` token
-	lexer_next(lexer);
-
-	// Save bytecode length so we know how many instructions to remove if we
-	// end up folding this if statement
-	Function *fn = parser_fn(parser);
-	uint32_t start = vec_len(fn->instructions);
-
-	// Parse conditional expression
+// Parses the condition of an if branch.
+static Operand if_parse_condition(Parser *parser) {
+	// Parse the condition
 	uint16_t slot = local_reserve(parser);
 	Operand condition = parse_expr(parser, slot);
 	local_free(parser);
 
-	// Convert a local into a jump
+	// Convert the condition to a jump if it's a local
 	if (condition.type == OP_LOCAL) {
 		operand_to_jump(parser, &condition);
 	}
 
-	// Parse block
-	parse_braced_block(parser);
-
-	// Check if the condition is constant
-	if (!operand_is_jump_local(&condition)) {
-		if (!operand_to_bool(&condition)) {
-			// Constant false condition, get rid of content
-			vec_len(fn->instructions) = start;
-		} else {
-			// Constant true condition
-			if_append_jump(parser, jump);
-			return true;
-		}
-	} else if (fold) {
-		// A previous if had a constant true condition, so get rid of content
-		vec_len(fn->instructions) = start;
-	} else {
-		// Non-constant condition
-		if_append_jump(parser, jump);
-		if_patch_condition(parser, condition);
-	}
-	return false;
+	return condition;
 }
 
 
-// Parse an if statement, and any subsequent else ifs or else.
+// Returns true if a condition is constant and equivalent to false.
+static bool if_is_constant_false(Operand *condition) {
+	return condition->type == OP_PRIMITIVE && condition->value != TRUE_TAG;
+}
+
+
+// Returns true if a condition is constant and equivalent to true.
+static bool if_is_constant_true(Operand *condition) {
+	return !if_is_constant_false(condition) && condition->type != OP_JUMP;
+}
+
+
+// Parse an if statement, and any subsequent else if or else branches.
 static void parse_if(Parser *parser) {
 	Lexer *lexer = &parser->lexer;
+	Function *fn = parser_fn(parser);
 
-	// Trick the loop into thinking the first if is actually and else if
+	// Store the condition of the branch before the current one so we can patch
+	// its false case if we need to insert a jump. Only stores the condition of
+	// constant true and non-constant branches (constant false branches are
+	// ignored)
+	Operand previous_condition = operand_new();
+
+	// Keep a jump list of all final jumps emitted at the end of if blocks, so
+	// we can point all of them to after the whole if statement
+	Index list = NOT_FOUND;
+
+	// True if we should stop emitting bytecode for branches because we found a
+	// constant true condition
+	bool fold = false;
+
+	// Trick the loop into thinking the first if is actually an else if
 	lexer->token.type = TOKEN_ELSE_IF;
 
-	// Keep a jump list of jumps at the end of if blocks, pointing them to after
-	// all the whole if statement
-	Index jump = NOT_FOUND;
+	while (lexer->token.type == TOKEN_ELSE_IF ||
+			lexer->token.type == TOKEN_ELSE) {
+		// Save the instruction length so we can delete the bytecode emitted
+		// for this branch if needed
+		uint32_t saved_length = vec_len(fn->instructions);
 
-	// Continually parse if and else ifs
-	bool fold = false;
-	while (lexer->token.type == TOKEN_ELSE_IF) {
-		fold = fold || parse_if_body(parser, &jump, fold);
-	}
+		// If the condition for the current branch doesn't turn out constant
+		// false, then we need to insert a jump for the previous branch over
+		// the current one. This needs to be before the current branch's
+		// condition, so insert it here
+		Index final_jump = NOT_FOUND;
+		if (previous_condition.type == OP_JUMP) {
+			final_jump = fn_emit(fn, JMP, 0, 0, 0);
+		}
 
-	// Check for a final else
-	Function *fn = parser_fn(parser);
-	if (lexer->token.type == TOKEN_ELSE) {
-		// Skip the `else`
+		// Check if we're parsing an else or else if branch
+		bool is_else = lexer->token.type == TOKEN_ELSE;
 		lexer_next(lexer);
 
-		// Parse block
+		// Parse the condition
+		Operand condition;
+		if (!is_else) {
+			condition = if_parse_condition(parser);
+		} else {
+			// Treat else branches as constant true else if branches
+			condition.type = OP_PRIMITIVE;
+			condition.value = TRUE_TAG;
+		}
+
+		// If we're folding all future branches because we found a constant true
+		// condition earlier, or this branch is constant false
+		if (fold || if_is_constant_false(&condition)) {
+			// Parse the block and get rid of its contents (including the
+			// potentially emitted jump for the previous branch)
+			parse_braced_block(parser);
+			vec_len(fn->instructions) = saved_length;
+
+			// Stop after parsing an else branch
+			if (is_else) {
+				break;
+			} else {
+				continue;
+			}
+		} else if (previous_condition.type == OP_JUMP) {
+			// Keep the previous branch's jump and patch its false case to after
+			// this jump
+			if_append_jump(parser, &list, final_jump);
+			jmp_false_case(fn, previous_condition.jump, final_jump + 1);
+		}
+
+		// Parse the contents of this branch
 		parse_braced_block(parser);
+		previous_condition = condition;
+
+		// If the condition is constant true, fold all future branches
+		if (if_is_constant_true(&condition)) {
+			fold = true;
+		}
+
+		// Stop after parsing an else branch
+		if (is_else) {
+			break;
+		}
 	}
 
-	// Point all jumps here
-	jmp_target_all(fn, jump, vec_len(fn->instructions));
+	// Patch the false case of the last branch's condition to here
+	if (previous_condition.type == OP_JUMP) {
+		Index target = vec_len(fn->instructions);
+		jmp_false_case(fn, previous_condition.jump, target);
+	}
+
+	// Point all end of branch jumps here
+	jmp_target_all(fn, list, vec_len(fn->instructions));
 }
 
 
