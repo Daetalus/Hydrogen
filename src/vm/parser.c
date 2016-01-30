@@ -813,8 +813,7 @@ static void cond_single_local(TokenType operator, Operand *result,
 
 
 // Attempt to fold a conditional operation (`and` or `or` operation).
-static bool fold_cond(Parser *parser, TokenType operator, Operand *left,
-		Operand right) {
+static bool fold_cond(TokenType operator, Operand *left, Operand right) {
 	if (!operand_is_jump_local(left) && !operand_is_jump_local(&right)) {
 		// Neither operand is a local (or jump)
 		cond_non_locals(operator, left, right);
@@ -855,7 +854,7 @@ static bool fold_binary(Parser *parser, TokenType operator, Operand *left,
 		return fold_ord(parser, operator, left, right);
 	case TOKEN_AND:
 	case TOKEN_OR:
-		return fold_cond(parser, operator, left, right);
+		return fold_cond(operator, left, right);
 	default:
 		return false;
 	}
@@ -915,9 +914,9 @@ static void expr_reduce(Parser *parser, Operand *operand, uint16_t slot,
 
 	// Emit true case, then jump over false case, then false case
 	Function *fn = parser_fn(parser);
-	fn_emit(fn, opcode, slot, TAG_TRUE, 0);
+	fn_emit(fn, opcode, slot, TAG_TRUE, arg3);
 	fn_emit(fn, JMP, 2, 0, 0);
-	Index false_case = fn_emit(fn, opcode, slot, TAG_FALSE, 0);
+	Index false_case = fn_emit(fn, opcode, slot, TAG_FALSE, arg3);
 
 	// Patch false case of jump operand to the emitted false case
 	jmp_false_case(fn, operand->jump, false_case);
@@ -1056,6 +1055,9 @@ static void binary_concat(Parser *parser, uint16_t slot, Operand *left,
 // Emit bytecode for a comparison operation (equality or order).
 static void binary_comp(Parser *parser, uint16_t slot, TokenType operator,
 		Operand *left, Operand right) {
+	// Convert the right operand to a local if it's a jump
+	expr_reduce_local(parser, &right, slot);
+
 	// Invert the operator, since we want to trigger the following jump only
 	// if the condition is false (since the jump shifts execution to the false
 	// case)
@@ -1100,8 +1102,7 @@ static void binary_comp(Parser *parser, uint16_t slot, TokenType operator,
 
 
 // Emit bytecode for an `and` operation.
-static void binary_and(Parser *parser, uint16_t slot, Operand *left,
-		Operand right) {
+static void binary_and(Parser *parser, Operand *left, Operand right) {
 	// Convert the right operand into a jump condition (the left operand was
 	// done by a call to `expr_binary_left`)
 	if (right.type == OP_LOCAL) {
@@ -1124,8 +1125,7 @@ static void binary_and(Parser *parser, uint16_t slot, Operand *left,
 
 
 // Emit bytecode for an `or` operation.
-static void binary_or(Parser *parser, uint16_t slot, Operand *left,
-		Operand right) {
+static void binary_or(Parser *parser, Operand *left, Operand right) {
 	// Convert the right operand into a jump.
 	if (right.type == OP_LOCAL) {
 		operand_to_jump(parser, &right);
@@ -1187,9 +1187,9 @@ static void binary_emit(Parser *parser, uint16_t slot, TokenType operator,
 	case TOKEN_GE:
 		return binary_comp(parser, slot, operator, left, right);
 	case TOKEN_AND:
-		return binary_and(parser, slot, left, right);
+		return binary_and(parser, left, right);
 	case TOKEN_OR:
-		return binary_or(parser, slot, left, right);
+		return binary_or(parser, left, right);
 	default:
 		// Invalid operator (shouldn't happen)
 		return;
@@ -1224,13 +1224,18 @@ static void expr_binary(Parser *parser, uint16_t slot, Token *op, Operand *left,
 // operand is parsed. Used for things like converting the left operand of a
 // condition (ie. `and` or `or` statement) into a jump operand (by emitting an
 // `IS_TRUE_L` or `IS_FALSE_L`).
-static void expr_binary_left(Parser *parser, TokenType operator,
+static void expr_binary_left(Parser *parser, uint16_t slot, TokenType operator,
 		Operand *left) {
-	// Convert the operand to a jump if it's a local and we're dealing with
-	// a conditional operator
 	if ((operator == TOKEN_AND || operator == TOKEN_OR) &&
 			left->type == OP_LOCAL) {
+		// Convert the operand to a jump if it's a local and we're dealing with
+		// a conditional operator
 		operand_to_jump(parser, left);
+	} else if ((operator >= TOKEN_EQ && operator <= TOKEN_GE) &&
+			left->type == OP_JUMP) {
+		// Convert the operand to a local if it's a jump as we're dealing with
+		// a comparison
+		expr_reduce_local(parser, left, slot);
 	}
 }
 
@@ -1706,7 +1711,7 @@ static Operand expr_precedence(Parser *parser, uint16_t slot, Precedence prec) {
 
 		// Emit bytecode for the left operand (like converting it to a jump
 		// operand if part of a condition)
-		expr_binary_left(parser, operator.type, &left);
+		expr_binary_left(parser, slot, operator.type, &left);
 
 		// Parse the right operand to the operation
 		uint16_t right_slot = local_reserve(parser);
@@ -1736,16 +1741,6 @@ static Operand parse_expr(Parser *parser, uint16_t slot) {
 static void expr_emit(Parser *parser, uint16_t slot) {
 	Operand operand = parse_expr(parser, slot);
 	expr_discharge_local(parser, operand, slot);
-}
-
-
-// Parses an expression into a temporary slot on the top of the stack, returning
-// the temporary slot.
-static uint16_t expr_emit_temporary(Parser *parser) {
-	uint16_t slot = local_reserve(parser);
-	expr_emit(parser, slot);
-	local_free(parser);
-	return slot;
 }
 
 

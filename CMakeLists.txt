@@ -12,8 +12,8 @@ IF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 ENDIF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 
 # Debug and release flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wno-write-strings")
-set(CMAKE_CXX_FLAGS ${CMAKE_C_FLAGS})
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wno-write-strings")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
 set(CMAKE_CXX_FLAGS_DEBUG ${CMAKE_C_FLAGS_DEBUG})
@@ -50,7 +50,7 @@ macro(test name)
 	# Create the testing executable
 	add_executable(test_${name} test/test_${name}.cpp)
 
-	# Link against Hydrogen, Google Test, and Boost libraries
+	# Link against Hydrogen and Google Test
 	target_link_libraries(test_${name}
 		hydrogen hystdlib
 		gtest gtest_main
