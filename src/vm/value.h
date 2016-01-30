@@ -43,19 +43,19 @@
 #define QUIET_NAN ((uint64_t) 0x7ffc000000000000)
 
 // Primitive value tags.
-#define TRUE_TAG  1
-#define FALSE_TAG 2
-#define NIL_TAG   3
+#define TAG_TRUE  1
+#define TAG_FALSE 2
+#define TAG_NIL   3
 
 // Primitive values.
-#define NIL_VALUE   (QUIET_NAN | NIL_TAG)
-#define FALSE_VALUE (QUIET_NAN | FALSE_TAG)
-#define TRUE_VALUE  (QUIET_NAN | TRUE_TAG)
+#define VALUE_NIL   (QUIET_NAN | TAG_NIL)
+#define VALUE_FALSE (QUIET_NAN | TAG_FALSE)
+#define VALUE_TRUE  (QUIET_NAN | TAG_TRUE)
 
 // Mask used to indicate a value is a function. Index of function is stored in
 // first 16 bits, so set the first bit above this (the 17th).
-#define FN_TAG 0x10000
-#define NATIVE_TAG 0x20000
+#define TAG_FN 0x10000
+#define TAG_NATIVE 0x20000
 
 
 // The type of an object stored on the heap.
@@ -226,13 +226,13 @@ static inline bool val_is_struct(HyValue val) {
 
 // Returns true if a value is a function.
 static inline bool val_is_fn(HyValue val) {
-	return (val & (QUIET_NAN | SIGN | FN_TAG)) == (QUIET_NAN | FN_TAG);
+	return (val & (QUIET_NAN | SIGN | TAG_FN)) == (QUIET_NAN | TAG_FN);
 }
 
 
 // Returns true if a value is a native function.
 static inline bool val_is_native(HyValue val) {
-	return (val & (QUIET_NAN | SIGN | NATIVE_TAG)) == (QUIET_NAN | NATIVE_TAG);
+	return (val & (QUIET_NAN | SIGN | TAG_NATIVE)) == (QUIET_NAN | TAG_NATIVE);
 }
 
 
@@ -244,25 +244,25 @@ static inline HyValue prim_to_val(uint16_t tag) {
 
 // Create a function from an index.
 static inline HyValue fn_to_val(uint16_t index) {
-	return QUIET_NAN | FN_TAG | index;
+	return QUIET_NAN | TAG_FN | index;
 }
 
 
 // Returns the index of a function from its value.
 static inline uint16_t val_to_fn(HyValue val) {
-	return val & ~(QUIET_NAN | FN_TAG);
+	return val & ~(QUIET_NAN | TAG_FN);
 }
 
 
 // Create a native function value from an index.
 static inline HyValue native_to_val(uint16_t index) {
-	return QUIET_NAN | NATIVE_TAG | index;
+	return QUIET_NAN | TAG_NATIVE | index;
 }
 
 
 // Returns the index of a native function from its value.
 static inline uint16_t val_to_native(HyValue val) {
-	return val & ~(QUIET_NAN | NATIVE_TAG);
+	return val & ~(QUIET_NAN | TAG_NATIVE);
 }
 
 

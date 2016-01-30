@@ -46,9 +46,9 @@ TEST(Jump, Next) {
 		JMP, 3, 2, JMP_AND,
 		EQ_LL, 2, 5, 0,
 		JMP, 3, 2, JMP_AND,
-		MOV_LP, 4, FALSE_TAG, 0,
+		MOV_LP, 4, TAG_FALSE, 0,
 		JMP, 2, 0, JMP_NONE,
-		MOV_LP, 4, TRUE_TAG, 0,
+		MOV_LP, 4, TAG_TRUE, 0,
 		RET0, 0, 0, 0
 	);
 
@@ -73,9 +73,9 @@ TEST(Jump, Last) {
 		JMP, 3, 2, JMP_AND,
 		EQ_LL, 2, 5, 0,
 		JMP, 3, 2, JMP_AND,
-		MOV_LP, 4, FALSE_TAG, 0,
+		MOV_LP, 4, TAG_FALSE, 0,
 		JMP, 2, 0, JMP_NONE,
-		MOV_LP, 4, TRUE_TAG, 0,
+		MOV_LP, 4, TAG_TRUE, 0,
 		RET0, 0, 0, 0
 	);
 

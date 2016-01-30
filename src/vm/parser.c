@@ -498,7 +498,7 @@ static inline char * operand_to_string(Parser *parser, Operand *operand) {
 
 // Converts an operand into a boolean.
 static inline bool operand_to_bool(Operand *operand) {
-	return operand->type != OP_PRIMITIVE || operand->value == TRUE_TAG;
+	return operand->type != OP_PRIMITIVE || operand->value == TAG_TRUE;
 }
 
 
@@ -684,7 +684,7 @@ static bool fold_eq(Parser *parser, TokenType operator, Operand *left,
 	// If their values are equal (used for everything but numbers and strings)
 	if (left->value == right.value) {
 		left->type = OP_PRIMITIVE;
-		left->value = (operator == TOKEN_EQ) ? TRUE_TAG : FALSE_TAG;
+		left->value = (operator == TOKEN_EQ) ? TAG_TRUE : TAG_FALSE;
 		return true;
 	} else if (left->type == OP_LOCAL) {
 		// Don't fold locals that have different values
@@ -708,7 +708,7 @@ static bool fold_eq(Parser *parser, TokenType operator, Operand *left,
 
 	// Set the resulting operand
 	left->type = OP_PRIMITIVE;
-	left->value = result ? TRUE_TAG : FALSE_TAG;
+	left->value = result ? TAG_TRUE : TAG_FALSE;
 	return true;
 }
 
@@ -761,7 +761,7 @@ static bool fold_ord(Parser *parser, TokenType operator, Operand *left,
 
 	// Set the resulting operand
 	left->type = OP_PRIMITIVE;
-	left->value = result ? TRUE_TAG : FALSE_TAG;
+	left->value = result ? TAG_TRUE : TAG_FALSE;
 	return true;
 }
 
@@ -777,7 +777,7 @@ static void cond_non_locals(TokenType operator, Operand *left, Operand right) {
 		(left_bool && right_bool) :
 		(left_bool || right_bool);
 	left->type = OP_PRIMITIVE;
-	left->value = result ? TRUE_TAG : FALSE_TAG;
+	left->value = result ? TAG_TRUE : TAG_FALSE;
 }
 
 
@@ -796,14 +796,14 @@ static void cond_single_local(TokenType operator, Operand *result,
 		} else {
 			// <value> && false == false
 			result->type = OP_PRIMITIVE;
-			result->value = FALSE_TAG;
+			result->value = TAG_FALSE;
 		}
 	} else {
 		// `or` condition
 		if (constant_bool) {
 			// <value> || true == true
 			result->type = OP_PRIMITIVE;
-			result->value = TRUE_TAG;
+			result->value = TAG_TRUE;
 		} else {
 			// <value> || false == <value>
 			*result = *local;
@@ -915,9 +915,9 @@ static void expr_reduce(Parser *parser, Operand *operand, uint16_t slot,
 
 	// Emit true case, then jump over false case, then false case
 	Function *fn = parser_fn(parser);
-	fn_emit(fn, opcode, slot, TRUE_TAG, 0);
+	fn_emit(fn, opcode, slot, TAG_TRUE, 0);
 	fn_emit(fn, JMP, 2, 0, 0);
-	Index false_case = fn_emit(fn, opcode, slot, FALSE_TAG, 0);
+	Index false_case = fn_emit(fn, opcode, slot, TAG_FALSE, 0);
 
 	// Patch false case of jump operand to the emitted false case
 	jmp_false_case(fn, operand->jump, false_case);
@@ -1494,7 +1494,7 @@ static Operand operand_string(Parser *parser) {
 static Operand operand_primitive(Lexer *lexer) {
 	Operand operand = operand_new();
 	operand.type = OP_PRIMITIVE;
-	operand.value = lexer->token.type - TOKEN_TRUE + TRUE_TAG;
+	operand.value = lexer->token.type - TOKEN_TRUE + TAG_TRUE;
 	lexer_next(lexer);
 	return operand;
 }
@@ -1773,7 +1773,7 @@ static void parse_declaration_top_level(Parser *parser, char *name,
 		uint32_t length) {
 	// Allocate new top level local
 	Package *pkg = parser_pkg(parser);
-	Index top_level = pkg_local_add(pkg, name, length, NIL_VALUE);
+	Index top_level = pkg_local_add(pkg, name, length, VALUE_NIL);
 
 	// Parse expression into top level
 	uint16_t temp = local_reserve(parser);
@@ -1954,7 +1954,7 @@ static Operand parse_conditional_expr(Parser *parser) {
 
 // Returns true if a condition is constant and equivalent to false.
 static bool cond_is_const_false(Operand *condition) {
-	return condition->type == OP_PRIMITIVE && condition->value != TRUE_TAG;
+	return condition->type == OP_PRIMITIVE && condition->value != TAG_TRUE;
 }
 
 
@@ -2010,7 +2010,7 @@ static void parse_if(Parser *parser) {
 		if (is_else) {
 			// Treat else branches as constant true else if branches
 			condition.type = OP_PRIMITIVE;
-			condition.value = TRUE_TAG;
+			condition.value = TAG_TRUE;
 		} else {
 			condition = parse_conditional_expr(parser);
 		}

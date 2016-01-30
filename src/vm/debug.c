@@ -318,7 +318,7 @@ void debug_fn(HyState *state, Function *fn) {
 
 
 // Prints a selection of a struct definition's fields to the standard output.
-// Prints a field if (field_value == NIL_VALUE) == value_predicate.
+// Prints a field if (field_value == VALUE_NIL) == value_predicate.
 static void print_fields(StructDefinition *def, bool value_predicate) {
 	bool found_one = false;
 	for (uint32_t i = 0; i < vec_len(def->fields); i++) {
@@ -327,7 +327,7 @@ static void print_fields(StructDefinition *def, bool value_predicate) {
 		// Methods will have their value set to something other than nil, so to
 		// chose whether we print only methods or only fields, we use the value
 		// predicate
-		if ((vec_at(def->values, i) == NIL_VALUE) == value_predicate) {
+		if ((vec_at(def->values, i) == VALUE_NIL) == value_predicate) {
 			continue;
 		}
 		found_one = true;

@@ -25,9 +25,9 @@ TEST(Expression, Assign) {
 	INS(MOV_LI, 0, 3, 0);
 	INS(MOV_LI, 1, 4, 0);
 	INS(MOV_LS, 2, 0, 0);
-	INS(MOV_LP, 3, FALSE_TAG, 0);
-	INS(MOV_LP, 4, NIL_TAG, 0);
-	INS(MOV_LP, 5, TRUE_TAG, 0);
+	INS(MOV_LP, 3, TAG_FALSE, 0);
+	INS(MOV_LP, 4, TAG_NIL, 0);
+	INS(MOV_LP, 5, TAG_TRUE, 0);
 	INS(MOV_LN, 6, 0, 0);
 	INS(MOV_LN, 7, 1, 0);
 	INS(MOV_LL, 8, 0, 0);
@@ -83,9 +83,9 @@ TEST(Expression, TopLevelAssign) {
 	INS(MOV_TI, 0, 3, 0);
 	INS(MOV_TI, 1, 4, 0);
 	INS(MOV_TS, 2, 0, 0);
-	INS(MOV_TP, 3, FALSE_TAG, 0);
-	INS(MOV_TP, 4, NIL_TAG, 0);
-	INS(MOV_TP, 5, TRUE_TAG, 0);
+	INS(MOV_TP, 3, TAG_FALSE, 0);
+	INS(MOV_TP, 4, TAG_NIL, 0);
+	INS(MOV_TP, 5, TAG_TRUE, 0);
 	INS(MOV_TN, 6, 0, 0);
 	INS(MOV_TN, 7, 1, 0);
 	INS(MOV_LT, 0, 0, 0);
@@ -279,51 +279,51 @@ TEST(Expression, Conditional) {
 	// a == b
 	INS(NEQ_LL, 0, 1, 0);
 	JMP(3);
-	INS(MOV_LP, 2, TRUE_TAG, 0);
+	INS(MOV_LP, 2, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 2, FALSE_TAG, 0);
+	INS(MOV_LP, 2, TAG_FALSE, 0);
 
 	// a < b
 	INS(GE_LL, 0, 1, 0);
 	JMP(3);
-	INS(MOV_LP, 3, TRUE_TAG, 0);
+	INS(MOV_LP, 3, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 3, FALSE_TAG, 0);
+	INS(MOV_LP, 3, TAG_FALSE, 0);
 
 	// b >= c
 	INS(LT_LL, 1, 2, 0);
 	JMP(3);
-	INS(MOV_LP, 4, TRUE_TAG, 0);
+	INS(MOV_LP, 4, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 4, FALSE_TAG, 0);
+	INS(MOV_LP, 4, TAG_FALSE, 0);
 
 	// a != c
 	INS(EQ_LL, 0, 2, 0);
 	JMP(3);
-	INS(MOV_LP, 5, TRUE_TAG, 0);
+	INS(MOV_LP, 5, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 5, FALSE_TAG, 0);
+	INS(MOV_LP, 5, TAG_FALSE, 0);
 
 	// a == 3
 	INS(NEQ_LI, 0, 3, 0);
 	JMP(3);
-	INS(MOV_LP, 6, TRUE_TAG, 0);
+	INS(MOV_LP, 6, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 6, FALSE_TAG, 0);
+	INS(MOV_LP, 6, TAG_FALSE, 0);
 
 	// 3 == a
 	INS(NEQ_LI, 0, 3, 0);
 	JMP(3);
-	INS(MOV_LP, 7, TRUE_TAG, 0);
+	INS(MOV_LP, 7, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 7, FALSE_TAG, 0);
+	INS(MOV_LP, 7, TAG_FALSE, 0);
 
 	// 3 > a
 	INS(GT_LI, 0, 3, 0);
 	JMP(3);
-	INS(MOV_LP, 8, TRUE_TAG, 0);
+	INS(MOV_LP, 8, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 8, FALSE_TAG, 0);
+	INS(MOV_LP, 8, TAG_FALSE, 0);
 
 	INS(RET0, 0, 0, 0);
 	FREE();
@@ -349,9 +349,9 @@ TEST(Expression, And) {
 	JMP(5);
 	INS(NEQ_LI, 1, 4, 0);
 	JMP(3);
-	INS(MOV_LP, 2, TRUE_TAG, 0);
+	INS(MOV_LP, 2, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 2, FALSE_TAG, 0);
+	INS(MOV_LP, 2, TAG_FALSE, 0);
 
 	// a == 3 && b == 4 && c == 5
 	INS(NEQ_LI, 0, 3, 0);
@@ -360,9 +360,9 @@ TEST(Expression, And) {
 	JMP(5);
 	INS(NEQ_LI, 2, 5, 0);
 	JMP(3);
-	INS(MOV_LP, 3, TRUE_TAG, 0);
+	INS(MOV_LP, 3, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 3, FALSE_TAG, 0);
+	INS(MOV_LP, 3, TAG_FALSE, 0);
 
 	INS(RET0, 0, 0, 0);
 	FREE();
@@ -388,9 +388,9 @@ TEST(Expression, Or) {
 	JMP(3);
 	INS(NEQ_LI, 1, 4, 0);
 	JMP(3);
-	INS(MOV_LP, 2, TRUE_TAG, 0);
+	INS(MOV_LP, 2, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 2, FALSE_TAG, 0);
+	INS(MOV_LP, 2, TAG_FALSE, 0);
 
 	// a == 3 || b == 4 || c == 5
 	INS(EQ_LI, 0, 3, 0);
@@ -399,9 +399,9 @@ TEST(Expression, Or) {
 	JMP(3);
 	INS(NEQ_LI, 2, 5, 0);
 	JMP(3);
-	INS(MOV_LP, 3, TRUE_TAG, 0);
+	INS(MOV_LP, 3, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 3, FALSE_TAG, 0);
+	INS(MOV_LP, 3, TAG_FALSE, 0);
 
 	INS(RET0, 0, 0, 0);
 	FREE();
@@ -434,9 +434,9 @@ TEST(Expression, AndOrSingleJumpList) {
 	JMP(3);
 	INS(NEQ_LI, 2, 5, 0);
 	JMP(3);
-	INS(MOV_LP, 3, TRUE_TAG, 0);
+	INS(MOV_LP, 3, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 3, FALSE_TAG, 0);
+	INS(MOV_LP, 3, TAG_FALSE, 0);
 
 	// a == 3 || b == 4 && c == 5
 	INS(EQ_LI, 0, 3, 0);
@@ -445,9 +445,9 @@ TEST(Expression, AndOrSingleJumpList) {
 	JMP(5);
 	INS(NEQ_LI, 2, 5, 0);
 	JMP(3);
-	INS(MOV_LP, 4, TRUE_TAG, 0);
+	INS(MOV_LP, 4, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 4, FALSE_TAG, 0);
+	INS(MOV_LP, 4, TAG_FALSE, 0);
 
 	// a == 3 && (b == 4 || c == 5)
 	INS(NEQ_LI, 0, 3, 0);
@@ -456,9 +456,9 @@ TEST(Expression, AndOrSingleJumpList) {
 	JMP(3);
 	INS(NEQ_LI, 2, 5, 0);
 	JMP(3);
-	INS(MOV_LP, 5, TRUE_TAG, 0);
+	INS(MOV_LP, 5, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 5, FALSE_TAG, 0);
+	INS(MOV_LP, 5, TAG_FALSE, 0);
 
 	// (a == 3 || b == 4) && c == 5
 	INS(EQ_LI, 0, 3, 0);
@@ -467,9 +467,9 @@ TEST(Expression, AndOrSingleJumpList) {
 	JMP(5);
 	INS(NEQ_LI, 2, 5, 0);
 	JMP(3);
-	INS(MOV_LP, 6, TRUE_TAG, 0);
+	INS(MOV_LP, 6, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 6, FALSE_TAG, 0);
+	INS(MOV_LP, 6, TAG_FALSE, 0);
 
 	INS(RET0, 0, 0, 0);
 	FREE();
@@ -505,9 +505,9 @@ TEST(Expression, AndOrOrJumpList) {
 	JMP(5);
 	INS(NEQ_LI, 3, 6, 0);
 	JMP(3);
-	INS(MOV_LP, 4, TRUE_TAG, 0);
+	INS(MOV_LP, 4, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 4, FALSE_TAG, 0);
+	INS(MOV_LP, 4, TAG_FALSE, 0);
 
 	// (a == 3 || b == 4) || (c == 5 && d == 6)
 	INS(EQ_LI, 0, 3, 0);
@@ -518,9 +518,9 @@ TEST(Expression, AndOrOrJumpList) {
 	JMP(5);
 	INS(NEQ_LI, 3, 6, 0);
 	JMP(3);
-	INS(MOV_LP, 5, TRUE_TAG, 0);
+	INS(MOV_LP, 5, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 5, FALSE_TAG, 0);
+	INS(MOV_LP, 5, TAG_FALSE, 0);
 
 	// (a == 3 && b == 4) || (c == 5 || d == 6)
 	INS(NEQ_LI, 0, 3, 0);
@@ -531,9 +531,9 @@ TEST(Expression, AndOrOrJumpList) {
 	JMP(3);
 	INS(NEQ_LI, 3, 6, 0);
 	JMP(3);
-	INS(MOV_LP, 6, TRUE_TAG, 0);
+	INS(MOV_LP, 6, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 6, FALSE_TAG, 0);
+	INS(MOV_LP, 6, TAG_FALSE, 0);
 
 	// (a == 3 || b == 4) || (c == 5 || d == 6)
 	INS(EQ_LI, 0, 3, 0);
@@ -544,9 +544,9 @@ TEST(Expression, AndOrOrJumpList) {
 	JMP(3);
 	INS(NEQ_LI, 3, 6, 0);
 	JMP(3);
-	INS(MOV_LP, 7, TRUE_TAG, 0);
+	INS(MOV_LP, 7, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 7, FALSE_TAG, 0);
+	INS(MOV_LP, 7, TAG_FALSE, 0);
 
 	INS(RET0, 0, 0, 0);
 	FREE();
@@ -582,9 +582,9 @@ TEST(Expression, AndOrAndJumpList) {
 	JMP(5);
 	INS(NEQ_LI, 3, 6, 0);
 	JMP(3);
-	INS(MOV_LP, 4, TRUE_TAG, 0);
+	INS(MOV_LP, 4, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 4, FALSE_TAG, 0);
+	INS(MOV_LP, 4, TAG_FALSE, 0);
 
 	// (a == 3 || b == 4) && (c == 5 && d == 6)
 	INS(EQ_LI, 0, 3, 0);
@@ -595,9 +595,9 @@ TEST(Expression, AndOrAndJumpList) {
 	JMP(5);
 	INS(NEQ_LI, 3, 6, 0);
 	JMP(3);
-	INS(MOV_LP, 5, TRUE_TAG, 0);
+	INS(MOV_LP, 5, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 5, FALSE_TAG, 0);
+	INS(MOV_LP, 5, TAG_FALSE, 0);
 
 	// (a == 3 && b == 4) && (c == 5 || d == 6)
 	INS(NEQ_LI, 0, 3, 0);
@@ -608,9 +608,9 @@ TEST(Expression, AndOrAndJumpList) {
 	JMP(3);
 	INS(NEQ_LI, 3, 6, 0);
 	JMP(3);
-	INS(MOV_LP, 6, TRUE_TAG, 0);
+	INS(MOV_LP, 6, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 6, FALSE_TAG, 0);
+	INS(MOV_LP, 6, TAG_FALSE, 0);
 
 	// (a == 3 || b == 4) && (c == 5 || d == 6)
 	INS(EQ_LI, 0, 3, 0);
@@ -621,9 +621,9 @@ TEST(Expression, AndOrAndJumpList) {
 	JMP(3);
 	INS(NEQ_LI, 3, 6, 0);
 	JMP(3);
-	INS(MOV_LP, 7, TRUE_TAG, 0);
+	INS(MOV_LP, 7, TAG_TRUE, 0);
 	JMP(2);
-	INS(MOV_LP, 7, FALSE_TAG, 0);
+	INS(MOV_LP, 7, TAG_FALSE, 0);
 
 	INS(RET0, 0, 0, 0);
 	FREE();
