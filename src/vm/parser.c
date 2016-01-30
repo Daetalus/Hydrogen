@@ -2062,6 +2062,20 @@ static void parse_if(Parser *parser) {
 //  While Loop
 //
 
+// Pushes a loop onto the parser's current function's linked list.
+static void loop_push(Parser *parser, Loop *loop) {
+	loop->head = NOT_FOUND;
+	loop->parent = parser->scope->loop;
+	parser->scope->loop = loop;
+}
+
+
+// Pops the top loop from the parser's current function's linked list.
+static void loop_pop(Parser *parser) {
+	parser->scope->loop = parser->scope->loop->parent;
+}
+
+
 // Parse a while loop.
 static void parse_while(Parser *parser) {
 	Lexer *lexer = &parser->lexer;
@@ -2071,20 +2085,18 @@ static void parse_while(Parser *parser) {
 	lexer_next(lexer);
 
 	// Save the instruction length in case we need to fold the while loop
-	uint32_t start = vec_len(fn->instructions);
+	Index start = vec_len(fn->instructions);
 
 	// Add a loop to the function's linked list
 	Loop loop;
-	loop.head = NOT_FOUND;
-	loop.parent = parser->scope->loop;
-	parser->scope->loop = &loop;
+	loop_push(parser, &loop);
 
 	// Parse expression and body
 	Operand condition = parse_conditional_expr(parser);
 	parse_braced_block(parser);
 
 	// Remove the loop from the linked list
-	parser->scope->loop = loop.parent;
+	loop_pop(parser);
 
 	// Fold if condition is constant false
 	if (cond_is_const_false(&condition)) {
@@ -2102,6 +2114,39 @@ static void parse_while(Parser *parser) {
 	}
 
 	// Patch break statement jumps here
+	jmp_target_all(fn, loop.head, vec_len(fn->instructions));
+}
+
+
+
+//
+//  Infinite Loops
+//
+
+// Parses an infinite loop.
+static void parse_loop(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+	Function *fn = parser_fn(parser);
+
+	// Skip the `loop` token
+	lexer_next(lexer);
+
+	// Add loop to start of linked list
+	Loop loop;
+	loop_push(parser, &loop);
+
+	// Parse contents
+	Index start = vec_len(fn->instructions);
+	parse_braced_block(parser);
+
+	// Insert loop instruction
+	uint16_t offset = vec_len(fn->instructions) - start;
+	fn_emit(fn, LOOP, offset, 0, 0);
+
+	// Remove loop from linked list
+	loop_pop(parser);
+
+	// Patch break statements
 	jmp_target_all(fn, loop.head, vec_len(fn->instructions));
 }
 
@@ -2156,6 +2201,11 @@ static void parse_statement(Parser *parser) {
 		// While loops
 	case TOKEN_WHILE:
 		parse_while(parser);
+		break;
+
+		// Infinite loops
+	case TOKEN_LOOP:
+		parse_loop(parser);
 		break;
 
 		// Break statement
