@@ -46,9 +46,9 @@ include_directories(
 )
 
 # Macro for adding a test program
-macro(test name)
+macro(parser_test name)
 	# Create the testing executable
-	add_executable(test_${name} test/test_${name}.cpp)
+	add_executable(test_${name} test/parser/test_${name}.cpp)
 
 	# Link against Hydrogen and Google Test
 	target_link_libraries(test_${name}
@@ -60,16 +60,16 @@ macro(test name)
 	add_test(test_${name} test_${name})
 endmacro()
 
-# Add tests
-test(lexer)
-test(ins)
-test(jmp)
-test(expr)
-test(if)
-test(loop)
-test(while)
-# test(fn)
-# test(upvalue)
-# test(struct)
-# test(import_path)
-# test(runtime)
+# Add parser tests
+parser_test(lexer)
+parser_test(ins)
+parser_test(jmp)
+parser_test(expr)
+parser_test(if)
+parser_test(loop)
+parser_test(while)
+# parser_test(fn)
+# parser_test(upvalue)
+# parser_test(struct)
+# parser_test(import_path)
+# parser_test(runtime)

@@ -6,11 +6,11 @@
 #ifndef VALUE_H
 #define VALUE_H
 
+#include <string.h>
 #include <stdbool.h>
 #include <hydrogen.h>
 
 #include "vec.h"
-#include "struct.h"
 
 
 // * Values during runtime are stored as NaN tagged 64 bit unsigned integers
@@ -109,6 +109,34 @@ static inline uint32_t string_size(String *str) {
 }
 
 
+// Allocates a new string as a copy of another.
+static inline String * string_copy(String *original) {
+	// Allocate memory for the new string
+	uint32_t size = string_size(original);
+	String *copy = (String *) malloc(size);
+
+	// Copy the old string into the new one
+	memcpy(copy, original, size);
+	return copy;
+}
+
+
+// Allocates a new string and populates it with the concatenation of `left` and
+// `right`.
+static inline String * string_concat(String *left, String *right) {
+	// Allocate memory for new string
+	uint32_t length = left->length + right->length;
+	String *concat = (String *) calloc(sizeof(String) + length + 1, 1);
+	concat->type = OBJ_STRING;
+	concat->length = length;
+	strncpy(concat->contents, left->contents, left->length);
+	strncpy(&concat->contents[left->length], right->contents, right->length);
+
+	// No need to insert NULL terminator since we used calloc
+	return concat;
+}
+
+
 // Similar to strings, struct fields are stored using the "C struct hack".
 typedef struct {
 	// The object header.
@@ -195,6 +223,12 @@ static inline uint16_t signed_to_unsigned(int16_t val) {
 }
 
 
+// Converts an integer into a value.
+static inline HyValue int_to_val(uint16_t integer) {
+	return num_to_val((double) unsigned_to_signed(integer));
+}
+
+
 
 //
 //  Value Manipulation
@@ -263,25 +297,6 @@ static inline HyValue native_to_val(uint16_t index) {
 // Returns the index of a native function from its value.
 static inline uint16_t val_to_native(HyValue val) {
 	return val & ~(QUIET_NAN | TAG_NATIVE);
-}
-
-
-// Convert a string value into a NULL terminated string.
-static inline char * val_to_str(HyValue val) {
-	return &((String *) val_to_ptr(val))->contents[0];
-}
-
-
-// Convert a struct value into a pointer to its fields.
-static inline HyValue * val_to_fields(HyValue val) {
-	return &((Struct *) val_to_ptr(val))->fields[0];
-}
-
-
-// Returns the number of fields on a struct instance.
-static inline uint32_t val_field_count(StructDefinition *defs, HyValue val) {
-	Index index = ((Struct *) val_to_ptr(val))->definition;
-	return vec_len(defs[index].fields);
 }
 
 #endif

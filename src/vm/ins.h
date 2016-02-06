@@ -29,8 +29,7 @@ static inline Instruction ins_new(BytecodeOpcode opcode, uint16_t arg1,
 // opcode.
 static inline uint16_t ins_arg(Instruction instruction, uint32_t n) {
 	uint32_t offset = n * 16;
-	uint64_t selection = ((uint64_t) 0xffff) << offset;
-	return (uint16_t) ((instruction & selection) >> offset);
+	return (uint16_t) ((instruction & ((uint64_t) 0xffff) << offset) >> offset);
 }
 
 

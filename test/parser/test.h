@@ -64,7 +64,3 @@ extern "C" {
 	ASSERT_EQ(ins_arg(ins, 0), JMP);                     \
 	ASSERT_EQ(ins_arg(ins, 1), offset);                  \
 }
-
-
-// Converts a negative value into an unsigned one in a bitwise fashion.
-#define TO_UNSIGNED(value) signed_to_unsigned(value)

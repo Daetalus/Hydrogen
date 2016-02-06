@@ -240,8 +240,8 @@ TEST(Expression, Negation) {
 		"}\n"
 	);
 
-	INS(MOV_LI, 0, TO_UNSIGNED(-3), 0);
-	INS(MOV_LI, 1, TO_UNSIGNED(-9), 0);
+	INS(MOV_LI, 0, signed_to_unsigned(-3), 0);
+	INS(MOV_LI, 1, signed_to_unsigned(-9), 0);
 	INS(NEG_L, 2, 0, 0);
 
 	INS(NEG_L, 3, 0, 0);
