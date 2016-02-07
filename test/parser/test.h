@@ -18,8 +18,8 @@ extern "C" {
 
 
 // Selects the function whose bytecode we are asserting.
-#define FN(index)                            \
-	fn = &vec_at(state->functions, (index)); \
+#define FN(fn_index)                            \
+	fn = &vec_at(state->functions, (fn_index)); \
 	index = 0;
 
 

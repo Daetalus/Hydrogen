@@ -18,13 +18,19 @@
 
 
 // Returns a pointer to the current function we're emitting bytecode values to.
-static inline Function * parser_fn(Parser *parser) {
+static Function * parser_fn(Parser *parser) {
 	return &vec_at(parser->state->functions, parser->scope->fn_index);
 }
 
 
+// Returns true if the parser is currently parsing the top level of a file.
+static bool parser_is_top_level(Parser *parser) {
+	return parser->scope->parent == NULL && parser->scope->block_depth == 1;
+}
+
+
 // Returns a pointer to the package we're parsing.
-static inline Package * parser_pkg(Parser *parser) {
+static Package * parser_pkg(Parser *parser) {
 	return &vec_at(parser->state->packages, parser->package);
 }
 
@@ -358,6 +364,7 @@ typedef struct {
 
 
 // Forward declaration.
+static Index parse_fn_definition_body(Parser *parser);
 static Operand parse_expr(Parser *parser, uint16_t slot);
 static void expr_emit(Parser *parser, uint16_t slot);
 
@@ -1617,10 +1624,9 @@ static Operand operand_subexpr(Parser *parser, uint16_t slot) {
 
 // Parse an anonymous function definition inside an expression.
 static Operand operand_anonymous_fn(Parser *parser) {
-	// TODO: anonymous functions in expressions
 	Operand operand = operand_new();
 	operand.type = OP_FUNCTION;
-	operand.value = 0;
+	operand.value = parse_fn_definition_body(parser);
 	return operand;
 }
 
@@ -1806,7 +1812,7 @@ static void parse_declaration(Parser *parser) {
 
 	// Parse expression into top level local if this is the uppermost function
 	// scope
-	if (parser->scope->parent == NULL && parser->scope->block_depth == 1) {
+	if (parser_is_top_level(parser)) {
 		parse_declaration_top_level(parser, name.start, name.length);
 	} else {
 		parse_declaration_local(parser, name.start, name.length);
@@ -1917,16 +1923,14 @@ static void parse_braced_block(Parser *parser) {
 
 	// Opening brace
 	Token open = lexer->token;
-	err_expect(parser, TOKEN_OPEN_BRACE, &lexer->token,
-		"Expected `{`");
+	err_expect(parser, TOKEN_OPEN_BRACE, &lexer->token, "Expected `{`");
 	lexer_next(lexer);
 
 	// Block
 	parse_block(parser, TOKEN_CLOSE_BRACE);
 
 	// Closing brace
-	err_expect(parser, TOKEN_CLOSE_BRACE, &open,
-		"Expected `}` to close `{`");
+	err_expect(parser, TOKEN_CLOSE_BRACE, &open, "Expected `}` to close `{`");
 	lexer_next(lexer);
 }
 
@@ -2019,8 +2023,8 @@ static void parse_if(Parser *parser) {
 			vec_len(fn->instructions) = saved_length;
 		} else {
 			if (previous_condition.type == OP_JUMP) {
-				// Keep the previous branch's jump and patch its false case to after
-				// this jump
+				// Keep the previous branch's jump and patch its false case to
+				// after this jump
 				jmp_prepend(fn, &list, final_jump);
 				jmp_false_case(fn, previous_condition.jump, final_jump + 1);
 			}
@@ -2175,6 +2179,124 @@ static void parse_break(Parser *parser) {
 
 
 //
+//  Function Definition
+//
+
+// Parses a list of comma separated identifiers as arguments to a function
+// definition, surrounded by parentheses.
+static void parse_fn_definition_args(Parser *parser, Function *child) {
+	Lexer *lexer = &parser->lexer;
+
+	// Expect an opening parenthesis
+	err_expect(parser, TOKEN_OPEN_PARENTHESIS, &lexer->token,
+		"Expected `(` after function name in declaration");
+	lexer_next(lexer);
+
+	// Parse arguments (comma separated list of identifiers)
+	while (lexer->token.type != TOKEN_CLOSE_PARENTHESIS) {
+		// Expect an identifier
+		err_expect(parser, TOKEN_IDENTIFIER, &lexer->token,
+			"Expected identifier in function declaration arguments");
+
+		// Add the argument as a local
+		uint16_t index = local_new(parser);
+		Local *local = &vec_at(parser->locals, index);
+		local->name = lexer->token.start;
+		local->length = lexer->token.length;
+		child->arity++;
+		lexer_next(lexer);
+
+		// Expect a comma or the closing parenthesis
+		if (lexer->token.type == TOKEN_COMMA) {
+			lexer_next(lexer);
+		} else if (lexer->token.type != TOKEN_CLOSE_PARENTHESIS) {
+			break;
+		}
+	}
+
+	// Expect a closing parenthesis
+	err_expect(parser, TOKEN_CLOSE_PARENTHESIS, &lexer->token,
+		"Expected `)` after function declaration arguments");
+	lexer_next(lexer);
+}
+
+
+// Parses the arguments and body to a function definition with the name `name`.
+// Returns the index of the created function.
+static Index parse_fn_definition_body(Parser *parser) {
+	// Create a new function scope
+	FunctionScope scope = scope_new(parser);
+	Function *child = &vec_at(parser->state->functions, scope.fn_index);
+	scope_push(parser, &scope);
+
+	// Parse arguments to definition
+	parse_fn_definition_args(parser, child);
+
+	// Parse the function's contents
+	parse_braced_block(parser);
+
+	// Emit a final return instruction
+	fn_emit(parser_fn(parser), RET0, 0, 0, 0);
+
+	// Get rid of the arguments allocated as locals
+	parser->locals_count = scope.first_local;
+	vec_len(parser->locals) = scope.first_local;
+
+	// Get rid of the function from the parser's stack
+	scope_pop(parser);
+	return scope.fn_index;
+}
+
+
+// Emits an instruction to store a function at an index into a local variable
+// with the name `name`.
+static void fn_store(Parser *parser, char *name, uint32_t length, Index fn) {
+	// Save as a top level local if necessary
+	if (parser_is_top_level(parser)) {
+		// Allocate new top level local
+		Package *pkg = parser_pkg(parser);
+		Index top_level = pkg_local_add(pkg, name, length, VALUE_NIL);
+
+		// Emit a store instruction
+		fn_emit(parser_fn(parser), MOV_TF, top_level, fn, parser->package);
+	} else {
+		// Allocate a new local
+		uint16_t slot = local_new(parser);
+		Local *local = &vec_at(parser->locals, slot);
+		local->name = name;
+		local->length = length;
+
+		// Emit a store instruction
+		fn_emit(parser_fn(parser), MOV_LF, slot, fn, 0);
+	}
+}
+
+
+// Parses a function definition.
+static void parse_fn_definition(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+
+	// Skip the `fn` token
+	Token fn_token = lexer->token;
+	lexer_next(lexer);
+
+	// Expect the name of the function
+	err_expect(parser, TOKEN_IDENTIFIER, &fn_token,
+		"Expected identifier after `fn`");
+	char *name = lexer->token.start;
+	uint32_t length = lexer->token.length;
+	lexer_next(lexer);
+
+	// Parse the rest of the function
+	Index fn = parse_fn_definition_body(parser);
+
+	// Emit an instruction to store the function as a local
+	fn_store(parser, name, length, fn);
+}
+
+
+
+//
 //  Blocks and Statements
 //
 
@@ -2206,6 +2328,11 @@ static void parse_statement(Parser *parser) {
 		// Break statement
 	case TOKEN_BREAK:
 		parse_break(parser);
+		break;
+
+		// Function definition
+	case TOKEN_FN:
+		parse_fn_definition(parser);
 		break;
 
 		// Unconditional block

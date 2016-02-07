@@ -194,7 +194,13 @@ typedef enum {
 	//
 	// Arguments:
 	// * `value`: the slot of the return value
-	RET,
+	RET_L,
+	RET_I,
+	RET_N,
+	RET_S,
+	RET_P,
+	RET_F,
+	RET_V,
 
 
 	//
