@@ -193,7 +193,9 @@ typedef enum {
 	// Returns a value from a function.
 	//
 	// Arguments:
-	// * `value`: the slot of the return value
+	// * First arg: not in use (used as padding to maintain consistency with
+	//   other instructions where the value is the second argument)
+	// * `value`: the value to return
 	RET_L,
 	RET_I,
 	RET_N,

@@ -938,8 +938,8 @@ static void expr_reduce_local(Parser *parser, Operand *operand, uint16_t slot) {
 
 // Emits bytecode to move an operand of any type into a local, upvalue, top
 // level local, or struct field.
-static void expr_discharge(Parser *parser, Operand operand, uint16_t slot,
-		BytecodeOpcode base, uint16_t arg3) {
+static void expr_discharge(Parser *parser, BytecodeOpcode base, uint16_t slot,
+		Operand operand, uint16_t arg3) {
 	if (operand.type == OP_LOCAL) {
 		// Only emit a move local instruction if this isn't a temporary
 		// local
@@ -956,44 +956,6 @@ static void expr_discharge(Parser *parser, Operand operand, uint16_t slot,
 		BytecodeOpcode opcode = base + operand.type;
 		fn_emit(parser_fn(parser), opcode, slot, operand.value, arg3);
 	}
-}
-
-
-// Emits bytecode to discharge an operand into a local.
-static void expr_discharge_local(Parser *parser, Operand operand,
-		uint16_t slot) {
-	expr_discharge(parser, operand, slot, MOV_LL, 0);
-}
-
-
-// Emits bytecode to discharge an operand into an upvalue.
-static void expr_discharge_upvalue(Parser *parser, Operand operand,
-		uint16_t upvalue) {
-	expr_discharge(parser, operand, upvalue, MOV_UL, 0);
-}
-
-
-// Emits bytecode to discharge an operand into a top level local in an external
-// package.
-static void expr_discharge_top_level_external(Parser *parser, Operand operand,
-		Index package, uint16_t top_level) {
-	expr_discharge(parser, operand, top_level, MOV_TL, package);
-}
-
-
-// Emits bytecode to discharge an operand into a top level local in the package
-// currently being parsed.
-static void expr_discharge_top_level(Parser *parser, Operand operand,
-		uint16_t top_level) {
-	expr_discharge_top_level_external(parser, operand, parser->package,
-		top_level);
-}
-
-
-// Emits bytecode to discharge an operand into a struct field.
-static void expr_discharge_field(Parser *parser, Operand operand,
-		uint16_t struct_slot, uint16_t field) {
-	expr_discharge(parser, operand, field, STRUCT_SET_L, struct_slot);
 }
 
 
@@ -1386,8 +1348,7 @@ static uint16_t parse_call_args(Parser *parser) {
 
 // Emit bytecode for a function call as a postfix operator. Stores the return
 // value of the function call into `slot`.
-static void postfix_function_call(Parser *parser, uint16_t slot,
-		Operand *operand) {
+static void postfix_call(Parser *parser, uint16_t slot, Operand *operand) {
 	Lexer *lexer = &parser->lexer;
 
 	// Save the number of locals on the top of the stack before we parse the
@@ -1398,20 +1359,16 @@ static void postfix_function_call(Parser *parser, uint16_t slot,
 
 	// Operand must be a local, function, or native function
 	uint16_t base;
-	if (operand->type == OP_FUNCTION || operand->type == OP_NATIVE) {
+	if (operand->type == OP_LOCAL &&
+			operand->value == parser->locals_count - 1) {
+		// If the local is on the top of the stack, don't bother allocating a
+		// new local for it
+		base = operand->value;
+	} else if (operand->type == OP_FUNCTION || operand->type == OP_NATIVE ||
+			operand->type == OP_LOCAL) {
 		// Move the function into a local on the top of the stack
 		base = local_reserve(parser);
-		expr_discharge_local(parser, *operand, base);
-	} else if (operand->type == OP_LOCAL) {
-		// Check that the local is on top of the stack
-		if (operand->value < parser->locals_count - 1) {
-			// Not on top of the stack, so move it to a temporary local there
-			base = local_reserve(parser);
-			fn_emit(parser_fn(parser), MOV_LL, base, operand->value, 0);
-		} else {
-			// On top of the stack
-			base = operand->value;
-		}
+		expr_discharge(parser, MOV_LL, base, *operand, 0);
 	} else {
 		// Not calling a function
 		err_fatal(parser, &lexer->token, "Attempt to call non-function");
@@ -1453,7 +1410,7 @@ static bool postfix_accesses(Parser *parser, uint16_t slot, Operand *operand) {
 static bool expr_postfix(Parser *parser, uint16_t slot, Operand *operand) {
 	switch (parser->lexer.token.type) {
 	case TOKEN_OPEN_PARENTHESIS:
-		postfix_function_call(parser, slot, operand);
+		postfix_call(parser, slot, operand);
 		return true;
 	default:
 		return postfix_accesses(parser, slot, operand);
@@ -1624,6 +1581,10 @@ static Operand operand_subexpr(Parser *parser, uint16_t slot) {
 
 // Parse an anonymous function definition inside an expression.
 static Operand operand_anonymous_fn(Parser *parser) {
+	// Skip the `fn` token
+	lexer_next(&parser->lexer);
+
+	// Parse the function into a new operand
 	Operand operand = operand_new();
 	operand.type = OP_FUNCTION;
 	operand.value = parse_fn_definition_body(parser);
@@ -1746,7 +1707,17 @@ static Operand parse_expr(Parser *parser, uint16_t slot) {
 // Parses an expression into the slot `slot`.
 static void expr_emit(Parser *parser, uint16_t slot) {
 	Operand operand = parse_expr(parser, slot);
-	expr_discharge_local(parser, operand, slot);
+	expr_discharge(parser, MOV_LL, slot, operand, 0);
+}
+
+
+// Returns true if `token` can begin an expression.
+bool expr_exists(TokenType token) {
+	return token == TOKEN_IDENTIFIER || token == TOKEN_STRING ||
+		token == TOKEN_INTEGER || token == TOKEN_NUMBER ||
+		token == TOKEN_TRUE || token == TOKEN_FALSE || token == TOKEN_NIL ||
+		token == TOKEN_FN || token == TOKEN_SUB || token == TOKEN_NOT ||
+		token == TOKEN_BIT_NOT;
 }
 
 
@@ -1779,7 +1750,7 @@ static void parse_declaration_top_level(Parser *parser, char *name,
 	// Parse expression into top level
 	uint16_t temp = local_reserve(parser);
 	Operand result = parse_expr(parser, temp);
-	expr_discharge_top_level(parser, result, top_level);
+	expr_discharge(parser, MOV_TL, top_level, result, parser->package);
 	local_free(parser);
 }
 
@@ -1823,7 +1794,7 @@ static void parse_declaration(Parser *parser) {
 // Parses the remainder of an assignment after and including the `=`. `operand`
 // is the operand containing information about the first identifier in the list
 // to the left of the `=`.
-static void parse_assignment(Parser *parser, Operand operand) {
+static void parse_assignment(Parser *parser, Operand operand, uint16_t slot) {
 	Lexer *lexer = &parser->lexer;
 
 	// Skip the assignment token
@@ -1843,20 +1814,20 @@ static void parse_assignment(Parser *parser, Operand operand) {
 		uint16_t expr_slot = local_reserve(parser);
 		Operand result = parse_expr(parser, expr_slot);
 
-		if (opcode == MOV_LT) {
+		if (opcode == MOV_LT && ins_arg(retrieval, 1) == slot) {
 			// Top level
 			uint16_t top_level = ins_arg(retrieval, 2);
 			uint16_t package = ins_arg(retrieval, 3);
-			expr_discharge_top_level_external(parser, result, package, top_level);
-		} else if (opcode == MOV_LU) {
+			expr_discharge(parser, MOV_TL, top_level, result, package);
+		} else if (opcode == MOV_LU && ins_arg(retrieval, 1) == slot) {
 			// Upvalue
 			uint16_t upvalue = ins_arg(retrieval, 2);
-			expr_discharge_upvalue(parser, result, upvalue);
+			expr_discharge(parser, MOV_UL, upvalue, result, 0);
 		} else if (opcode == STRUCT_FIELD) {
 			// Struct field
 			uint16_t struct_slot = ins_arg(retrieval, 2);
 			uint16_t field = ins_arg(retrieval, 3);
-			expr_discharge_field(parser, result, struct_slot, field);
+			expr_discharge(parser, STRUCT_SET_L, field, result, struct_slot);
 		}
 
 		// Free the temporary local we parsed the expression into
@@ -1896,7 +1867,7 @@ static void parse_assignment_or_call(Parser *parser) {
 	// Depending on the token after that
 	if (lexer->token.type == TOKEN_ASSIGN) {
 		// Assignment
-		parse_assignment(parser, operand);
+		parse_assignment(parser, operand, slot);
 	} else if (lexer->token.type == TOKEN_OPEN_PARENTHESIS) {
 		// Function call, so just keep parsing postfix operators
 		while (expr_postfix(parser, slot, &operand)) {}
@@ -2297,6 +2268,40 @@ static void parse_fn_definition(Parser *parser) {
 
 
 //
+//  Returns
+//
+
+// Parses a return statement from a function.
+static void parse_return(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+
+	// Check we're not returning from the top level of a file
+	if (parser_is_top_level(parser)) {
+		err_fatal(parser, &lexer->token, "Cannot return from top level");
+		return;
+	}
+
+	// Skip the return token
+	lexer_next(lexer);
+
+	// Check if we're returning an expression
+	if (expr_exists(lexer->token.type)) {
+		// Parse an expression into a temporary local
+		uint16_t local = local_reserve(parser);
+		Operand operand = parse_expr(parser, local);
+		local_free(parser);
+
+		// Return the parsed operand
+		expr_discharge(parser, RET_L, 0, operand, 0);
+	} else {
+		// Return nothing
+		fn_emit(parser_fn(parser), RET0, 0, 0, 0);
+	}
+}
+
+
+
+//
 //  Blocks and Statements
 //
 
@@ -2310,17 +2315,17 @@ static void parse_statement(Parser *parser) {
 		parse_declaration(parser);
 		break;
 
-		// If statements
+		// If statement
 	case TOKEN_IF:
 		parse_if(parser);
 		break;
 
-		// While loops
+		// While loop
 	case TOKEN_WHILE:
 		parse_while(parser);
 		break;
 
-		// Infinite loops
+		// Infinite loop
 	case TOKEN_LOOP:
 		parse_loop(parser);
 		break;
@@ -2333,6 +2338,11 @@ static void parse_statement(Parser *parser) {
 		// Function definition
 	case TOKEN_FN:
 		parse_fn_definition(parser);
+		break;
+
+		// Return
+	case TOKEN_RETURN:
+		parse_return(parser);
 		break;
 
 		// Unconditional block

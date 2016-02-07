@@ -110,7 +110,7 @@ TEST(Functions, ReturnValue) {
 	FN(1);
 	INS(MOV_LI, 0, 3, 0);
 	INS(ADD_LI, 1, 0, 3);
-	INS(RET_L, 1, 0, 0);
+	INS(RET_L, 0, 1, 0);
 
 	FREE();
 }
@@ -132,7 +132,7 @@ TEST(Functions, ArgumentsAndReturn) {
 	FN(1);
 	INS(MUL_LL, 2, 0, 1);
 	INS(MUL_LI, 2, 2, 2);
-	INS(RET_L, 2, 0, 0);
+	INS(RET_L, 0, 2, 0);
 
 	FREE();
 }
@@ -230,7 +230,7 @@ TEST(Functions, CallWithReturnValue) {
 	INS(RET0, 0, 0, 0);
 
 	FN(1);
-	INS(RET_I, 3, 0, 0);
+	INS(RET_I, 0, 3, 0);
 
 	FREE();
 }
@@ -254,11 +254,11 @@ TEST(Functions, MultipleDefinitions) {
 
 	FN(1);
 	INS(MUL_LL, 1, 0, 0);
-	INS(RET_L, 1, 0, 0);
+	INS(RET_L, 0, 1, 0);
 
 	FN(2);
 	INS(MUL_LL, 2, 0, 1);
-	INS(RET_L, 2, 0, 0);
+	INS(RET_L, 0, 2, 0);
 
 	FREE();
 }
@@ -286,7 +286,7 @@ TEST(Functions, CallAsArgument) {
 
 	FN(1);
 	INS(ADD_LI, 1, 0, 1);
-	INS(RET_L, 1, 0, 0);
+	INS(RET_L, 0, 1, 0);
 
 	FREE();
 }
@@ -311,7 +311,7 @@ TEST(Functions, AnonymousFunction) {
 
 	FN(1);
 	INS(ADD_LL, 2, 0, 1);
-	INS(RET_L, 2, 0, 0);
+	INS(RET_L, 0, 2, 0);
 
 	FREE();
 }
@@ -336,7 +336,7 @@ TEST(Functions, CallAnonymousFunction) {
 
 	FN(1);
 	INS(ADD_LL, 2, 0, 1);
-	INS(RET_L, 2, 0, 0);
+	INS(RET_L, 0, 2, 0);
 
 	FREE();
 }

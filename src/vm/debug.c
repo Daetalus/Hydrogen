@@ -41,7 +41,8 @@ static char opcode_names[][MAX_NAME_LENGTH] = {
 	"GE_LL", "GE_LI", "GE_LN",
 
 	"JMP", "LOOP",
-	"CALL", "RET0", "RET1",
+	"CALL", "RET0", "RET_L", "RET_I", "RET_N", "RET_S", "RET_P", "RET_F",
+	"RET_V",
 
 	"STRUCT_NEW", "STRUCT_FIELD",
 	"STRUCT_SET_L", "STRUCT_SET_I", "STRUCT_SET_N", "STRUCT_SET_S",
@@ -87,7 +88,8 @@ static uint32_t argument_count[] = {
 	2, /* GE_LL */ 2, /* GE_LI */ 2, /* GE_LN */
 
 	1, /* JMP */ 1, /* LOOP */
-	3, /* CALL */ 0, /* RET0 */ 2, /* RET */
+	3, /* CALL */ 0, /* RET0 */ 2, /* RET_L */ 2, /* RET_I */ 2, /* RET_N */
+	2, /* RET_S */ 2, /* RET_P */ 2, /* RET_F */ 2, /* RET_V */
 
 	2, /* STRUCT_NEW */ 3, /* STRUCT_FIELD */
 	3, /* STRUCT_SET_L */ 3, /* STRUCT_SET_I */ 3, /* STRUCT_SET_N */
