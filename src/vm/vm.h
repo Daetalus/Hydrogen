@@ -17,6 +17,26 @@
 #include "value.h"
 
 
+// Information stored about a function's caller when a function call is
+// triggered.
+typedef struct {
+	// A pointer to the calling function being executed in this frame.
+	Function *fn;
+
+	// The start of the calling function's locals on the stack (absolute stack
+	// position).
+	uint32_t stack_start;
+
+	// The absolute position on the stack where the called function's return
+	// value should be stored.
+	uint32_t return_slot;
+
+	// The saved instruction pointer for the calling function, pointing to the
+	// next bytecode instruction to be executed.
+	Instruction *ip;
+} Frame;
+
+
 // The interpreter state, used to execute Hydrogen source code. Variables,
 // functions, etc. are preserved by the state across calls to `hy_run`.
 struct hy_state {
@@ -39,6 +59,11 @@ struct hy_state {
 	Vec(HyValue) constants;
 	Vec(String *) strings;
 	Vec(Identifier) fields;
+
+	// The interpreter's runtime stack, used to store variables.
+	HyValue *stack;
+	Frame *call_stack;
+	uint32_t call_stack_count;
 
 	// We use longjmp/setjmp for errors, which requires a jump buffer, which we
 	// store in the state (instead of as a global variable).

@@ -11,6 +11,13 @@
 #include "err.h"
 
 
+// The maximum stack size.
+#define MAX_STACK_SIZE 2048
+
+// The maximum call stack size storing data for function calls.
+#define MAX_CALL_STACK_SIZE 2048
+
+
 // Executes a file by creating a new interpreter state, reading the contents of
 // the file, and executing the source code. Acts as a wrapper around other API
 // functions. Returns an error if one occurred, or NULL otherwise. The error
@@ -40,13 +47,20 @@ HyError * hy_run_string(char *source) {
 // Create a new interpreter state.
 HyState * hy_new(void) {
 	HyState *state = malloc(sizeof(HyState));
+
 	vec_new(state->packages, Package, 4);
 	vec_new(state->functions, Function, 8);
 	vec_new(state->natives, NativeFunction, 8);
 	vec_new(state->structs, StructDefinition, 8);
+
 	vec_new(state->constants, HyValue, 32);
 	vec_new(state->strings, String *, 16);
 	vec_new(state->fields, Identifier, 16);
+
+	state->stack = malloc(sizeof(HyValue) * MAX_STACK_SIZE);
+	state->call_stack = malloc(sizeof(Frame) * MAX_CALL_STACK_SIZE);
+	state->call_stack_count = 0;
+
 	state->error = NULL;
 	return state;
 }
@@ -77,6 +91,8 @@ void hy_free(HyState *state) {
 	vec_free(state->constants);
 	vec_free(state->strings);
 	vec_free(state->fields);
+	free(state->stack);
+	free(state->call_stack);
 	free(state);
 }
 
@@ -174,44 +190,21 @@ Index state_add_field(HyState *state, Identifier ident) {
 //  Execution
 //
 
-// The maximum stack size.
-#define MAX_STACK_SIZE 2048
-
-// The maximum call stack size storing data for function calls.
-#define MAX_CALL_STACK_SIZE 2048
-
 // Triggers the goto call for the next instruction.
 #define DISPATCH() goto *dispatch_table[ins_arg(*ip, 0)];
 
 // Increments the instruction pointer and dispatches the next instruction.
 #define NEXT() ip++; DISPATCH();
 
-// Evaluates to the value on the stack at the `n`th argument.
+// Evaluates to the value on the stack at the `n`th argument of the current
+// instruction.
 #define STACK_GET(n) stack[stack_start + ins_arg(*ip, (n))]
 
 
-// Data required for a function call.
-typedef struct {
-	// A pointer to the function being executed in this frame.
-	Function *fn;
-
-	// The start of the function's locals on the stack (absolute stack position)
-	uint32_t stack_start;
-
-	// The absolute position on the stack where the function's return value
-	// should be stored.
-	uint32_t return_slot;
-
-	// The saved instruction pointer, pointing to the next bytecode instruction
-	// to be executed in this function.
-	Instruction *ip;
-} Frame;
-
-
-// Pushes a call frame onto the call frame stack.
-static inline void frame_push(Frame *stack, uint32_t *size, Function *fn,
+// Pushes a frame onto the call frame stack.
+static inline void frame_push(Frame *stack, uint32_t *stack_count, Function *fn,
 		uint32_t stack_start, uint32_t return_slot, Instruction *ip) {
-	Index index = (*size)++;
+	Index index = (*stack_count)++;
 	stack[index].fn = fn;
 	stack[index].stack_start = stack_start;
 	stack[index].return_slot = return_slot;
@@ -243,15 +236,19 @@ static inline bool val_comp(StructDefinition *structs, HyValue left,
 
 
 // Compares two structs for equality.
-static inline bool struct_comp(StructDefinition *structs, Struct *left,
+static bool struct_comp(StructDefinition *structs, Struct *left,
 		Struct *right) {
 	// Only equal if both are instances of the same struct
 	if (left->definition != right->definition) {
 		return false;
 	}
 
-	// Compare each field
+	// Compare each field recursively
 	for (uint32_t i = 0; i < vec_len(structs[left->definition].fields); i++) {
+		// Since we're doing this recursively, we need to check if the user's
+		// stored a reference to a struct in one of it's fields, so we don't
+		// end up recursing infinitely
+		// TODO
 		if (!val_comp(structs, left->fields[i], right->fields[i])) {
 			return false;
 		}
@@ -330,15 +327,12 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 	String **strings = &vec_at(state->strings, 0);
 	Identifier *fields = &vec_at(state->fields, 0);
 
+	HyValue *stack = state->stack;
+	Frame *call_stack = state->call_stack;
+	uint32_t *call_stack_count = &state->call_stack_count;
+
 	// Get a pointer to the function we're executing
 	Function *fn = &functions[fn_index];
-
-	// Allocate the variable and function call stack
-	// Stack overflow checks on the variable stack are done during compile time,
-	// so we only need to watch the function call stack
-	HyValue *stack = malloc(sizeof(HyValue) * MAX_STACK_SIZE);
-	Frame *call_stack = malloc(sizeof(Frame) * MAX_CALL_STACK_SIZE);
-	uint32_t call_stack_size = 0;
 
 	// The current instruction we're executing
 	Instruction *ip = &vec_at(fn->instructions, 0);
@@ -348,7 +342,7 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 	uint32_t stack_start = 0;
 
 	// Add the call frame for the main function
-	frame_push(call_stack, &call_stack_size, fn, 0, 0, ip);
+	frame_push(call_stack, call_stack_count, fn, 0, 0, ip);
 
 	// Execute the first instruction
 	DISPATCH();
@@ -586,8 +580,8 @@ BC_IS_FALSE_L: {
 		}                                                               \
 		NEXT();
 
-	// Use the opposite comparison operation because we want to execute the jump
-	// only if the comparison is true
+	// Use the opposite comparison operation because we want to execute the
+	// jump only if the comparison is true
 	EQ(EQ, !);
 	EQ(NEQ, );
 
