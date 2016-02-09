@@ -98,6 +98,8 @@ TEST(Jump, Target) {
 	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 0), 1), 2);
 	jmp_target(&fn, 1, 2);
 	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 1), 1), 1);
+
+	FREE();
 }
 
 
@@ -116,6 +118,8 @@ TEST(Jump, TargetAll) {
 	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 1), 1), 3);
 	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 2), 1), 2);
 	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 3), 1), 1);
+
+	FREE();
 }
 
 
@@ -134,4 +138,6 @@ TEST(Jump, Append) {
 	jmp_append(&fn, 2, 0);
 	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 2), 2), 1);
 	ASSERT_EQ(ins_arg(vec_at(fn.instructions, 1), 2), 1);
+
+	FREE();
 }

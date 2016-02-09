@@ -20,6 +20,11 @@ extern "C" {
 	Lexer lexer = lexer_new(state, pkg, source);
 
 
+// Frees resources allocated for a test.
+#define FREE() \
+	hy_free(state);
+
+
 // Asserts two strings are equal up to the given length (since this function is
 // annoyingly missing from the Google test framework).
 #define ASSERT_STREQN(first, second, length) { \
@@ -83,6 +88,7 @@ TEST(Lexer, Math) {
 	ASSERT_TOKEN(TOKEN_DIV);
 	ASSERT_TOKEN(TOKEN_MOD);
 	ASSERT_TOKEN(TOKEN_EOF);
+	FREE();
 }
 
 
@@ -96,6 +102,7 @@ TEST(Lexer, Comparison) {
 	ASSERT_TOKEN(TOKEN_GE);
 	ASSERT_TOKEN(TOKEN_LE);
 	ASSERT_TOKEN(TOKEN_EOF);
+	FREE();
 }
 
 
@@ -108,6 +115,7 @@ TEST(Lexer, Assignment) {
 	ASSERT_TOKEN(TOKEN_MUL_ASSIGN);
 	ASSERT_TOKEN(TOKEN_DIV_ASSIGN);
 	ASSERT_TOKEN(TOKEN_EOF);
+	FREE();
 }
 
 
@@ -118,6 +126,7 @@ TEST(Lexer, Boolean) {
 	ASSERT_TOKEN(TOKEN_OR);
 	ASSERT_TOKEN(TOKEN_NOT);
 	ASSERT_TOKEN(TOKEN_EOF);
+	FREE();
 }
 
 
@@ -131,6 +140,7 @@ TEST(Lexer, Bitwise) {
 	ASSERT_TOKEN(TOKEN_LSHIFT);
 	ASSERT_TOKEN(TOKEN_RSHIFT);
 	ASSERT_TOKEN(TOKEN_EOF);
+	FREE();
 }
 
 
@@ -146,6 +156,7 @@ TEST(Lexer, Syntax) {
 	ASSERT_TOKEN(TOKEN_COMMA);
 	ASSERT_TOKEN(TOKEN_DOT);
 	ASSERT_TOKEN(TOKEN_EOF);
+	FREE();
 }
 
 
@@ -162,6 +173,7 @@ TEST(Lexer, Numbers) {
 	ASSERT_NUMBER(100.1);
 	ASSERT_NUMBER(1.0);
 	ASSERT_TOKEN(TOKEN_EOF);
+	FREE();
 }
 
 
@@ -179,6 +191,7 @@ TEST(Lexer, Strings) {
 	ASSERT_STRING("\\'", "'");
 	ASSERT_STRING("he''ll\\\"o", "he''ll\"o");
 	ASSERT_TOKEN(TOKEN_EOF);
+	FREE();
 }
 
 
@@ -193,6 +206,7 @@ TEST(Lexer, Identifiers) {
 	ASSERT_IDENTIFIER("identifiers");
 	ASSERT_IDENTIFIER("_te231__wfes");
 	ASSERT_TOKEN(TOKEN_EOF);
+	FREE();
 }
 
 
@@ -209,6 +223,7 @@ TEST(Lexer, Keywords) {
 	ASSERT_TOKEN(TOKEN_FOR);
 	ASSERT_TOKEN(TOKEN_FN);
 	ASSERT_TOKEN(TOKEN_EOF);
+	FREE();
 }
 
 
@@ -220,6 +235,7 @@ TEST(Lexer, SingleLineComments) {
 	ASSERT_TOKEN(TOKEN_SUB);
 	ASSERT_TOKEN(TOKEN_FN);
 	ASSERT_TOKEN(TOKEN_EOF);
+	FREE();
 }
 
 
@@ -230,4 +246,5 @@ TEST(Lexer, BlockComments) {
 	ASSERT_TOKEN(TOKEN_SUB);
 	ASSERT_TOKEN(TOKEN_ELSE_IF);
 	ASSERT_TOKEN(TOKEN_EOF);
+	FREE();
 }
