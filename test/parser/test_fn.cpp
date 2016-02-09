@@ -264,6 +264,36 @@ TEST(Functions, MultipleDefinitions) {
 }
 
 
+// Tests we can define functions on the stack.
+TEST(Functions, Stack) {
+	COMPILER(
+		"{\n"
+		"let a = 3\n"
+		"let b = 4\n"
+		"fn test(arg) {\n"
+		"	let a = 11\n"
+		"	let b = arg\n"
+		"	return a + b\n"
+		"}\n"
+		"}\n"
+	);
+
+	FN(0);
+	INS(MOV_LI, 0, 3, 0);
+	INS(MOV_LI, 1, 4, 0);
+	INS(MOV_LF, 2, 1, 0);
+	INS(RET0, 0, 0, 0);
+
+	FN(1);
+	INS(MOV_LI, 1, 11, 0);
+	INS(MOV_LL, 2, 0, 0);
+	INS(ADD_LL, 3, 1, 2);
+	INS(RET_L, 0, 3, 0);
+
+	FREE();
+}
+
+
 // Tests we can have a function call's return value as an argument to another
 // function call.
 TEST(Functions, CallAsArgument) {
@@ -327,10 +357,10 @@ TEST(Functions, CallAnonymousFunction) {
 	);
 
 	FN(0);
-	INS(MOV_LF, 0, 1, 0);
-	INS(MOV_LI, 1, 1, 0);
-	INS(MOV_LI, 2, 2, 0);
-	INS(CALL, 0, 2, 0);
+	INS(MOV_LF, 1, 1, 0);
+	INS(MOV_LI, 2, 1, 0);
+	INS(MOV_LI, 3, 2, 0);
+	INS(CALL, 1, 2, 0);
 	INS(MOV_TL, 0, 0, 0);
 	INS(RET0, 0, 0, 0);
 

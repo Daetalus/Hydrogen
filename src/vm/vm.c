@@ -77,6 +77,7 @@ void hy_free(HyState *state) {
 	vec_free(state->constants);
 	vec_free(state->strings);
 	vec_free(state->fields);
+	free(state);
 }
 
 

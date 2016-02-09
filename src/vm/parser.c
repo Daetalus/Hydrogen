@@ -15,6 +15,7 @@
 #include "pkg.h"
 #include "vm.h"
 #include "err.h"
+#include "debug.h"
 
 
 // Returns a pointer to the current function we're emitting bytecode values to.
@@ -115,9 +116,20 @@ static FunctionScope scope_new(Parser *parser) {
 	scope.parent = NULL;
 	scope.fn_index = fn_new(parser->state);
 	scope.is_method = false;
-	scope.first_local = parser->locals_count;
 	scope.loop = NULL;
 	scope.block_depth = 0;
+
+	scope.actives_count = 0;
+	scope.actives_start = vec_len(parser->locals);
+
+	// If there's a parent function, set the first local
+	scope.locals_count = 0;
+	if (parser->scope != NULL) {
+		FunctionScope *parent = parser->scope;
+		scope.locals_start = parent->locals_start + parent->locals_count;
+	} else {
+		scope.locals_start = 0;
+	}
 
 	Function *fn = &vec_at(parser->state->functions, scope.fn_index);
 	fn->package = parser->package;
@@ -138,6 +150,9 @@ static void scope_push(Parser *parser, FunctionScope *scope) {
 static void scope_pop(Parser *parser) {
 	// All blocks and locals should have been freed here, so we're safe to pop
 	// the function scope
+	ASSERT(parser->scope->locals_count == 0);
+	ASSERT(parser->scope->actives_count == 0);
+	ASSERT(parser->scope->block_depth == 0);
 	parser->scope = parser->scope->parent;
 }
 
@@ -147,24 +162,37 @@ static void scope_pop(Parser *parser) {
 //  Locals
 //
 
+// Returns the local in `slot` relative to the current function's local start.
+static Local * local_get(Parser *parser, uint16_t slot) {
+	return &vec_at(parser->locals, slot + parser->scope->actives_start);
+}
+
+
 // Reserve space for a new local, returning its index.
 static uint16_t local_reserve(Parser *parser) {
-	uint16_t new_size = parser->locals_count++;
+	uint16_t new_size = parser->scope->locals_count++;
 
 	// Increment the function's frame size
-	uint16_t frame_size = new_size - parser->scope->first_local;
 	Function *fn = parser_fn(parser);
-	if (frame_size > fn->frame_size) {
-		fn->frame_size = frame_size;
+	if (new_size > fn->frame_size) {
+		fn->frame_size = new_size;
 	}
-
 	return new_size;
 }
 
 
 // Create a new, named local, returning its index.
 static uint16_t local_new(Parser *parser) {
+	FunctionScope *scope = parser->scope;
+	ASSERT(scope->actives_count == scope->locals_count);
+	ASSERT(scope->actives_count + scope->actives_start ==
+		vec_len(parser->locals));
+
+	// Increment the number of locals
 	vec_add(parser->locals);
+	parser->scope->actives_count++;
+
+	// Set the local's default values
 	Local *local = &vec_last(parser->locals);
 	local->name = NULL;
 	local->length = 0;
@@ -175,12 +203,17 @@ static uint16_t local_new(Parser *parser) {
 
 // Free the uppermost local.
 static void local_free(Parser *parser) {
-	parser->locals_count--;
+	ASSERT(parser->scope->locals_count > 0);
+	parser->scope->locals_count--;
 
 	// Check if this was a named local
-	if (parser->locals_count < vec_len(parser->locals)) {
+	if (parser->scope->locals_count < parser->scope->actives_count) {
+		ASSERT(parser->scope->actives_count > 0);
+		ASSERT(vec_len(parser->locals) > 0);
+
 		// Decrement the number of named locals
 		vec_len(parser->locals)--;
+		parser->scope->actives_count--;
 	}
 }
 
@@ -189,14 +222,9 @@ static void local_free(Parser *parser) {
 // index if found.
 static Index local_find(Parser *parser, char *name, uint32_t length) {
 	// Search in reverse order
-	for (int i = vec_len(parser->locals) - 1; i >= 0; i--) {
-		// Break if we've gone outside the function's scope
-		if ((uint32_t) i < parser->scope->first_local) {
-			break;
-		}
-
+	for (int i = (int) parser->scope->actives_count - 1; i >= 0; i--) {
 		// Check if this local's name matches the given one
-		Local *local = &vec_at(parser->locals, i);
+		Local *local = local_get(parser, i);
 		if (length == local->length &&
 				strncmp(name, local->name, length) == 0) {
 			return i;
@@ -268,7 +296,7 @@ static bool local_is_unique(Parser *parser, char *name, uint32_t length) {
 	return !(
 		// Locals in current scope
 		local_find(parser, name, length) != NOT_FOUND ||
-		// Top level variables if in outermost scope
+		// Top level variables if not inside a function
 		(parser->scope->parent == NULL &&
 		 	pkg_local_find(parser_pkg(parser), name, length) != NOT_FOUND)
 	);
@@ -289,7 +317,11 @@ static void block_new(Parser *parser) {
 
 // Free a block and all variables defined within it.
 static void block_free(Parser *parser) {
+	ASSERT(parser->scope->block_depth > 0);
+
 	// No temporary locals should be allocated here
+	ASSERT(parser->scope->locals_count == parser->scope->actives_count);
+
 	// Free locals inside this block
 	while (vec_len(parser->locals) > 0 &&
 			vec_last(parser->locals).block >= parser->scope->block_depth) {
@@ -298,27 +330,6 @@ static void block_free(Parser *parser) {
 
 	// Decrement block depth
 	parser->scope->block_depth--;
-}
-
-
-// Emit bytecode to move an upvalue into a local slot.
-static void upvalue_demote(Parser *parser, uint16_t local, uint32_t index) {
-	fn_emit(parser_fn(parser), MOV_LU, local, index, 0);
-}
-
-
-// Emit bytecde to move a top level local into a local slot from an external
-// package (not the one we're parsing).
-static void top_level_demote_external(Parser *parser, uint16_t local,
-		uint32_t top_level, Index pkg) {
-	fn_emit(parser_fn(parser), MOV_LT, local, top_level, pkg);
-}
-
-
-// Emit bytecode to move a top level local into a local slot.
-static void top_level_demote(Parser *parser, uint16_t local,
-		uint32_t top_level) {
-	top_level_demote_external(parser, local, top_level, parser->package);
 }
 
 
@@ -348,9 +359,6 @@ typedef enum {
 typedef struct {
 	// The type of the operand.
 	OpType type;
-
-	// Whether this operand has side effects, like a function call.
-	bool has_side_effects;
 
 	// The value of the operand.
 	union {
@@ -467,7 +475,6 @@ static inline BytecodeOpcode opcode_ord(TokenType operator, OpType left,
 static inline Operand operand_new(void) {
 	Operand operand;
 	operand.type = OP_NONE;
-	operand.has_side_effects = false;
 	return operand;
 }
 
@@ -944,7 +951,7 @@ static void expr_discharge(Parser *parser, BytecodeOpcode base, uint16_t slot,
 		// Only emit a move local instruction if this isn't a temporary
 		// local
 		if (base != MOV_LL || (operand.value != slot &&
-				operand.value < parser->locals_count)) {
+				operand.value < parser->scope->locals_count)) {
 			fn_emit(parser_fn(parser), base, slot, operand.value, arg3);
 		}
 	} else if (operand.type == OP_JUMP) {
@@ -1355,12 +1362,12 @@ static void postfix_call(Parser *parser, uint16_t slot, Operand *operand) {
 	// function call, so we know how many locals we have to free
 	// Since we only allocate temporary locals (no named ones), we don't need
 	// to bother manipulating the `parser->locals` array
-	uint32_t locals_count = parser->locals_count;
+	uint32_t locals_count = parser->scope->locals_count;
 
 	// Operand must be a local, function, or native function
 	uint16_t base;
 	if (operand->type == OP_LOCAL &&
-			operand->value == parser->locals_count - 1) {
+			operand->value == parser->scope->locals_count - 1) {
 		// If the local is on the top of the stack, don't bother allocating a
 		// new local for it
 		base = operand->value;
@@ -1382,7 +1389,7 @@ static void postfix_call(Parser *parser, uint16_t slot, Operand *operand) {
 	fn_emit(parser_fn(parser), CALL, base, arity, slot);
 
 	// Free allocated locals
-	parser->locals_count = locals_count;
+	parser->scope->locals_count = locals_count;
 
 	// Set resulting operand to return value of function
 	operand->type = OP_LOCAL;
@@ -1500,7 +1507,7 @@ static Operand operand_top_level(Parser *parser, Index package, uint16_t slot) {
 	lexer_next(lexer);
 
 	// Move the field on the package into a local
-	top_level_demote_external(parser, slot, field, package);
+	fn_emit(parser_fn(parser), MOV_LT, slot, field, package);
 
 	// Return the operand
 	Operand operand = operand_new();
@@ -1529,13 +1536,13 @@ static Operand operand_identifier(Parser *parser, uint16_t slot) {
 
 	case RESOLVED_UPVALUE:
 		// Move the upvalue into the slot
-		upvalue_demote(parser, slot, local.index);
+		fn_emit(parser_fn(parser), MOV_UL, slot, local.index, 0);
 		result.value = slot;
 		break;
 
 	case RESOLVED_TOP_LEVEL:
 		// Move the top level local into the slot
-		top_level_demote(parser, slot, local.index);
+		fn_emit(parser_fn(parser), MOV_LT, slot, local.index, parser->package);
 		result.value = slot;
 		break;
 
@@ -1731,7 +1738,7 @@ static void parse_declaration_local(Parser *parser, char *name,
 		uint32_t length) {
 	// Allocate new local
 	uint16_t slot = local_new(parser);
-	Local *local = &vec_at(parser->locals, slot);
+	Local *local = local_get(parser, slot);
 	local->name = name;
 	local->length = length;
 
@@ -2154,8 +2161,9 @@ static void parse_break(Parser *parser) {
 //
 
 // Parses a list of comma separated identifiers as arguments to a function
-// definition, surrounded by parentheses.
-static void parse_fn_definition_args(Parser *parser, Function *child) {
+// definition, surrounded by parentheses. Returns the number of arguments
+// parsed.
+static uint32_t parse_fn_definition_args(Parser *parser) {
 	Lexer *lexer = &parser->lexer;
 
 	// Expect an opening parenthesis
@@ -2164,17 +2172,18 @@ static void parse_fn_definition_args(Parser *parser, Function *child) {
 	lexer_next(lexer);
 
 	// Parse arguments (comma separated list of identifiers)
+	uint32_t arity = 0;
 	while (lexer->token.type != TOKEN_CLOSE_PARENTHESIS) {
 		// Expect an identifier
 		err_expect(parser, TOKEN_IDENTIFIER, &lexer->token,
 			"Expected identifier in function declaration arguments");
 
 		// Add the argument as a local
-		uint16_t index = local_new(parser);
-		Local *local = &vec_at(parser->locals, index);
+		uint16_t slot = local_new(parser);
+		Local *local = local_get(parser, slot);
 		local->name = lexer->token.start;
 		local->length = lexer->token.length;
-		child->arity++;
+		arity++;
 		lexer_next(lexer);
 
 		// Expect a comma or the closing parenthesis
@@ -2189,6 +2198,7 @@ static void parse_fn_definition_args(Parser *parser, Function *child) {
 	err_expect(parser, TOKEN_CLOSE_PARENTHESIS, &lexer->token,
 		"Expected `)` after function declaration arguments");
 	lexer_next(lexer);
+	return arity;
 }
 
 
@@ -2201,7 +2211,7 @@ static Index parse_fn_definition_body(Parser *parser) {
 	scope_push(parser, &scope);
 
 	// Parse arguments to definition
-	parse_fn_definition_args(parser, child);
+	child->arity = parse_fn_definition_args(parser);
 
 	// Parse the function's contents
 	parse_braced_block(parser);
@@ -2210,8 +2220,9 @@ static Index parse_fn_definition_body(Parser *parser) {
 	fn_emit(parser_fn(parser), RET0, 0, 0, 0);
 
 	// Get rid of the arguments allocated as locals
-	parser->locals_count = scope.first_local;
-	vec_len(parser->locals) = scope.first_local;
+	parser->scope->locals_count = 0;
+	parser->scope->actives_count = 0;
+	vec_len(parser->locals) = scope.actives_start;
 
 	// Get rid of the function from the parser's stack
 	scope_pop(parser);
@@ -2233,7 +2244,7 @@ static void fn_store(Parser *parser, char *name, uint32_t length, Index fn) {
 	} else {
 		// Allocate a new local
 		uint16_t slot = local_new(parser);
-		Local *local = &vec_at(parser->locals, slot);
+		Local *local = local_get(parser, slot);
 		local->name = name;
 		local->length = length;
 
@@ -2389,7 +2400,6 @@ Parser parser_new(HyState *state, Index pkg) {
 	parser.package = pkg;
 	parser.source = NOT_FOUND;
 	vec_new(parser.locals, Local, 8);
-	parser.locals_count = 0;
 	parser.scope = NULL;
 	return parser;
 }

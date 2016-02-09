@@ -39,11 +39,15 @@ typedef struct function_scope {
 	// Set to true when this function scope is a method on a struct.
 	bool is_method;
 
-	// The base local in the parser's locals stack which begins the locals
-	// defined inside this function. The instance of the struct (`self`) is
-	// first (present only if this is a method), then the arguments to the
-	// function, then the locals defined in the function.
-	uint32_t first_local;
+	// The start and size of all locals used by this function, including
+	// temporary ones.
+	uint32_t locals_start;
+	uint32_t locals_count;
+
+	// The start and size of all persistent locals (that end up in the parser's
+	// `locals` array).
+	uint32_t actives_start;
+	uint32_t actives_count;
 
 	// A linked list of loops so we know which loop to break out of when we
 	// encounter a break statement. The inner most loop is stored at the head
@@ -87,9 +91,6 @@ typedef struct {
 	// locals that have been given a name). Expressions, function calls, etc
 	// all use temporary locals on top of these.
 	Vec(Local) locals;
-
-	// The actual number of locals (including temporary ones).
-	uint32_t locals_count;
 
 	// Each function is parsed in its own scope. Functions defined inside other
 	// functions have their scopes linked together by a linked list. The head
