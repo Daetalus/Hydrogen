@@ -18,26 +18,23 @@
 #include "debug.h"
 
 
-// Returns a pointer to the current function we're emitting bytecode values to.
-static Function * parser_fn(Parser *parser) {
-	return &vec_at(parser->state->functions, parser->scope->fn_index);
-}
-
-
-// Returns true if the parser is currently parsing the top level of a file.
-static bool parser_is_top_level(Parser *parser) {
-	return parser->scope->parent == NULL && parser->scope->block_depth == 1;
-}
-
-
 // Returns a pointer to the package we're parsing.
 static Package * parser_pkg(Parser *parser) {
 	return &vec_at(parser->state->packages, parser->package);
 }
 
 
-// Forward declaration.
-static void parse_block(Parser *parser, TokenType terminator);
+// Returns a pointer to the current function we're emitting bytecode values to.
+static Function * parser_fn(Parser *parser) {
+	return &vec_at(parser->state->functions, parser->scope->fn_index);
+}
+
+
+// Returns true if we're currently parsing the top level of a file (not inside
+// a function definition or block).
+static bool parser_is_top_level(Parser *parser) {
+	return parser->scope->parent == NULL && parser->scope->block_depth == 1;
+}
 
 
 
@@ -234,6 +231,19 @@ static Index local_find(Parser *parser, char *name, uint32_t length) {
 }
 
 
+// Returns true if a name is unique enough to be used in a `let` statement (can
+// override locals outside the function scope and top level variables).
+static bool local_is_unique(Parser *parser, char *name, uint32_t length) {
+	return !(
+		// Locals in current scope
+		local_find(parser, name, length) != NOT_FOUND ||
+		// Top level variables if not inside a function
+		(parser->scope->parent == NULL &&
+		 	pkg_local_find(parser_pkg(parser), name, length) != NOT_FOUND)
+	);
+}
+
+
 // The type of a resolved local.
 typedef enum {
 	RESOLVED_LOCAL,
@@ -287,19 +297,6 @@ static ResolvedLocal local_resolve(Parser *parser, char *name,
 	// Undefined variable
 	resolved.type = RESOLVED_UNDEFINED;
 	return resolved;
-}
-
-
-// Returns true if a name is unique enough to be used in a `let` statement (can
-// override locals outside the function scope and top level variables).
-static bool local_is_unique(Parser *parser, char *name, uint32_t length) {
-	return !(
-		// Locals in current scope
-		local_find(parser, name, length) != NOT_FOUND ||
-		// Top level variables if not inside a function
-		(parser->scope->parent == NULL &&
-		 	pkg_local_find(parser_pkg(parser), name, length) != NOT_FOUND)
-	);
 }
 
 
@@ -488,6 +485,18 @@ static inline bool operand_is_number(Operand *operand) {
 // Returns true if an operand is a local or jump.
 static inline bool operand_is_jump_local(Operand *operand) {
 	return operand->type == OP_LOCAL || operand->type == OP_JUMP;
+}
+
+
+// Returns true if a condition is constant and equivalent to false.
+static bool operand_is_false(Operand *condition) {
+	return condition->type == OP_PRIMITIVE && condition->value != TAG_TRUE;
+}
+
+
+// Returns true if a condition is constant and equivalent to true.
+static bool operand_is_true(Operand *condition) {
+	return !operand_is_false(condition) && condition->type != OP_JUMP;
 }
 
 
@@ -1085,9 +1094,8 @@ static void binary_and(Parser *parser, Operand *left, Operand right) {
 		operand_to_jump(parser, &right);
 	}
 
-	Function *fn = parser_fn(parser);
-
 	// Join the end of right's jump list to left
+	Function *fn = parser_fn(parser);
 	jmp_append(fn, right.jump, left->jump);
 
 	// Associate the left and right jumps with the `and` operation
@@ -1107,9 +1115,8 @@ static void binary_or(Parser *parser, Operand *left, Operand right) {
 		operand_to_jump(parser, &right);
 	}
 
-	Function *fn = parser_fn(parser);
-
 	// Join the end of right's jump list to left
+	Function *fn = parser_fn(parser);
 	Index last = jmp_last(fn, right.jump);
 	jmp_append(fn, right.jump, left->jump);
 
@@ -1662,7 +1669,6 @@ static Operand expr_left(Parser *parser, uint16_t slot) {
 		// Iteratively parse postfix operators like struct field access, array
 		// indexing, and function calls
 		while (expr_postfix(parser, slot, &operand)) {}
-
 		return operand;
 	}
 }
@@ -1732,6 +1738,10 @@ bool expr_exists(TokenType token) {
 //
 //  Assignment
 //
+
+// Forward declaration.
+static void parse_block(Parser *parser, TokenType terminator);
+
 
 // Parses an expression into a new local with the name `name`.
 static void parse_declaration_local(Parser *parser, char *name,
@@ -1929,18 +1939,6 @@ static Operand parse_conditional_expr(Parser *parser) {
 }
 
 
-// Returns true if a condition is constant and equivalent to false.
-static bool cond_is_const_false(Operand *condition) {
-	return condition->type == OP_PRIMITIVE && condition->value != TAG_TRUE;
-}
-
-
-// Returns true if a condition is constant and equivalent to true.
-static bool cond_is_const_true(Operand *condition) {
-	return !cond_is_const_false(condition) && condition->type != OP_JUMP;
-}
-
-
 // Parse an if statement, and any subsequent else if or else branches.
 static void parse_if(Parser *parser) {
 	Lexer *lexer = &parser->lexer;
@@ -1994,7 +1992,7 @@ static void parse_if(Parser *parser) {
 
 		// If we're folding all future branches because we found a constant true
 		// condition earlier, or this branch is constant false
-		if (fold || cond_is_const_false(&condition)) {
+		if (fold || operand_is_false(&condition)) {
 			// Parse the block and get rid of its contents (including the
 			// potentially emitted jump for the previous branch)
 			parse_braced_block(parser);
@@ -2012,7 +2010,7 @@ static void parse_if(Parser *parser) {
 			previous_condition = condition;
 
 			// If the condition is constant true, fold all future branches
-			if (cond_is_const_true(&condition)) {
+			if (operand_is_true(&condition)) {
 				fold = true;
 			}
 		}
@@ -2076,7 +2074,7 @@ static void parse_while(Parser *parser) {
 	loop_pop(parser);
 
 	// Fold if condition is constant false
-	if (cond_is_const_false(&condition)) {
+	if (operand_is_false(&condition)) {
 		vec_len(fn->instructions) = start;
 		return;
 	}
