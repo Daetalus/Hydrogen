@@ -8,7 +8,6 @@
 
 // Register the entire standard library.
 void hy_add_stdlib(HyState *state) {
-	// Add all libraries
 	hy_add_io(state);
 	hy_add_err(state);
 }

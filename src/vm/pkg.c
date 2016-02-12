@@ -13,7 +13,7 @@
 // Create a new package on the interpreter state. The name of the package is
 // used when other packages want to import it. It can only consist of ASCII
 // letters (lowercase and uppercase), numbers, and underscores.
-HyPackage hy_package_new(HyState *state, char *name) {
+HyPackage hy_add_pkg(HyState *state, char *name) {
 	// Create a new package
 	Index index = pkg_new(state);
 	Package *pkg = &vec_at(state->packages, index);
@@ -41,7 +41,7 @@ static int last_occurrence(char *string, char ch) {
 
 // Returns a heap allocated string (that needs to be freed) containing the name
 // of a package based off its file path.
-char * hy_package_name(char *path) {
+char * hy_pkg_name(char *path) {
 	// Find the last path component
 	size_t length = strlen(path);
 	int last_path = last_occurrence(path, '/');

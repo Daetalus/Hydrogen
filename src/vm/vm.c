@@ -25,9 +25,9 @@
 // must be freed by calling `hy_err_free`.
 HyError * hy_run_file(char *path) {
 	HyState *state = hy_new();
-	char *name = hy_package_name(path);
-	HyPackage pkg = hy_package_new(state, name);
-	HyError *err = hy_package_run_file(state, pkg, path);
+	char *name = hy_pkg_name(path);
+	HyPackage pkg = hy_add_pkg(state, name);
+	HyError *err = hy_pkg_run_file(state, pkg, path);
 	free(name);
 	hy_free(state);
 	return err;
@@ -38,8 +38,8 @@ HyError * hy_run_file(char *path) {
 // NULL otherwise. The error must be freed by calling `hy_err_free`.
 HyError * hy_run_string(char *source) {
 	HyState *state = hy_new();
-	HyPackage pkg = hy_package_new(state, NULL);
-	HyError *err = hy_package_run_string(state, pkg, source);
+	HyPackage pkg = hy_add_pkg(state, NULL);
+	HyError *err = hy_pkg_run_string(state, pkg, source);
 	hy_free(state);
 	return err;
 }
@@ -124,7 +124,7 @@ HyError * vm_parse_and_run(HyState *state, Package *pkg, Index source) {
 // Execute a file on a package. The file's contents will be read and executed
 // as source code. The file's path will be used in relevant errors. An error
 // object is returned if one occurs, otherwise NULL is returned.
-HyError * hy_package_run_file(HyState *state, HyPackage index, char *path) {
+HyError * hy_pkg_run_file(HyState *state, HyPackage index, char *path) {
 	Package *pkg = &vec_at(state->packages, index);
 	Index source = pkg_add_file(pkg, path);
 
@@ -140,7 +140,7 @@ HyError * hy_package_run_file(HyState *state, HyPackage index, char *path) {
 
 // Execute some source code on a package. An error object is returned if one
 // occurs, otherwise NULL is returned.
-HyError * hy_package_run_string(HyState *state, HyPackage index, char *source) {
+HyError * hy_pkg_run_string(HyState *state, HyPackage index, char *source) {
 	Package *pkg = &vec_at(state->packages, index);
 	Index source_index = pkg_add_string(pkg, source);
 	return vm_parse_and_run(state, pkg, source_index);
@@ -198,20 +198,13 @@ Index state_add_field(HyState *state, Identifier ident) {
 // Increments the instruction pointer and dispatches the next instruction.
 #define NEXT() ip++; DISPATCH();
 
+// Evaluates to the value in the `n`th stack slot, relative to the current
+// function's stack start.
+#define STACK_GET(n) stack[stack_start + (n)]
+
 // Evaluates to the value on the stack at the `n`th argument of the current
 // instruction.
-#define STACK_GET(n) stack[stack_start + ins_arg(*ip, (n))]
-
-
-// Pushes a frame onto the call frame stack.
-static inline void frame_push(Frame *stack, uint32_t *stack_count, Function *fn,
-		uint32_t stack_start, uint32_t return_slot, Instruction *ip) {
-	Index index = (*stack_count)++;
-	stack[index].fn = fn;
-	stack[index].stack_start = stack_start;
-	stack[index].return_slot = return_slot;
-	stack[index].ip = ip;
-}
+#define STACK_GET_INS(n) STACK_GET(ins_arg(*ip, n))
 
 
 // Ensures a value is a number, triggering an error if this is not the case.
@@ -310,7 +303,8 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 		&&BC_JMP, &&BC_LOOP,
 
 		// Function calls
-		&&BC_CALL, &&BC_RET0, &&BC_RET,
+		&&BC_CALL, &&BC_RET0, &&BC_RET_L, &&BC_RET_I, &&BC_RET_N, &&BC_RET_S,
+		&&BC_RET_P, &&BC_RET_F, &&BC_RET_V,
 
 		// Structs
 		&&BC_STRUCT_NEW, &&BC_STRUCT_FIELD,
@@ -345,9 +339,6 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 	// stack
 	uint32_t stack_start = 0;
 
-	// Add the call frame for the main function
-	frame_push(call_stack, call_stack_count, fn, 0, 0, ip);
-
 	// Execute the first instruction
 	DISPATCH();
 
@@ -357,31 +348,25 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 	//
 
 BC_MOV_LL:
-	STACK_GET(1) = STACK_GET(2);
+	STACK_GET_INS(1) = STACK_GET_INS(2);
 	NEXT();
-
 BC_MOV_LI:
-	STACK_GET(1) = int_to_val(ins_arg(*ip, 2));
+	STACK_GET_INS(1) = int_to_val(ins_arg(*ip, 2));
 	NEXT();
-
 BC_MOV_LN:
-	STACK_GET(1) = constants[ins_arg(*ip, 2)];
+	STACK_GET_INS(1) = constants[ins_arg(*ip, 2)];
 	NEXT();
-
 BC_MOV_LS:
-	STACK_GET(1) = ptr_to_val(string_copy(strings[ins_arg(*ip, 2)]));
+	STACK_GET_INS(1) = ptr_to_val(string_copy(strings[ins_arg(*ip, 2)]));
 	NEXT();
-
 BC_MOV_LP:
-	STACK_GET(1) = prim_to_val(ins_arg(*ip, 2));
+	STACK_GET_INS(1) = prim_to_val(ins_arg(*ip, 2));
 	NEXT();
-
 BC_MOV_LF:
-	STACK_GET(1) = fn_to_val(ins_arg(*ip, 2));
+	STACK_GET_INS(1) = fn_to_val(ins_arg(*ip, 2));
 	NEXT();
-
 BC_MOV_LV:
-	STACK_GET(1) = native_to_val(ins_arg(*ip, 2));
+	STACK_GET_INS(1) = native_to_val(ins_arg(*ip, 2));
 	NEXT();
 
 
@@ -419,35 +404,28 @@ BC_UPVALUE_CLOSE:
 	vec_at(packages[ins_arg(*ip, (pkg))].locals, ins_arg(*ip, (field)))
 
 BC_MOV_TL:
-	PKG_GET(3, 1) = STACK_GET(2);
+	PKG_GET(3, 1) = STACK_GET_INS(2);
 	NEXT();
-
 BC_MOV_TI:
 	PKG_GET(3, 1) = int_to_val(ins_arg(*ip, 2));
 	NEXT();
-
 BC_MOV_TN:
 	PKG_GET(3, 1) = constants[ins_arg(*ip, 2)];
 	NEXT();
-
 BC_MOV_TS:
 	PKG_GET(3, 1) = ptr_to_val(string_copy(strings[ins_arg(*ip, 2)]));
 	NEXT();
-
 BC_MOV_TP:
 	PKG_GET(3, 1) = prim_to_val(ins_arg(*ip, 2));
 	NEXT();
-
 BC_MOV_TF:
 	PKG_GET(3, 1) = fn_to_val(ins_arg(*ip, 2));
 	NEXT();
-
 BC_MOV_TV:
 	PKG_GET(3, 1) = native_to_val(ins_arg(*ip, 2));
 	NEXT();
-
 BC_MOV_LT:
-	STACK_GET(1) = vec_at(packages[ins_arg(*ip, 3)].locals, ins_arg(*ip, 2));
+	STACK_GET_INS(1) = vec_at(packages[ins_arg(*ip, 3)].locals, ins_arg(*ip, 2));
 	NEXT();
 
 
@@ -460,37 +438,37 @@ BC_MOV_LT:
 #define COMMA ,
 #define ARITH(ins, operator, fn)                                  \
 	BC_ ## ins ## _LL:                                            \
-		STACK_GET(1) = num_to_val(fn(                             \
-			ensure_num(STACK_GET(2)) operator                     \
-			ensure_num(STACK_GET(3))                              \
+		STACK_GET_INS(1) = num_to_val(fn(                         \
+			ensure_num(STACK_GET_INS(2)) operator                 \
+			ensure_num(STACK_GET_INS(3))                          \
 		));                                                       \
 		NEXT();                                                   \
                                                                   \
 	BC_ ## ins ## _LI:                                            \
-		STACK_GET(1) = num_to_val(fn(                             \
-			ensure_num(STACK_GET(2)) operator                     \
+		STACK_GET_INS(1) = num_to_val(fn(                         \
+			ensure_num(STACK_GET_INS(2)) operator                 \
 			(double) unsigned_to_signed(ins_arg(*ip, 3))          \
 		));                                                       \
 		NEXT();                                                   \
                                                                   \
 	BC_ ## ins ## _LN:                                            \
-		STACK_GET(1) = num_to_val(fn(                             \
-			ensure_num(STACK_GET(2)) operator                     \
+		STACK_GET_INS(1) = num_to_val(fn(                         \
+			ensure_num(STACK_GET_INS(2)) operator                 \
 			val_to_num(constants[ins_arg(*ip, 3)])                \
 		));                                                       \
 		NEXT();                                                   \
                                                                   \
 	BC_ ## ins ## _IL:                                            \
-		STACK_GET(1) = num_to_val(fn(                             \
+		STACK_GET_INS(1) = num_to_val(fn(                         \
 			(double) unsigned_to_signed(ins_arg(*ip, 3)) operator \
-			ensure_num(STACK_GET(2))                              \
+			ensure_num(STACK_GET_INS(2))                          \
 		));                                                       \
 		NEXT();                                                   \
                                                                   \
 	BC_ ## ins ## _NL:                                            \
-		STACK_GET(1) = num_to_val(fn(                             \
+		STACK_GET_INS(1) = num_to_val(fn(                         \
 			val_to_num(constants[ins_arg(*ip, 3)]) operator       \
-			ensure_num(STACK_GET(2))                              \
+			ensure_num(STACK_GET_INS(2))                          \
 		));                                                       \
 		NEXT();
 
@@ -506,19 +484,19 @@ BC_MOV_LT:
 	//
 
 BC_CONCAT_LL:
-	STACK_GET(1) = ptr_to_val(string_concat(
+	STACK_GET_INS(1) = ptr_to_val(string_concat(
 		ensure_str(ins_arg(*ip, 2)), ensure_str(ins_arg(*ip, 3))
 	));
 	NEXT();
 
 BC_CONCAT_LS:
-	STACK_GET(1) = ptr_to_val(string_concat(
+	STACK_GET_INS(1) = ptr_to_val(string_concat(
 		ensure_str(ins_arg(*ip, 2)), strings[ins_arg(*ip, 3)]
 	));
 	NEXT();
 
 BC_CONCAT_SL:
-	STACK_GET(1) = ptr_to_val(string_concat(
+	STACK_GET_INS(1) = ptr_to_val(string_concat(
 		strings[ins_arg(*ip, 2)], ensure_str(ins_arg(*ip, 3))
 	));
 	NEXT();
@@ -529,7 +507,7 @@ BC_CONCAT_SL:
 	//
 
 BC_NEG_L:
-	STACK_GET(1) = num_to_val(-ensure_num(STACK_GET(2)));
+	STACK_GET_INS(1) = num_to_val(-ensure_num(STACK_GET_INS(2)));
 	NEXT();
 
 
@@ -538,7 +516,7 @@ BC_NEG_L:
 	//
 
 BC_IS_TRUE_L: {
-	HyValue arg = STACK_GET(1);
+	HyValue arg = STACK_GET_INS(1);
 	if (arg == VALUE_FALSE || arg == VALUE_NIL) {
 		ip++;
 	}
@@ -546,7 +524,7 @@ BC_IS_TRUE_L: {
 }
 
 BC_IS_FALSE_L: {
-	HyValue arg = STACK_GET(1);
+	HyValue arg = STACK_GET_INS(1);
 	if (arg != VALUE_FALSE && arg != VALUE_NIL) {
 		ip++;
 	}
@@ -555,49 +533,49 @@ BC_IS_FALSE_L: {
 
 	// Since equality and inequality comparisons are nearly identical, generate
 	// the code for each using a macro.
-#define EQ(ins, op)                                                     \
-	BC_ ## ins ## _LL: {                                                \
-		if (op val_comp(structs, STACK_GET(1), STACK_GET(2))) {         \
-			ip++;                                                       \
-		}                                                               \
-		NEXT();                                                         \
-	}                                                                   \
-                                                                        \
-	BC_ ## ins ## _LI:                                                  \
-		if (op (STACK_GET(1) == int_to_val(ins_arg(*ip, 2)))) {         \
-			ip++;                                                       \
-		}                                                               \
-		NEXT();                                                         \
-                                                                        \
-	BC_ ## ins ## _LN:                                                  \
-		if (op (STACK_GET(1) == constants[ins_arg(*ip, 3)])) {          \
-			ip++;                                                       \
-		}                                                               \
-		NEXT();                                                         \
-                                                                        \
-	BC_ ## ins ## _LS:                                                  \
-		if (op (val_is_str(STACK_GET(1)) && string_comp(                \
-				val_to_ptr(STACK_GET(1)), strings[ins_arg(*ip, 2)]))) { \
-			ip++;                                                       \
-		}                                                               \
-		NEXT();                                                         \
-                                                                        \
-	BC_ ## ins ## _LP:                                                  \
-		if (op (STACK_GET(1) == prim_to_val(ins_arg(*ip, 2)))) {        \
-			ip++;                                                       \
-		}                                                               \
-		NEXT();                                                         \
-                                                                        \
-	BC_ ## ins ## _LF:                                                  \
-		if (op (val_to_fn(STACK_GET(1)) == ins_arg(*ip, 2))) {          \
-			ip++;                                                       \
-		}                                                               \
-		NEXT();                                                         \
-                                                                        \
-	BC_ ## ins ## _LV:                                                  \
-		if (op (val_to_native(STACK_GET(1)) == ins_arg(*ip, 2)))  {     \
-			ip++;                                                       \
-		}                                                               \
+#define EQ(ins, op)                                                         \
+	BC_ ## ins ## _LL: {                                                    \
+		if (op val_comp(structs, STACK_GET_INS(1), STACK_GET_INS(2))) {     \
+			ip++;                                                           \
+		}                                                                   \
+		NEXT();                                                             \
+	}                                                                       \
+                                                                            \
+	BC_ ## ins ## _LI:                                                      \
+		if (op (STACK_GET_INS(1) == int_to_val(ins_arg(*ip, 2)))) {         \
+			ip++;                                                           \
+		}                                                                   \
+		NEXT();                                                             \
+                                                                            \
+	BC_ ## ins ## _LN:                                                      \
+		if (op (STACK_GET_INS(1) == constants[ins_arg(*ip, 3)])) {          \
+			ip++;                                                           \
+		}                                                                   \
+		NEXT();                                                             \
+                                                                            \
+	BC_ ## ins ## _LS:                                                      \
+		if (op (val_is_str(STACK_GET_INS(1)) && string_comp(                \
+				val_to_ptr(STACK_GET_INS(1)), strings[ins_arg(*ip, 2)]))) { \
+			ip++;                                                           \
+		}                                                                   \
+		NEXT();                                                             \
+                                                                            \
+	BC_ ## ins ## _LP:                                                      \
+		if (op (STACK_GET_INS(1) == prim_to_val(ins_arg(*ip, 2)))) {        \
+			ip++;                                                           \
+		}                                                                   \
+		NEXT();                                                             \
+                                                                            \
+	BC_ ## ins ## _LF:                                                      \
+		if (op (val_to_fn(STACK_GET_INS(1)) == ins_arg(*ip, 2))) {          \
+			ip++;                                                           \
+		}                                                                   \
+		NEXT();                                                             \
+                                                                            \
+	BC_ ## ins ## _LV:                                                      \
+		if (op (val_to_native(STACK_GET_INS(1)) == ins_arg(*ip, 2)))  {     \
+			ip++;                                                           \
+		}                                                                   \
 		NEXT();
 
 	// Use the opposite comparison operation because we want to execute the
@@ -611,25 +589,25 @@ BC_IS_FALSE_L: {
 	//
 
 	// Use a macro to generate code for each of the order instructions.
-#define ORD(ins, op)                                                \
-	BC_ ## ins ## _LL:                                              \
-		if (ensure_num(STACK_GET(1)) op ensure_num(STACK_GET(2))) { \
-			ip++;                                                   \
-		}                                                           \
-		NEXT();                                                     \
-                                                                    \
-	BC_ ## ins ## _LI:                                              \
-		if (ensure_num(STACK_GET(1)) op                             \
-				(double) unsigned_to_signed(ins_arg(*ip, 2))) {     \
-			ip++;                                                   \
-		}                                                           \
-		NEXT();                                                     \
-                                                                    \
-	BC_ ## ins ## _LN:                                              \
-		if (ensure_num(STACK_GET(1)) op                             \
-				val_to_num(constants[ins_arg(*ip, 2)])) {           \
-			ip++;                                                   \
-		}                                                           \
+#define ORD(ins, op)                                                        \
+	BC_ ## ins ## _LL:                                                      \
+		if (ensure_num(STACK_GET_INS(1)) op ensure_num(STACK_GET_INS(2))) { \
+			ip++;                                                           \
+		}                                                                   \
+		NEXT();                                                             \
+                                                                            \
+	BC_ ## ins ## _LI:                                                      \
+		if (ensure_num(STACK_GET_INS(1)) op                                 \
+				(double) unsigned_to_signed(ins_arg(*ip, 2))) {             \
+			ip++;                                                           \
+		}                                                                   \
+		NEXT();                                                             \
+                                                                            \
+	BC_ ## ins ## _LN:                                                      \
+		if (ensure_num(STACK_GET_INS(1)) op                                 \
+				val_to_num(constants[ins_arg(*ip, 2)])) {                   \
+			ip++;                                                           \
+		}                                                                   \
 		NEXT();
 
 	// Again, use the opposite comparison operation
@@ -656,11 +634,69 @@ BC_LOOP:
 	//  Function Calls
 	//
 
-BC_CALL:
+BC_CALL: {
+	HyValue fn_value = stack[ins_arg(*ip, 1)];
+	if (val_is_fn(fn_value)) {
+		// Create a stack frame for the calling function to save the required
+		// state
+		Index index = (*call_stack_count)++;
+		call_stack[index].fn = fn;
+		call_stack[index].stack_start = stack_start;
+		call_stack[index].return_slot = ins_arg(*ip, 3);
+		call_stack[index].ip = ip;
+
+		// Set up state for the called function
+		stack_start = ins_arg(*ip, 1);
+		fn = &functions[val_to_fn(fn_value)];
+		ip = &vec_at(fn->instructions, 0);
+		DISPATCH();
+	} else if (val_is_native(fn_value)) {
+		// Create a set of arguments to pass to the native function
+		HyArgs args;
+		args.stack = stack;
+		args.start = stack_start + ins_arg(*ip, 1) + 1;
+		args.arity = ins_arg(*ip, 2);
+		STACK_GET_INS(3) = natives[val_to_native(fn_value)].fn(state, &args);
+		NEXT();
+	} else {
+		// TODO: trigger attempt to call non-function error
+	}
+}
+
+
+// Shorthand for returning a value.
+#define RET(return_value) {                                    \
+	Index index = (*call_stack_count)--;                       \
+	STACK_GET(call_stack[index].return_slot) = (return_value); \
+	stack_start = call_stack[index].stack_start;               \
+	fn = call_stack[index].fn;                                 \
+	ip = call_stack[index].ip;                                 \
+	DISPATCH();                                                \
+}
+
 BC_RET0:
-	goto finish;
-BC_RET:
-	goto finish;
+	// Check if we're returning from the main function (only needs to be done
+	// from the RET0 instruction, because this is the only way to stop
+	// execution)
+	if (*call_stack_count == 0) {
+		goto finish;
+	}
+	RET(VALUE_NIL);
+
+BC_RET_L:
+	RET(STACK_GET_INS(2));
+BC_RET_I:
+	RET(int_to_val(ins_arg(*ip, 2)));
+BC_RET_N:
+	RET(constants[ins_arg(*ip, 2)]);
+BC_RET_S:
+	RET(ptr_to_val(string_copy(strings[ins_arg(*ip, 2)])));
+BC_RET_P:
+	RET(prim_to_val(ins_arg(*ip, 2)));
+BC_RET_F:
+	RET(fn_to_val(ins_arg(*ip, 2)));
+BC_RET_V:
+	RET(native_to_val(ins_arg(*ip, 2)));
 
 
 	//

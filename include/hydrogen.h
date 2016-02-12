@@ -110,21 +110,21 @@ void hy_err_free(HyError *err);
 // Create a new package on the interpreter state. The name of the package is
 // used when other packages want to import it. It can only consist of ASCII
 // letters (lowercase and uppercase), numbers, and underscores.
-HyPackage hy_package_new(HyState *state, char *name);
+HyPackage hy_add_pkg(HyState *state, char *name);
 
 // Returns a heap allocated string (that needs to be freed) containing the name
 // of a package based off its file path.
-char * hy_package_name(char *path);
+char * hy_pkg_name(char *path);
 
 
 // Execute a file on a package. The file's contents will be read and executed
 // as source code. The file's path will be used in relevant errors. An error
 // object is returned if one occurs, otherwise NULL is returned.
-HyError * hy_package_run_file(HyState *state, HyPackage pkg, char *path);
+HyError * hy_pkg_run_file(HyState *state, HyPackage pkg, char *path);
 
 // Execute some source code on a package. An error object is returned if one
 // occurs, otherwise NULL is returned.
-HyError * hy_package_run_string(HyState *state, HyPackage pkg, char *source);
+HyError * hy_pkg_run_string(HyState *state, HyPackage pkg, char *source);
 
 
 // Read source code from a file and parse it into bytecode, printing it to
@@ -142,5 +142,60 @@ HyError * hy_print_bytecode_string(HyState *state, HyPackage pkg, char *source);
 // of arguments.
 void hy_add_native(HyState *state, HyPackage pkg, char *name, int32_t arity,
 	HyNativeFn fn);
+
+
+
+//
+//  Values
+//
+
+// The possible types of a value.
+typedef enum {
+	HY_NIL,
+	HY_BOOL,
+	HY_NUMBER,
+	HY_STRING,
+	HY_STRUCT,
+} HyType;
+
+
+// Returns a nil value.
+HyValue hy_nil(void);
+
+// Converts a boolean into a value.
+HyValue hy_bool(bool boolean);
+
+// Converts a number into a value.
+HyValue hy_number(double number);
+
+// Copies a string into a garbage collected value.
+HyValue hy_string(HyState *state, char *string);
+
+// Returns the type of a value.
+HyType hy_type(HyValue value);
+
+// Returns true if a value is nil or not.
+bool hy_is_nil(HyValue value);
+
+// Converts a value to a boolean, ignoring the type of the value.
+bool hy_to_bool(HyValue value);
+
+// Converts a value into a boolean, triggering an error if the value is not a
+// boolean in type.
+bool hy_expect_bool(HyValue value);
+
+// Converts a value into a number, triggering an error if the value isn't a
+// number.
+double hy_expect_number(HyValue value);
+
+// Converts a value into a string, triggering an error if it isn't a string.
+// Do not try and free the returned string. It will be garbage collected later.
+char * hy_expect_string(HyValue value);
+
+// Returns the number of arguments passed to a native function.
+uint32_t hy_args_count(HyArgs *args);
+
+// Returns the `index`th argument passed to a native function.
+HyValue hy_arg(HyArgs *args, uint32_t index);
 
 #endif

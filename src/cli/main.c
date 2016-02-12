@@ -236,7 +236,7 @@ static void repl(Config *config) {
 	// Create a new interpreter state and package
 	// TODO: Add exit() native function to package for clean exit
 	HyState *state = hy_new();
-	HyPackage pkg = hy_package_new(state, NULL);
+	HyPackage pkg = hy_add_pkg(state, NULL);
 
 	// REPL loop
 	while (true) {
@@ -244,7 +244,7 @@ static void repl(Config *config) {
 		if (config->show_bytecode) {
 			print_err(hy_print_bytecode_string(state, pkg, input));
 		} else {
-			print_err(hy_package_run_string(state, pkg, input));
+			print_err(hy_pkg_run_string(state, pkg, input));
 		}
 	}
 
@@ -266,11 +266,11 @@ static void print_bytecode(Config *config) {
 	// Find the package name
 	char *name = NULL;
 	if (config->input_type == INPUT_FILE) {
-		name = hy_package_name(config->input);
+		name = hy_pkg_name(config->input);
 	}
 
 	// Create a new package
-	HyPackage pkg = hy_package_new(state, name);
+	HyPackage pkg = hy_add_pkg(state, name);
 
 	// Depending on the type of the input
 	switch (config->input_type) {

@@ -562,8 +562,7 @@ static inline bool operator_is_unary(TokenType operator) {
 
 
 // Computes the result of an integer fold.
-static int32_t arith_integer(TokenType operator, int32_t left,
-		int32_t right) {
+static int32_t arith_integer(TokenType operator, int32_t left, int32_t right) {
 	switch (operator) {
 	case TOKEN_ADD:
 		return left + right;
@@ -583,8 +582,7 @@ static int32_t arith_integer(TokenType operator, int32_t left,
 
 
 // Computes the result of a number fold.
-static double arith_number(TokenType operator, double left,
-		double right) {
+static double arith_number(TokenType operator, double left, double right) {
 	switch (operator) {
 	case TOKEN_ADD:
 		return left + right;
@@ -610,8 +608,8 @@ static bool fold_arith_integers(Parser *parser, TokenType operator,
 	int32_t left_value = unsigned_to_signed(left->value);
 	int32_t right_value = unsigned_to_signed(right.value);
 
-	// If we're performing a division which results in a fractional answer, then
-	// we can't fold this as integers
+	// If we're performing a division which results in a fractional answer,
+	// then we can't fold this as integers
 	if (operator == TOKEN_DIV && left_value % right_value != 0) {
 		return false;
 	}

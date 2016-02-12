@@ -75,6 +75,19 @@ typedef struct {
 } NativeFunction;
 
 
+// Arguments passed to a native function.
+struct hy_args {
+	// A pointer to the start of the stack.
+	HyValue *stack;
+
+	// The first argument passed to the function.
+	uint32_t start;
+
+	// The number of arguments passed to the function.
+	uint32_t arity;
+};
+
+
 // Defines a new native function on the package `pkg`.
 Index native_new(HyState *state, Index pkg, char *name);
 
