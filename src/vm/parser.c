@@ -181,19 +181,19 @@ static uint16_t local_reserve(Parser *parser) {
 // Create a new, named local, returning its index.
 static uint16_t local_new(Parser *parser) {
 	FunctionScope *scope = parser->scope;
-	ASSERT(scope->actives_count == scope->locals_count);
-	ASSERT(scope->actives_count + scope->actives_start ==
+	ASSERT(parser->scope->actives_count == parser->scope->locals_count);
+	ASSERT(parser->scope->actives_count + parser->scope->actives_start ==
 		vec_len(parser->locals));
 
 	// Increment the number of locals
 	vec_add(parser->locals);
-	parser->scope->actives_count++;
+	scope->actives_count++;
 
 	// Set the local's default values
 	Local *local = &vec_last(parser->locals);
 	local->name = NULL;
 	local->length = 0;
-	local->block = parser->scope->block_depth;
+	local->block = scope->block_depth;
 	return local_reserve(parser);
 }
 
@@ -220,7 +220,6 @@ static void local_free(Parser *parser) {
 static Index local_find(Parser *parser, char *name, uint32_t length) {
 	// Search in reverse order
 	for (int i = (int) parser->scope->actives_count - 1; i >= 0; i--) {
-		// Check if this local's name matches the given one
 		Local *local = local_get(parser, i);
 		if (length == local->length &&
 				strncmp(name, local->name, length) == 0) {
@@ -234,13 +233,10 @@ static Index local_find(Parser *parser, char *name, uint32_t length) {
 // Returns true if a name is unique enough to be used in a `let` statement (can
 // override locals outside the function scope and top level variables).
 static bool local_is_unique(Parser *parser, char *name, uint32_t length) {
-	return !(
-		// Locals in current scope
-		local_find(parser, name, length) != NOT_FOUND ||
-		// Top level variables if not inside a function
+	// Check locals or top level values if we're not inside a function
+	return !(local_find(parser, name, length) != NOT_FOUND ||
 		(parser->scope->parent == NULL &&
-		 	pkg_local_find(parser_pkg(parser), name, length) != NOT_FOUND)
-	);
+		 pkg_local_find(parser_pkg(parser), name, length) != NOT_FOUND));
 }
 
 
@@ -501,7 +497,7 @@ static bool operand_is_true(Operand *condition) {
 
 
 // Converts a number operand (integer or number) into its double value.
-static inline double operand_to_number(Parser *parser, Operand *operand) {
+static inline double operand_to_num(Parser *parser, Operand *operand) {
 	if (operand->type == OP_NUMBER) {
 		return val_to_num(vec_at(parser->state->constants, operand->value));
 	} else if (operand->type == OP_INTEGER) {
@@ -514,7 +510,7 @@ static inline double operand_to_number(Parser *parser, Operand *operand) {
 
 
 // Converts a string operand into its underlying `char *` value.
-static inline char * operand_to_string(Parser *parser, Operand *operand) {
+static inline char * operand_to_str(Parser *parser, Operand *operand) {
 	return &(vec_at(parser->state->strings, operand->value)->contents[0]);
 }
 
@@ -655,8 +651,8 @@ static bool fold_arith(Parser *parser, TokenType operator, Operand *left,
 	}
 
 	// Extract values and compute result
-	double left_value = operand_to_number(parser, left);
-	double right_value = operand_to_number(parser, &right);
+	double left_value = operand_to_num(parser, left);
+	double right_value = operand_to_num(parser, &right);
 	double result = arith_number(operator, left_value, right_value);
 
 	// Set resulting operand
@@ -717,11 +713,10 @@ static bool fold_eq(Parser *parser, TokenType operator, Operand *left,
 	// Try special tests for numbers and strings
 	bool result = false;
 	if (left->type == OP_NUMBER) {
-		result = operand_to_number(parser, left) ==
-			operand_to_number(parser, &right);
+		result = operand_to_num(parser, left) == operand_to_num(parser, &right);
 	} else if (left->type == OP_STRING) {
-		result = strcmp(operand_to_string(parser, left),
-			operand_to_string(parser, &right)) == 0;
+		result = strcmp(operand_to_str(parser, left),
+			operand_to_str(parser, &right)) == 0;
 	}
 
 	// Invert the result if we're comparing inequality
@@ -774,8 +769,8 @@ static bool fold_ord(Parser *parser, TokenType operator, Operand *left,
 		ord_number(result, operator, left_value, right_value);
 	} else if (operand_is_number(left) && operand_is_number(&right)) {
 		// Comparing two numbers
-		double left_value = operand_to_number(parser, left);
-		double right_value = operand_to_number(parser, &right);
+		double left_value = operand_to_num(parser, left);
+		double right_value = operand_to_num(parser, &right);
 		ord_number(result, operator, left_value, right_value);
 	} else {
 		// Can't fold
@@ -1939,16 +1934,76 @@ static Operand parse_conditional_expr(Parser *parser) {
 }
 
 
-// Parse an if statement, and any subsequent else if or else branches.
-static void parse_if(Parser *parser) {
+// Parses a branch of an if statement, returning true if this was an else
+// branch.
+static bool parse_if_branch(Parser *parser, Operand *previous, Index *list,
+		bool *fold) {
 	Lexer *lexer = &parser->lexer;
 	Function *fn = parser_fn(parser);
 
+	// Save the instruction length so we can delete the bytecode emitted
+	// for this branch if needed
+	uint32_t saved_length = vec_len(fn->instructions);
+
+	// If the condition for the current branch doesn't turn out constant
+	// false, then we need to insert a jump for the previous branch over
+	// the current one. This needs to be before the current branch's
+	// condition's bytecode, so insert it here
+	Index final_jump = NOT_FOUND;
+	if (previous->type == OP_JUMP) {
+		final_jump = fn_emit(fn, JMP, 0, 0, 0);
+	}
+
+	// Check if we're parsing an else or else if branch
+	bool is_else = (lexer->token.type == TOKEN_ELSE);
+	lexer_next(lexer);
+
+	// Parse the condition
+	Operand condition;
+	if (is_else) {
+		// Treat else branches as constant true else if branches
+		condition.type = OP_PRIMITIVE;
+		condition.value = TAG_TRUE;
+	} else {
+		condition = parse_conditional_expr(parser);
+	}
+
+	// If we're folding all future branches because we found a constant true
+	// condition earlier, or this branch is constant false
+	if (*fold || operand_is_false(&condition)) {
+		// Parse the block and get rid of its contents (including the
+		// potentially emitted jump for the previous branch)
+		parse_braced_block(parser);
+		vec_len(fn->instructions) = saved_length;
+	} else {
+		if (previous->type == OP_JUMP) {
+			// Keep the previous branch's jump and patch its false case to
+			// after this jump
+			jmp_prepend(fn, list, final_jump);
+			jmp_false_case(fn, previous->jump, final_jump + 1);
+		}
+
+		// Parse the contents of this branch
+		parse_braced_block(parser);
+		*previous = condition;
+
+		// If the condition is constant true, fold all future branches
+		if (operand_is_true(&condition)) {
+			*fold = true;
+		}
+	}
+
+	return is_else;
+}
+
+
+// Parse an if statement, and any subsequent else if or else branches.
+static void parse_if(Parser *parser) {
 	// Store the condition of the branch before the current one so we can patch
 	// its false case if we need to insert a jump. Only stores the condition of
 	// constant true and non-constant branches (constant false branches are
 	// ignored)
-	Operand previous_condition = operand_new();
+	Operand condition = operand_new();
 
 	// Keep a jump list of all final jumps emitted at the end of if blocks, so
 	// we can point all of them to after the whole if statement
@@ -1959,72 +2014,18 @@ static void parse_if(Parser *parser) {
 	bool fold = false;
 
 	// Trick the loop into thinking the first if is actually an else if
-	lexer->token.type = TOKEN_ELSE_IF;
+	Token *token = &parser->lexer.token;
+	token->type = TOKEN_ELSE_IF;
 
-	while (lexer->token.type == TOKEN_ELSE_IF ||
-			lexer->token.type == TOKEN_ELSE) {
-		// Save the instruction length so we can delete the bytecode emitted
-		// for this branch if needed
-		uint32_t saved_length = vec_len(fn->instructions);
-
-		// If the condition for the current branch doesn't turn out constant
-		// false, then we need to insert a jump for the previous branch over
-		// the current one. This needs to be before the current branch's
-		// condition, so insert it here
-		Index final_jump = NOT_FOUND;
-		if (previous_condition.type == OP_JUMP) {
-			final_jump = fn_emit(fn, JMP, 0, 0, 0);
-		}
-
-		// Check if we're parsing an else or else if branch
-		bool is_else = lexer->token.type == TOKEN_ELSE;
-		lexer_next(lexer);
-
-		// Parse the condition
-		Operand condition;
-		if (is_else) {
-			// Treat else branches as constant true else if branches
-			condition.type = OP_PRIMITIVE;
-			condition.value = TAG_TRUE;
-		} else {
-			condition = parse_conditional_expr(parser);
-		}
-
-		// If we're folding all future branches because we found a constant true
-		// condition earlier, or this branch is constant false
-		if (fold || operand_is_false(&condition)) {
-			// Parse the block and get rid of its contents (including the
-			// potentially emitted jump for the previous branch)
-			parse_braced_block(parser);
-			vec_len(fn->instructions) = saved_length;
-		} else {
-			if (previous_condition.type == OP_JUMP) {
-				// Keep the previous branch's jump and patch its false case to
-				// after this jump
-				jmp_prepend(fn, &list, final_jump);
-				jmp_false_case(fn, previous_condition.jump, final_jump + 1);
-			}
-
-			// Parse the contents of this branch
-			parse_braced_block(parser);
-			previous_condition = condition;
-
-			// If the condition is constant true, fold all future branches
-			if (operand_is_true(&condition)) {
-				fold = true;
-			}
-		}
-
-		// Stop after parsing an else branch
-		if (is_else) {
-			break;
-		}
-	}
+	// Continually parse branches
+	while ((token->type == TOKEN_ELSE_IF || token->type == TOKEN_ELSE) &&
+			!parse_if_branch(parser, &condition, &list, &fold)) {}
 
 	// Patch the false case of the last branch's condition to here
-	if (previous_condition.type == OP_JUMP) {
+	Function *fn = parser_fn(parser);
+	if (condition.type == OP_JUMP) {
 		Index target = vec_len(fn->instructions);
-		jmp_false_case(fn, previous_condition.jump, target);
+		jmp_false_case(fn, condition.jump, target);
 	}
 
 	// Point all end of branch jumps here

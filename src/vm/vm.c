@@ -414,38 +414,36 @@ BC_UPVALUE_CLOSE:
 	//  Top Level Local Storage
 	//
 
+// Shorthand method to retrive a top level local on a package.
+#define PKG_GET(pkg, field) \
+	vec_at(packages[ins_arg(*ip, (pkg))].locals, ins_arg(*ip, (field)))
+
 BC_MOV_TL:
-	vec_at(packages[ins_arg(*ip, 3)].locals, ins_arg(*ip, 1)) = STACK_GET(2);
+	PKG_GET(3, 1) = STACK_GET(2);
 	NEXT();
 
 BC_MOV_TI:
-	vec_at(packages[ins_arg(*ip, 3)].locals, ins_arg(*ip, 1)) =
-		int_to_val(ins_arg(*ip, 2));
+	PKG_GET(3, 1) = int_to_val(ins_arg(*ip, 2));
 	NEXT();
 
 BC_MOV_TN:
-	vec_at(packages[ins_arg(*ip, 3)].locals, ins_arg(*ip, 1)) =
-		constants[ins_arg(*ip, 2)];
+	PKG_GET(3, 1) = constants[ins_arg(*ip, 2)];
 	NEXT();
 
 BC_MOV_TS:
-	vec_at(packages[ins_arg(*ip, 3)].locals, ins_arg(*ip, 1)) =
-		ptr_to_val(string_copy(strings[ins_arg(*ip, 2)]));
+	PKG_GET(3, 1) = ptr_to_val(string_copy(strings[ins_arg(*ip, 2)]));
 	NEXT();
 
 BC_MOV_TP:
-	vec_at(packages[ins_arg(*ip, 3)].locals, ins_arg(*ip, 1)) =
-		prim_to_val(ins_arg(*ip, 2));
+	PKG_GET(3, 1) = prim_to_val(ins_arg(*ip, 2));
 	NEXT();
 
 BC_MOV_TF:
-	vec_at(packages[ins_arg(*ip, 3)].locals, ins_arg(*ip, 1)) =
-		fn_to_val(ins_arg(*ip, 2));
+	PKG_GET(3, 1) = fn_to_val(ins_arg(*ip, 2));
 	NEXT();
 
 BC_MOV_TV:
-	vec_at(packages[ins_arg(*ip, 3)].locals, ins_arg(*ip, 1)) =
-		native_to_val(ins_arg(*ip, 2));
+	PKG_GET(3, 1) = native_to_val(ins_arg(*ip, 2));
 	NEXT();
 
 BC_MOV_LT:
