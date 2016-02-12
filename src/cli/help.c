@@ -33,10 +33,8 @@ void print_version(void) {
 
 // Print full help information.
 void print_help(void) {
+	print_version();
 	printf(
-		"Hydrogen " VERSION "\n"
-		"A toy tracing JIT compiled programming language.\n"
-		"By Ben Anderson, 2016.\n"
 		"\n"
 		"Usage:\n"
 		"  hydrogen [options] [path to file]\n"

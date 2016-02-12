@@ -9,6 +9,7 @@
 
 #include "vm.h"
 #include "err.h"
+#include "debug.h"
 
 
 // The maximum stack size.
@@ -108,14 +109,15 @@ HyError * vm_reset_error(HyState *state) {
 // Parses and runs some source code.
 HyError * vm_parse_and_run(HyState *state, Package *pkg, Index source) {
 	// Parse the source code
-	Index main_fn;
+	Index main_fn = 0;
 	HyError *err = pkg_parse(pkg, source, &main_fn);
 	if (err != NULL) {
 		return err;
 	}
 
 	// Execute the main function
-	return vm_run_fn(state, main_fn);
+	HyError *result = vm_run_fn(state, main_fn);
+	return result;
 }
 
 
@@ -278,9 +280,9 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 		// Storage
 		&&BC_MOV_LL, &&BC_MOV_LI, &&BC_MOV_LN, &&BC_MOV_LS, &&BC_MOV_LP,
 		&&BC_MOV_LF, &&BC_MOV_LV,
-		// &&BC_MOV_UL, &&BC_MOV_UI, &&BC_MOV_UN, &&BC_MOV_US, &&BC_MOV_UP,
-		// &&BC_MOV_UF, &&BC_MOV_UV,
-		// &&BC_MOV_LU, &&BC_UPVALUE_CLOSE,
+		&&BC_MOV_UL, &&BC_MOV_UI, &&BC_MOV_UN, &&BC_MOV_US, &&BC_MOV_UP,
+		&&BC_MOV_UF, &&BC_MOV_UV,
+		&&BC_MOV_LU, &&BC_UPVALUE_CLOSE,
 		&&BC_MOV_TL, &&BC_MOV_TI, &&BC_MOV_TN, &&BC_MOV_TS, &&BC_MOV_TP,
 		&&BC_MOV_TF, &&BC_MOV_TV, &&BC_MOV_LT,
 
@@ -311,10 +313,10 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 		&&BC_CALL, &&BC_RET0, &&BC_RET,
 
 		// Structs
-		// &&BC_STRUCT_NEW, &&BC_STRUCT_FIELD,
-		// &&BC_STRUCT_SET_L, &&BC_STRUCT_SET_I, &&BC_STRUCT_SET_N,
-		// &&BC_STRUCT_SET_S, &&BC_STRUCT_SET_P, &&BC_STRUCT_SET_F,
-		// &&BC_STRUCT_SET_V,
+		&&BC_STRUCT_NEW, &&BC_STRUCT_FIELD,
+		&&BC_STRUCT_SET_L, &&BC_STRUCT_SET_I, &&BC_STRUCT_SET_N,
+		&&BC_STRUCT_SET_S, &&BC_STRUCT_SET_P, &&BC_STRUCT_SET_F,
+		&&BC_STRUCT_SET_V,
 	};
 
 	// Cache pointers to arrays on the interpreter state
@@ -330,9 +332,11 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 	HyValue *stack = state->stack;
 	Frame *call_stack = state->call_stack;
 	uint32_t *call_stack_count = &state->call_stack_count;
+	*call_stack_count = 0;
 
 	// Get a pointer to the function we're executing
 	Function *fn = &functions[fn_index];
+	debug_fn(state, fn);
 
 	// The current instruction we're executing
 	Instruction *ip = &vec_at(fn->instructions, 0);
@@ -385,7 +389,25 @@ BC_MOV_LV:
 	//  Upvalue Storage
 	//
 
-	// TODO
+BC_MOV_UL:
+	NEXT();
+BC_MOV_UI:
+	NEXT();
+BC_MOV_UN:
+	NEXT();
+BC_MOV_US:
+	NEXT();
+BC_MOV_UP:
+	NEXT();
+BC_MOV_UF:
+	NEXT();
+BC_MOV_UV:
+	NEXT();
+
+BC_MOV_LU:
+	NEXT();
+BC_UPVALUE_CLOSE:
+	NEXT();
 
 
 	//
@@ -641,6 +663,30 @@ BC_RET0:
 	goto finish;
 BC_RET:
 	goto finish;
+
+
+	//
+	//  Structs
+	//
+
+BC_STRUCT_NEW:
+	NEXT();
+BC_STRUCT_FIELD:
+	NEXT();
+BC_STRUCT_SET_L:
+	NEXT();
+BC_STRUCT_SET_I:
+	NEXT();
+BC_STRUCT_SET_N:
+	NEXT();
+BC_STRUCT_SET_S:
+	NEXT();
+BC_STRUCT_SET_P:
+	NEXT();
+BC_STRUCT_SET_F:
+	NEXT();
+BC_STRUCT_SET_V:
+	NEXT();
 
 finish:
 	printf("success!!\n");
