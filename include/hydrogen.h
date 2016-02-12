@@ -3,7 +3,6 @@
 //  Hydrogen
 //
 
-
 #ifndef HYDROGEN_H
 #define HYDROGEN_H
 
@@ -87,19 +86,18 @@ typedef struct {
 } HyError;
 
 
+// Create a new interpreter state.
+HyState * hy_new(void);
+
 // Executes a file by creating a new interpreter state, reading the contents of
 // the file, and executing the source code. Acts as a wrapper around other API
 // functions. Returns an error if one occurred, or NULL otherwise. The error
 // must be freed by calling `hy_err_free`.
-HyError * hy_run_file(char *path);
+HyError * hy_run_file(HyState *state, char *path);
 
 // Executes some source code from a string. Returns an error if one occurred, or
 // NULL otherwise. The error must be freed by calling `hy_err_free`.
-HyError * hy_run_string(char *source);
-
-
-// Create a new interpreter state.
-HyState * hy_new(void);
+HyError * hy_run_string(HyState *state, char *source);
 
 // Release all resources allocated by an interpreter state.
 void hy_free(HyState *state);
@@ -156,6 +154,7 @@ typedef enum {
 	HY_NUMBER,
 	HY_STRING,
 	HY_STRUCT,
+	HY_FUNCTION,
 } HyType;
 
 

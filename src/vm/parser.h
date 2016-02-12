@@ -92,6 +92,9 @@ typedef struct {
 	// all use temporary locals on top of these.
 	Vec(Local) locals;
 
+	// A list of packages imported by this file.
+	Vec(Index) imports;
+
 	// Each function is parsed in its own scope. Functions defined inside other
 	// functions have their scopes linked together by a linked list. The head
 	// of the linked list (this pointer) is the inner most function (the one

@@ -59,17 +59,26 @@ static inline void print_color(char *color) {
 // Prints the description part of an error.
 static int print_description(HyError *err) {
 	// Header
-		int prefix = printf("%s:%d:%d", err->file, err->line, err->column);
-	print_color(COLOR_RED);
+	int prefix = 0;
+	if (err->line != -1 && err->column != -1) {
+		// Check if the error was triggered in a string or file
+		if (err->file == NULL) {
+			prefix = printf("<string>:%d:%d ", err->line, err->column);
+		} else {
+			prefix = printf("%s:%d:%d ", err->file, err->line, err->column);
+		}
+	}
 
 	// Tag
+	print_color(COLOR_RED);
 	print_color(COLOR_BOLD);
-	printf(" [Error]");
+	printf("[Error] ");
 	print_color(COLOR_NONE);
 
 	// Description
 	print_color(COLOR_WHITE);
-	printf(" %s\n", err->description);
+	print_color(COLOR_BOLD);
+	printf("%s\n", err->description);
 	print_color(COLOR_NONE);
 	return prefix;
 }
@@ -78,6 +87,11 @@ static int print_description(HyError *err) {
 // Prints the line of source code and an underline underneath the part causing
 // the error.
 static void print_code(HyError *err, int description_prefix) {
+	if (err->line == -1 || err->column == -1) {
+		// No code associated with the error
+		return;
+	}
+
 	// Header
 	int code_prefix = printf("%s:%d", err->file, err->line);
 
@@ -91,7 +105,7 @@ static void print_code(HyError *err, int description_prefix) {
 	printf("%s\n", err->line_contents);
 
 	// Underline padding
-	for (int32_t i = 0; i < description_prefix + err->column - 1; i++) {
+	for (int32_t i = 0; i < description_prefix + err->column; i++) {
 		printf(" ");
 	}
 
@@ -102,6 +116,7 @@ static void print_code(HyError *err, int description_prefix) {
 	}
 
 	print_color(COLOR_NONE);
+	printf("\n");
 }
 
 
@@ -236,6 +251,7 @@ static void repl(Config *config) {
 	// Create a new interpreter state and package
 	// TODO: Add exit() native function to package for clean exit
 	HyState *state = hy_new();
+	hy_add_stdlib(state);
 	HyPackage pkg = hy_add_pkg(state, NULL);
 
 	// REPL loop
@@ -263,6 +279,9 @@ static void print_bytecode(Config *config) {
 	// Create a new interpreter state
 	HyState *state = hy_new();
 
+	// Add the standard library
+	hy_add_stdlib(state);
+
 	// Find the package name
 	char *name = NULL;
 	if (config->input_type == INPUT_FILE) {
@@ -289,15 +308,21 @@ static void print_bytecode(Config *config) {
 
 // Run some input specified by the configuration.
 static void run(Config *config) {
+	// Create the interpreter state
+	HyState *state = hy_new();
+	hy_add_stdlib(state);
+
 	// Execute source code depending on the input type
 	switch (config->input_type) {
 	case INPUT_SOURCE:
-		print_err(hy_run_string(config->input));
+		print_err(hy_run_string(state, config->input));
 		break;
 	case INPUT_FILE:
-		print_err(hy_run_file(config->input));
+		print_err(hy_run_file(state, config->input));
 		break;
 	}
+
+	hy_free(state);
 }
 
 

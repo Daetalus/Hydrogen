@@ -82,7 +82,7 @@ void hy_add_native(HyState *state, HyPackage pkg, char *name, int32_t arity,
 	strcpy(name_copy, name);
 
 	// Create a new native function
-	Index index = native_new(state, pkg, name);
+	Index index = native_new(state, pkg, name_copy);
 	NativeFunction *native = &vec_at(state->natives, index);
 	native->arity = arity;
 	native->fn = fn;

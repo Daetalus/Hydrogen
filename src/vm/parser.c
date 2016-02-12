@@ -15,6 +15,7 @@
 #include "pkg.h"
 #include "vm.h"
 #include "err.h"
+#include "import.h"
 #include "debug.h"
 
 
@@ -219,7 +220,7 @@ static void local_free(Parser *parser) {
 // index if found.
 static Index local_find(Parser *parser, char *name, uint32_t length) {
 	// Search in reverse order
-	for (int i = (int) parser->scope->actives_count - 1; i >= 0; i--) {
+	for (int32_t i = (int32_t) parser->scope->actives_count - 1; i >= 0; i--) {
 		Local *local = local_get(parser, i);
 		if (length == local->length &&
 				strncmp(name, local->name, length) == 0) {
@@ -323,6 +324,159 @@ static void block_free(Parser *parser) {
 
 	// Decrement block depth
 	parser->scope->block_depth--;
+}
+
+
+
+//
+//  Imports
+//
+
+// Returns the index of a package with the given name by looking through the
+// list of imported packages, rather than the interpreter's entire list of
+// packages.
+static Index import_find(Parser *parser, char *name, uint32_t length) {
+	// Search in reverse order
+	for (int32_t i = (int32_t) vec_len(parser->imports) - 1; i >= 0; i--) {
+		Index pkg_index = vec_at(parser->imports, i);
+		Package *pkg = &vec_at(parser->state->packages, pkg_index);
+		if (length == strlen(pkg->name) &&
+				strncmp(name, pkg->name, length) == 0) {
+			return i;
+		}
+	}
+	return NOT_FOUND;
+}
+
+
+// Imports a new package from a file relative to this one given that it hasn't
+// already been loaded. Returns the index of the newly imported package.
+static Index import_new(Parser *parser, Token *token, char *path, char *name) {
+	// Find the path to the actual package
+	Package *parent = &vec_at(parser->state->packages, parser->package);
+	Source *source = &vec_at(parent->sources, parser->source);
+	char *resolved = import_pkg_path(source->file, path);
+	if (resolved != path) {
+		free(path);
+	}
+
+	// Create a new package on the interpreter state
+	Index index = pkg_new(parser->state);
+	Package *child = &vec_at(parser->state->packages, index);
+	child->name = name;
+
+	// Add a file to the package
+	Index child_source = pkg_add_file(child, resolved);
+	if (child_source == NOT_FOUND) {
+		// Failed to open file
+		err_fatal(parser, token, "Undefined package in import");
+		return NOT_FOUND;
+	}
+
+	// Compile the package
+	Index main_fn = parser_parse(&child->parser, child_source);
+
+	// Insert a call to the package's main function
+	uint16_t slot = local_reserve(parser);
+	Function *fn = parser_fn(parser);
+	fn_emit(fn, MOV_LF, slot, main_fn, 0);
+	fn_emit(fn, CALL, slot, 0, 0);
+	local_free(parser);
+	return index;
+}
+
+
+// Resolves an import path and adds it to the parser's import list.
+static void import(Parser *parser, Token *token) {
+	// Extract the import path
+	char *path = malloc(token->length + 1);
+	lexer_extract_string(&parser->lexer, token, path);
+
+	// Validate path
+	if (!import_is_valid(path)) {
+		free(path);
+		err_fatal(parser, token, "Invalid import path");
+		return;
+	}
+
+	// Extract the name of the package from the import path
+	char *name = hy_pkg_name(path);
+	uint32_t length = strlen(name);
+
+	// Check if the import name already exists
+	if (import_find(parser, name, length) != NOT_FOUND) {
+		free(name);
+		free(path);
+		err_fatal(parser, token, "Package with this name already imported");
+		return;
+	}
+
+	// Check if the package has already been loaded
+	Index pkg_index = pkg_find(parser->state, name, length);
+	if (pkg_index == NOT_FOUND) {
+		pkg_index = import_new(parser, token, path, name);
+	} else {
+		free(name);
+		free(path);
+	}
+
+	// Add the package to the list of imported ones
+	vec_add(parser->imports);
+	vec_last(parser->imports) = pkg_index;
+}
+
+
+// Parses a multi-import statement.
+static void parse_multi_import(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+
+	// Consume the opening parenthesis
+	Token open_parenthesis = lexer->token;
+	lexer_next(lexer);
+
+	// Expect at least one string
+	err_expect(parser, TOKEN_STRING, &open_parenthesis,
+		"Expected string after `(` in import");
+
+	// Expect a comma separated list of strings
+	while (lexer->token.type == TOKEN_STRING) {
+		// Import it
+		import(parser, &lexer->token);
+
+		// Consume the string
+		lexer_next(lexer);
+
+		// Consume an optional comma
+		if (lexer->token.type == TOKEN_COMMA) {
+			lexer_next(lexer);
+		}
+	}
+
+	// Expect a closing parenthesis
+	err_expect(parser, TOKEN_CLOSE_PARENTHESIS, &open_parenthesis,
+		"Expected `)` to close `(` in multi-import");
+	lexer_next(lexer);
+}
+
+
+// Parses an import statement.
+static void parse_import(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+
+	// Skip the `import` token
+	lexer_next(lexer);
+
+	// Check for a multi-line or single import statement
+	if (lexer->token.type == TOKEN_STRING) {
+		// Add the import
+		import(parser, &lexer->token);
+
+		// Consume the string token
+		lexer_next(lexer);
+	} else if (lexer->token.type == TOKEN_OPEN_PARENTHESIS) {
+		// Parse a multi-import statement
+		parse_multi_import(parser);
+	}
 }
 
 
@@ -2318,6 +2472,11 @@ static void parse_statement(Parser *parser) {
 	Lexer *lexer = &parser->lexer;
 
 	switch (lexer->token.type) {
+		// Package import
+	case TOKEN_IMPORT:
+		parse_import(parser);
+		break;
+
 		// Local declaration
 	case TOKEN_LET:
 		parse_declaration(parser);
@@ -2397,6 +2556,7 @@ Parser parser_new(HyState *state, Index pkg) {
 	parser.package = pkg;
 	parser.source = NOT_FOUND;
 	vec_new(parser.locals, Local, 8);
+	vec_new(parser.imports, Index, 4);
 	parser.scope = NULL;
 	return parser;
 }
@@ -2405,6 +2565,7 @@ Parser parser_new(HyState *state, Index pkg) {
 // Releases resources allocated by a parser.
 void parser_free(Parser *parser) {
 	vec_free(parser->locals);
+	vec_free(parser->imports);
 }
 
 

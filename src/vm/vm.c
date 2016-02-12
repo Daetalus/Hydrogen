@@ -23,24 +23,20 @@
 // the file, and executing the source code. Acts as a wrapper around other API
 // functions. Returns an error if one occurred, or NULL otherwise. The error
 // must be freed by calling `hy_err_free`.
-HyError * hy_run_file(char *path) {
-	HyState *state = hy_new();
+HyError * hy_run_file(HyState *state, char *path) {
 	char *name = hy_pkg_name(path);
 	HyPackage pkg = hy_add_pkg(state, name);
 	HyError *err = hy_pkg_run_file(state, pkg, path);
 	free(name);
-	hy_free(state);
 	return err;
 }
 
 
 // Executes some source code from a string. Returns an error if one occurred, or
 // NULL otherwise. The error must be freed by calling `hy_err_free`.
-HyError * hy_run_string(char *source) {
-	HyState *state = hy_new();
+HyError * hy_run_string(HyState *state, char *source) {
 	HyPackage pkg = hy_add_pkg(state, NULL);
 	HyError *err = hy_pkg_run_string(state, pkg, source);
-	hy_free(state);
 	return err;
 }
 
