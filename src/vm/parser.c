@@ -160,6 +160,10 @@ static void scope_pop(Parser *parser) {
 //  Locals
 //
 
+// Forward declaration.
+static Index import_find(Parser *parser, char *name, uint32_t length);
+
+
 // Returns the local in `slot` relative to the current function's local start.
 static Local * local_get(Parser *parser, uint16_t slot) {
 	return &vec_at(parser->locals, slot + parser->scope->actives_start);
@@ -285,7 +289,7 @@ static ResolvedLocal local_resolve(Parser *parser, char *name,
 	}
 
 	// Packages
-	resolved.index = pkg_find(parser->state, name, length);
+	resolved.index = import_find(parser, name, length);
 	if (resolved.index != NOT_FOUND) {
 		resolved.type = RESOLVED_PACKAGE;
 		return resolved;

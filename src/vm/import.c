@@ -9,8 +9,8 @@
 #include "vec.h"
 
 
-// Returns the position of the last occurrence of the given character, or -1 if
-// the character can't be found.
+// Returns the position of the last occurrence of the given character, or
+// `NOT_FOUND` if the character can't be found.
 static Index last_occurrence(char *string, char ch) {
 	int32_t last = strlen(string) - 1;
 	while (last >= 0 && string[last] != ch) {
