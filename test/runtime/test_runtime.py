@@ -14,8 +14,7 @@ from threading import Timer
 
 # The path to the command line interface which will execute the Hydrogen code
 # for us.
-root_directory = dirname(dirname(dirname(realpath(__file__))))
-cli_path = join(join(root_directory, "build"), "cli")
+cli_path = sys.argv[2]
 
 # The amount of time in seconds to let a test case run before killing it.
 timeout = 2

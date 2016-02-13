@@ -73,11 +73,12 @@ parser_test(import)
 # parser_test(upvalue)
 # parser_test(struct)
 
-# Add runtime tests as a Python script
+# Add runtime tests
 find_package(PythonInterp REQUIRED)
 add_test(
 	NAME test_runtime
 	COMMAND ${PYTHON_EXECUTABLE}
 	${CMAKE_SOURCE_DIR}/test/runtime/test_runtime.py
 	${CMAKE_SOURCE_DIR}/test/runtime
+	${CMAKE_BINARY_DIR}/cli
 )

@@ -38,14 +38,3 @@ void hy_add_io(HyState *state) {
 	hy_add_native(state, pkg, "print", -1, io_print);
 	hy_add_native(state, pkg, "println", -1, io_println);
 }
-
-
-
-//
-//  Error
-//
-
-// Register the error library.
-void hy_add_err(HyState *state) {
-
-}
