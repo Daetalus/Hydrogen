@@ -1705,7 +1705,7 @@ static Operand operand_identifier(Parser *parser, uint16_t slot) {
 	case RESOLVED_PACKAGE:
 		// Expect a field access after a struct name
 		// Return so we don't skip another token
-		return operand_top_level(parser, slot, local.index);
+		return operand_top_level(parser, local.index, slot);
 
 	default:
 		// Undefined variable

@@ -56,6 +56,17 @@ static inline void print_color(char *color) {
 }
 
 
+// Returns the number of digits in a number.
+static int digits(int number) {
+	int count = 0;
+	while (number > 0) {
+		count++;
+		number /= 10;
+	}
+	return count;
+}
+
+
 // Prints the description part of an error.
 static int print_description(HyError *err) {
 	// Header
@@ -82,9 +93,39 @@ static int print_description(HyError *err) {
 }
 
 
+// Removes tabs from a line of code, replacing them with 4 spaces.
+static char * code_remove_tabs(char *line, uint32_t *padding) {
+	// Count the number of tabs
+	*padding = 0;
+	for (uint32_t i = 0; line[i] != '\0'; i++) {
+		if (line[i] == '\t') {
+			*padding += 3;
+		}
+	}
+
+	// Allocate a new line
+	char *tabless_line = malloc(strlen(line) + *padding + 1);
+	uint32_t length = 0;
+
+	// Copy across to the new line
+	for (uint32_t i = 0; line[i] != '\0'; i++) {
+		if (line[i] == '\t') {
+			for (uint32_t j = 0; j < 4; j++) {
+				tabless_line[length++] = ' ';
+			}
+		} else {
+			tabless_line[length++] = line[i];
+		}
+	}
+
+	tabless_line[length] = '\0';
+	return tabless_line;
+}
+
+
 // Prints the line of source code and an underline underneath the part causing
 // the error.
-static void print_code(HyError *err, int description_prefix) {
+static void print_code(HyError *err, int prefix) {
 	if (err->line == -1 || err->column == -1) {
 		// No code associated with the error
 		return;
@@ -94,16 +135,21 @@ static void print_code(HyError *err, int description_prefix) {
 	int code_prefix = printf("%s:%d", err->file, err->line);
 
 	// Padding
-	for (int i = 0; i < description_prefix - code_prefix + 1; i++) {
+	for (int i = 0; i < prefix - code_prefix; i++) {
 		printf(" ");
 	}
 
+	// Convert the line into one without tabs
+	uint32_t tab_padding;
+	char *tabless_line = code_remove_tabs(err->line_contents, &tab_padding);
+
 	// Code
 	print_color(COLOR_WHITE);
-	printf("%s\n", err->line_contents);
+	printf("%s\n", tabless_line);
+	free(tabless_line);
 
 	// Underline padding
-	for (int32_t i = 0; i < description_prefix + err->column; i++) {
+	for (uint32_t i = 0; i < prefix + err->column + tab_padding - 1; i++) {
 		printf(" ");
 	}
 
@@ -115,17 +161,6 @@ static void print_code(HyError *err, int description_prefix) {
 
 	print_color(COLOR_NONE);
 	printf("\n");
-}
-
-
-// Returns the number of digits in a number.
-static int digits(int number) {
-	int count = 0;
-	while (number > 0) {
-		count++;
-		number /= 10;
-	}
-	return count;
 }
 
 

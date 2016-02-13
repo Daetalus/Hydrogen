@@ -66,12 +66,12 @@ def run_test(path):
     # Create the process
     proc = Popen([cli_path, path], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
-    # Kill test cases that take longer than 2 seconds
+    # Kill test cases that take longer than `timeout` seconds
     timed_out = [False]
     def kill(test_case):
         timed_out[0] = True
         test_case.kill()
-    timer = Timer(2, kill, [proc])
+    timer = Timer(timeout, kill, [proc])
 
     # Execute the test case
     exit_code = -1

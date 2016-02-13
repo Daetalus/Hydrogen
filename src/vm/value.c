@@ -4,6 +4,7 @@
 //
 
 #include "value.h"
+#include "fn.h"
 
 
 // Returns a nil value.
@@ -68,31 +69,47 @@ bool hy_to_bool(HyValue value) {
 // Converts a value into a boolean, triggering an error if the value is not a
 // boolean in type.
 bool hy_expect_bool(HyValue value) {
-
+	if (value != VALUE_TRUE && value != VALUE_FALSE) {
+		// TODO: Trigger error
+		return false;
+	}
+	return value == VALUE_TRUE;
 }
 
 
 // Converts a value into a number, triggering an error if the value isn't a
 // number.
 double hy_expect_number(HyValue value) {
-
+	if (!val_is_num(value)) {
+		// TODO: Trigger error
+		return 0.0;
+	}
+	return val_to_num(value);
 }
 
 
 // Converts a value into a string, triggering an error if it isn't a string.
 // Do not try and free the returned string. It will be garbage collected later.
 char * hy_expect_string(HyValue value) {
-
+	if (!val_is_str(value)) {
+		// TODO: Trigger error
+		return NULL;
+	}
+	return &(((String *) val_to_ptr(value))->contents[0]);
 }
 
 
 // Returns the number of arguments passed to a native function.
 uint32_t hy_args_count(HyArgs *args) {
-
+	return args->arity;
 }
 
 
 // Returns the `index`th argument passed to a native function.
 HyValue hy_arg(HyArgs *args, uint32_t index) {
-
+	if (index >= args->arity) {
+		return VALUE_NIL;
+	} else {
+		return args->stack[args->start + index];
+	}
 }
