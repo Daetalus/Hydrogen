@@ -70,14 +70,12 @@ static int print_description(HyError *err) {
 	}
 
 	// Tag
-	print_color(COLOR_RED);
-	print_color(COLOR_BOLD);
+	print_color(COLOR_RED COLOR_BOLD);
 	printf("[Error] ");
 	print_color(COLOR_NONE);
 
 	// Description
-	print_color(COLOR_WHITE);
-	print_color(COLOR_BOLD);
+	print_color(COLOR_WHITE COLOR_BOLD);
 	printf("%s\n", err->description);
 	print_color(COLOR_NONE);
 	return prefix;
@@ -198,8 +196,7 @@ static void print_stack_trace(HyStackTrace *trace, uint32_t count) {
 	}
 
 	// Tag
-	print_color(COLOR_CYAN);
-	print_color(COLOR_BOLD);
+	print_color(COLOR_CYAN COLOR_BOLD);
 	printf("[Stack Trace]\n");
 	print_color(COLOR_NONE);
 
@@ -226,6 +223,7 @@ static void print_err(HyError *err) {
 	}
 
 	hy_err_free(err);
+	exit(EXIT_FAILURE);
 }
 
 

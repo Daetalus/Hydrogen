@@ -326,7 +326,6 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 
 	// Get a pointer to the function we're executing
 	Function *fn = &functions[fn_index];
-	debug_fn(state, fn);
 
 	// The current instruction we're executing
 	Instruction *ip = &vec_at(fn->instructions, 0);
@@ -719,6 +718,5 @@ BC_STRUCT_SET_V:
 	NEXT();
 
 finish:
-	printf("success!!\n");
 	return NULL;
 }

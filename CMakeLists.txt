@@ -45,10 +45,10 @@ include_directories(
 	${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR}
 )
 
-# Macro for adding a test program
-macro(test folder name)
+# Macro for adding a parser test program
+macro(parser_test name)
 	# Create the testing executable
-	add_executable(test_${name} test/${folder}/test_${name}.cpp)
+	add_executable(test_${name} ${CMAKE_SOURCE_DIR}/test/parser/test_${name}.cpp)
 
 	# Link against Hydrogen and Google Test
 	target_link_libraries(test_${name}
@@ -61,14 +61,23 @@ macro(test folder name)
 endmacro()
 
 # Add parser tests
-test(parser lexer)
-test(parser ins)
-test(parser jmp)
-test(parser expr)
-test(parser if)
-test(parser loop)
-test(parser while)
-test(parser fn)
-# test(parser upvalue)
-# test(parser struct)
-test(parser import)
+parser_test(lexer)
+parser_test(ins)
+parser_test(jmp)
+parser_test(expr)
+parser_test(if)
+parser_test(loop)
+parser_test(while)
+parser_test(fn)
+parser_test(import)
+# parser_test(upvalue)
+# parser_test(struct)
+
+# Add runtime tests as a Python script
+find_package(PythonInterp REQUIRED)
+add_test(
+	NAME test_runtime
+	COMMAND ${PYTHON_EXECUTABLE}
+	${CMAKE_SOURCE_DIR}/test/runtime/test_runtime.py
+	${CMAKE_SOURCE_DIR}/test/runtime
+)

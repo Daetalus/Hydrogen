@@ -245,31 +245,29 @@ static bool local_is_unique(Parser *parser, char *name, uint32_t length) {
 }
 
 
-// The type of a resolved local.
+// The type of a resolved identifier.
 typedef enum {
 	RESOLVED_LOCAL,
 	RESOLVED_UPVALUE,
 	RESOLVED_TOP_LEVEL,
 	RESOLVED_PACKAGE,
 	RESOLVED_UNDEFINED,
-} ResolvedLocalType;
+} ResolutionType;
 
 
-// Information about a resolved local.
+// Information about a resolved identifier.
 typedef struct {
-	// The type of the value the local resolves to.
-	ResolvedLocalType type;
+	// The type of the value the identifier resolves to.
+	ResolutionType type;
 
-	// The index of the local in the array that holds all the values of the
-	// local's type.
+	// The index or stack slot of the identifier.
 	Index index;
-} ResolvedLocal;
+} Resolution;
 
 
 // Resolve a string (the name of a value) into a value.
-static ResolvedLocal local_resolve(Parser *parser, char *name,
-		uint32_t length) {
-	ResolvedLocal resolved;
+static Resolution local_resolve(Parser *parser, char *name, uint32_t length) {
+	Resolution resolved;
 
 	// Local variables
 	resolved.index = local_find(parser, name, length);
@@ -1685,7 +1683,7 @@ static Operand operand_identifier(Parser *parser, uint16_t slot) {
 	result.type = OP_LOCAL;
 
 	// Resolve the identifier into a value
-	ResolvedLocal local = local_resolve(parser, name, length);
+	Resolution local = local_resolve(parser, name, length);
 	switch (local.type) {
 	case RESOLVED_LOCAL:
 		// Copy the local into the operand
