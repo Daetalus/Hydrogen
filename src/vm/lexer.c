@@ -290,10 +290,11 @@ static bool number_is_float(Lexer *lexer, int base) {
 			position++;
 		}
 
-		// If the following character is a `.` followed by a digit, then we have
-		// a float
+		// If the following character is a `.` followed by a digit, or we have
+		// a decimal exponent, then the number is a float
 		char ch = peek(lexer, position);
-		return ch == '.' && is_decimal(peek(lexer, position + 1));
+		return ch == 'e' || ch == 'E' ||
+			(ch == '.' && is_decimal(peek(lexer, position + 1)));
 	}
 
 	return false;
