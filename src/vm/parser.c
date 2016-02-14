@@ -319,7 +319,7 @@ static void block_free(Parser *parser) {
 	ASSERT(parser->scope->locals_count == parser->scope->actives_count);
 
 	// Free locals inside this block
-	while (vec_len(parser->locals) > 0 &&
+	while (vec_len(parser->locals) > 0 && parser->scope->locals_count > 0 &&
 			vec_last(parser->locals).block >= parser->scope->block_depth) {
 		local_free(parser);
 	}
@@ -1264,7 +1264,6 @@ static void binary_or(Parser *parser, Operand *left, Operand right) {
 
 	// Join the end of right's jump list to left
 	Function *fn = parser_fn(parser);
-	Index last = jmp_last(fn, right.jump);
 	jmp_append(fn, right.jump, left->jump);
 
 	// Invert left's condition

@@ -90,8 +90,8 @@ fn early_return(arg) {
 
 io.println(early_return(3)) // expect: 4
 io.println(early_return(4))
-// expect: 3
 // expect: thing
+// expect: 3
 
 
 fn nested1() {
