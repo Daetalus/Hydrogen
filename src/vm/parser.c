@@ -1092,12 +1092,10 @@ static void expr_reduce(Parser *parser, Operand *operand, uint16_t slot,
 
 	// Patch false case of jump operand to the emitted false case
 	jmp_false_case(fn, operand->jump, false_case);
-}
 
-
-// Reduces a jump into a local.
-static void expr_reduce_local(Parser *parser, Operand *operand, uint16_t slot) {
-	expr_reduce(parser, operand, slot, MOV_LP, 0);
+	// Set the operand to a local
+	operand->type = OP_LOCAL;
+	operand->value = slot;
 }
 
 
@@ -1190,7 +1188,7 @@ static void binary_concat(Parser *parser, uint16_t slot, Operand *left,
 static void binary_comp(Parser *parser, uint16_t slot, TokenType operator,
 		Operand *left, Operand right) {
 	// Convert the right operand to a local if it's a jump
-	expr_reduce_local(parser, &right, slot);
+	expr_reduce(parser, &right, slot, MOV_LP, 0);
 
 	// Invert the operator, since we want to trigger the following jump only
 	// if the condition is false (since the jump shifts execution to the false
@@ -1370,7 +1368,7 @@ static void expr_binary_left(Parser *parser, uint16_t slot, TokenType operator,
 			left->type == OP_JUMP) {
 		// Convert the operand to a local if it's a jump as we're dealing with
 		// a comparison
-		expr_reduce_local(parser, left, slot);
+		expr_reduce(parser, left, slot, MOV_LP, 0);
 	}
 }
 

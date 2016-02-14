@@ -54,7 +54,7 @@ io.println(a != "hell") // expect: true
 a = 1
 io.println(a == a + 1) // expect: false
 io.println(a + 1 != a + 2) // expect: true
-io.println(a + 2 == a * 2) // expect: true
+io.println(a + 1 == a * 2) // expect: true
 
 b = 2
 io.println(a - 1 == b) // expect: false
