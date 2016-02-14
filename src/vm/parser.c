@@ -2385,30 +2385,6 @@ static Index parse_fn_definition_body(Parser *parser) {
 }
 
 
-// Emits an instruction to store a function at an index into a local variable
-// with the name `name`.
-static void fn_store(Parser *parser, char *name, uint32_t length, Index fn) {
-	// Save as a top level local if necessary
-	if (parser_is_top_level(parser)) {
-		// Allocate new top level local
-		Package *pkg = parser_pkg(parser);
-		Index top_level = pkg_local_add(pkg, name, length, VALUE_NIL);
-
-		// Emit a store instruction
-		fn_emit(parser_fn(parser), MOV_TF, top_level, fn, parser->package);
-	} else {
-		// Allocate a new local
-		uint16_t slot = local_new(parser);
-		Local *local = local_get(parser, slot);
-		local->name = name;
-		local->length = length;
-
-		// Emit a store instruction
-		fn_emit(parser_fn(parser), MOV_LF, slot, fn, 0);
-	}
-}
-
-
 // Parses a function definition.
 static void parse_fn_definition(Parser *parser) {
 	Lexer *lexer = &parser->lexer;
@@ -2424,11 +2400,34 @@ static void parse_fn_definition(Parser *parser) {
 	uint32_t length = lexer->token.length;
 	lexer_next(lexer);
 
-	// Parse the rest of the function
-	Index fn = parse_fn_definition_body(parser);
+	// Save as a top level local if necessary
+	uint16_t slot;
+	if (parser_is_top_level(parser)) {
+		// Allocate new top level local
+		Package *pkg = parser_pkg(parser);
+		slot = pkg_local_add(pkg, name, length, VALUE_NIL);
+	} else {
+		// Allocate a new local
+		slot = local_new(parser);
+		Local *local = local_get(parser, slot);
+		local->name = name;
+		local->length = length;
+	}
 
-	// Emit an instruction to store the function as a local
-	fn_store(parser, name, length, fn);
+	// Parse the rest of the function
+	Index fn_index = parse_fn_definition_body(parser);
+
+	// Set the function's name
+	Function *fn = &vec_at(parser->state->functions, fn_index);
+	fn->name = name;
+	fn->length = length;
+
+	// Emit a store instruction
+	if (parser_is_top_level(parser)) {
+		fn_emit(parser_fn(parser), MOV_TF, slot, fn_index, parser->package);
+	} else {
+		fn_emit(parser_fn(parser), MOV_LF, slot, fn_index, 0);
+	}
 }
 
 

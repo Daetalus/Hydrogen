@@ -651,7 +651,7 @@ BC_CALL: {
 		call_stack[index].ip = ip;
 
 		// Set up state for the called function
-		stack_start = ins_arg(*ip, 1) + 1;
+		stack_start = stack_start + ins_arg(*ip, 1) + 1;
 		fn = &functions[val_to_fn(fn_value)];
 		ip = &vec_at(fn->instructions, 0);
 		DISPATCH();
