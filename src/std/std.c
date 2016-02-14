@@ -20,7 +20,7 @@ void hy_add_stdlib(HyState *state) {
 
 // Prints a value to the standard output, returning the number of characters
 // printed.
-static uint32_t io_print_value(HyState *state, HyValue value) {
+static uint32_t io_print_value(HyValue value) {
 	switch (hy_type(value)) {
 	case HY_NIL:
 		return printf("nil");
@@ -43,7 +43,7 @@ static HyValue io_print(HyState *state, HyArgs *args) {
 	uint32_t arity = hy_args_count(args);
 	uint32_t length = 0;
 	for (uint32_t i = 0; i < arity; i++) {
-		length += io_print_value(state, hy_arg(args, i));
+		length += io_print_value(hy_arg(args, i));
 
 		// Add a space if this isn't the last argument
 		if (i != arity - 1) {

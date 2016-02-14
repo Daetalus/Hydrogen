@@ -32,7 +32,7 @@ typedef struct {
 	uint32_t return_slot;
 
 	// The saved instruction pointer for the calling function, pointing to the
-	// next bytecode instruction to be executed.
+	// call instruction used to execute the called function.
 	Instruction *ip;
 } Frame;
 

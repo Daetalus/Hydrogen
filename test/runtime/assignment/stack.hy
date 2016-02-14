@@ -15,4 +15,13 @@ import "io"
 
 	b = nil
 	io.println(b) // expect: nil
+
+	b = 1e3
+	io.println(b) // expect: 1000
+
+	b = 1e-3
+	io.println(b) // expect: 0.001
+
+	b = 24e2
+	io.println(b) // expect: 2400
 }

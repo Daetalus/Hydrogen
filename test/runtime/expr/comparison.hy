@@ -47,3 +47,27 @@ io.println(a != b) // expect: true
 io.println(a == b) // expect: false
 io.println(a == "hell") // expect: false
 io.println(a != "hell") // expect: true
+
+
+// Complex
+
+a = 1
+io.println(a == a + 1) // expect: false
+io.println(a + 1 != a + 2) // expect: true
+io.println(a + 2 == a * 2) // expect: true
+
+b = 2
+io.println(a - 1 == b) // expect: false
+io.println(a == b - 1) // expect: true
+
+io.println((a == 1) == true) // expect: true
+io.println((a == 5) == false) // expect: true
+io.println((a == 1) == (b == 2)) // expect: true
+io.println((a < -4) == (b > 5)) // expect: true
+
+io.println(((a == 1) == true) == ((b == 3) == false)) // expect: true
+
+io.println(a && b) // expect: true
+io.println(a || b) // expect: true
+io.println(a == 3 || b) // expect: true
+io.println(a && b == -9) // expect: false

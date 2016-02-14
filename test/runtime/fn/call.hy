@@ -69,3 +69,12 @@ fn test10(arg) {
 
 io.println(test10(test10(test10(3)))) // expect: 6
 io.println(test10(test10(test10(test10(test10(test10(1))))))) // expect: 7
+
+
+fn test11(arg) {
+	return arg(3)
+}
+
+io.println(test11(fn(arg) {
+	return arg + 1
+})) // expect: 4
