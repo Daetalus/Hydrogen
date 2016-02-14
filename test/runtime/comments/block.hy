@@ -28,6 +28,21 @@ io.println("after whole") // expect: after whole
 // /*
 io.println("starting in comment") // expect: starting in comment
 
+/*
+first
+/*
+second
+/*
+third
+/* fourth */
+io.println("fourth")
+*/
+io.println("third")
+*/
+io.println("second")
+*/
+io.println("after") // expect: after
+
 // /*
 // */
 // */
