@@ -1,41 +1,41 @@
-// a|b|d|g|h
-
-import "err"
+import "io"
 
 let a = 3
 if a == 3 {
-	err.println("a")
+	io.println("a") // expect: a
 }
 
 a = "hello"
 if a == "hello" {
-	err.println("b")
+	io.println("b") // expect: b
 }
 
 if a != "hello" {
-	err.println("c")
+	io.println("c")
 }
 
 if a != "t" {
-	err.println("d")
+	io.println("d") // expect: d
 }
 
 a = false
 if a {
-	err.println("e")
+	io.println("e")
 }
 
 a = nil
 if a {
-	err.println("f")
+	io.println("f")
 }
 
 a = 10.4
 if a {
-	err.println("g")
+	io.println("g") // expect: g
 }
 
 a = "test"
 if a {
-	err.println("h")
+	io.println("h") // expect: h
 }
+
+io.println("final") // expect: final

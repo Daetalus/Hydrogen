@@ -6,6 +6,7 @@
 #ifndef VALUE_H
 #define VALUE_H
 
+#include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 #include <hydrogen.h>
@@ -126,11 +127,12 @@ static inline String * string_copy(String *original) {
 static inline String * string_concat(String *left, String *right) {
 	// Allocate memory for new string
 	uint32_t length = left->length + right->length;
-	String *concat = (String *) calloc(sizeof(String) + length + 1, 1);
+	String *concat = (String *) malloc(sizeof(String) + length + 1);
 	concat->type = OBJ_STRING;
 	concat->length = length;
-	strncpy(concat->contents, left->contents, left->length);
+	strncpy(&concat->contents[0], left->contents, left->length);
 	strncpy(&concat->contents[left->length], right->contents, right->length);
+	concat->contents[length] = '\0';
 
 	// No need to insert NULL terminator since we used calloc
 	return concat;

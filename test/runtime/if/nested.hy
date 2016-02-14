@@ -1,24 +1,26 @@
-// a|d|e
-
-import "err"
+import "io"
 
 let a = 3
 if a == 3 {
-	err.println("a")
+	io.println("a") // expect: a
 	let b = 5
 	if b == 6 {
-		err.println("b")
+		io.println("b")
 		b = 10.2
 		if b < 11 {
-			err.println("c")
+			io.println("c")
 		}
 	} else {
-		err.println("d")
+		io.println("d") // expect: d
 		a = 16.9
 		if a >= 10 {
-			err.println("e")
+			io.println("e") // expect: e
 		}
 	}
+
+	io.println("after") // expect: after
 } else {
-	err.println("f")
+	io.println("f")
 }
+
+io.println("final") // expect: final

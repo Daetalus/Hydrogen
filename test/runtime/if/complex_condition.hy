@@ -1,12 +1,10 @@
-// b|b
-
-import "err"
+import "io"
 
 let a = 1
 if a == a + 1 {
-	err.println("a")
+	io.println("a")
 } else {
-	err.println("b")
+	io.println("b") // expect: b
 }
 
 
@@ -14,7 +12,7 @@ a = 3
 let b = 2
 
 if a - 1 != b {
-	err.println("a")
+	io.println("a")
 } else {
-	err.println("b")
+	io.println("b") // expect: b
 }

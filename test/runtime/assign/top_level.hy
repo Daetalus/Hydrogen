@@ -1,36 +1,34 @@
-// 3|hello|false|3|3|true|testing|another string|yet another|false|3
-
-import "err"
+import "io"
 
 let a = 3
-err.println(a)
+io.println(a) // expect: 3
 
 let b = "hello"
-err.println(b)
+io.println(b) // expect: hello
 
 let c = false
-err.println(c)
+io.println(c) // expect: false
 
 let d = a
-err.println(d)
+io.println(d) // expect: 3
 
 b = a
-err.println(b)
+io.println(b) // expect: 3
 
 d = true
-err.println(d)
+io.println(d) // expect: true
 
 let word = "testing"
-err.println(word)
+io.println(word) // expect: testing
 
 word = "another string"
-err.println(word)
+io.println(word) // expect: another string
 
 word = "yet another"
-err.println(word)
+io.println(word) // expect: yet another
 
 word = false
-err.println(word)
+io.println(word) // expect: false
 
 word = 3
-err.println(word)
+io.println(word) // expect: 3

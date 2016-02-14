@@ -1,16 +1,21 @@
-// 0|1|2|3|4|after|yes|yes|yes|yes
-
-import "err"
+import "io"
 
 let n = 0
 while n < 100 {
 	if n >= 5 {
 		break
 	}
-	err.println(n)
+	io.println(n)
 	n = n + 1
 }
-err.println("after")
+
+// expect: 0
+// expect: 1
+// expect: 2
+// expect: 3
+// expect: 4
+
+io.println("after") // expect: after
 
 
 n = 1
@@ -20,5 +25,10 @@ while a == 3 {
 		break
 	}
 	n = n + 1
-	err.println("yes")
+	io.println("yes")
 }
+
+// expect: yes
+// expect: yes
+// expect: yes
+// expect: yes

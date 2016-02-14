@@ -1,45 +1,45 @@
-// a|b|c|d
-
-import "err"
+import "io"
 
 let a = 3
 if a == 3 {
-	err.println("a")
+	io.println("a") // expect: a
 } else if a == 4 {
-	err.println("b")
+	io.println("b")
 } else if a == 5 {
-	err.println("c")
+	io.println("c")
 }
 
 a = 10
 if a == 3 {
-	err.println("a")
+	io.println("a")
 } else if a == 10 {
-	err.println("b")
+	io.println("b") // expect: b
 } else if a == 9 {
-	err.println("c")
+	io.println("c")
 }
 
 a = 11
 if a == 10 {
-	err.println("a")
+	io.println("a")
 } else if a == 3 {
-	err.println("b")
+	io.println("b")
 } else if a == 11 {
-	err.println("c")
+	io.println("c") // expect: c
 } else if a == 5 {
-	err.println("d")
+	io.println("d")
 }
 
 a = 70000
 if a == 12.4 {
-	err.println("a")
+	io.println("a")
 } else if a > 80000 {
-	err.println("b")
+	io.println("b")
 } else if a < 2 {
-	err.println("c")
+	io.println("c")
 } else if a == 70000 {
-	err.println("d")
+	io.println("d") // expect: d
 } else if a - 2 == 69998 {
-	err.println("e")
+	io.println("e")
 }
+
+io.println("final") // expect: final

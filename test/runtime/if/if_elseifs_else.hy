@@ -1,36 +1,34 @@
-// a|b|c
-
-import "err"
+import "io"
 
 let a = 3
 if a == 3 {
-	err.println("a")
+	io.println("a") // expect: a
 } else if a == 5 {
-	err.println("b")
+	io.println("b")
 } else if a == 7 {
-	err.println("c")
+	io.println("c")
 } else {
-	err.println("d")
+	io.println("d")
 }
 
 a = "test"
 if a == 3 {
-	err.println("a")
+	io.println("a")
 } else if a == "test" {
-	err.println("b")
+	io.println("b") // expect: b
 } else if a == "hi" {
-	err.println("c")
+	io.println("c")
 } else if a == 3.1415 {
-	err.println("d")
+	io.println("d")
 } else {
-	err.println("e")
+	io.println("e")
 }
 
 a = 9
 if a == 5 {
-	err.println("a")
+	io.println("a")
 } else if a == false {
-	err.println("b")
+	io.println("b")
 } else {
-	err.println("c")
+	io.println("c") // expect: c
 }

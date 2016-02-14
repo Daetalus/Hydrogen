@@ -232,15 +232,15 @@ static void print_info(HyState *state, Index ins_index, Instruction ins) {
 	}
 
 		// Strings
-	case MOV_LS:
-	case MOV_US:
-	case MOV_TS:
-	case EQ_LS:
-	case NEQ_LS:
-	case CONCAT_LS:
-	case CONCAT_SL:
+	case MOV_LS: // 2
+	case MOV_US: // 2
+	case MOV_TS: // 2
+	case EQ_LS: // 2
+	case NEQ_LS: // 2
+	case CONCAT_LS: // 3
+	case CONCAT_SL: // 2
 	case STRUCT_SET_S: {
-		uint32_t arg = (opcode == CONCAT_SL) ? 1 : 2;
+		uint32_t arg = (opcode == CONCAT_LS) ? 3 : 2;
 		char *str = &(vec_at(state->strings, ins_arg(ins, arg))->contents[0]);
 		printf("    ; \"%s\"", str);
 		break;
@@ -301,15 +301,16 @@ void debug_ins(HyState *state, Function *fn, Index ins_index) {
 
 // Pretty prints the entire bytecode of a function to the standard output.
 void debug_fn(HyState *state, Function *fn) {
-	// Name
-	if (fn->name != NULL) {
-		printf("Function `%.*s`, ", fn->length, fn->name);
-	} else {
-		printf("Anonymous Function, ");
-	}
-
 	// File and line
 	print_location(state, fn->package, fn->source, fn->line);
+
+	// Name
+	if (fn->name != NULL) {
+		printf(": %.*s", fn->length, fn->name);
+	} else {
+		printf(": <anonymous>");
+	}
+
 	printf("\n");
 
 	// Bytecode

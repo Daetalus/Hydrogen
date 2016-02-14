@@ -1,73 +1,71 @@
-// test|another|hello world|6|3|hello|3|14|10|6|7
-
-import "err"
+import "io"
 
 fn test() {
-	err.println("test")
+	io.println("test")
 }
 
-test()
+test() // expect: test
 
 
 fn test2(arg) {
-	err.println(arg)
+	io.println(arg)
 }
 
-test2("another")
+test2("another") // expect: another
 
 
 fn test3(arg1, arg2) {
-	err.println(arg1, arg2)
+	io.println(arg1, arg2)
 }
 
-test3("hello", "world")
+test3("hello", "world") // expect: hello world
 
 
 fn test4(arg1, arg2, arg3) {
-	err.println(arg1 + arg2 + arg3)
+	io.println(arg1 + arg2 + arg3)
 }
 
-test4(1, 2, 3)
+test4(1, 2, 3) // expect: 6
 
 
 fn test5() {
 	return 3
 }
 
-err.println(test5())
+io.println(test5()) // expect: 3
 
 
 fn test6() {
 	return "hello"
 }
 
-err.println(test6())
+io.println(test6()) // expect: hello
 
 
 fn test7(arg) {
 	return arg + 1
 }
 
-err.println(test7(2))
+io.println(test7(2)) // expect: 3
 
 
 fn test8(arg1, arg2) {
 	return arg1 + arg2 + 11
 }
 
-err.println(test8(1, 2))
+io.println(test8(1, 2)) // expect: 14
 
 
 fn test9(arg1, arg2, arg3) {
 	return arg1 + arg2 + arg3 + 9
 }
 
-err.println(test9(0, 0, 1))
+io.println(test9(0, 0, 1)) // expect: 10
 
 
 fn test10(arg) {
 	return arg + 1
 }
 
-err.println(test10(test10(test10(3))))
-err.println(test10(test10(test10(test10(test10(test10(1)))))))
+io.println(test10(test10(test10(3)))) // expect: 6
+io.println(test10(test10(test10(test10(test10(test10(1))))))) // expect: 7

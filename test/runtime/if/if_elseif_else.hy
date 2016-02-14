@@ -1,31 +1,31 @@
-// a|b|c
-
-import "err"
+import "io"
 
 let a = 5
 if a == 5 {
-	err.println("a")
+	io.println("a") // expect: a
 } else if a == 9 {
-	err.println("b")
+	io.println("b")
 } else {
-	err.println("c")
+	io.println("c")
 }
 
 
 let b = "hello"
 if b == "hi" {
-	err.println("a")
+	io.println("a")
 } else if b == "hello" {
-	err.println("b")
+	io.println("b") // expect: b
 } else {
-	err.println("c")
+	io.println("c")
 }
 
 b = nil
 if b {
-	err.println("a")
+	io.println("a")
 } else if b != nil {
-	err.println("b")
+	io.println("b")
 } else {
-	err.println("c")
+	io.println("c") // expect: c
 }
+
+io.println("final") // expect: final

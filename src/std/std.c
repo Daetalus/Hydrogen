@@ -40,9 +40,15 @@ static uint32_t io_print_value(HyState *state, HyValue value) {
 
 // Prints a line to the standard output without a trailing newline.
 static HyValue io_print(HyState *state, HyArgs *args) {
+	uint32_t arity = hy_args_count(args);
 	uint32_t length = 0;
-	for (uint32_t i = 0; i < hy_args_count(args); i++) {
+	for (uint32_t i = 0; i < arity; i++) {
 		length += io_print_value(state, hy_arg(args, i));
+
+		// Add a space if this isn't the last argument
+		if (i != arity - 1) {
+			length += printf(" ");
+		}
 	}
 	return hy_number((double) length);
 }

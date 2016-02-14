@@ -1,24 +1,24 @@
-// a|b|b
-
-import "err"
+import "io"
 
 let c = 10
 if c > 5 {
-	err.println("a")
+	io.println("a") // expect: a
 } else {
-	err.println("b")
+	io.println("b")
 }
 
 c = 9
 if c < 4 {
-	err.println("a")
+	io.println("a")
 } else {
-	err.println("b")
+	io.println("b") // expect: b
 }
 
 let thing = false
 if thing {
-	err.println("a")
+	io.println("a")
 } else {
-	err.println("b")
+	io.println("b") // expect: b
 }
+
+io.println("final") // expect: final

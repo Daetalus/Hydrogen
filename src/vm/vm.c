@@ -154,8 +154,9 @@ Index state_add_constant(HyState *state, HyValue constant) {
 // Creates a new string constant that is `length` bytes long.
 Index state_add_string(HyState *state, uint32_t length) {
 	vec_add(state->strings);
-	vec_last(state->strings) = malloc(sizeof(String) + length);
+	vec_last(state->strings) = malloc(sizeof(String) + length + 1);
 	String *string = vec_last(state->strings);
+	string->type = OBJ_STRING;
 	string->length = length;
 	string->contents[0] = '\0';
 	return vec_len(state->strings) - 1;
@@ -205,12 +206,20 @@ Index state_add_field(HyState *state, Identifier ident) {
 
 // Ensures a value is a number, triggering an error if this is not the case.
 static inline double ensure_num(HyValue value) {
-	return value;
+	if (!val_is_num(value)) {
+		printf("Ensure num failed!\n");
+		exit(1);
+	}
+	return val_to_num(value);
 }
 
 
 // Ensures a value is a string, triggering an error if this is not the case.
 static inline String * ensure_str(HyValue value) {
+	if (!val_is_str(value)) {
+		printf("Ensure str failed!\n");
+		exit(1);
+	}
 	return (String *) val_to_ptr(value);
 }
 
@@ -326,6 +335,7 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 
 	// Get a pointer to the function we're executing
 	Function *fn = &functions[fn_index];
+	// debug_fn(state, fn);
 
 	// The current instruction we're executing
 	Instruction *ip = &vec_at(fn->instructions, 0);
@@ -455,15 +465,15 @@ BC_MOV_LT:
                                                                   \
 	BC_ ## ins ## _IL:                                            \
 		STACK_GET_INS(1) = num_to_val(fn(                         \
-			(double) unsigned_to_signed(ins_arg(*ip, 3)) operator \
-			ensure_num(STACK_GET_INS(2))                          \
+			(double) unsigned_to_signed(ins_arg(*ip, 2)) operator \
+			ensure_num(STACK_GET_INS(3))                          \
 		));                                                       \
 		NEXT();                                                   \
                                                                   \
 	BC_ ## ins ## _NL:                                            \
 		STACK_GET_INS(1) = num_to_val(fn(                         \
-			val_to_num(constants[ins_arg(*ip, 3)]) operator       \
-			ensure_num(STACK_GET_INS(2))                          \
+			val_to_num(constants[ins_arg(*ip, 2)]) operator       \
+			ensure_num(STACK_GET_INS(3))                          \
 		));                                                       \
 		NEXT();
 
@@ -480,19 +490,19 @@ BC_MOV_LT:
 
 BC_CONCAT_LL:
 	STACK_GET_INS(1) = ptr_to_val(string_concat(
-		ensure_str(ins_arg(*ip, 2)), ensure_str(ins_arg(*ip, 3))
+		ensure_str(STACK_GET_INS(2)), ensure_str(STACK_GET_INS(3))
 	));
 	NEXT();
 
 BC_CONCAT_LS:
 	STACK_GET_INS(1) = ptr_to_val(string_concat(
-		ensure_str(ins_arg(*ip, 2)), strings[ins_arg(*ip, 3)]
+		ensure_str(STACK_GET_INS(2)), strings[ins_arg(*ip, 3)]
 	));
 	NEXT();
 
 BC_CONCAT_SL:
 	STACK_GET_INS(1) = ptr_to_val(string_concat(
-		strings[ins_arg(*ip, 2)], ensure_str(ins_arg(*ip, 3))
+		strings[ins_arg(*ip, 2)], ensure_str(STACK_GET_INS(3))
 	));
 	NEXT();
 
@@ -543,7 +553,7 @@ BC_IS_FALSE_L: {
 		NEXT();                                                             \
                                                                             \
 	BC_ ## ins ## _LN:                                                      \
-		if (op (STACK_GET_INS(1) == constants[ins_arg(*ip, 3)])) {          \
+		if (op (STACK_GET_INS(1) == constants[ins_arg(*ip, 2)])) {          \
 			ip++;                                                           \
 		}                                                                   \
 		NEXT();                                                             \
@@ -630,18 +640,18 @@ BC_LOOP:
 	//
 
 BC_CALL: {
-	HyValue fn_value = stack[ins_arg(*ip, 1)];
+	HyValue fn_value = STACK_GET_INS(1);
 	if (val_is_fn(fn_value)) {
 		// Create a stack frame for the calling function to save the required
 		// state
 		Index index = (*call_stack_count)++;
 		call_stack[index].fn = fn;
 		call_stack[index].stack_start = stack_start;
-		call_stack[index].return_slot = ins_arg(*ip, 3);
+		call_stack[index].return_slot = stack_start + ins_arg(*ip, 3);
 		call_stack[index].ip = ip;
 
 		// Set up state for the called function
-		stack_start = ins_arg(*ip, 1);
+		stack_start = ins_arg(*ip, 1) + 1;
 		fn = &functions[val_to_fn(fn_value)];
 		ip = &vec_at(fn->instructions, 0);
 		DISPATCH();
@@ -655,24 +665,25 @@ BC_CALL: {
 		NEXT();
 	} else {
 		// TODO: trigger attempt to call non-function error
+		printf("attempt to call non-function\n");
 	}
 }
 
 
 // Shorthand for returning a value.
-#define RET(return_value) {                                    \
-	Index index = (*call_stack_count)--;                       \
-	STACK_GET(call_stack[index].return_slot) = (return_value); \
-	stack_start = call_stack[index].stack_start;               \
-	fn = call_stack[index].fn;                                 \
-	ip = call_stack[index].ip;                                 \
-	DISPATCH();                                                \
+#define RET(return_value) {                                \
+	Index index = --(*call_stack_count);                   \
+	stack[call_stack[index].return_slot] = (return_value); \
+	stack_start = call_stack[index].stack_start;           \
+	fn = call_stack[index].fn;                             \
+	ip = call_stack[index].ip;                             \
+	NEXT();                                                \
 }
 
 BC_RET0:
 	// Check if we're returning from the main function (only needs to be done
-	// from the RET0 instruction, because this is the only way to stop
-	// execution)
+	// from the RET0 instruction, because execution will stop on this
+	// instruction when the main function finished)
 	if (*call_stack_count == 0) {
 		goto finish;
 	}

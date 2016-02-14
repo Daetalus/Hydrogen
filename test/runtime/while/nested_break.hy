@@ -1,6 +1,4 @@
-// 0|1|0|1
-
-import "err"
+import "io"
 
 let a = 0
 while a < 100 {
@@ -9,12 +7,17 @@ while a < 100 {
 		if b >= 2 {
 			break
 		}
-		err.println(b)
+		io.println(b)
 		b = b + 1
 	}
 
+	a = a + 1
 	if a >= 2 {
 		break
 	}
-	a = a + 1
 }
+
+// expect: 0
+// expect: 1
+// expect: 0
+// expect: 1

@@ -1,6 +1,4 @@
-// 6|120|5040|0|1|1|2|3|5|8|13
-
-import "err"
+import "io"
 
 fn factorial(n) {
 	if n <= 1 {
@@ -10,9 +8,9 @@ fn factorial(n) {
 	}
 }
 
-err.println(factorial(3))
-err.println(factorial(5))
-err.println(factorial(7))
+io.println(factorial(3)) // expect: 6
+io.println(factorial(5)) // expect: 120
+io.println(factorial(7)) // expect: 5040
 
 
 fn fib(n) {
@@ -25,11 +23,11 @@ fn fib(n) {
 	}
 }
 
-err.println(fib(1))
-err.println(fib(2))
-err.println(fib(3))
-err.println(fib(4))
-err.println(fib(5))
-err.println(fib(6))
-err.println(fib(7))
-err.println(fib(8))
+io.println(fib(1)) // expect: 0
+io.println(fib(2)) // expect: 1
+io.println(fib(3)) // expect: 1
+io.println(fib(4)) // expect: 2
+io.println(fib(5)) // expect: 3
+io.println(fib(6)) // expect: 5
+io.println(fib(7)) // expect: 8
+io.println(fib(8)) // expect: 13

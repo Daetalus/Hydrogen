@@ -1,6 +1,4 @@
-// 3|4|5
-
-import "err"
+import "io"
 
 let a = 3
 loop {
@@ -8,6 +6,10 @@ loop {
 		break
 	}
 
-	err.println(a)
+	io.println(a)
 	a = a + 1
 }
+
+// expect: 3
+// expect: 4
+// expect: 5

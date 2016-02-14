@@ -1609,7 +1609,9 @@ static Operand operand_string(Parser *parser) {
 	Lexer *lexer = &parser->lexer;
 
 	// Extract the literal into a new string on the interpreter
-	Index index = state_add_string(parser->state, lexer->token.length);
+	// Subtract 2 as the token's length includes the two quotes surrounding
+	// the string
+	Index index = state_add_string(parser->state, lexer->token.length - 2);
 	String *string = vec_at(parser->state->strings, index);
 	lexer_extract_string(lexer, &lexer->token, string->contents);
 

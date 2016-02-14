@@ -45,8 +45,10 @@ def expected_output(source):
     # together, separated by newlines
     key = "// expect: "
     result = []
-    line_number = 1
+    line_number = 0
     for line in source.splitlines():
+        line_number += 1
+
         # Find what we're searching for
         found = line.find(key)
         if found == -1:
@@ -55,7 +57,6 @@ def expected_output(source):
         # Append the rest of the line
         index = found + len(key)
         result.append({"content": line[index:], "line": line_number})
-        line_number += 1
     return result
 
 
@@ -76,6 +77,7 @@ def run_test(path):
     # Execute the test case
     exit_code = -1
     output = None
+    error = None
     try:
         timer.start()
         output, error = proc.communicate()
@@ -84,7 +86,7 @@ def run_test(path):
     finally:
         timer.cancel()
 
-    return (output, exit_code)
+    return (output, exit_code, error)
 
 
 # Prints an error message to the standard output.
@@ -96,10 +98,10 @@ def print_error(message):
 
 
 # Validates the output of a test case.
-def validate(path, expected, output, exit_code):
+def validate(path, expected_lines, output, exit_code, error):
     # Parse the output into lines
     try:
-        output = output.decode("utf-8").replace("\r\n", "\n")
+        output = output.decode("utf-8").replace("\r\n", "\n").strip()
     except:
         print_error("Failed to decode output")
         return False
@@ -112,7 +114,12 @@ def validate(path, expected, output, exit_code):
     # Check if the test case returned an error
     if exit_code != 0:
         print_error("Compilation or runtime failure")
-        print(output)
+        if len(output) > 0:
+            print("Standard output:")
+            print(output)
+        if len(error) > 0:
+            print("Standard error output:")
+            print(error)
         return False
 
     # Convert output into multiple lines
@@ -121,23 +128,26 @@ def validate(path, expected, output, exit_code):
         output_lines = output.strip().split("\n")
 
     # Check output lengths match
-    if len(expected) != len(output_lines):
+    if len(expected_lines) != len(output_lines):
         print_error("Incorrect number of output lines")
         return False
 
     # Check each line
     for i in range(len(output_lines)):
-        expected_line = expected[i].content
-        if output_lines[i] != expected_line:
-            line_number = expected[i].line_number
+        expected = expected_lines[i]["content"]
+
+        # Check the output matched what was expected
+        if output_lines[i] != expected:
+            line_number = expected_lines[i]["line"]
             print_error("Incorrect output on line " + str(line_number) +
-                    ": expected " + expected_line + ", got " + output_lines[i])
+                ": expected " + expected + ", got " + output_lines[i])
             return False
 
     # Passed test
     print_color(COLOR_BOLD + COLOR_GREEN)
-    print("[Passed]")
+    sys.stdout.write("[Passed]")
     print_color(COLOR_NONE)
+    print("")
     return True
 
 
@@ -166,10 +176,10 @@ def test(path):
     expected = expected_output(source)
 
     # Get the output and exit code for the test case
-    output, exit_code = run_test(path)
+    output, exit_code, error = run_test(path)
 
     # Validates a test case's output
-    return validate(path, expected, output, exit_code)
+    return validate(path, expected, output, exit_code, error)
 
 
 # Tests all Hydrogen files in a directory. Returns the total number of tests,
@@ -203,6 +213,7 @@ if total == passed:
     sys.stdout.write("[Success] ")
     print_color(COLOR_NONE)
     print("All tests passed!")
+    sys.exit(0)
 else:
     # Not all tests passed
     print_color(COLOR_RED)
