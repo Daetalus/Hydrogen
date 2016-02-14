@@ -18,7 +18,7 @@ io.println(123 <= 124) // expect: true
 io.println(5 <= 5) // expect: true
 io.println(123 <= -99) // expect: false
 io.println(5 > 3) // expect: true
-io.println(6 > 2) // expect: false
+io.println(6 > 2) // expect: true
 io.println(3 > 3) // expect: false
 io.println(3 >= 1) // expect: true
 io.println(3 >= 3) // expect: true
