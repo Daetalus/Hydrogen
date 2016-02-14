@@ -152,11 +152,41 @@ static inline void consume_whitespace(Lexer *lexer) {
 }
 
 
-// Consume characters until the string under the cursor matches `terminator`.
-static inline void consume_until(Lexer *lexer, char *terminator) {
-	while (!eof(lexer) && !matches(lexer, terminator)) {
+// Parses a block comment. Assumes the first opening delimeter has been
+// consumed.
+static void block_comment(Lexer *lexer) {
+	char *start = lexer->token.start;
+
+	// Keep consuming until we reach a terminator, keeping track of nested
+	// comments
+	uint32_t nested = 1;
+	while (!eof(lexer) && nested > 0) {
+		if (matches(lexer, "*/")) {
+			nested--;
+		} else if (matches(lexer, "/*")) {
+			nested++;
+		}
 		consume(lexer);
 	}
+
+	// Check if there were unterminated block comments
+	if (nested > 0) {
+		// Create a fake comment token for the start of the block comment
+		Token token = lexer->token;
+		token.type = TOKEN_COMMENT;
+		token.start = start - 2;
+		token.length = 2;
+
+		HyError *err = err_new();
+		err_print(err, "Unterminated block comment");
+		err_token(lexer->state, err, &token);
+		err_trigger(lexer->state, err);
+		return;
+	}
+
+	// We've already consumed the first character of the final terminator, so
+	// only consume the second
+	consume(lexer);
 }
 
 
@@ -166,13 +196,12 @@ static bool comment(Lexer *lexer) {
 	consume(lexer);
 
 	if (current(lexer) == '/') {
-		// Single line
+		// Single line comment
 		consume_line(lexer);
 	} else if (current(lexer) == '*') {
-		// Block
+		// Block comment
 		consume(lexer);
-		consume_until(lexer, "*/");
-		forward(lexer, 2);
+		block_comment(lexer);
 	} else {
 		return false;
 	}

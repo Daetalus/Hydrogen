@@ -85,6 +85,11 @@ typedef enum {
 	TOKEN_STRUCT,
 	TOKEN_NEW,
 
+	// Comments
+	// Not actually emitted by the lexer, but used in generating error messages
+	// that relate to comments (like unterminated block comment error)
+	TOKEN_COMMENT,
+
 	// Other
 	TOKEN_EOF,
 	TOKEN_UNRECOGNISED,
