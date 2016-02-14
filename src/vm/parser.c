@@ -1276,9 +1276,12 @@ static void binary_or(Parser *parser, Operand *left, Operand right) {
 	Index current = left->jump;
 	while (current != NOT_FOUND) {
 		if (jmp_type(fn, current) == JMP_AND) {
-			// Point to last element in right's jump list (subtract 1 to point
-			// to condition before jump instruction)
-			jmp_target(fn, current, last - 1);
+			// Point to last element in right's jump list
+			// We do this by pointing to the first thing after the end of the
+			// left jump list, because we need to point to the condition before
+			// the jump instruction, which might also include a MOV_TL or MOV_UL
+			// instruction before it
+			jmp_target(fn, current, left->jump + 1);
 		} else {
 			// Point to after right's jump list
 			jmp_target(fn, current, right.jump + 1);
