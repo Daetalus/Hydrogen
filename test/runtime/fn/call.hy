@@ -78,3 +78,40 @@ fn test11(arg) {
 io.println(test11(fn(arg) {
 	return arg + 1
 })) // expect: 4
+
+
+fn early_return(arg) {
+	if arg == 3 {
+		return 4
+	}
+	io.println("thing")
+	return 3
+}
+
+io.println(early_return(3)) // expect: 4
+io.println(early_return(4))
+// expect: 3
+// expect: thing
+
+
+fn nested1() {
+	fn nested2() {
+		return fn(arg3) {
+			return arg3 + 1
+		}
+	}
+	return nested2()
+}
+
+let fn_thing = nested1()
+io.println(fn_thing(3)) // expect: 4
+io.println(fn_thing(5)) // expect: 6
+
+
+fn return_nil() {
+	let a = 3
+}
+
+let a = return_nil()
+io.println(a) // expect: nil
+io.println(return_nil()) // expect: nil
