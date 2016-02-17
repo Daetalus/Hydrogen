@@ -6,10 +6,13 @@
 #include <hydrogen.h>
 #include <hylib.h>
 
+#include <vec.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <limits.h>
 
 #include "config.h"
 #include "help.h"
@@ -33,10 +36,6 @@
 #define COLOR_CYAN    "\x1B[36m"
 #define COLOR_WHITE   "\x1B[37m"
 #define COLOR_BOLD    "\x1B[1m"
-
-// The maximum length of an input line of code for the REPL.
-#define MAX_REPL_INPUT_SIZE 2047
-#define MAX_REPL_INPUT_SIZE_STR "2047"
 
 
 
@@ -67,18 +66,35 @@ static int digits(int number) {
 }
 
 
+// Prints the path to an error.
+static int print_path(char *path, uint32_t line, uint32_t column) {
+	// Path
+	uint32_t prefix = 0;
+	if (path == NULL) {
+		prefix += printf("<string>:");
+	} else {
+		prefix += printf("%s:", path);
+	}
+
+	// Line number
+	if (line > 0) {
+		prefix += printf("%d:", line);
+	}
+
+	// Column number
+	if (column > 0) {
+		prefix += printf("%d:", column);
+	}
+
+	return prefix;
+}
+
+
 // Prints the description part of an error.
 static int print_description(HyError *err) {
 	// Header
-	int prefix = 0;
-	if (err->line != -1 && err->column != -1) {
-		// Check if the error was triggered in a string or file
-		if (err->file == NULL) {
-			prefix = printf("<string>:%d:%d ", err->line, err->column);
-		} else {
-			prefix = printf("%s:%d:%d ", err->file, err->line, err->column);
-		}
-	}
+	int prefix = print_path(err->file, err->line, err->column);
+	prefix += printf(" ");
 
 	// Tag
 	print_color(COLOR_RED COLOR_BOLD);
@@ -126,13 +142,13 @@ static char * code_remove_tabs(char *line, uint32_t *padding) {
 // Prints the line of source code and an underline underneath the part causing
 // the error.
 static void print_code(HyError *err, int prefix) {
-	if (err->line == -1 || err->column == -1) {
+	if (err->line == 0 || err->column == 0) {
 		// No code associated with the error
 		return;
 	}
 
 	// Header
-	int code_prefix = printf("%s:%d", err->file, err->line);
+	int code_prefix = print_path(err->file, err->line, 0);
 
 	// Padding
 	for (int i = 0; i < prefix - code_prefix; i++) {
@@ -242,10 +258,10 @@ static void print_stack_trace(HyStackTrace *trace, uint32_t count) {
 }
 
 
-// Prints an error to the standard output.
-static void print_err(HyError *err) {
+// Prints an error to the standard output. Returns the exit code to use.
+static int print_err(HyError *err) {
 	if (err == NULL) {
-		return;
+		return EXIT_SUCCESS;
 	}
 
 	int prefix = print_description(err);
@@ -258,7 +274,7 @@ static void print_err(HyError *err) {
 	}
 
 	hy_err_free(err);
-	exit(EXIT_FAILURE);
+	return EXIT_FAILURE;
 }
 
 
@@ -267,12 +283,35 @@ static void print_err(HyError *err) {
 //  REPL
 //
 
-// Read a line of input from the standard input in a REPL loop.
-static char * repl_read_input(void) {
+// Read from the standard input.
+static char * repl_input(void) {
+	// Print initial prompt
 	printf("> ");
-	char *input = malloc(MAX_REPL_INPUT_SIZE + 1);
-	scanf("%" MAX_REPL_INPUT_SIZE_STR "s", input);
-	return input;
+
+	// Create an input string
+	Vec(char) input;
+	vec_new(input, char, 512);
+
+	// Read characters
+	int ch = getchar();
+	while (ch != '\n' && ch != '\r') {
+		// Exit program if we reach end of file
+		if (ch == EOF) {
+			return NULL;
+		} else if (ch <= CHAR_MAX) {
+			// Otherwise add the character to the input
+			vec_add(input);
+			vec_last(input) = ch;
+		}
+
+		// Get the next character
+		ch = getchar();
+	}
+
+	// Add a NULL terminator
+	vec_add(input);
+	vec_last(input) = '\0';
+	return &vec_at(input, 0);
 }
 
 
@@ -287,14 +326,21 @@ static void repl(Config *config) {
 	hy_add_libs(state);
 	HyPackage pkg = hy_add_pkg(state, NULL);
 
-	// REPL loop
 	while (true) {
-		char *input = repl_read_input();
+		// Read input
+		char *input = repl_input();
+		if (input == NULL) {
+			// Exit the program
+			break;
+		}
+
+		// Execute input
 		if (config->show_bytecode) {
 			print_err(hy_print_bytecode_string(state, pkg, input));
 		} else {
 			print_err(hy_pkg_run_string(state, pkg, input));
 		}
+		free(input);
 	}
 
 	// Release resources
@@ -308,7 +354,7 @@ static void repl(Config *config) {
 //
 
 // Print the bytecode of some input specified by the configuration.
-static void print_bytecode(Config *config) {
+static int print_bytecode(Config *config) {
 	// Create a new interpreter state
 	HyState *state = hy_new();
 
@@ -325,37 +371,42 @@ static void print_bytecode(Config *config) {
 	HyPackage pkg = hy_add_pkg(state, name);
 
 	// Depending on the type of the input
+	char *input = config->input;
+	int exit_code = EXIT_SUCCESS;
 	switch (config->input_type) {
 	case INPUT_SOURCE:
-		print_err(hy_print_bytecode_string(state, pkg, config->input));
+		exit_code = print_err(hy_print_bytecode_string(state, pkg, input));
 		break;
 	case INPUT_FILE:
-		print_err(hy_print_bytecode_file(state, pkg, config->input));
+		exit_code = print_err(hy_print_bytecode_file(state, pkg, input));
 		break;
 	}
 
 	// Release resources
 	hy_free(state);
+	return exit_code;
 }
 
 
 // Run some input specified by the configuration.
-static void run(Config *config) {
+static int run(Config *config) {
 	// Create the interpreter state
 	HyState *state = hy_new();
 	hy_add_libs(state);
 
 	// Execute source code depending on the input type
+	int exit_code = EXIT_SUCCESS;
 	switch (config->input_type) {
 	case INPUT_SOURCE:
-		print_err(hy_run_string(state, config->input));
+		exit_code = print_err(hy_run_string(state, config->input));
 		break;
 	case INPUT_FILE:
-		print_err(hy_run_file(state, config->input));
+		exit_code = print_err(hy_run_file(state, config->input));
 		break;
 	}
 
 	hy_free(state);
+	return exit_code;
 }
 
 
@@ -373,18 +424,23 @@ int main(int argc, char *argv[]) {
 		return EXIT_SUCCESS;
 	}
 
+	// Start a REPL or run some code
+	int exit_code = EXIT_SUCCESS;
 	if (config.type == EXEC_REPL) {
-		// Start a REPL
+		// Start REPL
 		repl(&config);
 	} else if (config.type == EXEC_RUN) {
+		// Run code
 		if (config.show_bytecode) {
-			print_bytecode(&config);
+			// Print bytecode
+			exit_code = print_bytecode(&config);
 		} else {
-			run(&config);
+			// Actually execute the code
+			exit_code = run(&config);
 		}
 	}
 
 	// Free resources
 	config_free(&config);
-    return EXIT_SUCCESS;
+    return exit_code;
 }

@@ -6,9 +6,10 @@
 #ifndef JMP_H
 #define JMP_H
 
+#include <vec.h>
+
 #include "ins.h"
 #include "fn.h"
-#include "vec.h"
 
 
 // * Jump lists are like linked lists, except for jump instructions inside a

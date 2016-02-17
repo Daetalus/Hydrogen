@@ -5,8 +5,9 @@
 
 #include <string.h>
 
+#include <vec.h>
+
 #include "import.h"
-#include "vec.h"
 
 
 // Returns the position of the last occurrence of the given character, or

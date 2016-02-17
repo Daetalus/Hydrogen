@@ -9,7 +9,7 @@
 #include <hydrogen.h>
 #include <stdint.h>
 
-#include "vec.h"
+#include <vec.h>
 
 
 // All possible token types.

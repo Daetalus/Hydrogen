@@ -8,7 +8,7 @@
 
 #include <hydrogen.h>
 
-#include "vec.h"
+#include <vec.h>
 
 
 // A struct definition, specifying the fields and methods present on a struct.

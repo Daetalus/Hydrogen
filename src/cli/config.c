@@ -7,27 +7,28 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <vec.h>
+
 #include "config.h"
 #include "help.h"
 
 
-// Read from stdin until an EOF is reached.
+// Read from stdin until the terminating character is reached.
 static char * read_stdin(void) {
-	int length = 0;
-	int capacity = 4096;
-	char *contents = malloc(capacity);
+	Vec(char) contents;
+	vec_new(contents, char, 4096);
 
-	int ch;
-	while ((ch = getchar()) != EOF) {
-		if (length + 1 > capacity) {
-			capacity *= 2;
-			contents = realloc(contents, capacity + 1);
-		}
-		contents[length++] = (char) ch;
+	int ch = getchar();
+	while (ch != EOF) {
+		vec_add(contents);
+		vec_last(contents) = (char) ch;
+		ch = getchar();
 	}
 
-	contents[length] = '\0';
-	return contents;
+	// Add the NULL terminator
+	vec_add(contents);
+	vec_last(contents) = '\0';
+	return &vec_at(contents, 0);
 }
 
 

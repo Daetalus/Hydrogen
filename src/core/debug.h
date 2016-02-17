@@ -9,10 +9,11 @@
 #include <hydrogen.h>
 #include <assert.h>
 
+#include <vec.h>
+
 #include "fn.h"
 #include "struct.h"
 #include "ins.h"
-#include "vec.h"
 
 // Set to `true` when asserts should be checked, otherwise they'll be optimised
 // out by the compiler.

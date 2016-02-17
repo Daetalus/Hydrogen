@@ -9,7 +9,8 @@
 #include <hydrogen.h>
 #include <setjmp.h>
 
-#include "vec.h"
+#include <vec.h>
+
 #include "pkg.h"
 #include "fn.h"
 #include "struct.h"

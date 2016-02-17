@@ -11,7 +11,7 @@
 #include <stdbool.h>
 #include <hydrogen.h>
 
-#include "vec.h"
+#include <vec.h>
 
 
 // * Values during runtime are stored as NaN tagged 64 bit unsigned integers

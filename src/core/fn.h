@@ -7,8 +7,8 @@
 #define FN_H
 
 #include <hydrogen.h>
+#include <vec.h>
 
-#include "vec.h"
 #include "bytecode.h"
 #include "ins.h"
 

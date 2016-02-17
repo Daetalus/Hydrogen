@@ -69,10 +69,10 @@ typedef struct {
 	// character at the end of the line.
 	char *line_contents;
 
-	// The line number and column in the file the error occurred on, or -1 if
+	// The line number and column in the file the error occurred on, or 0 if
 	// the error has no associated source code.
-	int32_t line;
-	int32_t column;
+	uint32_t line;
+	uint32_t column;
 
 	// The length of the token that triggered the error, or -1 if the error has
 	// no associated source code.

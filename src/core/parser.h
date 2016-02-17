@@ -9,7 +9,8 @@
 #include <hydrogen.h>
 #include <stdbool.h>
 
-#include "vec.h"
+#include <vec.h>
+
 #include "lexer.h"
 #include "bytecode.h"
 
