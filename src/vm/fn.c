@@ -7,11 +7,6 @@
 #include "vm.h"
 
 
-
-//
-//  Functions
-//
-
 // Defines a new function on the interpreter state.
 Index fn_new(HyState *state) {
 	vec_add(state->functions);

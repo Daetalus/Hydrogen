@@ -179,7 +179,7 @@ static void block_comment(Lexer *lexer) {
 
 		HyError *err = err_new();
 		err_print(err, "Unterminated block comment");
-		err_token(lexer->state, err, &token);
+		err_attach_token(lexer->state, err, &token);
 		err_trigger(lexer->state, err);
 		return;
 	}
@@ -232,7 +232,7 @@ static void string(Lexer *lexer) {
 		HyError *err = err_new();
 		err_print(err, "Unterminated string literal ");
 		err_print_token(err, token);
-		err_token(lexer->state, err, token);
+		err_attach_token(lexer->state, err, token);
 		err_trigger(lexer->state, err);
 		return;
 	}
@@ -310,7 +310,7 @@ static void ensure_not_identifier(Lexer *lexer) {
 		HyError *err = err_new();
 		err_print(err, "Unexpected identifier after number ");
 		err_print_token(err, token);
-		err_token(lexer->state, err, token);
+		err_attach_token(lexer->state, err, token);
 		err_trigger(lexer->state, err);
 	}
 }
@@ -375,7 +375,7 @@ static bool number(Lexer *lexer) {
 		HyError *err = err_new();
 		err_print(err, "Invalid base prefix ");
 		err_print_token(err, token);
-		err_token(lexer->state, err, token);
+		err_attach_token(lexer->state, err, token);
 		err_trigger(lexer->state, err);
 		return false;
 	}
@@ -689,7 +689,7 @@ void invalid_escape_sequence(Lexer *lexer, Token *string, char *start) {
 	if (display_sequence) {
 		err_print(err, " `%.*s`", token.length, token.start);
 	}
-	err_token(lexer->state, err, &token);
+	err_attach_token(lexer->state, err, &token);
 	err_trigger(lexer->state, err);
 }
 

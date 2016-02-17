@@ -34,171 +34,171 @@ COLOR_BOLD    = "\x1B[1m"
 
 # Prints some color text to the standard output.
 def print_color(color):
-    if platform.system() != "Windows":
-        sys.stdout.write(color)
+	if platform.system() != "Windows":
+		sys.stdout.write(color)
 
 
 # Extracts the expected output of a test case from its source code. Returns
 # a list of strings, one for each line of expected output.
 def expected_output(source):
-    # We need to find every instance of `// expect: ` and concatenate them
-    # together, separated by newlines
-    key = "// expect: "
-    result = []
-    line_number = 0
-    for line in source.splitlines():
-        line_number += 1
+	# We need to find every instance of `// expect: ` and concatenate them
+	# together, separated by newlines
+	key = "// expect: "
+	result = []
+	line_number = 0
+	for line in source.splitlines():
+		line_number += 1
 
-        # Find what we're searching for
-        found = line.find(key)
-        if found == -1:
-            continue
+		# Find what we're searching for
+		found = line.find(key)
+		if found == -1:
+			continue
 
-        # Append the rest of the line
-        index = found + len(key)
-        result.append({"content": line[index:], "line": line_number})
-    return result
+		# Append the rest of the line
+		index = found + len(key)
+		result.append({"content": line[index:], "line": line_number})
+	return result
 
 
 # Runs a test program from its path. Returns the exit code for the process and
 # what was written to the standard output. Returns -1 for the error code if the
 # process timed out.
 def run_test(path):
-    # Create the process
-    proc = Popen([cli_path, path], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+	# Create the process
+	proc = Popen([cli_path, path], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
-    # Kill test cases that take longer than `timeout` seconds
-    timed_out = [False]
-    def kill(test_case):
-        timed_out[0] = True
-        test_case.kill()
-    timer = Timer(timeout, kill, [proc])
+	# Kill test cases that take longer than `timeout` seconds
+	timed_out = [False]
+	def kill(test_case):
+		timed_out[0] = True
+		test_case.kill()
+	timer = Timer(timeout, kill, [proc])
 
-    # Execute the test case
-    exit_code = -1
-    output = None
-    error = None
-    try:
-        timer.start()
-        output, error = proc.communicate()
-        if not timed_out[0]:
-            exit_code = proc.returncode
-    finally:
-        timer.cancel()
+	# Execute the test case
+	exit_code = -1
+	output = None
+	error = None
+	try:
+		timer.start()
+		output, error = proc.communicate()
+		if not timed_out[0]:
+			exit_code = proc.returncode
+	finally:
+		timer.cancel()
 
-    return (output, exit_code, error)
+	return (output, exit_code, error)
 
 
 # Prints an error message to the standard output.
 def print_error(message):
-    print_color(COLOR_RED + COLOR_BOLD)
-    sys.stdout.write("[Error] ")
-    print_color(COLOR_NONE)
-    print(message)
+	print_color(COLOR_RED + COLOR_BOLD)
+	sys.stdout.write("[Error] ")
+	print_color(COLOR_NONE)
+	print(message)
 
 
 # Validates the output of a test case.
 def validate(path, expected_lines, output, exit_code, error):
-    # Parse the output into lines
-    try:
-        output = output.decode("utf-8").replace("\r\n", "\n").strip()
-    except:
-        print_error("Failed to decode output")
-        return False
+	# Parse the output into lines
+	try:
+		output = output.decode("utf-8").replace("\r\n", "\n").strip()
+	except:
+		print_error("Failed to decode output")
+		return False
 
-    # Check if the test case timed out
-    if exit_code == -1:
-        print_error("Timed out")
-        return False
+	# Check if the test case timed out
+	if exit_code == -1:
+		print_error("Timed out")
+		return False
 
-    # Check if the test case returned an error
-    if exit_code != 0:
-        print_error("Compilation or runtime failure")
-        if len(output) > 0:
-            print("Standard output:")
-            print(output)
-        if len(error) > 0:
-            print("Standard error output:")
-            print(error)
-        return False
+	# Check if the test case returned an error
+	if exit_code != 0:
+		print_error("Compilation or runtime failure")
+		if len(output) > 0:
+			print("Standard output:")
+			print(output)
+		if len(error) > 0:
+			print("Standard error output:")
+			print(error)
+		return False
 
-    # Convert output into multiple lines
-    output_lines = []
-    if len(output) > 0:
-        output_lines = output.strip().split("\n")
+	# Convert output into multiple lines
+	output_lines = []
+	if len(output) > 0:
+		output_lines = output.strip().split("\n")
 
-    # Check output lengths match
-    if len(expected_lines) != len(output_lines):
-        print_error("Incorrect number of output lines")
-        return False
+	# Check output lengths match
+	if len(expected_lines) != len(output_lines):
+		print_error("Incorrect number of output lines")
+		return False
 
-    # Check each line
-    for i in range(len(output_lines)):
-        expected = expected_lines[i]["content"]
+	# Check each line
+	for i in range(len(output_lines)):
+		expected = expected_lines[i]["content"]
 
-        # Check the output matched what was expected
-        if output_lines[i] != expected:
-            line_number = expected_lines[i]["line"]
-            print_error("Incorrect output on line " + str(line_number) +
-                ": expected " + expected + ", got " + output_lines[i])
-            return False
+		# Check the output matched what was expected
+		if output_lines[i] != expected:
+			line_number = expected_lines[i]["line"]
+			print_error("Incorrect output on line " + str(line_number) +
+				": expected " + expected + ", got " + output_lines[i])
+			return False
 
-    # Passed test
-    print_color(COLOR_BOLD + COLOR_GREEN)
-    sys.stdout.write("[Passed]")
-    print_color(COLOR_NONE)
-    print("")
-    return True
+	# Passed test
+	print_color(COLOR_BOLD + COLOR_GREEN)
+	sys.stdout.write("[Passed]")
+	print_color(COLOR_NONE)
+	print("")
+	return True
 
 
 # Executes the runtime test for the Hydrogen code at `path`.
 def test(path):
-    # Print info
-    print_color(COLOR_BLUE + COLOR_BOLD)
-    sys.stdout.write("[Test] ")
-    print_color(COLOR_NONE)
+	# Print info
+	print_color(COLOR_BLUE + COLOR_BOLD)
+	sys.stdout.write("[Test] ")
+	print_color(COLOR_NONE)
 
-    suite = basename(dirname(path))
-    name = splitext(basename(path))[0].replace("_", " ")
-    print("Testing " + suite + " => " + name)
+	suite = basename(dirname(path))
+	name = splitext(basename(path))[0].replace("_", " ")
+	print("Testing " + suite + " => " + name)
 
-    # Open the input file
-    input_file = open(path, "r")
-    if not input_file:
-        print_error("Failed to open file")
-        return False
+	# Open the input file
+	input_file = open(path, "r")
+	if not input_file:
+		print_error("Failed to open file")
+		return False
 
-    # Read the contents of the file
-    source = input_file.read()
-    input_file.close()
+	# Read the contents of the file
+	source = input_file.read()
+	input_file.close()
 
-    # Extract the expected output for the case
-    expected = expected_output(source)
+	# Extract the expected output for the case
+	expected = expected_output(source)
 
-    # Get the output and exit code for the test case
-    output, exit_code, error = run_test(path)
+	# Get the output and exit code for the test case
+	output, exit_code, error = run_test(path)
 
-    # Validates a test case's output
-    return validate(path, expected, output, exit_code, error)
+	# Validates a test case's output
+	return validate(path, expected, output, exit_code, error)
 
 
 # Tests all Hydrogen files in a directory. Returns the total number of tests,
 # and the number of tests passed
 def test_dir(path):
-    total = 0
-    passed = 0
-    files = os.listdir(path)
-    for case in files:
-        case_path = join(path, case)
-        if isdir(case_path):
-            local_total, local_passed = test_dir(case_path)
-            total += local_total
-            passed += local_passed
-        elif splitext(case_path)[1] == ".hy":
-            if test(case_path):
-                passed += 1
-            total += 1
-    return (total, passed)
+	total = 0
+	passed = 0
+	files = os.listdir(path)
+	for case in files:
+		case_path = join(path, case)
+		if isdir(case_path):
+			local_total, local_passed = test_dir(case_path)
+			total += local_total
+			passed += local_passed
+		elif splitext(case_path)[1] == ".hy":
+			if test(case_path):
+				passed += 1
+			total += 1
+	return (total, passed)
 
 
 # Test all files in this directory
@@ -208,16 +208,16 @@ total, passed = test_dir(sys.argv[1])
 print("")
 print_color(COLOR_BOLD)
 if total == passed:
-    # All tests passed
-    print_color(COLOR_GREEN)
-    sys.stdout.write("[Success] ")
-    print_color(COLOR_NONE)
-    print("All tests passed!")
-    sys.exit(0)
+	# All tests passed
+	print_color(COLOR_GREEN)
+	sys.stdout.write("[Success] ")
+	print_color(COLOR_NONE)
+	print("All tests passed!")
+	sys.exit(0)
 else:
-    # Not all tests passed
-    print_color(COLOR_RED)
-    sys.stdout.write("[Failure] ")
-    print_color(COLOR_NONE)
-    print(str(passed) + " of " + str(total) + " tests passed")
-    sys.exit(1)
+	# Not all tests passed
+	print_color(COLOR_RED)
+	sys.stdout.write("[Failure] ")
+	print_color(COLOR_NONE)
+	print(str(passed) + " of " + str(total) + " tests passed")
+	sys.exit(1)

@@ -1,10 +1,15 @@
 import "io"
 
-fn test() {
+fn test0() {}
+
+io.println(test0()) // expect: nil
+
+
+fn test1() {
 	io.println("test")
 }
 
-test() // expect: test
+test1() // expect: test
 
 
 fn test2(arg) {

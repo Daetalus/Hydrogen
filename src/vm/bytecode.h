@@ -20,6 +20,9 @@
 
 // Instruction operation codes for Hydrogen bytecode.
 //
+// The order of these opcodes is important as the parser relies on integer
+// arithmetic to compute opcodes for expressions.
+//
 // Postfix meanings:
 // * L: local
 // * I: integer
@@ -245,6 +248,7 @@ typedef enum {
 	//  No Operation
 	//
 
+	// Must be the last opcode
 	NO_OP,
 } BytecodeOpcode;
 

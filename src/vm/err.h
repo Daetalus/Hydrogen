@@ -29,7 +29,7 @@ void err_print(HyError *err, char *fmt, ...);
 void err_print_token(HyError *err, Token *token);
 
 // Associate a token with the error.
-void err_token(HyState *state, HyError *err, Token *token);
+void err_attach_token(HyState *state, HyError *err, Token *token);
 
 // Triggers a jump back to the error guard with the built error.
 void err_trigger(HyState *state, HyError *err);

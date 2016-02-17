@@ -184,7 +184,7 @@ static uint32_t column_number(char *cursor, char *source) {
 
 
 // Associate a token with the error.
-void err_token(HyState *state, HyError *err, Token *token) {
+void err_attach_token(HyState *state, HyError *err, Token *token) {
 	Package *pkg = &vec_at(state->packages, token->package);
 	Source *src = &vec_at(pkg->sources, token->source);
 

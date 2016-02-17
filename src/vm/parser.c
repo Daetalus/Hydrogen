@@ -58,7 +58,7 @@ static void err_unexpected_vararg(Parser *parser, Token *token, char *fmt,
 	err_print_token(err, token);
 
 	// Attach token and trigger error
-	err_token(parser->state, err, token);
+	err_attach_token(parser->state, err, token);
 	err_trigger(parser->state, err);
 }
 
@@ -98,7 +98,7 @@ static void err_fatal(Parser *parser, Token *token, char *fmt, ...) {
 	va_end(args);
 
 	// Attach token and trigger error
-	err_token(parser->state, err, token);
+	err_attach_token(parser->state, err, token);
 	err_trigger(parser->state, err);
 }
 

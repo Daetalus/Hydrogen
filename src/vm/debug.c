@@ -11,13 +11,8 @@
 #include "err.h"
 
 
-// The maximum length of an opcode's name.
-#define MAX_NAME_LENGTH 17
-#define MAX_NAME_LENGTH_STR "17"
-
-
 // The name of each opcode, in the exact order they were defined in.
-static char opcode_names[][MAX_NAME_LENGTH] = {
+static char opcode_names[][50] = {
 	"MOV_LL", "MOV_LI", "MOV_LN", "MOV_LS", "MOV_LP", "MOV_LF", "MOV_LV",
 	"MOV_UL", "MOV_UI", "MOV_UN", "MOV_US", "MOV_UP", "MOV_UF", "MOV_UV",
 	"MOV_UL", "UPVALUE_CLOSE",
@@ -47,6 +42,8 @@ static char opcode_names[][MAX_NAME_LENGTH] = {
 	"STRUCT_NEW", "STRUCT_FIELD",
 	"STRUCT_SET_L", "STRUCT_SET_I", "STRUCT_SET_N", "STRUCT_SET_S",
 	"STRUCT_SET_P", "STRUCT_SET_F", "STRUCT_SET_V",
+
+	"NO_OP",
 };
 
 
@@ -95,6 +92,8 @@ static uint32_t argument_count[] = {
 	3, /* STRUCT_SET_L */ 3, /* STRUCT_SET_I */ 3, /* STRUCT_SET_N */
 	3, /* STRUCT_SET_S */ 3, /* STRUCT_SET_P */ 3, /* STRUCT_SET_F */
 	3, /* STRUCT_SET_V */
+
+	0, /* NO_OP */
 };
 
 
@@ -179,8 +178,17 @@ static void print_native(HyState *state, NativeFunction *fn) {
 
 // Prints an instruction's opcode.
 static void print_opcode(Instruction ins) {
+	// Find the length of the longest opcode
+	uint32_t max_length = 0;
+	for (uint32_t i = 0; i <= NO_OP; i++) {
+		uint32_t length = strlen(opcode_names[i]);
+		if (length > max_length) {
+			max_length = length;
+		}
+	}
+
 	BytecodeOpcode opcode = ins_arg(ins, 0);
-	printf("%-" MAX_NAME_LENGTH_STR "s  ", opcode_names[opcode]);
+	printf("%-*s  ", max_length, opcode_names[opcode]);
 }
 
 
@@ -273,7 +281,7 @@ static void print_info(HyState *state, Index ins_index, Instruction ins) {
 		printf("    => %d", ins_index + ins_arg(ins, 1));
 		break;
 	case LOOP:
-		printf("    => %d", ins_index - ins_arg(ins, 1));
+		printf("    => %d", ((int) ins_index) - ins_arg(ins, 1));
 		break;
 
 	default:
