@@ -3,6 +3,10 @@
 #  Runtime Tests
 #
 
+# Command line arguments:
+# 1. Path to folder containing Hydrogen scripts to test
+# 2. Path to Hydrogen CLI binary
+
 import os
 import sys
 import platform
@@ -39,7 +43,8 @@ def print_color(color):
 
 
 # Extracts the expected output of a test case from its source code. Returns
-# a list of strings, one for each line of expected output.
+# a list of strings, one for each line of expected output, and the expected
+# error code for the test.
 def expected_output(source):
 	# We need to find every instance of `// expect: ` and concatenate them
 	# together, separated by newlines
@@ -57,7 +62,13 @@ def expected_output(source):
 		# Append the rest of the line
 		index = found + len(key)
 		result.append({"content": line[index:], "line": line_number})
-	return result
+
+	# Check if we can find `// expect error`, and if so, we need to ensure the
+	# test exits with a failure error code
+	exit_code = 0
+	if source.find("// expect error") != -1:
+		exit_code = 1
+	return (result, exit_code)
 
 
 # Runs a test program from its path. Returns the exit code for the process and
@@ -97,8 +108,9 @@ def print_error(message):
 	print(message)
 
 
-# Validates the output of a test case.
-def validate(path, expected_lines, output, exit_code, error):
+# Validates the output of a test case, returning true if the test was
+# successful.
+def validate(path, expected_lines, output, expected_exit, exit_code, error):
 	# Parse the output into lines
 	try:
 		output = output.decode("utf-8").replace("\r\n", "\n").strip()
@@ -112,14 +124,11 @@ def validate(path, expected_lines, output, exit_code, error):
 		return False
 
 	# Check if the test case returned an error
-	if exit_code != 0:
-		print_error("Compilation or runtime failure")
+	if exit_code != expected_exit:
+		print_error("Exited with error code " + str(exit_code) + ", expected " +
+			str(expected_exit))
 		if len(output) > 0:
-			print("Standard output:")
 			print(output)
-		if len(error) > 0:
-			print("Standard error output:")
-			print(error)
 		return False
 
 	# Convert output into multiple lines
@@ -173,13 +182,13 @@ def test(path):
 	input_file.close()
 
 	# Extract the expected output for the case
-	expected = expected_output(source)
+	(expected, expected_code) = expected_output(source)
 
 	# Get the output and exit code for the test case
 	output, exit_code, error = run_test(path)
 
 	# Validates a test case's output
-	return validate(path, expected, output, exit_code, error)
+	return validate(path, expected, output, expected_code, exit_code, error)
 
 
 # Tests all Hydrogen files in a directory. Returns the total number of tests,
@@ -204,9 +213,12 @@ def test_dir(path):
 # Test all files in this directory
 total, passed = test_dir(sys.argv[1])
 
-# Print final message
-print("")
-print_color(COLOR_BOLD)
+# Add a newline
+if total > 0:
+	print("")
+	print_color(COLOR_BOLD)
+
+# Print number of tests passed
 if total == passed:
 	# All tests passed
 	print_color(COLOR_GREEN)

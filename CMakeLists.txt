@@ -11,7 +11,7 @@ IF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 	SET(CMAKE_BUILD_TYPE Release)
 ENDIF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 
-# Debug and release flags
+# Set debug and release flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wno-write-strings")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
@@ -19,10 +19,10 @@ set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
 set(CMAKE_CXX_FLAGS_DEBUG ${CMAKE_C_FLAGS_DEBUG})
 set(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
 
-# Hydrogen include directory
+# Main include directory
 include_directories(include)
 
-# Library
+# Core library
 file(GLOB_RECURSE VM_SOURCES src/vm/*)
 add_library(hydrogen STATIC ${VM_SOURCES})
 
@@ -45,7 +45,8 @@ include_directories(
 	${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR}
 )
 
-# Macro for adding a parser test program
+
+# Macro for adding a parser test program.
 macro(parser_test name)
 	# Create the testing executable
 	add_executable(test_${name} ${CMAKE_SOURCE_DIR}/test/parser/test_${name}.cpp)
@@ -73,12 +74,21 @@ parser_test(import)
 # parser_test(upvalue)
 # parser_test(struct)
 
-# Add runtime tests
+
+# Require Python for runtime tests
 find_package(PythonInterp REQUIRED)
-add_test(
-	NAME test_runtime
-	COMMAND ${PYTHON_EXECUTABLE}
-	${CMAKE_SOURCE_DIR}/test/runtime/test_runtime.py
-	${CMAKE_SOURCE_DIR}/test/runtime
-	${CMAKE_BINARY_DIR}/cli
-)
+
+# Macro for adding a set of runtime tests.
+macro(runtime_test section)
+	add_test(
+		NAME test_runtime_${section}
+		COMMAND ${PYTHON_EXECUTABLE}
+		${CMAKE_SOURCE_DIR}/test/runtime/test_runtime.py
+		${CMAKE_SOURCE_DIR}/test/runtime/${section}
+		${CMAKE_BINARY_DIR}/cli
+	)
+endmacro()
+
+# Add runtime test sets
+runtime_test(pass)
+runtime_test(fail)
