@@ -68,6 +68,7 @@ def expected_output(source):
 	exit_code = 0
 	if source.find("// expect error") != -1:
 		exit_code = 1
+
 	return (result, exit_code)
 
 

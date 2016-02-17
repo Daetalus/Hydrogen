@@ -3,13 +3,13 @@
 //  Hydrogen Standard Library
 //
 
-#ifndef HYSTDLIB_H
-#define HYSTDLIB_H
+#ifndef HYLIB_H
+#define HYLIB_H
 
 #include <hydrogen.h>
 
 // Register the entire standard library.
-void hy_add_stdlib(HyState *state);
+void hy_add_libs(HyState *state);
 
 // Register the IO library.
 void hy_add_io(HyState *state);

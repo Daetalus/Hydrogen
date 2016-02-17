@@ -20,42 +20,42 @@ set(CMAKE_CXX_FLAGS_DEBUG ${CMAKE_C_FLAGS_DEBUG})
 set(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
 
 # Main include directory
-include_directories(include)
+include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # Core library
-file(GLOB_RECURSE VM_SOURCES src/vm/*)
-add_library(hydrogen STATIC ${VM_SOURCES})
+file(GLOB_RECURSE CORE_SOURCES ${CMAKE_SOURCE_DIR}/src/core/*)
+add_library(hydrogen STATIC ${CORE_SOURCES})
 
 # Standard library
-file(GLOB_RECURSE STDLIB_SOURCES src/std/*)
-add_library(hystdlib STATIC ${STDLIB_SOURCES})
+file(GLOB_RECURSE LIB_SOURCES ${CMAKE_SOURCE_DIR}/src/lib/*)
+add_library(hylib STATIC ${LIB_SOURCES})
 
 # Command line interface
-file(GLOB_RECURSE CLI_SOURCES src/cli/*)
+file(GLOB_RECURSE CLI_SOURCES ${CMAKE_SOURCE_DIR}/src/cli/*)
 add_executable(cli ${CLI_SOURCES})
-target_link_libraries(cli hydrogen hystdlib)
+target_link_libraries(cli hydrogen hylib)
 
 # Enable testing using Google's testing framework
-add_subdirectory(test/gtest/googletest)
+add_subdirectory(${CMAKE_SOURCE_DIR}/test/gtest/googletest)
 enable_testing()
 
 # Add include directories for tests
 include_directories(
-	src/vm
+	${CMAKE_SOURCE_DIR}/src/core
 	${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR}
 )
 
 
 # Macro for adding a parser test program.
 macro(parser_test name)
-	# Create the testing executable
-	add_executable(test_${name} ${CMAKE_SOURCE_DIR}/test/parser/test_${name}.cpp)
+	# Create the executable
+	add_executable(
+		test_${name}
+		${CMAKE_SOURCE_DIR}/test/parser/test_${name}.cpp
+	)
 
 	# Link against Hydrogen and Google Test
-	target_link_libraries(test_${name}
-		hydrogen hystdlib
-		gtest gtest_main
-	)
+	target_link_libraries(test_${name} hydrogen hylib gtest gtest_main)
 
 	# Register the test
 	add_test(test_${name} test_${name})
@@ -80,6 +80,7 @@ find_package(PythonInterp REQUIRED)
 
 # Macro for adding a set of runtime tests.
 macro(runtime_test section)
+	# Add the test case
 	add_test(
 		NAME test_runtime_${section}
 		COMMAND ${PYTHON_EXECUTABLE}

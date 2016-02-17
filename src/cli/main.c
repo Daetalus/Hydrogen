@@ -4,7 +4,7 @@
 //
 
 #include <hydrogen.h>
-#include <hystdlib.h>
+#include <hylib.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -284,7 +284,7 @@ static void repl(Config *config) {
 	// Create a new interpreter state and package
 	// TODO: Add exit() native function to package for clean exit
 	HyState *state = hy_new();
-	hy_add_stdlib(state);
+	hy_add_libs(state);
 	HyPackage pkg = hy_add_pkg(state, NULL);
 
 	// REPL loop
@@ -313,7 +313,7 @@ static void print_bytecode(Config *config) {
 	HyState *state = hy_new();
 
 	// Add the standard library
-	hy_add_stdlib(state);
+	hy_add_libs(state);
 
 	// Find the package name
 	char *name = NULL;
@@ -343,7 +343,7 @@ static void print_bytecode(Config *config) {
 static void run(Config *config) {
 	// Create the interpreter state
 	HyState *state = hy_new();
-	hy_add_stdlib(state);
+	hy_add_libs(state);
 
 	// Execute source code depending on the input type
 	switch (config->input_type) {

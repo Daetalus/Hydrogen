@@ -3,12 +3,12 @@
 //  Standard Library
 //
 
-#include <hystdlib.h>
+#include <hylib.h>
 #include <stdio.h>
 
 
 // Register the entire standard library.
-void hy_add_stdlib(HyState *state) {
+void hy_add_libs(HyState *state) {
 	hy_add_io(state);
 }
 
