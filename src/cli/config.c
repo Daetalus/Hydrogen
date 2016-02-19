@@ -10,7 +10,6 @@
 #include <vec.h>
 
 #include "config.h"
-#include "help.h"
 
 
 // Read from stdin until the terminating character is reached.
@@ -32,16 +31,17 @@ static char * read_stdin(void) {
 }
 
 
-// Parse an option.
-static void config_opt(Config *config, char *opt) {
+// Parse an option. Returns true if we are to continue parsing options.
+static bool config_opt(Config *config, char *opt) {
 	if (strcmp(opt, "--help") == 0 || strcmp(opt, "-h") == 0) {
 		// Help
-		print_help();
-		config->type = EXEC_EXIT;
+		config->type = EXEC_HELP;
 	} else if (strcmp(opt, "--version") == 0 || strcmp(opt, "-v") == 0) {
 		// Version
-		print_version();
-		config->type = EXEC_EXIT;
+		config->type = EXEC_VERSION;
+	} else if (strcmp(opt, "--") == 0) {
+		// Stop parsing options
+		return false;
 	} else if (strcmp(opt, "--jinfo") == 0) {
 		// Show JIT info
 		config->show_jit_info = true;
@@ -54,18 +54,21 @@ static void config_opt(Config *config, char *opt) {
 	} else if (strcmp(opt, "--stdin") == 0) {
 		// Read from stdin
 		config->type = EXEC_RUN;
-		config->input_type = INPUT_SOURCE;
-	} else if (opt[0] != '-') {
+		config->input_type = INPUT_STDIN;
+	} else if (opt[0] == '-') {
+		// Invalid option
+		fprintf(stderr, "Invalid option `%s`\n", opt);
+		config->type = EXEC_USAGE;
+		return false;
+	} else {
 		// Path to input
 		config->type = EXEC_RUN;
 		config->input_type = INPUT_FILE;
 		config->input = opt;
-	} else {
-		// Invalid option
-		printf("Unrecognised option `%s`\n", opt);
-		print_usage();
-		config->type = EXEC_EXIT;
 	}
+
+	// Keep parsing options
+	return true;
 }
 
 
@@ -76,16 +79,18 @@ Config config_new(int argc, char *argv[]) {
 	config.show_jit_info = false;
 	config.show_bytecode = false;
 	config.type = EXEC_REPL;
-	config.input_type = INPUT_FILE;
+	config.input_type = INPUT_NONE;
 	config.input = NULL;
 
 	// Parse options
-	for (int i = 1; i < argc && config.type != EXEC_EXIT; i++) {
-		config_opt(&config, argv[i]);
+	for (int i = 1; i < argc; i++) {
+		if (!config_opt(&config, argv[i])) {
+			break;
+		}
 	}
 
 	// Read the source from the standard input
-	if (config.type != EXEC_EXIT && config.input_type == INPUT_SOURCE) {
+	if (config.type == EXEC_RUN && config.input_type == INPUT_STDIN) {
 		config.input = read_stdin();
 	}
 
@@ -96,7 +101,7 @@ Config config_new(int argc, char *argv[]) {
 // Free a configuration object.
 void config_free(Config *config) {
 	// Free the source code we read from the standard input
-	if (config->input_type == INPUT_SOURCE) {
+	if (config->type == EXEC_RUN && config->input_type == INPUT_STDIN) {
 		free(config->input);
 	}
 }

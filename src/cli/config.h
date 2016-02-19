@@ -13,13 +13,16 @@
 typedef enum {
 	EXEC_RUN,
 	EXEC_REPL,
-	EXEC_EXIT,
+	EXEC_VERSION,
+	EXEC_HELP,
+	EXEC_USAGE,
 } ExecutionType;
 
 
 // The type of input we're given.
 typedef enum {
-	INPUT_SOURCE,
+	INPUT_NONE,
+	INPUT_STDIN,
 	INPUT_FILE,
 } InputType;
 
@@ -39,7 +42,7 @@ typedef struct {
 	// What type of execution is requested.
 	ExecutionType type;
 
-	// Input data (either source code or a path to a file).
+	// Input data.
 	InputType input_type;
 	char *input;
 } Config;
