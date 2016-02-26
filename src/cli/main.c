@@ -73,7 +73,6 @@ static int run(Config *config) {
 
 	// Print the error if needed
 	if (err != NULL) {
-		printf("err\n");
 		print_err(err);
 		hy_err_free(err);
 	}

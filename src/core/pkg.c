@@ -82,7 +82,6 @@ HyError * pkg_parse(Package *pkg, Index source, Index *main_fn) {
 	if (main_fn != NULL) {
 		*main_fn = index;
 	}
-
 	return NULL;
 }
 

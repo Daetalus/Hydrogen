@@ -167,5 +167,7 @@ void print_err(HyError *err) {
 	int align = print_description(err);
 
 	// Line of source code
-	print_code(err, align);
+	if (err->line_contents != NULL) {
+		print_code(err, align);
+	}
 }

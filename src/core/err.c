@@ -30,9 +30,9 @@ HyError * err_new(void) {
 
 	err->file = NULL;
 	err->line_contents = NULL;
-	err->line = -1;
-	err->column = -1;
-	err->length = -1;
+	err->line = 0;
+	err->column = 0;
+	err->length = 0;
 	err->stack_trace = NULL;
 	err->stack_trace_length = 0;
 	return err;
@@ -42,7 +42,9 @@ HyError * err_new(void) {
 // Creates a new failed to open file error.
 HyError * err_failed_to_open_file(char *path) {
 	HyError *err = err_new();
-	err_print(err, "Failed to open file `%s`", path);
+	err->file = malloc(strlen(path) + 1);
+	strcpy(err->file, path);
+	err_print(err, "Failed to open file");
 	return err;
 }
 

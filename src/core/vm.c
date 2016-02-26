@@ -107,13 +107,12 @@ HyError * vm_parse_and_run(HyState *state, Package *pkg, Index source) {
 	// Parse the source code
 	Index main_fn = 0;
 	HyError *err = pkg_parse(pkg, source, &main_fn);
-	if (err != NULL) {
-		return err;
-	}
 
-	// Execute the main function
-	HyError *result = vm_run_fn(state, main_fn);
-	return result;
+	// Execute the main function if no error occurred
+	if (err == NULL) {
+		err = vm_run_fn(state, main_fn);
+	}
+	return err;
 }
 
 
