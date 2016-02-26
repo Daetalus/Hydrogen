@@ -191,7 +191,7 @@ static uint16_t local_new(Parser *parser) {
 		vec_len(parser->locals));
 
 	// Increment the number of locals
-	vec_add(parser->locals);
+	vec_inc(parser->locals);
 	scope->actives_count++;
 
 	// Set the local's default values
@@ -423,7 +423,7 @@ static void import(Parser *parser, Token *token) {
 	}
 
 	// Add the package to the list of imported ones
-	vec_add(parser->imports);
+	vec_inc(parser->imports);
 	vec_last(parser->imports) = pkg_index;
 }
 

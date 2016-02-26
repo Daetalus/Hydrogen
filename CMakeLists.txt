@@ -62,6 +62,7 @@ macro(parser_test name)
 endmacro()
 
 # Add parser tests
+parser_test(vec)
 parser_test(lexer)
 parser_test(ins)
 parser_test(jmp)

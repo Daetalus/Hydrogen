@@ -31,7 +31,7 @@ HyPackage hy_add_pkg(HyState *state, char *name) {
 // Defines a new package on the interpreter state. Returns the index of the
 // package.
 Index pkg_new(HyState *state) {
-	vec_add(state->packages);
+	vec_inc(state->packages);
 	Package *pkg = &vec_last(state->packages);
 	Index index = vec_len(state->packages) - 1;
 	pkg->name = NULL;
@@ -116,7 +116,7 @@ Index pkg_add_file(Package *pkg, char *path) {
 		return NOT_FOUND;
 	}
 
-	vec_add(pkg->sources);
+	vec_inc(pkg->sources);
 	Source *src = &vec_last(pkg->sources);
 	src->contents = contents;
 
@@ -129,7 +129,7 @@ Index pkg_add_file(Package *pkg, char *path) {
 
 // Adds a string as a source on the package.
 Index pkg_add_string(Package *pkg, char *source) {
-	vec_add(pkg->sources);
+	vec_inc(pkg->sources);
 	Source *src = &vec_last(pkg->sources);
 	src->file = NULL;
 
@@ -155,8 +155,8 @@ Index pkg_find(HyState *state, char *name, uint32_t length) {
 
 // Adds a new top level local to a package with a default value of `value`.
 Index pkg_local_add(Package *pkg, char *name, uint32_t length, HyValue value) {
-	vec_add(pkg->locals);
-	vec_add(pkg->names);
+	vec_inc(pkg->locals);
+	vec_inc(pkg->names);
 
 	Identifier *ident = &vec_last(pkg->names);
 	ident->name = name;

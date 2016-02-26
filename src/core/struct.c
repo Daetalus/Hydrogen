@@ -11,7 +11,7 @@
 
 // Creates a new struct definition on the package `pkg`.
 Index struct_new(HyState *state, Index pkg) {
-	vec_add(state->structs);
+	vec_inc(state->structs);
 	StructDefinition *def = &vec_last(state->structs);
 	def->name = NULL;
 	def->length = 0;

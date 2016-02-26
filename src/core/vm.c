@@ -145,7 +145,7 @@ HyError * hy_pkg_run_string(HyState *state, HyPackage index, char *source) {
 
 // Adds a constant to the interpreter state, returning its index.
 Index state_add_constant(HyState *state, HyValue constant) {
-	vec_add(state->constants);
+	vec_inc(state->constants);
 	vec_last(state->constants) = constant;
 	return vec_len(state->constants) - 1;
 }
@@ -153,7 +153,7 @@ Index state_add_constant(HyState *state, HyValue constant) {
 
 // Creates a new string constant that is `length` bytes long.
 Index state_add_string(HyState *state, uint32_t length) {
-	vec_add(state->strings);
+	vec_inc(state->strings);
 	vec_last(state->strings) = malloc(sizeof(String) + length + 1);
 	String *string = vec_last(state->strings);
 	string->type = OBJ_STRING;
@@ -176,7 +176,7 @@ Index state_add_field(HyState *state, Identifier ident) {
 	}
 
 	// No existing field, so add a new one
-	vec_add(state->fields);
+	vec_inc(state->fields);
 	Identifier *last = &vec_last(state->fields);
 	last->name = ident.name;
 	last->length = ident.length;
@@ -326,7 +326,6 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 
 	HyValue *constants = &vec_at(state->constants, 0);
 	String **strings = &vec_at(state->strings, 0);
-	Identifier *fields = &vec_at(state->fields, 0);
 
 	HyValue *stack = state->stack;
 	Frame *call_stack = state->call_stack;

@@ -19,13 +19,13 @@ static char * read_stdin(void) {
 
 	int ch = getchar();
 	while (ch != EOF) {
-		vec_add(contents);
+		vec_inc(contents);
 		vec_last(contents) = (char) ch;
 		ch = getchar();
 	}
 
 	// Add the NULL terminator
-	vec_add(contents);
+	vec_inc(contents);
 	vec_last(contents) = '\0';
 	return &vec_at(contents, 0);
 }

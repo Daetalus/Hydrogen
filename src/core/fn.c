@@ -9,7 +9,7 @@
 
 // Defines a new function on the interpreter state.
 Index fn_new(HyState *state) {
-	vec_add(state->functions);
+	vec_inc(state->functions);
 	Function *fn = &vec_last(state->functions);
 	fn->name = NULL;
 	fn->length = 0;
@@ -32,7 +32,7 @@ void fn_free(Function *fn) {
 // Appends a bytecode instruction to the end of the function's instruction list.
 Index fn_emit(Function *fn, BytecodeOpcode opcode, uint16_t arg1, uint16_t arg2,
 		uint16_t arg3) {
-	vec_add(fn->instructions);
+	vec_inc(fn->instructions);
 	vec_last(fn->instructions) = ins_new(opcode, arg1, arg2, arg3);
 	return vec_len(fn->instructions) - 1;
 }
@@ -46,7 +46,7 @@ Index fn_emit(Function *fn, BytecodeOpcode opcode, uint16_t arg1, uint16_t arg2,
 // Defines a new native function on the package `pkg`.
 Index native_new(HyState *state, Index pkg_index, char *name) {
 	// Create native function on interpreter state
-	vec_add(state->natives);
+	vec_inc(state->natives);
 	NativeFunction *fn = &vec_last(state->natives);
 	fn->name = name;
 	fn->package = pkg_index;
