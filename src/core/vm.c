@@ -12,17 +12,17 @@
 #include "debug.h"
 
 
-// The maximum stack size.
+// The maximum stack size
 #define MAX_STACK_SIZE 2048
 
-// The maximum call stack size storing data for function calls.
+// The maximum call stack size storing data for function calls
 #define MAX_CALL_STACK_SIZE 2048
 
 
 // Executes a file by creating a new interpreter state, reading the contents of
 // the file, and executing the source code. Acts as a wrapper around other API
 // functions. Returns an error if one occurred, or NULL otherwise. The error
-// must be freed by calling `hy_err_free`.
+// must be freed by calling `hy_err_free`
 HyError * hy_run_file(HyState *state, char *path) {
 	char *name = hy_pkg_name(path);
 	HyPackage pkg = hy_add_pkg(state, name);
@@ -33,7 +33,7 @@ HyError * hy_run_file(HyState *state, char *path) {
 
 
 // Executes some source code from a string. Returns an error if one occurred, or
-// NULL otherwise. The error must be freed by calling `hy_err_free`.
+// NULL otherwise. The error must be freed by calling `hy_err_free`
 HyError * hy_run_string(HyState *state, char *source) {
 	HyPackage pkg = hy_add_pkg(state, NULL);
 	HyError *err = hy_pkg_run_string(state, pkg, source);
@@ -41,7 +41,7 @@ HyError * hy_run_string(HyState *state, char *source) {
 }
 
 
-// Create a new interpreter state.
+// Create a new interpreter state
 HyState * hy_new(void) {
 	HyState *state = malloc(sizeof(HyState));
 
@@ -63,7 +63,7 @@ HyState * hy_new(void) {
 }
 
 
-// Release all resources allocated by an interpreter state.
+// Release all resources allocated by an interpreter state
 void hy_free(HyState *state) {
 	for (uint32_t i = 0; i < vec_len(state->packages); i++) {
 		pkg_free(&vec_at(state->packages, i));
@@ -94,7 +94,7 @@ void hy_free(HyState *state) {
 }
 
 
-// Resets an interpreter state's error, returning the current error.
+// Resets an interpreter state's error, returning the current error
 HyError * vm_reset_error(HyState *state) {
 	HyError *err = state->error;
 	state->error = NULL;
@@ -102,7 +102,7 @@ HyError * vm_reset_error(HyState *state) {
 }
 
 
-// Parses and runs some source code.
+// Parses and runs some source code
 HyError * vm_parse_and_run(HyState *state, Package *pkg, Index source) {
 	// Parse the source code
 	Index main_fn = 0;
@@ -118,7 +118,7 @@ HyError * vm_parse_and_run(HyState *state, Package *pkg, Index source) {
 
 // Execute a file on a package. The file's contents will be read and executed
 // as source code. The file's path will be used in relevant errors. An error
-// object is returned if one occurs, otherwise NULL is returned.
+// object is returned if one occurs, otherwise NULL is returned
 HyError * hy_pkg_run_file(HyState *state, HyPackage index, char *path) {
 	Package *pkg = &vec_at(state->packages, index);
 	Index source = pkg_add_file(pkg, path);
@@ -134,7 +134,7 @@ HyError * hy_pkg_run_file(HyState *state, HyPackage index, char *path) {
 
 
 // Execute some source code on a package. An error object is returned if one
-// occurs, otherwise NULL is returned.
+// occurs, otherwise NULL is returned
 HyError * hy_pkg_run_string(HyState *state, HyPackage index, char *source) {
 	Package *pkg = &vec_at(state->packages, index);
 	Index source_index = pkg_add_string(pkg, source);
@@ -142,7 +142,7 @@ HyError * hy_pkg_run_string(HyState *state, HyPackage index, char *source) {
 }
 
 
-// Adds a constant to the interpreter state, returning its index.
+// Adds a constant to the interpreter state, returning its index
 Index state_add_constant(HyState *state, HyValue constant) {
 	vec_inc(state->constants);
 	vec_last(state->constants) = constant;
@@ -150,7 +150,7 @@ Index state_add_constant(HyState *state, HyValue constant) {
 }
 
 
-// Creates a new string constant that is `length` bytes long.
+// Creates a new string constant that is `length` bytes long
 Index state_add_string(HyState *state, uint32_t length) {
 	vec_inc(state->strings);
 	vec_last(state->strings) = malloc(sizeof(String) + length + 1);
@@ -163,7 +163,7 @@ Index state_add_string(HyState *state, uint32_t length) {
 
 
 // Adds a field name to the interpreter state's fields list. If a field matching
-// `ident` already exists, then it returns the index of the existing field.
+// `ident` already exists, then it returns the index of the existing field
 Index state_add_field(HyState *state, Identifier ident) {
 	// Check for an existing field first (reverse order)
 	for (int i = vec_len(state->fields) - 1; i >= 0; i--) {
@@ -188,22 +188,22 @@ Index state_add_field(HyState *state, Identifier ident) {
 //  Execution
 //
 
-// Triggers the goto call for the next instruction.
+// Triggers the goto call for the next instruction
 #define DISPATCH() goto *dispatch_table[ins_arg(*ip, 0)];
 
-// Increments the instruction pointer and dispatches the next instruction.
+// Increments the instruction pointer and dispatches the next instruction
 #define NEXT() ip++; DISPATCH();
 
 // Evaluates to the value in the `n`th stack slot, relative to the current
-// function's stack start.
+// function's stack start
 #define STACK_GET(n) stack[stack_start + (n)]
 
 // Evaluates to the value on the stack at the `n`th argument of the current
-// instruction.
+// instruction
 #define STACK_GET_INS(n) STACK_GET(ins_arg(*ip, n))
 
 
-// Ensures a value is a number, triggering an error if this is not the case.
+// Ensures a value is a number, triggering an error if this is not the case
 static inline double ensure_num(HyValue value) {
 	if (!val_is_num(value)) {
 		printf("Ensure num failed!\n");
@@ -213,7 +213,7 @@ static inline double ensure_num(HyValue value) {
 }
 
 
-// Ensures a value is a string, triggering an error if this is not the case.
+// Ensures a value is a string, triggering an error if this is not the case
 static inline String * ensure_str(HyValue value) {
 	if (!val_is_str(value)) {
 		printf("Ensure str failed!\n");
@@ -223,18 +223,18 @@ static inline String * ensure_str(HyValue value) {
 }
 
 
-// Compares two strings for equality.
+// Compares two strings for equality
 static inline bool string_comp(String *left, String *right) {
 	return strcmp(left->contents, right->contents) == 0;
 }
 
 
-// Forward declaration.
+// Forward declaration
 static inline bool val_comp(StructDefinition *structs, HyValue left,
 	HyValue right);
 
 
-// Compares two structs for equality.
+// Compares two structs for equality
 static bool struct_comp(StructDefinition *structs, Struct *left,
 		Struct *right) {
 	// Only equal if both are instances of the same struct
@@ -258,7 +258,7 @@ static bool struct_comp(StructDefinition *structs, Struct *left,
 }
 
 
-// Compares two values for equality.
+// Compares two values for equality
 static inline bool val_comp(StructDefinition *structs, HyValue left,
 		HyValue right) {
 	return left == right ||
@@ -269,7 +269,7 @@ static inline bool val_comp(StructDefinition *structs, HyValue left,
 }
 
 
-// Executes a function on the interpreter state.
+// Executes a function on the interpreter state
 HyError * vm_run_fn(HyState *state, Index fn_index) {
 	// Indexed labels for computed gotos, used to increase performance by using
 	// the CPU's branch predictor
@@ -402,7 +402,7 @@ BC_UPVALUE_CLOSE:
 	//  Top Level Local Storage
 	//
 
-// Shorthand method to retrive a top level local on a package.
+// Shorthand method to retrive a top level local on a package
 #define PKG_GET(pkg, field) \
 	vec_at(packages[ins_arg(*ip, (pkg))].locals, ins_arg(*ip, (field)))
 
@@ -535,7 +535,7 @@ BC_IS_FALSE_L: {
 }
 
 	// Since equality and inequality comparisons are nearly identical, generate
-	// the code for each using a macro.
+	// the code for each using a macro
 #define EQ(ins, op)                                                         \
 	BC_ ## ins ## _LL: {                                                    \
 		if (op val_comp(structs, STACK_GET_INS(1), STACK_GET_INS(2))) {     \
@@ -591,7 +591,7 @@ BC_IS_FALSE_L: {
 	//  Ordering
 	//
 
-	// Use a macro to generate code for each of the order instructions.
+	// Use a macro to generate code for each of the order instructions
 #define ORD(ins, op)                                                        \
 	BC_ ## ins ## _LL:                                                      \
 		if (ensure_num(STACK_GET_INS(1)) op ensure_num(STACK_GET_INS(2))) { \
@@ -668,7 +668,7 @@ BC_CALL: {
 }
 
 
-// Shorthand for returning a value.
+// Shorthand for returning a value
 #define RET(return_value) {                                \
 	Index index = --(*call_stack_count);                   \
 	stack[call_stack[index].return_slot] = (return_value); \

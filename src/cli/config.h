@@ -9,7 +9,7 @@
 #include <stdbool.h>
 
 
-// The possible types of execution.
+// The possible types of execution
 typedef enum {
 	EXEC_RUN,
 	EXEC_REPL,
@@ -19,7 +19,7 @@ typedef enum {
 } ExecutionType;
 
 
-// The type of input we're given.
+// The type of input we're given
 typedef enum {
 	INPUT_NONE,
 	INPUT_STDIN,
@@ -27,31 +27,31 @@ typedef enum {
 } InputType;
 
 
-// Configuration options specified on the command line.
+// Configuration options specified on the command line
 typedef struct {
-	// Whether to enable JIT compilation or not.
+	// Whether to enable JIT compilation or not
 	bool enable_jit;
 
 	// Whether to display information about JIT compiled loops during
-	// execution or not.
+	// execution or not
 	bool show_jit_info;
 
-	// Whether to output bytecode or execute code.
+	// Whether to output bytecode or execute code
 	bool show_bytecode;
 
-	// What type of execution is requested.
+	// What type of execution is requested
 	ExecutionType type;
 
-	// Input data.
+	// Input data
 	InputType input_type;
 	char *input;
 } Config;
 
 
-// Load configuration from the given command line options.
+// Load configuration from the given command line options
 Config config_new(int argc, char *argv[]);
 
-// Free a configuration object.
+// Free a configuration object
 void config_free(Config *config);
 
 #endif

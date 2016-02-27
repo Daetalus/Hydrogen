@@ -16,104 +16,104 @@
 
 
 // Data associated with a loop so we know where to point break statement's jump
-// instructions once the whole loop has been parsed.
+// instructions once the whole loop has been parsed
 typedef struct loop {
 	// The outer loop this one is contained inside of, or NULL if there are no
-	// enclosing loops.
+	// enclosing loops
 	struct loop *parent;
 
-	// The head of the jump list for all break statements inside this loop.
+	// The head of the jump list for all break statements inside this loop
 	Index head;
 } Loop;
 
 
-// Each function is parsed in their own scope.
+// Each function is parsed in their own scope
 typedef struct function_scope {
 	// The parent function scope in which this function is defined (or NULL if
-	// this function scope is the top level of a package).
+	// this function scope is the top level of a package)
 	struct function_scope *parent;
 
 	// The index of the function being parsed in the interpreter's function
-	// list. Bytecode instructions are emitted into this function.
+	// list. Bytecode instructions are emitted into this function
 	Index fn_index;
 
-	// Set to true when this function scope is a method on a struct.
+	// Set to true when this function scope is a method on a struct
 	bool is_method;
 
 	// The start and size of all locals used by this function, including
-	// temporary ones.
+	// temporary ones
 	uint32_t locals_start;
 	uint32_t locals_count;
 
 	// The start and size of all persistent locals (that end up in the parser's
-	// `locals` array).
+	// `locals` array)
 	uint32_t actives_start;
 	uint32_t actives_count;
 
 	// A linked list of loops so we know which loop to break out of when we
 	// encounter a break statement. The inner most loop is stored at the head
-	// of the linked list (this pointer).
+	// of the linked list (this pointer)
 	Loop *loop;
 
 	// The block scope depth inside the function, used to keep track of which
 	// locals were defined in the current scope so we can free them when we
-	// release a block.
+	// release a block
 	uint32_t block_depth;
 } FunctionScope;
 
 
-// A named local variable on the parser's locals stack.
+// A named local variable on the parser's locals stack
 typedef struct {
-	// The name of this variable.
+	// The name of this variable
 	char *name;
 	uint32_t length;
 
-	// The block scope in which the local was defined.
+	// The block scope in which the local was defined
 	uint32_t block;
 } Local;
 
 
-// Parses source code into bytecode instructions.
+// Parses source code into bytecode instructions
 typedef struct {
 	// A pointer to the interpreter state that functions, packages, etc will be
-	// created on.
+	// created on
 	HyState *state;
 
-	// The index of the package and source code within it that we're parsing.
+	// The index of the package and source code within it that we're parsing
 	Index package;
 	Index source;
 
 	// The lexer, emitting tokens from source code that the parser transforms
-	// into more cohesive language structures.
+	// into more cohesive language structures
 	Lexer lexer;
 
 	// All permanent locals defined on the stack by the source code we're
-	// parsing. The length of this vector is the number of active locals (ie.
+	// parsing. The length of this vector is the number of active locals (ie
 	// locals that have been given a name). Expressions, function calls, etc
-	// all use temporary locals on top of these.
+	// all use temporary locals on top of these
 	Vec(Local) locals;
 
-	// A list of packages imported by this file.
+	// A list of packages imported by this file
 	Vec(Index) imports;
 
 	// Each function is parsed in its own scope. Functions defined inside other
 	// functions have their scopes linked together by a linked list. The head
 	// of the linked list (this pointer) is the inner most function (the one
-	// currently being parsed).
+	// currently being parsed)
 	FunctionScope *scope;
 } Parser;
 
 
 // Creates a new parser, which will append all functions, packages, etc it needs
 // to define to the interpreter `state`, associating them with the package
-// `pkg`.
+// `pkg`
 Parser parser_new(HyState *state, Index pkg);
 
-// Releases resources allocated by a parser.
+// Releases resources allocated by a parser
 void parser_free(Parser *parser);
 
 // Parses some source code, creating a function for the top level code in the
-// source. Returns the index of this function.
+// source. Returns the index of this function
 Index parser_parse(Parser *parser, Index source);
 
 #endif

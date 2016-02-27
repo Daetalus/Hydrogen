@@ -12,7 +12,7 @@
 #include "config.h"
 
 
-// Read from stdin until the terminating character is reached.
+// Read from stdin until the terminating character is reached
 static char * read_stdin(void) {
 	Vec(char) contents;
 	vec_new(contents, char, 4096);
@@ -31,7 +31,7 @@ static char * read_stdin(void) {
 }
 
 
-// Parse an option. Returns true if we are to continue parsing options.
+// Parse an option. Returns true if we are to continue parsing options
 static bool config_opt(Config *config, char *opt) {
 	if (strcmp(opt, "--help") == 0 || strcmp(opt, "-h") == 0) {
 		// Help
@@ -72,7 +72,7 @@ static bool config_opt(Config *config, char *opt) {
 }
 
 
-// Load configuration options from the given command line options.
+// Load configuration options from the given command line options
 Config config_new(int argc, char *argv[]) {
 	Config config;
 	config.enable_jit = true;
@@ -98,7 +98,7 @@ Config config_new(int argc, char *argv[]) {
 }
 
 
-// Free a configuration object.
+// Free a configuration object
 void config_free(Config *config) {
 	// Free the source code we read from the standard input
 	if (config->type == EXEC_RUN && config->input_type == INPUT_STDIN) {

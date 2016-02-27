@@ -7,25 +7,25 @@
 #include "fn.h"
 
 
-// Returns a nil value.
+// Returns a nil value
 HyValue hy_nil(void) {
 	return VALUE_NIL;
 }
 
 
-// Converts a boolean into a value.
+// Converts a boolean into a value
 HyValue hy_bool(bool boolean) {
 	return prim_to_val(boolean ? TAG_TRUE : TAG_FALSE);
 }
 
 
-// Converts a number into a value.
+// Converts a number into a value
 HyValue hy_number(double number) {
 	return num_to_val(number);
 }
 
 
-// Copies a string into a garbage collected value.
+// Copies a string into a garbage collected value
 HyValue hy_string(HyState *state, char *string) {
 	uint32_t length = strlen(string);
 	String *obj = malloc(sizeof(String) + length + 1);
@@ -36,7 +36,7 @@ HyValue hy_string(HyState *state, char *string) {
 }
 
 
-// Returns the type of a value.
+// Returns the type of a value
 HyType hy_type(HyValue value) {
 	if (value == VALUE_NIL) {
 		return HY_NIL;
@@ -56,20 +56,20 @@ HyType hy_type(HyValue value) {
 }
 
 
-// Returns true if a value is nil or not.
+// Returns true if a value is nil or not
 bool hy_is_nil(HyValue value) {
 	return value == HY_NIL;
 }
 
 
-// Converts a value to a boolean, ignoring the type of the value.
+// Converts a value to a boolean, ignoring the type of the value
 bool hy_to_bool(HyValue value) {
 	return value != VALUE_FALSE && value != VALUE_NIL;
 }
 
 
 // Converts a value into a boolean, triggering an error if the value is not a
-// boolean in type.
+// boolean in type
 bool hy_expect_bool(HyValue value) {
 	if (value != VALUE_TRUE && value != VALUE_FALSE) {
 		// TODO: Trigger error
@@ -80,7 +80,7 @@ bool hy_expect_bool(HyValue value) {
 
 
 // Converts a value into a number, triggering an error if the value isn't a
-// number.
+// number
 double hy_expect_number(HyValue value) {
 	if (!val_is_num(value)) {
 		// TODO: Trigger error
@@ -90,8 +90,8 @@ double hy_expect_number(HyValue value) {
 }
 
 
-// Converts a value into a string, triggering an error if it isn't a string.
-// Do not try and free the returned string. It will be garbage collected later.
+// Converts a value into a string, triggering an error if it isn't a string
+// Do not try and free the returned string. It will be garbage collected later
 char * hy_expect_string(HyValue value) {
 	if (!val_is_str(value)) {
 		// TODO: Trigger error
@@ -101,13 +101,13 @@ char * hy_expect_string(HyValue value) {
 }
 
 
-// Returns the number of arguments passed to a native function.
+// Returns the number of arguments passed to a native function
 uint32_t hy_args_count(HyArgs *args) {
 	return args->arity;
 }
 
 
-// Returns the `index`th argument passed to a native function.
+// Returns the `index`th argument passed to a native function
 HyValue hy_arg(HyArgs *args, uint32_t index) {
 	if (index >= args->arity) {
 		return VALUE_NIL;

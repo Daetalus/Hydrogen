@@ -11,16 +11,16 @@
 #include "vm.h"
 
 
-// The maximum size of an error description.
+// The maximum size of an error description
 #define MAX_DESCRIPTION_SIZE 1023
 
 // The maximum number of characters to print when printing an unrecognised
-// token.
+// token
 #define MAX_UNRECOGNISED_CHARACTERS 25
 
 
 // Creates a new error object without any associated details yet. The error can
-// be constructed using the building functions below.
+// be constructed using the building functions below
 HyError * err_new(void) {
 	HyError *err = malloc(sizeof(HyError));
 
@@ -39,7 +39,7 @@ HyError * err_new(void) {
 }
 
 
-// Creates a new failed to open file error.
+// Creates a new failed to open file error
 HyError * err_failed_to_open_file(char *path) {
 	HyError *err = err_new();
 	err->file = malloc(strlen(path) + 1);
@@ -49,7 +49,7 @@ HyError * err_failed_to_open_file(char *path) {
 }
 
 
-// Release resources allocated by an error object.
+// Release resources allocated by an error object
 void hy_err_free(HyError *err) {
 	free(err->description);
 	free(err->file);
@@ -59,7 +59,7 @@ void hy_err_free(HyError *err) {
 
 
 // Prints a string to an error's description using a `va_list` as arguments to
-// the format string.
+// the format string
 void err_print_varargs(HyError *err, char *fmt, va_list args) {
 	// Calculate the length and remaining capacity of the description
 	uint32_t length = strlen(err->description);
@@ -70,7 +70,7 @@ void err_print_varargs(HyError *err, char *fmt, va_list args) {
 }
 
 
-// Prints a string to an error's description.
+// Prints a string to an error's description
 void err_print(HyError *err, char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
@@ -79,7 +79,7 @@ void err_print(HyError *err, char *fmt, ...) {
 }
 
 
-// Prints an unrecognised token to a description buffer.
+// Prints an unrecognised token to a description buffer
 static void print_unrecognised(char *description, uint32_t capacity,
 		Token *token) {
 	// Print until the first whitespace character, or the 25th character
@@ -102,7 +102,7 @@ static void print_unrecognised(char *description, uint32_t capacity,
 }
 
 
-// Returns the length of the line starting at `cursor`.
+// Returns the length of the line starting at `cursor`
 static uint32_t line_length(char *cursor) {
 	uint32_t length = 0;
 	while (*cursor != '\0' && *cursor != '\n' && *cursor != '\r') {
@@ -113,7 +113,7 @@ static uint32_t line_length(char *cursor) {
 }
 
 
-// Prints a token to an error's description, surrounded in grave accents.
+// Prints a token to an error's description, surrounded in grave accents
 void err_print_token(HyError *err, Token *token) {
 	// Calculate the length and remaining capacity of the description
 	// Keep track of the capacity so we don't potentially cause a buffer
@@ -148,7 +148,7 @@ void err_print_token(HyError *err, Token *token) {
 
 
 // Returns a pointer to the start of the first line before the character at
-// `cursor`.
+// `cursor`
 static char * line_start(char *cursor, char *source) {
 	while (cursor >= source && *cursor != '\n' && *cursor != '\r') {
 		cursor--;
@@ -157,7 +157,7 @@ static char * line_start(char *cursor, char *source) {
 }
 
 
-// Returns the line number the character at `cursor` is on.
+// Returns the line number the character at `cursor` is on
 static uint32_t line_number(char *cursor, char *source) {
 	uint32_t line = 1;
 	while (cursor >= source) {
@@ -174,7 +174,7 @@ static uint32_t line_number(char *cursor, char *source) {
 }
 
 
-// Returns the column number for character at `cursor`.
+// Returns the column number for character at `cursor`
 static uint32_t column_number(char *cursor, char *source) {
 	uint32_t column = 0;
 	while (cursor >= source && *cursor != '\n' && *cursor != '\r') {
@@ -185,7 +185,7 @@ static uint32_t column_number(char *cursor, char *source) {
 }
 
 
-// Associate a token with the error.
+// Associate a token with the error
 void err_attach_token(HyState *state, HyError *err, Token *token) {
 	Package *pkg = &vec_at(state->packages, token->package);
 	Source *src = &vec_at(pkg->sources, token->source);
@@ -217,7 +217,7 @@ void err_attach_token(HyState *state, HyError *err, Token *token) {
 }
 
 
-// Triggers a jump back to the error guard with the built error.
+// Triggers a jump back to the error guard with the built error
 void err_trigger(HyState *state, HyError *err) {
 	if (state->error != NULL) {
 		// This shouldn't happen, but free the previous error anyway

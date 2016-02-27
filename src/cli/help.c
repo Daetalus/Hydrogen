@@ -7,11 +7,11 @@
 
 #include "help.h"
 
-// The current version number.
+// The current version number
 #define VERSION "0.1.0"
 
 
-// Print usage information.
+// Print usage information
 void print_usage(void) {
 	printf(
 		"Usage:\n"
@@ -21,7 +21,7 @@ void print_usage(void) {
 }
 
 
-// Print version information.
+// Print version information
 void print_version(void) {
 	printf(
 		"Hydrogen " VERSION "\n"
@@ -31,7 +31,7 @@ void print_version(void) {
 }
 
 
-// Print full help information.
+// Print full help information
 void print_help(void) {
 	print_version();
 	printf(

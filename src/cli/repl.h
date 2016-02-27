@@ -8,7 +8,7 @@
 
 #include "config.h"
 
-// Run a REPL.
+// Run a REPL
 void repl(Config *config);
 
 #endif

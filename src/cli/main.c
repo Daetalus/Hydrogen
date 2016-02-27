@@ -20,7 +20,7 @@
 #include "err.h"
 
 
-// Print the bytecode of some input specified by the configuration.
+// Print the bytecode of some input specified by the configuration
 static int bytecode(Config *config) {
 	// Create a new interpreter state
 	HyState *state = hy_new();
@@ -57,7 +57,7 @@ static int bytecode(Config *config) {
 }
 
 
-// Run some input specified by the configuration.
+// Run some input specified by the configuration
 static int run(Config *config) {
 	// Create the interpreter state
 	HyState *state = hy_new();
@@ -83,7 +83,7 @@ static int run(Config *config) {
 }
 
 
-// Main entry point.
+// Main entry point
 int main(int argc, char *argv[]) {
 	// Parse options
 	Config config = config_new(argc, argv);

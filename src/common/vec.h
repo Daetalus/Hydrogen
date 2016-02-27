@@ -9,23 +9,23 @@
 #include <stdlib.h>
 
 
-// An index into a vector.
+// An index into a vector
 typedef uint32_t Index;
 
 
-// A string with an associated length.
+// A string with an associated length
 typedef struct {
 	char *name;
 	uint32_t length;
 } Identifier;
 
 
-// Value representing when an element in a vector isn't found.
+// Value representing when an element in a vector isn't found
 #define NOT_FOUND (~((uint32_t) 0))
 
 
 // Generates the type signature for a vector where each element is of type
-// `type`.
+// `type`
 #define Vec(type)              \
 	struct {                   \
 		type *values;          \
@@ -35,7 +35,7 @@ typedef struct {
 	}
 
 
-// Initialises an undefined vector.
+// Initialises an undefined vector
 #define vec_new(array, type, initial_capacity)                           \
 	(array).values = (type *) malloc(sizeof(type) * (initial_capacity)); \
 	(array).element_size = sizeof(type);                                 \
@@ -43,29 +43,29 @@ typedef struct {
 	(array).capacity = (initial_capacity);
 
 
-// Frees a vector.
+// Frees a vector
 #define vec_free(array) (free((array).values))
 
 
 // Evaluates to the element at an index (used for setting or getting an
-// element).
+// element)
 #define vec_at(array, index) ((array).values[(index)])
 
 
-// Returns the length of a vector.
+// Returns the length of a vector
 #define vec_len(array) ((array).length)
 
 
-// Returns a pointer to the last element in the vector.
+// Returns a pointer to the last element in the vector
 #define vec_last(array) (vec_at(array, vec_len(array) - 1))
 
 
-// Returns the capacity of a vector.
+// Returns the capacity of a vector
 #define vec_capacity(array) ((array).capacity)
 
 
 // Increases the capacity of a vector if the length of the array plus 1 exceeds
-// the current capacity.
+// the current capacity
 #define vec_resize(array, limit, new_capacity)                          \
 	if ((limit) > vec_capacity(array)) {                                \
 		vec_capacity(array) = (new_capacity);                           \
@@ -75,13 +75,13 @@ typedef struct {
 	}
 
 
-// Increases the length of the vector by 1.
+// Increases the length of the vector by 1
 #define vec_inc(array)                                              \
 	vec_resize(array, vec_len(array) + 1, vec_capacity(array) * 2); \
 	(array).length++;
 
 
-// Inserts an element into the vector at `index`.
+// Inserts an element into the vector at `index`
 #define vec_insert(array, index, value) {                                  \
 	int32_t size = (vec_len(array) - index) * (array).element_size;        \
 	vec_inc(array);                                                        \
@@ -92,7 +92,7 @@ typedef struct {
 }
 
 
-// Removes the element at `index`.
+// Removes the element at `index`
 #define vec_remove(array, index) {                                         \
 	int32_t size = (vec_len(array) - (index) - 1) * (array).element_size;  \
 	if (size > 0) {                                                        \

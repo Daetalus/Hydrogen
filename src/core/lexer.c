@@ -14,7 +14,7 @@
 
 
 // Create a new lexer on an interpreter state in the package `pkg`, lexing the
-// source code at `source`.
+// source code at `source`
 Lexer lexer_new(HyState *state, Index pkg_index, Index source) {
 	Package *pkg = &vec_at(state->packages, pkg_index);
 	Source *src = &vec_at(pkg->sources, source);
@@ -33,64 +33,64 @@ Lexer lexer_new(HyState *state, Index pkg_index, Index source) {
 }
 
 
-// Returns true if a character is a newline.
+// Returns true if a character is a newline
 static inline bool is_newline(char ch) {
 	return ch == '\n' || ch == '\r';
 }
 
 
-// Returns true if a character is whitespace.
+// Returns true if a character is whitespace
 static inline bool is_whitespace(char ch) {
 	return is_newline(ch) || ch == ' ' || ch == '\t';
 }
 
 
-// Returns true if a character is a decimal digit.
+// Returns true if a character is a decimal digit
 static inline bool is_decimal(char ch) {
 	return ch >= '0' && ch <= '9';
 }
 
 
-// Returns true if a character is a hexadecimal digit.
+// Returns true if a character is a hexadecimal digit
 static inline bool is_hex(char ch) {
 	return is_decimal(ch) || (ch >= 'a' && ch <= 'f');
 }
 
 
-// Returns true if a character can start an identifier.
+// Returns true if a character can start an identifier
 static inline bool is_identifier_start(char ch) {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_';
 }
 
 
-// Returns true if a character can be part of an identifier.
+// Returns true if a character can be part of an identifier
 static inline bool is_identifier(char ch) {
 	return is_identifier_start(ch) || is_decimal(ch);
 }
 
 
-// Returns the character under the cursor.
+// Returns the character under the cursor
 static inline char current(Lexer *lexer) {
 	return *lexer->cursor;
 }
 
 
-// Returns a character a certain number of characters in front of the cursor.
+// Returns a character a certain number of characters in front of the cursor
 // Does not protect against buffer overflow, so we must be certain before
 // calling this function that cursor + amount does not extend past the end of
-// the string.
+// the string
 static inline char peek(Lexer *lexer, int32_t amount) {
 	return *(lexer->cursor + amount);
 }
 
 
-// Returns true if the lexer is at the end of the file.
+// Returns true if the lexer is at the end of the file
 static inline bool eof(Lexer *lexer) {
 	return current(lexer) == '\0';
 }
 
 
-// Moves the cursor 1 character forward.
+// Moves the cursor 1 character forward
 static void consume(Lexer *lexer) {
 	// Don't do anything if we're at the end of the file
 	if (eof(lexer)) {
@@ -113,21 +113,21 @@ static void consume(Lexer *lexer) {
 // Moves the cursor forward by an amount. Doesn't check for buffer overflow so
 // the caller must be sure cursor + amount doesn't extend past the end of the
 // source. Also doesn't check for newlines so the line count won't be updated if
-// the characters we're skipping contain newlines.
+// the characters we're skipping contain newlines
 static inline void forward(Lexer *lexer, int32_t amount) {
 	lexer->cursor += amount;
 }
 
 
 // Returns true if the string starting at the lexer's current cursor position
-// matchines `string`.
+// matchines `string`
 static inline bool matches(Lexer *lexer, char *string) {
 	return strncmp(lexer->cursor, string, strlen(string)) == 0;
 }
 
 
 // Returns true if the string starting at the lexer's current cursor position
-// matches `string`, and the character after this string separates identifiers.
+// matches `string`, and the character after this string separates identifiers
 static inline bool matches_identifier(Lexer *lexer, char *string) {
 	uint32_t length = strlen(string);
 	return strncmp(lexer->cursor, string, length) == 0 &&
@@ -136,7 +136,7 @@ static inline bool matches_identifier(Lexer *lexer, char *string) {
 
 
 // Consume characters until the end of the current line (excluding the newline
-// character).
+// character)
 static inline void consume_line(Lexer *lexer) {
 	while (!eof(lexer) && !is_newline(current(lexer))) {
 		consume(lexer);
@@ -144,7 +144,7 @@ static inline void consume_line(Lexer *lexer) {
 }
 
 
-// Consume all whitespace characters under the cursor.
+// Consume all whitespace characters under the cursor
 static inline void consume_whitespace(Lexer *lexer) {
 	while (is_whitespace(current(lexer))) {
 		consume(lexer);
@@ -153,7 +153,7 @@ static inline void consume_whitespace(Lexer *lexer) {
 
 
 // Parses a block comment. Assumes the first opening delimeter has been
-// consumed.
+// consumed
 static void block_comment(Lexer *lexer) {
 	char *start = lexer->token.start;
 
@@ -190,7 +190,7 @@ static void block_comment(Lexer *lexer) {
 }
 
 
-// Returns true if we could lex a comment (block or single line).
+// Returns true if we could lex a comment (block or single line)
 static bool comment(Lexer *lexer) {
 	// Consume first `/`
 	consume(lexer);
@@ -209,7 +209,7 @@ static bool comment(Lexer *lexer) {
 }
 
 
-// Lexes a string. Assumes the character under the cursor is an opening quote.
+// Lexes a string. Assumes the character under the cursor is an opening quote
 static void string(Lexer *lexer) {
 	Token *token = &lexer->token;
 	token->type = TOKEN_STRING;
@@ -242,7 +242,7 @@ static void string(Lexer *lexer) {
 }
 
 
-// Lexes a number prefix (doesn't consume it), returning the base.
+// Lexes a number prefix (doesn't consume it), returning the base
 static int number_prefix(Lexer *lexer) {
 	// Must start with 0
 	if (current(lexer) != '0' || !is_identifier(peek(lexer, 1))) {
@@ -267,7 +267,7 @@ static int number_prefix(Lexer *lexer) {
 }
 
 
-// Returns true if the number under the lexer's cursor is floating point.
+// Returns true if the number under the lexer's cursor is floating point
 static bool number_is_float(Lexer *lexer, int base) {
 	// If we're starting with a hexadecimal prefix
 	if (base == 16) {
@@ -301,7 +301,7 @@ static bool number_is_float(Lexer *lexer, int base) {
 }
 
 
-// Ensures the current character is not an identifier.
+// Ensures the current character is not an identifier
 static void ensure_not_identifier(Lexer *lexer) {
 	Token *token = &lexer->token;
 
@@ -316,7 +316,7 @@ static void ensure_not_identifier(Lexer *lexer) {
 }
 
 
-// Lexes a floating point number.
+// Lexes a floating point number
 static void floating_point(Lexer *lexer) {
 	Token *token = &lexer->token;
 
@@ -332,7 +332,7 @@ static void floating_point(Lexer *lexer) {
 }
 
 
-// Lexes an integer.
+// Lexes an integer
 static void integer(Lexer *lexer, int base) {
 	Token *token = &lexer->token;
 
@@ -358,7 +358,7 @@ static void integer(Lexer *lexer, int base) {
 }
 
 
-// Lexes a number, returning true if possible.
+// Lexes a number, returning true if possible
 static bool number(Lexer *lexer) {
 	// Ensure we start with a decimal digit
 	if (!is_decimal(current(lexer))) {
@@ -397,7 +397,7 @@ static bool number(Lexer *lexer) {
 }
 
 
-// Convenience method for defining a keyword.
+// Convenience method for defining a keyword
 #define KEYWORD(name, keyword)                    \
 	else if (matches_identifier(lexer, (name))) { \
 		token->type = (keyword);                  \
@@ -407,7 +407,7 @@ static bool number(Lexer *lexer) {
 	}
 
 
-// Lexes a keyword, returning true if successful.
+// Lexes a keyword, returning true if successful
 static bool keyword(Lexer *lexer) {
 	Token *token = &lexer->token;
 
@@ -450,7 +450,7 @@ static bool keyword(Lexer *lexer) {
 }
 
 
-// Lexes an identifier, returning true if successful.
+// Lexes an identifier, returning true if successful
 static bool identifier(Lexer *lexer) {
 	// Ensure we start with an identifier
 	if (!is_identifier_start(current(lexer))) {
@@ -470,7 +470,7 @@ static bool identifier(Lexer *lexer) {
 }
 
 
-// Sets the token's type.
+// Sets the token's type
 static void set1(Lexer *lexer, TokenType type) {
 	Token *token = &lexer->token;
 	consume(lexer);
@@ -480,7 +480,7 @@ static void set1(Lexer *lexer, TokenType type) {
 
 
 // If the character after the cursor matches `ch`, then set the token's type to
-// `type2`, otherwise set the type to `type1`.
+// `type2`, otherwise set the type to `type1`
 static void set2(Lexer *lexer, TokenType type, char ch2, TokenType type2) {
 	Token *token = &lexer->token;
 	consume(lexer);
@@ -497,7 +497,7 @@ static void set2(Lexer *lexer, TokenType type, char ch2, TokenType type2) {
 
 // If the character after the cursor matches `ch2`, then set the token's type
 // to `type2`, else if it matches `ch3`, set the token type to `type3`, else
-// set the type to `type`.
+// set the type to `type`
 static void set3(Lexer *lexer, TokenType type, char ch2, TokenType type2,
 		char ch3, TokenType type3) {
 	Token *token = &lexer->token;
@@ -517,7 +517,7 @@ static void set3(Lexer *lexer, TokenType type, char ch2, TokenType type2,
 }
 
 
-// Lex the next token in the source code.
+// Lex the next token in the source code
 void lexer_next(Lexer *lexer) {
 	Token *token = &lexer->token;
 	token->start = lexer->cursor;
@@ -609,7 +609,7 @@ void lexer_next(Lexer *lexer) {
 //  String Extraction
 //
 
-// Converts a hexadecimal character into a number.
+// Converts a hexadecimal character into a number
 static uint8_t hex_to_number(char ch) {
 	if (ch >= 'a' && ch <= 'f') {
 		return 10 + ch - 'a';
@@ -621,13 +621,13 @@ static uint8_t hex_to_number(char ch) {
 }
 
 
-// Converts 2 hexadecimal digits into a number.
+// Converts 2 hexadecimal digits into a number
 static char hex_sequence_to_number(char *string) {
 	return hex_to_number(*string) << 4 | hex_to_number(*(string + 1));
 }
 
 
-// Lexes a hexadecimal escape sequence.
+// Lexes a hexadecimal escape sequence
 static char hex_escape_sequence(char **cursor) {
 	// Skip the starting `x`
 	(*cursor)++;
@@ -644,7 +644,7 @@ static char hex_escape_sequence(char **cursor) {
 }
 
 
-// Returns the correct escape sequence for the character following the `\`.
+// Returns the correct escape sequence for the character following the `\`
 static char escape_sequence(char **cursor) {
 	switch (**cursor) {
 	case 'a': return '\a';
@@ -664,7 +664,7 @@ static char escape_sequence(char **cursor) {
 }
 
 
-// Triggers an invalid escape sequence error.
+// Triggers an invalid escape sequence error
 void invalid_escape_sequence(Lexer *lexer, Token *string, char *start) {
 	// Create a token for the escape sequence
 	Token token = *string;
@@ -698,7 +698,7 @@ void invalid_escape_sequence(Lexer *lexer, Token *string, char *start) {
 // sequences need to be parsed into their proper values. Stores the extracted
 // string directly into `buffer`. Ensure that `buffer` is at least as long as
 // token->length - 1 (since the token length includes the two surrounding
-// quotes). Returns the length of the parsed string.
+// quotes). Returns the length of the parsed string
 uint32_t lexer_extract_string(Lexer *lexer, Token *token, char *buffer) {
 	uint32_t length = 0;
 

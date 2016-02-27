@@ -9,7 +9,7 @@
 #include "vm.h"
 
 
-// Creates a new struct definition on the package `pkg`.
+// Creates a new struct definition on the package `pkg`
 Index struct_new(HyState *state, Index pkg) {
 	vec_inc(state->structs);
 	StructDefinition *def = &vec_last(state->structs);
@@ -23,7 +23,7 @@ Index struct_new(HyState *state, Index pkg) {
 }
 
 
-// Frees resources allocated by a struct definition.
+// Frees resources allocated by a struct definition
 void struct_free(StructDefinition *def) {
 	vec_free(def->fields);
 	vec_free(def->values);
@@ -31,7 +31,7 @@ void struct_free(StructDefinition *def) {
 
 
 // Returns the index of the struct with the name `name` that is in the package
-// `pkg`.
+// `pkg`
 Index struct_find(HyState *state, Index pkg, char *name, uint32_t length) {
 	for (uint32_t i = 0; i < vec_len(state->structs); i++) {
 		StructDefinition *def = &vec_at(state->structs, i);
@@ -44,7 +44,7 @@ Index struct_find(HyState *state, Index pkg, char *name, uint32_t length) {
 }
 
 
-// Returns the index of a field with the name `name`.
+// Returns the index of a field with the name `name`
 Index struct_field_find(StructDefinition *def, char *name, uint32_t length) {
 	for (uint32_t i = 0; i < vec_len(def->fields); i++) {
 		Identifier *ident = &vec_at(def->fields, i);

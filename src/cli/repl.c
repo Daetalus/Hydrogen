@@ -20,16 +20,16 @@
 #include "err.h"
 
 
-// The prompt to print before every line typed in the console.
+// The prompt to print before every line typed in the console
 #define PROMPT "> "
 
-// Important keys.
+// Important keys
 #define KEY_ESC       27
 #define KEY_BACKSPACE 127
 #define KEY_CTRL_C    3
 #define KEY_CTRL_D    4
 
-// Control codes.
+// Control codes
 #define SEQ            "\033["
 #define SEQ_LEFT       SEQ "%dD"
 #define SEQ_RIGHT      SEQ "%dC"
@@ -40,31 +40,31 @@
 #define SEQ_CLEAR_LINE SEQ "2K"
 
 
-// Save a copy of the original terminal state so we can disable raw mode easily.
+// Save a copy of the original terminal state so we can disable raw mode easily
 static struct termios original;
 
 
-// The type of a line.
+// The type of a line
 typedef Vec(char) Line;
 
 
-// Information required for reading a line of user input from stdin.
+// Information required for reading a line of user input from stdin
 typedef struct {
 	// The row and column of the cursor. Since all movement is relative to the
 	// starting location of the cursor, we use (0, 0) to represent this starting
 	// location. The position is absolute (ie. doesn't depend on the scroll
-	// offsets).
+	// offsets)
 	uint32_t x, y;
 
-	// The vertical and horizontal scroll offsets.
+	// The vertical and horizontal scroll offsets
 	uint32_t scroll_x, scroll_y;
 
-	// The contents of each line of the text field.
+	// The contents of each line of the text field
 	Vec(Line) lines;
 } Input;
 
 
-// What to do after a key is pressed.
+// What to do after a key is pressed
 typedef enum {
 	RESULT_FINISH,
 	RESULT_TERMINATE,
@@ -77,7 +77,7 @@ typedef enum {
 //  Input Reading
 //
 
-// Moves the cursor left by `amount` cells.
+// Moves the cursor left by `amount` cells
 static void input_left(Input *input, uint32_t amount) {
 	if (input->x > 0) {
 		printf(SEQ_LEFT, amount);
@@ -86,7 +86,7 @@ static void input_left(Input *input, uint32_t amount) {
 }
 
 
-// Moves the cursor right by `amount` cells.
+// Moves the cursor right by `amount` cells
 static void input_right(Input *input, uint32_t amount) {
 	Line *line = &vec_at(input->lines, input->y);
 	if (input->x < vec_len(*line)) {
@@ -96,7 +96,7 @@ static void input_right(Input *input, uint32_t amount) {
 }
 
 
-// Moves the cursor up by `amount` rows.
+// Moves the cursor up by `amount` rows
 static void input_up(Input *input, uint32_t amount) {
 	if (input->y > 0) {
 		printf(SEQ_UP, amount);
@@ -105,7 +105,7 @@ static void input_up(Input *input, uint32_t amount) {
 }
 
 
-// Moves the cursor down by `amount` rows.
+// Moves the cursor down by `amount` rows
 static void input_down(Input *input, uint32_t amount) {
 	if (input->y < vec_len(input->lines) - 1) {
 		printf(SEQ_DOWN, amount);
@@ -114,7 +114,7 @@ static void input_down(Input *input, uint32_t amount) {
 }
 
 
-// Moves the cursor to the correct horizontal position on the line.
+// Moves the cursor to the correct horizontal position on the line
 static void input_restore_cursor(Input *input) {
 	// The x coordinate is 1 indexed (for some strange reason)
 	printf(SEQ_X_POS, input->x + (int) strlen(PROMPT) + 1);
@@ -122,13 +122,13 @@ static void input_restore_cursor(Input *input) {
 
 
 // Clears the line the cursor is currently on. Moves the cursor to the start of
-// the line.
+// the line
 static void input_clear_line(void) {
 	printf(SEQ_CLEAR_LINE SEQ_LINE_START);
 }
 
 
-// Redraws the input on the current terminal line.
+// Redraws the input on the current terminal line
 static void input_draw_line(Input *input) {
 	// Clear the line
 	input_clear_line();
@@ -156,7 +156,7 @@ static void input_draw_line(Input *input) {
 }
 
 
-// Backspaces the character behind the cursor location.
+// Backspaces the character behind the cursor location
 static void input_backspace(Input *input) {
 	if (input->x > 0) {
 		Line *line = &vec_at(input->lines, input->y);
@@ -174,20 +174,20 @@ static void input_backspace(Input *input) {
 }
 
 
-// Forward deletes the character in front of the cursor.
+// Forward deletes the character in front of the cursor
 static void input_delete(Input *input) {
 	Line *line = &vec_at(input->lines, input->y);
 	vec_remove(*line, input->x);
 }
 
 
-// Insert a newline at the current cursor location.
+// Insert a newline at the current cursor location
 static void input_newline(Input *input) {
 
 }
 
 
-// Insert a character at the current cursor location.
+// Insert a character at the current cursor location
 static void input_insert(Input *input, char ch) {
 	Line *line = &vec_at(input->lines, input->y);
 	vec_insert(*line, input->x, ch);
@@ -196,7 +196,7 @@ static void input_insert(Input *input, char ch) {
 }
 
 
-// Handles an escape sequence.
+// Handles an escape sequence
 static void input_esc(Input *input, char ch) {
 	switch (ch) {
 	case 'A':
@@ -229,7 +229,7 @@ static void input_esc(Input *input, char ch) {
 }
 
 
-// Handles an extended escape sequence.
+// Handles an extended escape sequence
 static void input_extended_esc(Input *input, char ch) {
 	switch (ch) {
 	case '3':
@@ -241,7 +241,7 @@ static void input_extended_esc(Input *input, char ch) {
 
 
 // Read the next character from the input. Returns false if we should stop
-// reading subsequent characters.
+// reading subsequent characters
 static InputResult input_next(Input *input) {
 	int ch = fgetc(stdin);
 
@@ -280,7 +280,7 @@ static InputResult input_next(Input *input) {
 }
 
 
-// Disable raw mode to return to normal behaviour.
+// Disable raw mode to return to normal behaviour
 static void input_disable_raw(void) {
 	// Reset the terminal state to the originally saved one
 	tcsetattr(fileno(stdin), TCSAFLUSH, &original);
@@ -288,7 +288,7 @@ static void input_disable_raw(void) {
 
 
 // Enable raw mode for unbuffered reading from stdin. Returns true if we could
-// successfully put the terminal in raw mode.
+// successfully put the terminal in raw mode
 static bool input_enable_raw(void) {
 	// Only enable raw mode on terminals
 	int descriptor = fileno(stdin);
@@ -322,7 +322,7 @@ static bool input_enable_raw(void) {
 }
 
 
-// Combines all input lines into a single string.
+// Combines all input lines into a single string
 static char * input_combine_lines(Input *input) {
 	// Get the total length of every line
 	uint32_t total = 0;
@@ -349,7 +349,7 @@ static char * input_combine_lines(Input *input) {
 }
 
 
-// Create a new input struct.
+// Create a new input struct
 static Input input_new(void) {
 	Input input;
 	input.x = 0;
@@ -366,7 +366,7 @@ static Input input_new(void) {
 }
 
 
-// Read from the standard input.
+// Read from the standard input
 static char * input_read(void) {
 	// Create an input value
 	Input input = input_new();
@@ -414,7 +414,7 @@ static char * input_read(void) {
 //  Execution
 //
 
-// Run the REPL.
+// Run the REPL
 void repl(Config *config) {
 	// Print version information
 	print_version();

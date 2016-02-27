@@ -12,7 +12,7 @@
 #include <vec.h>
 
 
-// All possible token types.
+// All possible token types
 typedef enum {
 	// Mathematical operators
 	TOKEN_ADD,
@@ -96,20 +96,20 @@ typedef enum {
 } TokenType;
 
 
-// A token emitted by the lexer.
+// A token emitted by the lexer
 typedef struct {
-	// The type of the token.
+	// The type of the token
 	TokenType type;
 
-	// The location and length of the token in the source code.
+	// The location and length of the token in the source code
 	char *start;
 	uint32_t length;
 
-	// The package and source code index in the package the token is located in.
+	// The package and source code index in the package the token is located in
 	Index package;
 	Index source;
 
-	// The value of a token if it's a number or integer.
+	// The value of a token if it's a number or integer
 	union {
 		double number;
 		int16_t integer;
@@ -117,36 +117,36 @@ typedef struct {
 } Token;
 
 
-// A lexer, which converts source code into a stream of tokens.
+// A lexer, which converts source code into a stream of tokens
 typedef struct {
-	// The interpreter state the lexer was created on.
+	// The interpreter state the lexer was created on
 	HyState *state;
 
-	// A pointer to the start of the source code we are lexing.
+	// A pointer to the start of the source code we are lexing
 	char *source;
 
-	// The current cursor position and line number in the source code.
+	// The current cursor position and line number in the source code
 	char *cursor;
 	uint32_t line;
 
 	// The most recently lexed token, which is updated every time the
-	// `lexer_next` function is called.
+	// `lexer_next` function is called
 	Token token;
 } Lexer;
 
 
 // Create a new lexer on an interpreter state in the package `pkg`, lexing the
-// source code at `source`.
+// source code at `source`
 Lexer lexer_new(HyState *state, Index pkg, Index source);
 
-// Lex the next token in the source code.
+// Lex the next token in the source code
 void lexer_next(Lexer *lexer);
 
 // String literals need to be extracted from a token separately because escape
 // sequences need to be parsed into their proper values. Stores the extracted
 // string directly into `buffer`. Ensure that `buffer` is at least as long as
 // token->length - 1 (since the token length includes the two surrounding
-// quotes). Returns the length of the parsed string.
+// quotes). Returns the length of the parsed string
 uint32_t lexer_extract_string(Lexer *lexer, Token *token, char *buffer);
 
 #endif

@@ -7,7 +7,7 @@
 #include "vm.h"
 
 
-// Defines a new function on the interpreter state.
+// Defines a new function on the interpreter state
 Index fn_new(HyState *state) {
 	vec_inc(state->functions);
 	Function *fn = &vec_last(state->functions);
@@ -23,13 +23,13 @@ Index fn_new(HyState *state) {
 }
 
 
-// Frees resources allocated by a function.
+// Frees resources allocated by a function
 void fn_free(Function *fn) {
 	vec_free(fn->instructions);
 }
 
 
-// Appends a bytecode instruction to the end of the function's instruction list.
+// Appends a bytecode instruction to the end of the function's instruction list
 Index fn_emit(Function *fn, BytecodeOpcode opcode, uint16_t arg1, uint16_t arg2,
 		uint16_t arg3) {
 	vec_inc(fn->instructions);
@@ -43,7 +43,7 @@ Index fn_emit(Function *fn, BytecodeOpcode opcode, uint16_t arg1, uint16_t arg2,
 //  Natives
 //
 
-// Defines a new native function on the package `pkg`.
+// Defines a new native function on the package `pkg`
 Index native_new(HyState *state, Index pkg_index, char *name) {
 	// Create native function on interpreter state
 	vec_inc(state->natives);
@@ -61,7 +61,7 @@ Index native_new(HyState *state, Index pkg_index, char *name) {
 }
 
 
-// Frees resources allocated by a native function.
+// Frees resources allocated by a native function
 void native_free(NativeFunction *fn) {
 	free(fn->name);
 }
@@ -69,7 +69,7 @@ void native_free(NativeFunction *fn) {
 
 // Add a native function to a package. `arity` is the number of arguments the
 // function accepts. If it is set to -1, then the function can accept any number
-// of arguments.
+// of arguments
 void hy_add_native(HyState *state, HyPackage pkg, char *name, int32_t arity,
 		HyNativeFn fn) {
 	// Copy the name into a heap allocated string

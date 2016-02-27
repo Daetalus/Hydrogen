@@ -18,10 +18,10 @@
 // * There are a maximum of 256 opcodes (since the opcode must fit in 1 byte)
 
 
-// Instruction operation codes for Hydrogen bytecode.
+// Instruction operation codes for Hydrogen bytecode
 //
 // The order of these opcodes is important as the parser relies on integer
-// arithmetic to compute opcodes for expressions.
+// arithmetic to compute opcodes for expressions
 //
 // Postfix meanings:
 // * L: local
@@ -165,10 +165,10 @@ typedef enum {
 	//  Control flow
 	//
 
-	// Jumps forwards by `amount` instructions.
+	// Jumps forwards by `amount` instructions
 	JMP,
 
-	// Jumps backwards by `amount` instructions (used for loops).
+	// Jumps backwards by `amount` instructions (used for loops)
 	LOOP,
 
 
@@ -179,8 +179,8 @@ typedef enum {
 	// The function to call must be in the slot specified by `base`. All
 	// arguments to the function are placed after this first slot (the number
 	// of arguments specified by `arity`). The return values of the function
-	// replace the arguments and function object (they start in slot `base`).
-	// The number of return values expected is given by `return`.
+	// replace the arguments and function object (they start in slot `base`)
+	// The number of return values expected is given by `return`
 	//
 	// Arguments:
 	// * `base`: the stack slot containing the function to call and arguments to
@@ -190,10 +190,10 @@ typedef enum {
 	//   function
 	CALL,
 
-	// Returns nothing from a function.
+	// Returns nothing from a function
 	RET0,
 
-	// Returns a value from a function.
+	// Returns a value from a function
 	//
 	// Arguments:
 	// * First arg: not in use (used as padding to maintain consistency with
@@ -212,7 +212,7 @@ typedef enum {
 	//  Structs
 	//
 
-	// Creates an instance of a struct.
+	// Creates an instance of a struct
 	//
 	// Arguments:
 	// * `slot`: where to store the new struct on the stack
@@ -228,7 +228,7 @@ typedef enum {
 	//   struct field name list
 	STRUCT_FIELD,
 
-	// Sets the contents of a struct's field.
+	// Sets the contents of a struct's field
 	//
 	// Arguments:
 	// * `field_name`: the name of the field, as an index into the VM's struct

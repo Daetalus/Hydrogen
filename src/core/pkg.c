@@ -12,7 +12,7 @@
 
 // Create a new package on the interpreter state. The name of the package is
 // used when other packages want to import it. It can only consist of ASCII
-// letters (lowercase and uppercase), numbers, and underscores.
+// letters (lowercase and uppercase), numbers, and underscores
 HyPackage hy_add_pkg(HyState *state, char *name) {
 	// Create a new package
 	Index index = pkg_new(state);
@@ -29,7 +29,7 @@ HyPackage hy_add_pkg(HyState *state, char *name) {
 
 
 // Defines a new package on the interpreter state. Returns the index of the
-// package.
+// package
 Index pkg_new(HyState *state) {
 	vec_inc(state->packages);
 	Package *pkg = &vec_last(state->packages);
@@ -43,7 +43,7 @@ Index pkg_new(HyState *state) {
 }
 
 
-// Releases resources allocated by a package.
+// Releases resources allocated by a package
 void pkg_free(Package *pkg) {
 	for (uint32_t i = 0; i < vec_len(pkg->sources); i++) {
 		Source *src = &vec_at(pkg->sources, i);
@@ -61,7 +61,7 @@ void pkg_free(Package *pkg) {
 
 // Parses some source code into bytecode, returning an error if one occurred,
 // and setting `main_fn` to the index of the function that will execute the
-// code at the top level of the provided source code.
+// code at the top level of the provided source code
 HyError * pkg_parse(Package *pkg, Index source, Index *main_fn) {
 	HyState *state = pkg->parser.state;
 
@@ -86,7 +86,7 @@ HyError * pkg_parse(Package *pkg, Index source, Index *main_fn) {
 }
 
 
-// Returns the contents of a file.
+// Returns the contents of a file
 static char * file_contents(char *path) {
 	FILE *f = fopen(path, "r");
 	if (f == NULL) {
@@ -107,7 +107,7 @@ static char * file_contents(char *path) {
 }
 
 
-// Adds a file as a source on the package.
+// Adds a file as a source on the package
 Index pkg_add_file(Package *pkg, char *path) {
 	// Read the contents of the file
 	char *contents = file_contents(path);
@@ -126,7 +126,7 @@ Index pkg_add_file(Package *pkg, char *path) {
 }
 
 
-// Adds a string as a source on the package.
+// Adds a string as a source on the package
 Index pkg_add_string(Package *pkg, char *source) {
 	vec_inc(pkg->sources);
 	Source *src = &vec_last(pkg->sources);
@@ -139,7 +139,7 @@ Index pkg_add_string(Package *pkg, char *source) {
 }
 
 
-// Finds a package with the name `name`.
+// Finds a package with the name `name`
 Index pkg_find(HyState *state, char *name, uint32_t length) {
 	for (uint32_t i = 0; i < vec_len(state->packages); i++) {
 		Package *pkg = &vec_at(state->packages, i);
@@ -152,7 +152,7 @@ Index pkg_find(HyState *state, char *name, uint32_t length) {
 }
 
 
-// Adds a new top level local to a package with a default value of `value`.
+// Adds a new top level local to a package with a default value of `value`
 Index pkg_local_add(Package *pkg, char *name, uint32_t length, HyValue value) {
 	vec_inc(pkg->locals);
 	vec_inc(pkg->names);
@@ -165,7 +165,7 @@ Index pkg_local_add(Package *pkg, char *name, uint32_t length, HyValue value) {
 }
 
 
-// Finds the index of a local with the name `name`.
+// Finds the index of a local with the name `name`
 Index pkg_local_find(Package *pkg, char *name, uint32_t length) {
 	for (uint32_t i = 0; i < vec_len(pkg->names); i++) {
 		Identifier *ident = &vec_at(pkg->names, i);

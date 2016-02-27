@@ -11,7 +11,7 @@
 #include "err.h"
 
 
-// The name of each opcode, in the exact order they were defined in.
+// The name of each opcode, in the exact order they were defined in
 static char opcode_names[][50] = {
 	"MOV_LL", "MOV_LI", "MOV_LN", "MOV_LS", "MOV_LP", "MOV_LF", "MOV_LV",
 	"MOV_UL", "MOV_UI", "MOV_UN", "MOV_US", "MOV_UP", "MOV_UF", "MOV_UV",
@@ -48,7 +48,7 @@ static char opcode_names[][50] = {
 
 
 // The number of arguments each opcode accepts, in the same order in which they
-// were defined.
+// were defined
 static uint32_t argument_count[] = {
 	2, /* MOV_LL */ 2, /* MOV_LI */ 2, /* MOV_LN */ 2, /* MOV_LS */
 	2, /* MOV_LP */ 2, /* MOV_LF */ 2, /* MOV_LV */
@@ -99,7 +99,7 @@ static uint32_t argument_count[] = {
 
 // The index of an argument in an instruction with the specified opcode that is
 // an integer, so we can display negative numbers correctly. If the opcode has
-// no integer arguments, the index is 0.
+// no integer arguments, the index is 0
 static uint32_t integer_argument[] = {
 	0, /* MOV_LL */ 2, /* MOV_LI */ 0, /* MOV_LN */ 0, /* MOV_LS */
 	0, /* MOV_LP */ 0, /* MOV_LF */ 0, /* MOV_LV */
@@ -145,7 +145,7 @@ static uint32_t integer_argument[] = {
 };
 
 
-// Returns the number of digits in a number.
+// Returns the number of digits in a number
 static int digits(int number) {
 	int count = 0;
 	while (number > 0) {
@@ -156,7 +156,7 @@ static int digits(int number) {
 }
 
 
-// Prints a line in a source code object.
+// Prints a line in a source code object
 static void print_location(HyState *state, Index pkg_index, Index src_index,
 		uint32_t line) {
 	Package *pkg = &vec_at(state->packages, pkg_index);
@@ -169,14 +169,14 @@ static void print_location(HyState *state, Index pkg_index, Index src_index,
 }
 
 
-// Prints the name of a native function.
+// Prints the name of a native function
 static void print_native(HyState *state, NativeFunction *fn) {
 	Package *pkg = &vec_at(state->packages, fn->package);
 	printf("`%s.%s`", pkg->name, fn->name);
 }
 
 
-// Prints an instruction's opcode.
+// Prints an instruction's opcode
 static void print_opcode(Instruction ins) {
 	// Find the length of the longest opcode
 	uint32_t max_length = 0;
@@ -192,7 +192,7 @@ static void print_opcode(Instruction ins) {
 }
 
 
-// Prints an instruction's arguments.
+// Prints an instruction's arguments
 static void print_arguments(Instruction ins) {
 	BytecodeOpcode opcode = ins_arg(ins, 0);
 	for (uint32_t i = 1; i <= argument_count[opcode]; i++) {
@@ -207,7 +207,7 @@ static void print_arguments(Instruction ins) {
 }
 
 
-// Prints useful information about the arguments to an instruction.
+// Prints useful information about the arguments to an instruction
 static void print_info(HyState *state, Index ins_index, Instruction ins) {
 	BytecodeOpcode opcode = ins_arg(ins, 0);
 	switch (opcode) {
@@ -291,7 +291,7 @@ static void print_info(HyState *state, Index ins_index, Instruction ins) {
 
 
 // Pretty prints an instruction within a function's bytecode to the standard
-// output. The instruction index is used to calculate jump offsets.
+// output. The instruction index is used to calculate jump offsets
 void debug_ins(HyState *state, Function *fn, Index ins_index) {
 	// Index
 	printf("%.*d    ", digits(vec_len(fn->instructions) - 1), ins_index);
@@ -307,7 +307,7 @@ void debug_ins(HyState *state, Function *fn, Index ins_index) {
 }
 
 
-// Pretty prints the entire bytecode of a function to the standard output.
+// Pretty prints the entire bytecode of a function to the standard output
 void debug_fn(HyState *state, Function *fn) {
 	// File and line
 	print_location(state, fn->package, fn->source, fn->line);
@@ -328,8 +328,8 @@ void debug_fn(HyState *state, Function *fn) {
 }
 
 
-// Prints a selection of a struct definition's fields to the standard output.
-// Prints a field if (field_value == VALUE_NIL) == value_predicate.
+// Prints a selection of a struct definition's fields to the standard output
+// Prints a field if (field_value == VALUE_NIL) == value_predicate
 static void print_fields(StructDefinition *def, bool value_predicate) {
 	bool found_one = false;
 	for (uint32_t i = 0; i < vec_len(def->fields); i++) {
@@ -362,7 +362,7 @@ static void print_fields(StructDefinition *def, bool value_predicate) {
 }
 
 
-// Pretty prints a struct definition to the standard output.
+// Pretty prints a struct definition to the standard output
 void debug_struct(HyState *state, StructDefinition *def) {
 	// Name
 	printf("Struct `%.*s`, ", def->length, def->name);
@@ -379,7 +379,7 @@ void debug_struct(HyState *state, StructDefinition *def) {
 
 
 // Parse a source code object on a package into bytecode and print it to the
-// standard output.
+// standard output
 HyError * print_bytecode(HyState *state, Index index, Index source) {
 	Package *pkg = &vec_at(state->packages, index);
 
@@ -413,7 +413,7 @@ HyError * print_bytecode(HyState *state, Index index, Index source) {
 
 
 // Read source code from a file and parse it into bytecode, printing it to
-// the standard output.
+// the standard output
 HyError * hy_print_bytecode_file(HyState *state, HyPackage index, char *path) {
 	Package *pkg = &vec_at(state->packages, index);
 	Index source = pkg_add_file(pkg, path);
@@ -429,7 +429,7 @@ HyError * hy_print_bytecode_file(HyState *state, HyPackage index, char *path) {
 
 // Parse source code into bytecode and print it to the standard output. An
 // error object is returned if one occurred during parsing, otherwise NULL
-// is returned.
+// is returned
 HyError * hy_print_bytecode_string(HyState *state, HyPackage index, char *src) {
 	Package *pkg = &vec_at(state->packages, index);
 	Index source = pkg_add_string(pkg, src);

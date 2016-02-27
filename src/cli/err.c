@@ -26,11 +26,11 @@
 #define COLOR_WHITE   "\x1B[37m"
 #define COLOR_BOLD    "\x1B[1m"
 
-// Number of spaces per tab.
+// Number of spaces per tab
 #define TABS_TO_SPACES 2
 
 
-// Prints a color code to the standard output if we are able to display colors.
+// Prints a color code to the standard output if we are able to display colors
 static inline void print_color(char *color) {
 	// Only print colors on non-windows machines
 #ifndef WINDOWS
@@ -42,7 +42,7 @@ static inline void print_color(char *color) {
 }
 
 
-// Prints an error's file path, line number, and column number.
+// Prints an error's file path, line number, and column number
 static int print_path(char *path, uint32_t line, uint32_t column) {
 	// Path
 	uint32_t length = 0;
@@ -67,7 +67,7 @@ static int print_path(char *path, uint32_t line, uint32_t column) {
 }
 
 
-// Prints the error tag.
+// Prints the error tag
 static void print_tag(void) {
 	print_color(COLOR_RED COLOR_BOLD);
 	fputs("[Error] ", stderr);
@@ -75,7 +75,7 @@ static void print_tag(void) {
 }
 
 
-// Prints the description part of an error.
+// Prints the description part of an error
 static int print_description(HyError *err) {
 	int align = 0;
 
@@ -95,7 +95,7 @@ static int print_description(HyError *err) {
 }
 
 
-// Removes tabs from a line of code, replacing them with 4 spaces.
+// Removes tabs from a line of code, replacing them with 4 spaces
 static char * replace_tabs(char *line, uint32_t *padding) {
 	// Count the number of tabs
 	*padding = 0;
@@ -128,7 +128,7 @@ static char * replace_tabs(char *line, uint32_t *padding) {
 
 
 // Prints the line of source code and an underline underneath the part causing
-// the error.
+// the error
 static void print_code(HyError *err, int align) {
 	// File path and line number
 	int length = print_path(err->file, err->line, 0);
@@ -163,7 +163,7 @@ static void print_code(HyError *err, int align) {
 }
 
 
-// Prints an error message to the standard error output.
+// Prints an error message to the standard error output
 void print_err(HyError *err) {
 	// Description
 	int align = print_description(err);
