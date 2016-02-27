@@ -36,7 +36,7 @@ static inline void print_color(char *color) {
 #ifndef WINDOWS
 	// If we're outputting to a terminal
 	if (isatty(fileno(stdout))) {
-		printf("%s", color);
+		fputs(color, stderr);
 	}
 #endif
 }
@@ -47,19 +47,20 @@ static int print_path(char *path, uint32_t line, uint32_t column) {
 	// Path
 	uint32_t length = 0;
 	if (path == NULL) {
-		length += printf("<string>:");
+		length += fputs("<string>:", stderr);
 	} else {
-		length += printf("%s:", path);
+		length += fputs(path, stderr);
+		length += fputc(':', stderr);
 	}
 
 	// Line number
 	if (line > 0) {
-		length += printf("%d:", line);
+		length += fprintf(stderr, "%d:", line);
 	}
 
 	// Column number
 	if (column > 0) {
-		length += printf("%d:", column);
+		length += fprintf(stderr, "%d:", column);
 	}
 
 	return length;
@@ -69,7 +70,7 @@ static int print_path(char *path, uint32_t line, uint32_t column) {
 // Prints the error tag.
 static void print_tag(void) {
 	print_color(COLOR_RED COLOR_BOLD);
-	printf("[Error] ");
+	fputs("[Error] ", stderr);
 	print_color(COLOR_NONE);
 }
 
@@ -80,14 +81,15 @@ static int print_description(HyError *err) {
 
 	// Path
 	align += print_path(err->file, err->line, err->column);
-	align += printf(" ");
+	align += fputc(' ', stderr);
 
 	// Tag
 	print_tag();
 
 	// Description
 	print_color(COLOR_WHITE COLOR_BOLD);
-	printf("%s\n", err->description);
+	fputs(err->description, stderr);
+	fputc('\n', stderr);
 	print_color(COLOR_NONE);
 	return align;
 }
@@ -133,7 +135,7 @@ static void print_code(HyError *err, int align) {
 
 	// Padding
 	for (int i = 0; i < align - length; i++) {
-		printf(" ");
+		fputc(' ', stderr);
 	}
 
 	// Replaces spaces on the line of code
@@ -142,22 +144,22 @@ static void print_code(HyError *err, int align) {
 
 	// Code
 	print_color(COLOR_WHITE);
-	printf("%s\n", tabless_line);
+	fprintf(stderr, "%s\n", tabless_line);
 	free(tabless_line);
 
 	// Underline padding
 	for (uint32_t i = 0; i < align + err->column + tab_padding - 1; i++) {
-		printf(" ");
+		fputc(' ', stderr);
 	}
 
 	// Underline
-	printf("^");
+	fputc('^', stderr);
 	for (int32_t i = 0; i < err->length - 1; i++) {
-		printf("~");
+		fputc('~', stderr);
 	}
 
 	print_color(COLOR_NONE);
-	printf("\n");
+	fputc('\n', stderr);
 }
 
 
