@@ -27,19 +27,16 @@ static inline Instruction ins_new(BytecodeOpcode opcode, uint16_t arg1,
 
 // Returns the `n`th argument of an instruction. Argument 0 is the instruction's
 // opcode
-static inline uint16_t ins_arg(Instruction instruction, uint32_t n) {
-	return (uint16_t) ((instruction & ((uint64_t) 0xffff) << n * 16) >> n * 16);
+static inline uint16_t ins_arg(Instruction ins, uint32_t n) {
+	return (uint16_t) ((ins >> (n << 4)) & 0xffff);
 }
 
 
 // Sets the `n`th argument of an instruction. Argument 0 is the instruction's
 // opcode
-static inline Instruction ins_set(Instruction instruction, uint32_t n,
-		uint16_t value) {
-	uint64_t selection = (((uint64_t) 0xffff) << n * 16);
-	uint64_t to_clear = (((uint64_t) 0xffffffffffffffff) ^ selection);
-	uint64_t cleared = instruction & to_clear;
-	return cleared | (((uint64_t) value) << n * 16);
+static inline Instruction ins_set(Instruction ins, uint32_t n, uint16_t value) {
+	uint64_t cleared = ins & ~(((uint64_t) 0xffff) << (n << 4));
+	return cleared | (((uint64_t) value) << (n << 4));
 }
 
 #endif
