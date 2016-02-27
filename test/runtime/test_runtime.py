@@ -10,6 +10,7 @@
 import os
 import sys
 import platform
+import re
 
 from os.path import join, dirname, basename, isdir, splitext, realpath
 from subprocess import Popen, PIPE
@@ -63,13 +64,24 @@ def expected_output(source):
 		index = found + len(key)
 		result.append({"content": line[index:], "line": line_number})
 
-	# Check if we can find `// expect error`, and if so, we need to ensure the
+	# Check if we can find `// expect error: `, and if so, we need to ensure the
 	# test exits with a failure error code
+	error_key = "// expect error: "
+	error = None
 	exit_code = 0
-	if source.find("// expect error") != -1:
+	index = source.find(error_key)
+	if index != -1:
+		index += len(error_key)
 		exit_code = 1
 
-	return (result, exit_code)
+		# Find the next newline after the index
+		newline = source.find("\n", index)
+		if newline == -1:
+			error = source[index:]
+		else:
+			error = source[index:newline]
+
+	return (result, error, exit_code)
 
 
 # Runs a test program from its path. Returns the exit code for the process and
@@ -98,7 +110,7 @@ def run_test(path):
 	finally:
 		timer.cancel()
 
-	return (output, exit_code, error)
+	return (output, error, exit_code)
 
 
 # Prints an error message to the standard output
@@ -111,7 +123,8 @@ def print_error(message):
 
 # Validates the output of a test case, returning true if the test was
 # successful
-def validate(path, expected_lines, output, expected_exit, exit_code, error):
+def validate(path, expected, output, error, expected_error, expected_exit_code,
+		exit_code):
 	# Parse the output into lines
 	try:
 		output = output.decode("utf-8").replace("\r\n", "\n").strip()
@@ -125,9 +138,9 @@ def validate(path, expected_lines, output, expected_exit, exit_code, error):
 		return False
 
 	# Check if the test case returned an error
-	if exit_code != expected_exit:
+	if exit_code != expected_exit_code:
 		print_error("Exited with error code " + str(exit_code) + ", expected " +
-			str(expected_exit))
+			str(expected_exit_code))
 		if len(output) > 0:
 			print(output)
 		return False
@@ -138,22 +151,29 @@ def validate(path, expected_lines, output, expected_exit, exit_code, error):
 		output_lines = output.strip().split("\n")
 
 	# Check output lengths match
-	if len(expected_lines) != len(output_lines):
+	if len(expected) != len(output_lines):
 		print_error("Incorrect number of output lines")
 		return False
 
 	# Check each line
 	for i in range(len(output_lines)):
-		expected = expected_lines[i]["content"]
+		expected_line = expected[i]["content"]
 
 		# Check the output matched what was expected
-		if output_lines[i] != expected:
-			line_number = expected_lines[i]["line"]
+		if output_lines[i] != expected_line:
+			line_number = expected[i]["line"]
 			print_error("Incorrect output on line " + str(line_number) +
-				": expected " + expected + ", got " + output_lines[i])
+				": expected " + expected_line + ", got " + output_lines[i])
 			return False
 
-	# Passed test
+	# Check the output of stderr against the expected
+	if error != None and expected_error != None:
+		if not re.match(".*" + expected_error, error):
+			print_error("Incorrect error output: \n" +
+				"  expected: `.*" + expected_error + "`\n" +
+				"  got:      `" + error + "`")
+
+	# Print passed test case message
 	print_color(COLOR_BOLD + COLOR_GREEN)
 	sys.stdout.write("[Passed]")
 	print_color(COLOR_NONE)
@@ -183,13 +203,14 @@ def test(path):
 	input_file.close()
 
 	# Extract the expected output for the case
-	(expected, expected_code) = expected_output(source)
+	(expected, expected_error, expected_code) = expected_output(source)
 
 	# Get the output and exit code for the test case
-	output, exit_code, error = run_test(path)
+	output, error, exit_code = run_test(path)
 
 	# Validates a test case's output
-	return validate(path, expected, output, expected_code, exit_code, error)
+	return validate(path, expected, output, error, expected_error,
+		expected_code, exit_code)
 
 
 # Tests all Hydrogen files in a directory. Returns the total number of tests,
