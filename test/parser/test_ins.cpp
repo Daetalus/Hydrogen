@@ -10,7 +10,7 @@ extern "C" {
 #include <gtest/gtest.h>
 
 
-// Tests creating a new instruction and fetching its arguments.
+// Tests creating a new instruction and fetching its arguments
 TEST(Bytecode, Arguments) {
 	Instruction arg = ins_new(MOV_LL, 1, 200, 0xfffe);
 	ASSERT_EQ(ins_arg(arg, 0), MOV_LL);
@@ -20,7 +20,7 @@ TEST(Bytecode, Arguments) {
 }
 
 
-// Tests setting arguments on an instruction.
+// Tests setting arguments on an instruction
 TEST(Bytecode, Modification) {
 	Instruction arg = ins_new(MOV_LI, 21, 42, 0xff);
 	ASSERT_EQ(ins_arg(arg, 2), 42);

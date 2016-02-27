@@ -6,7 +6,7 @@
 #include "test.h"
 
 
-// Tests an infinite loop.
+// Tests an infinite loop
 TEST(Loop, InfiniteLoop) {
 	COMPILER(
 		"let a = 3\n"
@@ -26,7 +26,7 @@ TEST(Loop, InfiniteLoop) {
 }
 
 
-// Tests breaking from within an infinite loop.
+// Tests breaking from within an infinite loop
 TEST(Loop, Break) {
 	COMPILER(
 		"let a = 3\n"

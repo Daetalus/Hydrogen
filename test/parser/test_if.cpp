@@ -6,7 +6,7 @@
 #include "test.h"
 
 
-// Tests a single if statement.
+// Tests a single if statement
 TEST(If, If) {
 	COMPILER(
 		"let a = 3\n"
@@ -26,7 +26,7 @@ TEST(If, If) {
 }
 
 
-// Tests an if followed by an else.
+// Tests an if followed by an else
 TEST(If, IfElse) {
 	COMPILER(
 		"let a = 3\n"
@@ -50,7 +50,7 @@ TEST(If, IfElse) {
 }
 
 
-// Tests an if followed by a single else if.
+// Tests an if followed by a single else if
 TEST(If, IfElseIf) {
 	COMPILER(
 		"{\n"
@@ -77,7 +77,7 @@ TEST(If, IfElseIf) {
 }
 
 
-// Tests an if followed by multiple else ifs.
+// Tests an if followed by multiple else ifs
 TEST(If, IfElseIfs) {
 	COMPILER(
 		"{\n"
@@ -110,7 +110,7 @@ TEST(If, IfElseIfs) {
 }
 
 
-// Tests an if, followed by an else if, followed by an else.
+// Tests an if, followed by an else if, followed by an else
 TEST(If, ElseIfElse) {
 	COMPILER(
 		"{\n"
@@ -141,7 +141,7 @@ TEST(If, ElseIfElse) {
 }
 
 
-// Tests an ifs, followed by multiple else ifs, followed by an else.
+// Tests an ifs, followed by multiple else ifs, followed by an else
 TEST(If, ElseIfsElse) {
 	COMPILER(
 		"{\n"
@@ -178,7 +178,7 @@ TEST(If, ElseIfsElse) {
 }
 
 
-// Tests folding an if.
+// Tests folding an if
 TEST(If, FoldIf) {
 	COMPILER(
 		"if true {\n"
@@ -198,7 +198,7 @@ TEST(If, FoldIf) {
 }
 
 
-// Tests folding an if with a subsequent else.
+// Tests folding an if with a subsequent else
 TEST(If, FoldIfElse) {
 	COMPILER(
 		"if true {\n"
@@ -221,7 +221,7 @@ TEST(If, FoldIfElse) {
 }
 
 
-// Tests folding an if with a subsequent else if.
+// Tests folding an if with a subsequent else if
 TEST(If, FoldIfElseIf) {
 	COMPILER(
 		"let b = 10\n"
@@ -256,7 +256,7 @@ TEST(If, FoldIfElseIf) {
 }
 
 
-// Tests folding an if followed by an else if, followed by an else.
+// Tests folding an if followed by an else if, followed by an else
 TEST(If, FoldIfElseIfElse) {
 	COMPILER(
 		"let b = 10\n"

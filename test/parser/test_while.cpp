@@ -6,7 +6,7 @@
 #include "test.h"
 
 
-// Tests a single while loop.
+// Tests a single while loop
 TEST(While, Single) {
 	COMPILER(
 		"let a = 3\n"
@@ -29,7 +29,7 @@ TEST(While, Single) {
 }
 
 
-// Tests a break statement from within a while loop.
+// Tests a break statement from within a while loop
 TEST(While, Break) {
 	COMPILER(
 		"{\n"
@@ -58,7 +58,7 @@ TEST(While, Break) {
 }
 
 
-// Tests two nested while loops.
+// Tests two nested while loops
 TEST(While, Nested) {
 	COMPILER(
 		"{\n"
@@ -91,7 +91,7 @@ TEST(While, Nested) {
 }
 
 
-// Tests a break statement from within a nested while loop.
+// Tests a break statement from within a nested while loop
 TEST(While, NestedBreak) {
 	COMPILER(
 		"{\n"

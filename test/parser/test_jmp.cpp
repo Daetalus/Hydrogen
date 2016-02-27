@@ -12,7 +12,7 @@ extern "C" {
 #include <gtest/gtest.h>
 
 
-// Creates a function with the bytecode provided in the variable arguments.
+// Creates a function with the bytecode provided in the variable arguments
 #define FUNCTION(...)                                                     \
 	uint16_t bytecode[] = {__VA_ARGS__};                                  \
 	uint32_t count = sizeof(bytecode) / sizeof(uint16_t);                 \
@@ -32,12 +32,12 @@ extern "C" {
 	}
 
 
-// Frees resources allocated by creating a function.
+// Frees resources allocated by creating a function
 #define FREE() \
 	vec_free(fn.instructions);
 
 
-// Tests finding the next instruction in a jump list.
+// Tests finding the next instruction in a jump list
 TEST(Jump, Next) {
 	FUNCTION(
 		NEQ_LL, 0, 3, 0,
@@ -64,7 +64,7 @@ TEST(Jump, Next) {
 }
 
 
-// Tests finding the last instruction in a jump list.
+// Tests finding the last instruction in a jump list
 TEST(Jump, Last) {
 	FUNCTION(
 		NEQ_LL, 0, 3, 0,
@@ -86,7 +86,7 @@ TEST(Jump, Last) {
 }
 
 
-// Tests setting the target of a jump instruction.
+// Tests setting the target of a jump instruction
 TEST(Jump, Target) {
 	FUNCTION(
 		JMP, 0, 0, 0,
@@ -103,7 +103,7 @@ TEST(Jump, Target) {
 }
 
 
-// Tests setting the target of every jump instruction in a jump list.
+// Tests setting the target of every jump instruction in a jump list
 TEST(Jump, TargetAll) {
 	FUNCTION(
 		JMP, 0, 0, 0,
@@ -123,7 +123,7 @@ TEST(Jump, TargetAll) {
 }
 
 
-// Tests appending a jump instruction to a jump list.
+// Tests appending a jump instruction to a jump list
 TEST(Jump, Append) {
 	FUNCTION(
 		JMP, 0, 0, 0,

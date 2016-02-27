@@ -6,7 +6,7 @@
 #include "test.h"
 
 
-// Tests we can define a function with no arguments or return values.
+// Tests we can define a function with no arguments or return values
 TEST(Functions, Definition) {
 	COMPILER(
 		"fn test() {\n"
@@ -27,7 +27,7 @@ TEST(Functions, Definition) {
 
 
 // Tests we can define a function with one argument, and use that argument in
-// an expression.
+// an expression
 TEST(Functions, SingleArgument) {
 	COMPILER(
 		"fn test(arg1) {\n"
@@ -47,7 +47,7 @@ TEST(Functions, SingleArgument) {
 }
 
 
-// Tests we can define a function with more than one argument.
+// Tests we can define a function with more than one argument
 TEST(Functions, MultipleArguments) {
 	COMPILER(
 		"fn test(arg1, arg2) {\n"
@@ -67,7 +67,7 @@ TEST(Functions, MultipleArguments) {
 }
 
 
-// Tests a function can contain a return statement that has no return value.
+// Tests a function can contain a return statement that has no return value
 TEST(Functions, ReturnNothing) {
 	COMPILER(
 		"fn test() {\n"
@@ -94,7 +94,7 @@ TEST(Functions, ReturnNothing) {
 
 
 // Tests we can call a function with a return statement that has an expression
-// following it (indicating a return value).
+// following it (indicating a return value)
 TEST(Functions, ReturnValue) {
 	COMPILER(
 		"fn test() {\n"
@@ -117,7 +117,7 @@ TEST(Functions, ReturnValue) {
 
 
 // Tests we can call a function that has both multiple arguments and a return
-// value.
+// value
 TEST(Functions, ArgumentsAndReturn) {
 	COMPILER(
 		"fn test(arg1, arg2) {\n"
@@ -138,7 +138,7 @@ TEST(Functions, ArgumentsAndReturn) {
 }
 
 
-// Tests we can call a function.
+// Tests we can call a function
 TEST(Functions, Call) {
 	COMPILER(
 		"fn test() {\n"
@@ -161,7 +161,7 @@ TEST(Functions, Call) {
 }
 
 
-// Tests we can call a function with an argument.
+// Tests we can call a function with an argument
 TEST(Functions, CallWithArgument) {
 	COMPILER(
 		"fn test(arg1) {\n"
@@ -185,7 +185,7 @@ TEST(Functions, CallWithArgument) {
 }
 
 
-// Tests we can call a function with multiple arguments.
+// Tests we can call a function with multiple arguments
 TEST(Functions, CallWithMultipleArguments) {
 	COMPILER(
 		"fn test(arg1, arg2, arg3) {\n"
@@ -212,7 +212,7 @@ TEST(Functions, CallWithMultipleArguments) {
 }
 
 
-// Tests we can call a function with a return value and save it into a local.
+// Tests we can call a function with a return value and save it into a local
 TEST(Functions, CallWithReturnValue) {
 	COMPILER(
 		"fn test() {\n"
@@ -236,7 +236,7 @@ TEST(Functions, CallWithReturnValue) {
 }
 
 
-// Tests we can define two functions.
+// Tests we can define two functions
 TEST(Functions, MultipleDefinitions) {
 	COMPILER(
 		"fn square(num) {\n"
@@ -264,7 +264,7 @@ TEST(Functions, MultipleDefinitions) {
 }
 
 
-// Tests we can define functions on the stack.
+// Tests we can define functions on the stack
 TEST(Functions, Stack) {
 	COMPILER(
 		"{\n"
@@ -295,7 +295,7 @@ TEST(Functions, Stack) {
 
 
 // Tests we can have a function call's return value as an argument to another
-// function call.
+// function call
 TEST(Functions, CallAsArgument) {
 	COMPILER(
 		"fn test(arg) {\n"
@@ -322,7 +322,7 @@ TEST(Functions, CallAsArgument) {
 }
 
 
-// Tests defining and calling an anonymous function.
+// Tests defining and calling an anonymous function
 TEST(Functions, AnonymousFunction) {
 	COMPILER(
 		"let test = fn(arg1, arg2) {\n"
@@ -348,7 +348,7 @@ TEST(Functions, AnonymousFunction) {
 
 
 // Tests we can call an anonymous function without saving the function into a
-// local first.
+// local first
 TEST(Functions, CallAnonymousFunction) {
 	COMPILER(
 		"let tree = (fn(arg1, arg2) {\n"
@@ -372,7 +372,7 @@ TEST(Functions, CallAnonymousFunction) {
 }
 
 
-// Tests overriding top level variables in function arguments and locals.
+// Tests overriding top level variables in function arguments and locals
 TEST(Functions, OverrideTopLevel) {
 	COMPILER(
 		"let a = 3\n"

@@ -17,10 +17,10 @@ from threading import Timer
 
 
 # The path to the command line interface which will execute the Hydrogen code
-# for us.
+# for us
 cli_path = sys.argv[2]
 
-# The amount of time in seconds to let a test case run before killing it.
+# The amount of time in seconds to let a test case run before killing it
 timeout = 2
 
 
@@ -36,7 +36,7 @@ COLOR_WHITE   = "\x1B[37m"
 COLOR_BOLD    = "\x1B[1m"
 
 
-# Prints some color text to the standard output.
+# Prints some color text to the standard output
 def print_color(color):
 	if platform.system() != "Windows":
 		sys.stdout.write(color)
@@ -44,7 +44,7 @@ def print_color(color):
 
 # Extracts the expected output of a test case from its source code. Returns
 # a list of strings, one for each line of expected output, and the expected
-# error code for the test.
+# error code for the test
 def expected_output(source):
 	# We need to find every instance of `// expect: ` and concatenate them
 	# together, separated by newlines
@@ -74,7 +74,7 @@ def expected_output(source):
 
 # Runs a test program from its path. Returns the exit code for the process and
 # what was written to the standard output. Returns -1 for the error code if the
-# process timed out.
+# process timed out
 def run_test(path):
 	# Create the process
 	proc = Popen([cli_path, path], stdin=PIPE, stdout=PIPE, stderr=PIPE)
@@ -101,7 +101,7 @@ def run_test(path):
 	return (output, exit_code, error)
 
 
-# Prints an error message to the standard output.
+# Prints an error message to the standard output
 def print_error(message):
 	print_color(COLOR_RED + COLOR_BOLD)
 	sys.stdout.write("[Error] ")
@@ -110,7 +110,7 @@ def print_error(message):
 
 
 # Validates the output of a test case, returning true if the test was
-# successful.
+# successful
 def validate(path, expected_lines, output, expected_exit, exit_code, error):
 	# Parse the output into lines
 	try:
@@ -161,7 +161,7 @@ def validate(path, expected_lines, output, expected_exit, exit_code, error):
 	return True
 
 
-# Executes the runtime test for the Hydrogen code at `path`.
+# Executes the runtime test for the Hydrogen code at `path`
 def test(path):
 	# Print info
 	print_color(COLOR_BLUE + COLOR_BOLD)

@@ -13,7 +13,7 @@ extern "C" {
 #include <gtest/gtest.h>
 
 
-// Tests validating import paths.
+// Tests validating import paths
 TEST(ImportPath, Validation) {
 	ASSERT_EQ(import_is_valid("hello"), true);
 	ASSERT_EQ(import_is_valid("hello/test"), true);
@@ -37,7 +37,7 @@ TEST(ImportPath, Validation) {
 }
 
 
-// Asserts a package path is equal to its expected value.
+// Asserts a package path is equal to its expected value
 #define ASSERT_PACKAGE_PATH(parent, package, expected) {       \
 	char *package_heap = (char *) malloc(strlen(package) + 1); \
 	strcpy(package_heap, package);                             \
@@ -51,7 +51,7 @@ TEST(ImportPath, Validation) {
 
 
 // Tests resolving import paths to their actual locations on the filesystem
-// using the parent package.
+// using the parent package
 TEST(ImportPath, PathResolution) {
 	ASSERT_PACKAGE_PATH(NULL, "hello", "hello");
 	ASSERT_PACKAGE_PATH(NULL, "test/ing", "test/ing");
@@ -71,7 +71,7 @@ TEST(ImportPath, PathResolution) {
 }
 
 
-// Asserts a package name matches its expected value.
+// Asserts a package name matches its expected value
 #define ASSERT_PACKAGE_NAME(path, expected) { \
 	char *name = hy_pkg_name(path);           \
 	ASSERT_STREQ(name, expected);             \
@@ -79,7 +79,7 @@ TEST(ImportPath, PathResolution) {
 }
 
 
-// Tests extracting the name of a package from its path.
+// Tests extracting the name of a package from its path
 TEST(ImportPath, PackageName) {
 	ASSERT_PACKAGE_NAME("test", "test");
 	ASSERT_PACKAGE_NAME("a", "a");

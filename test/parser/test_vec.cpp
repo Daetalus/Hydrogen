@@ -10,7 +10,7 @@ extern "C" {
 #include <gtest/gtest.h>
 
 
-// Tests creating a new empty vector.
+// Tests creating a new empty vector
 TEST(Vector, Empty) {
 	Vec(char) vec;
 	vec_new(vec, char, 4);
@@ -20,7 +20,7 @@ TEST(Vector, Empty) {
 }
 
 
-// Tests appending elements to a vector.
+// Tests appending elements to a vector
 TEST(Vector, Append) {
 	Vec(char) vec;
 	vec_new(vec, char, 4);
@@ -81,7 +81,7 @@ TEST(Vector, Append) {
 }
 
 
-// Tests inserting elements in a vector.
+// Tests inserting elements in a vector
 TEST(Vector, Insert) {
 	Vec(char) vec;
 	vec_new(vec, char, 4);
@@ -126,7 +126,7 @@ TEST(Vector, Insert) {
 }
 
 
-// Tests removing elements from a vector.
+// Tests removing elements from a vector
 TEST(Vector, Remove) {
 	Vec(char) vec;
 	vec_new(vec, char, 4);

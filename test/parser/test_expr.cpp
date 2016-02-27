@@ -6,7 +6,7 @@
 #include "test.h"
 
 
-// Tests assigning to new locals inside a block scope.
+// Tests assigning to new locals inside a block scope
 TEST(Expression, Assign) {
 	COMPILER(
 		"{\n"
@@ -37,7 +37,7 @@ TEST(Expression, Assign) {
 }
 
 
-// Tests reassigning to existing locals inside a block scope.
+// Tests reassigning to existing locals inside a block scope
 TEST(Expression, Reassign) {
 	COMPILER(
 		"{\n"
@@ -66,7 +66,7 @@ TEST(Expression, Reassign) {
 }
 
 
-// Tests assigning to top level variables.
+// Tests assigning to top level variables
 TEST(Expression, TopLevelAssign) {
 	COMPILER(
 		"let a = 3\n"
@@ -96,7 +96,7 @@ TEST(Expression, TopLevelAssign) {
 }
 
 
-// Tests reassigning to top level variables.
+// Tests reassigning to top level variables
 TEST(Expression, TopLevelReassign) {
 	COMPILER(
 		"let a = 3\n"
@@ -125,7 +125,7 @@ TEST(Expression, TopLevelReassign) {
 }
 
 
-// Tests single operations.
+// Tests single operations
 TEST(Expression, Operations) {
 	COMPILER(
 		"{\n"
@@ -152,7 +152,7 @@ TEST(Expression, Operations) {
 }
 
 
-// Tests operator precedence.
+// Tests operator precedence
 TEST(Expression, Precedence) {
 	COMPILER(
 		"{\n"
@@ -192,7 +192,7 @@ TEST(Expression, Precedence) {
 }
 
 
-// Tests parentheses in expressions to override operator precedence.
+// Tests parentheses in expressions to override operator precedence
 TEST(Expression, Parentheses) {
 	COMPILER(
 		"{\n"
@@ -228,7 +228,7 @@ TEST(Expression, Parentheses) {
 }
 
 
-// Tests the unary negation operator.
+// Tests the unary negation operator
 TEST(Expression, Negation) {
 	COMPILER(
 		"{\n"
@@ -257,7 +257,7 @@ TEST(Expression, Negation) {
 
 
 
-// Tests conditional operations when assigning to variables.
+// Tests conditional operations when assigning to variables
 TEST(Expression, Conditional) {
 	COMPILER(
 		"{\n"
@@ -330,7 +330,7 @@ TEST(Expression, Conditional) {
 }
 
 
-// Tests combining conditionals using only `and` operators.
+// Tests combining conditionals using only `and` operators
 TEST(Expression, And) {
 	COMPILER(
 		"{\n"
@@ -369,7 +369,7 @@ TEST(Expression, And) {
 }
 
 
-// Tests combining conditionals using only `or` operators.
+// Tests combining conditionals using only `or` operators
 TEST(Expression, Or) {
 	COMPILER(
 		"{\n"
@@ -409,7 +409,7 @@ TEST(Expression, Or) {
 
 
 // Tests `and` and `or` operations where one of the two arguments is a jump
-// list.
+// list
 TEST(Expression, AndOrSingleJumpList) {
 	COMPILER(
 		"{\n"
@@ -476,7 +476,7 @@ TEST(Expression, AndOrSingleJumpList) {
 }
 
 
-// Tests `or` operations where both arguments are jump lists.
+// Tests `or` operations where both arguments are jump lists
 TEST(Expression, AndOrOrJumpList) {
 	COMPILER(
 		"{\n"
@@ -553,7 +553,7 @@ TEST(Expression, AndOrOrJumpList) {
 }
 
 
-// Tests `and` operations where both arguments are jump lists.
+// Tests `and` operations where both arguments are jump lists
 TEST(Expression, AndOrAndJumpList) {
 	COMPILER(
 		"{\n"

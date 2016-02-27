@@ -17,13 +17,13 @@ extern "C" {
 #include <gtest/gtest.h>
 
 
-// Selects the function whose bytecode we are asserting.
+// Selects the function whose bytecode we are asserting
 #define FN(fn_index)                            \
 	fn = &vec_at(state->functions, (fn_index)); \
 	index = 0;
 
 
-// Creates a new compiler.
+// Creates a new compiler
 #define COMPILER(code)                                               \
 	char *source = (code);                                           \
 	HyState *state = hy_new();                                       \
@@ -40,13 +40,13 @@ extern "C" {
 	FN(main_fn);
 
 
-// Frees resources allocated when creating a compiler.
+// Frees resources allocated when creating a compiler
 #define FREE() \
 	hy_free(state);
 
 
 // Asserts the next instruction has the opcode `opcode` and 3 arguments `arg1`,
-// `arg2`, `arg3`.
+// `arg2`, `arg3`
 #define INS(opcode, arg1, arg2, arg3) {                  \
 	ASSERT_LT(index, vec_len(fn->instructions));         \
 	Instruction ins = vec_at(fn->instructions, index++); \
@@ -57,7 +57,7 @@ extern "C" {
 }
 
 
-// Asserts the next instruction is a jump with offset `offset`.
+// Asserts the next instruction is a jump with offset `offset`
 #define JMP(offset) {                                    \
 	ASSERT_LT(index, vec_len(fn->instructions));         \
 	Instruction ins = vec_at(fn->instructions, index++); \
