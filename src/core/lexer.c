@@ -230,8 +230,7 @@ static void string(Lexer *lexer) {
 	// Check the string has a terminating quote
 	if (eof(lexer)) {
 		HyError *err = err_new();
-		err_print(err, "Unterminated string literal ");
-		err_print_token(err, token);
+		err_print(err, "Unterminated string literal");
 		err_attach_token(lexer->state, err, token);
 		err_trigger(lexer->state, err);
 		return;

@@ -371,7 +371,7 @@ static Index import_new(Parser *parser, Token *token, char *path, char *name) {
 	Index child_source = pkg_add_file(child, resolved);
 	if (child_source == NOT_FOUND) {
 		// Failed to open file
-		err_fatal(parser, token, "Undefined package in import");
+		err_fatal(parser, token, "Undefined import package");
 		return NOT_FOUND;
 	}
 
@@ -409,7 +409,7 @@ static void import(Parser *parser, Token *token) {
 	if (import_find(parser, name, length) != NOT_FOUND) {
 		free(name);
 		free(path);
-		err_fatal(parser, token, "Package with this name already imported");
+		err_fatal(parser, token, "Package already imported");
 		return;
 	}
 
@@ -438,10 +438,14 @@ static void parse_multi_import(Parser *parser) {
 
 	// Expect at least one string
 	err_expect(parser, TOKEN_STRING, &open_parenthesis,
-		"Expected string after `(` in import");
+		"Expected string after `(` in multi-import");
 
 	// Expect a comma separated list of strings
 	while (lexer->token.type == TOKEN_STRING) {
+		// Expect a string
+		err_expect(parser, TOKEN_STRING, &open_parenthesis,
+			"Expected string after `,` in multi-import");
+
 		// Import it
 		import(parser, &lexer->token);
 
@@ -1746,8 +1750,7 @@ static Operand operand_subexpr(Parser *parser, uint16_t slot) {
 
 	// Expect a closing parenthesis
 	if (lexer->token.type != TOKEN_CLOSE_PARENTHESIS) {
-		err_fatal(parser, &start,
-			"Expected `)` to close `(` in expression");
+		err_fatal(parser, &start, "Expected `)` to close `(` in expression");
 	}
 
 	// Skip the closing parenthesis
@@ -1951,7 +1954,7 @@ static void parse_declaration(Parser *parser) {
 
 	// Expect an assignment token
 	err_expect(parser, TOKEN_ASSIGN, &name,
-		"Expected `=` after identifier in `let` assignment");
+		"Expected `=` after identifier in `let`");
 	lexer_next(lexer);
 
 	// Ensure the local isn't already defined
@@ -2307,7 +2310,7 @@ static void parse_break(Parser *parser) {
 
 	// Ensure we're inside a loop
 	if (parser->scope->loop == NULL) {
-		err_fatal(parser, &lexer->token, "`break` statement not inside loop");
+		err_fatal(parser, &lexer->token, "`break` not inside loop");
 		return;
 	}
 
@@ -2453,8 +2456,9 @@ static void parse_return(Parser *parser) {
 	Lexer *lexer = &parser->lexer;
 
 	// Check we're not returning from the top level of a file
-	if (parser_is_top_level(parser)) {
-		err_fatal(parser, &lexer->token, "Cannot return from top level");
+	if (parser->scope->parent == NULL) {
+		err_fatal(parser, &lexer->token,
+			"Cannot return from package top level");
 		return;
 	}
 
