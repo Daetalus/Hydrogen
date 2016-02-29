@@ -284,6 +284,23 @@ static void print_info(HyState *state, Index ins_index, Instruction ins) {
 		printf("    => %d", ((int) ins_index) - ins_arg(ins, 1));
 		break;
 
+		// Top level name
+	case MOV_LT: {
+		Package *pkg = &vec_at(state->packages, ins_arg(ins, 3));
+		Identifier *name = &vec_at(pkg->names, ins_arg(ins, 2));
+		printf("    ; ");
+
+		// Package name
+		if (pkg->name == NULL) {
+			printf("<anonymous>.");
+		} else {
+			printf("%s.", pkg->name);
+		}
+
+		// Field name
+		printf("%.*s", name->length, name->name);
+	}
+
 	default:
 		break;
 	}
@@ -380,7 +397,7 @@ void debug_struct(HyState *state, StructDefinition *def) {
 
 // Parse a source code object on a package into bytecode and print it to the
 // standard output
-HyError * print_bytecode(HyState *state, Index index, Index source) {
+HyError * parse_and_print_bytecode(HyState *state, Index index, Index source) {
 	Package *pkg = &vec_at(state->packages, index);
 
 	// Save the lengths of the functions and struct definitions arrays so we
@@ -423,7 +440,7 @@ HyError * hy_print_bytecode_file(HyState *state, HyPackage index, char *path) {
 		return err_failed_to_open_file(path);
 	}
 
-	return print_bytecode(state, index, source);
+	return parse_and_print_bytecode(state, index, source);
 }
 
 
@@ -433,5 +450,5 @@ HyError * hy_print_bytecode_file(HyState *state, HyPackage index, char *path) {
 HyError * hy_print_bytecode_string(HyState *state, HyPackage index, char *src) {
 	Package *pkg = &vec_at(state->packages, index);
 	Index source = pkg_add_string(pkg, src);
-	return print_bytecode(state, index, source);
+	return parse_and_print_bytecode(state, index, source);
 }
