@@ -414,13 +414,17 @@ HyError * parse_and_print_bytecode(HyState *state, Index index, Index source) {
 	// Print new struct definitions
 	for (uint32_t i = structs_length; i < vec_len(state->structs); i++) {
 		debug_struct(state, &vec_at(state->structs, i));
-		printf("\n");
+		if (vec_len(state->functions) > 0 || i < vec_len(state->structs) - 1) {
+			printf("\n");
+		}
 	}
 
 	// Print new function definitions
 	for (uint32_t i = functions_length; i < vec_len(state->functions); i++) {
 		debug_fn(state, &vec_at(state->functions, i));
-		printf("\n");
+		if (i < vec_len(state->functions) - 1) {
+			printf("\n");
+		}
 	}
 
 	// No error can occur when printing debug information, so don't bother with

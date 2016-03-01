@@ -161,15 +161,11 @@ static void input_backspace(Input *input) {
 	if (input->x > 0) {
 		Line *line = &vec_at(input->lines, input->y);
 		vec_remove(*line, input->x - 1);
-		// putc('\n', stdout);
-		// for (uint32_t i = 0; i < vec_len(*line); i++) {
-		// 	putc(vec_at(*line, i), stdout);
-		// }
-		// putc('\n', stdout);
 		input->x--;
 		input_draw_line(input);
 	} else {
 		// Merge this line and the previous one
+		// TODO
 	}
 }
 
@@ -183,7 +179,7 @@ static void input_delete(Input *input) {
 
 // Insert a newline at the current cursor location
 static void input_newline(Input *input) {
-
+	// TODO
 }
 
 
@@ -419,8 +415,7 @@ void repl(Config *config) {
 	// Print version information
 	print_version();
 
-	// Create a new interpreter state and package
-	// TODO: Add exit() native function to package for clean exit
+	// Create interpreter state
 	HyState *state = hy_new();
 	hy_add_libs(state);
 	HyPackage pkg = hy_add_pkg(state, NULL);
@@ -433,26 +428,22 @@ void repl(Config *config) {
 			break;
 		}
 
-		// Don't bother if the input is empty
-		if (strlen(input) > 0) {
-			// Execute input
-			HyError *err;
-			if (config->show_bytecode) {
-				err = hy_print_bytecode_string(state, pkg, input);
-			} else {
-				err = hy_pkg_run_string(state, pkg, input);
-			}
+		// Execute input
+		HyError *err;
+		if (config->show_bytecode) {
+			err = hy_print_bytecode_string(state, pkg, input);
+		} else {
+			err = hy_pkg_run_string(state, pkg, input);
+		}
 
-			// Print the error if necessary
-			if (err != NULL) {
-				print_err(err);
-				hy_err_free(err);
-			}
+		// Print the error if necessary
+		if (err != NULL) {
+			print_err(err);
+			hy_err_free(err);
 		}
 
 		free(input);
 	}
 
-	// Release resources
 	hy_free(state);
 }
