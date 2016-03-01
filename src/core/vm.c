@@ -536,49 +536,50 @@ BC_IS_FALSE_L: {
 
 	// Since equality and inequality comparisons are nearly identical, generate
 	// the code for each using a macro
-#define EQ(ins, op)                                                         \
-	BC_ ## ins ## _LL: {                                                    \
-		if (op val_comp(structs, STACK_GET_INS(1), STACK_GET_INS(2))) {     \
-			ip++;                                                           \
-		}                                                                   \
-		NEXT();                                                             \
-	}                                                                       \
-                                                                            \
-	BC_ ## ins ## _LI:                                                      \
-		if (op (STACK_GET_INS(1) == int_to_val(ins_arg(*ip, 2)))) {         \
-			ip++;                                                           \
-		}                                                                   \
-		NEXT();                                                             \
-                                                                            \
-	BC_ ## ins ## _LN:                                                      \
-		if (op (STACK_GET_INS(1) == constants[ins_arg(*ip, 2)])) {          \
-			ip++;                                                           \
-		}                                                                   \
-		NEXT();                                                             \
-                                                                            \
-	BC_ ## ins ## _LS:                                                      \
-		if (op (val_is_str(STACK_GET_INS(1)) && string_comp(                \
-				val_to_ptr(STACK_GET_INS(1)), strings[ins_arg(*ip, 2)]))) { \
-			ip++;                                                           \
-		}                                                                   \
-		NEXT();                                                             \
-                                                                            \
-	BC_ ## ins ## _LP:                                                      \
-		if (op (STACK_GET_INS(1) == prim_to_val(ins_arg(*ip, 2)))) {        \
-			ip++;                                                           \
-		}                                                                   \
-		NEXT();                                                             \
-                                                                            \
-	BC_ ## ins ## _LF:                                                      \
-		if (op (val_to_fn(STACK_GET_INS(1)) == ins_arg(*ip, 2))) {          \
-			ip++;                                                           \
-		}                                                                   \
-		NEXT();                                                             \
-                                                                            \
-	BC_ ## ins ## _LV:                                                      \
-		if (op (val_to_native(STACK_GET_INS(1)) == ins_arg(*ip, 2)))  {     \
-			ip++;                                                           \
-		}                                                                   \
+#define EQ(ins, op)                                                     \
+	BC_ ## ins ## _LL: {                                                \
+		if (op val_comp(structs, STACK_GET_INS(1), STACK_GET_INS(2))) { \
+			ip++;                                                       \
+		}                                                               \
+		NEXT();                                                         \
+	}                                                                   \
+                                                                        \
+	BC_ ## ins ## _LI:                                                  \
+		if (op (STACK_GET_INS(1) == int_to_val(ins_arg(*ip, 2)))) {     \
+			ip++;                                                       \
+		}                                                               \
+		NEXT();                                                         \
+                                                                        \
+	BC_ ## ins ## _LN:                                                  \
+		if (op (STACK_GET_INS(1) == constants[ins_arg(*ip, 2)])) {      \
+			ip++;                                                       \
+		}                                                               \
+		NEXT();                                                         \
+                                                                        \
+	BC_ ## ins ## _LS:                                                  \
+		if (op (val_is_str(STACK_GET_INS(1)) &&                         \
+				string_comp(val_to_ptr(STACK_GET_INS(1)),               \
+					strings[ins_arg(*ip, 2)]))) {                       \
+			ip++;                                                       \
+		}                                                               \
+		NEXT();                                                         \
+                                                                        \
+	BC_ ## ins ## _LP:                                                  \
+		if (op (STACK_GET_INS(1) == prim_to_val(ins_arg(*ip, 2)))) {    \
+			ip++;                                                       \
+		}                                                               \
+		NEXT();                                                         \
+                                                                        \
+	BC_ ## ins ## _LF:                                                  \
+		if (op (val_to_fn(STACK_GET_INS(1)) == ins_arg(*ip, 2))) {      \
+			ip++;                                                       \
+		}                                                               \
+		NEXT();                                                         \
+                                                                        \
+	BC_ ## ins ## _LV:                                                  \
+		if (op (val_to_native(STACK_GET_INS(1)) == ins_arg(*ip, 2)))  { \
+			ip++;                                                       \
+		}                                                               \
 		NEXT();
 
 	// Use the opposite comparison operation because we want to execute the

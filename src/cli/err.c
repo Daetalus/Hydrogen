@@ -47,10 +47,12 @@ static int print_path(char *path, uint32_t line, uint32_t column) {
 	// Path
 	uint32_t length = 0;
 	if (path == NULL) {
-		length += fputs("<string>:", stderr);
+		fputs("<string>:", stderr);
+		length += 9;
 	} else {
-		length += fputs(path, stderr);
-		length += fputc(':', stderr);
+		fputs(path, stderr);
+		fputc(':', stderr);
+		length += strlen(path) + 1;
 	}
 
 	// Line number
@@ -81,7 +83,8 @@ static int print_description(HyError *err) {
 
 	// Path
 	align += print_path(err->file, err->line, err->column);
-	align += fputc(' ', stderr);
+	fputc(' ', stderr);
+	align++;
 
 	// Tag
 	print_tag();

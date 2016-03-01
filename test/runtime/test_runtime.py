@@ -171,7 +171,7 @@ def validate(path, expected, output, error, expected_error, expected_exit_code,
 		if not re.match(".*" + expected_error, error):
 			print_error("Incorrect error output: \n" +
 				"  expected: `.*" + expected_error + "`\n" +
-				"  got:      `" + error + "`")
+				"       got: `" + error + "`")
 
 	# Print passed test case message
 	print_color(COLOR_BOLD + COLOR_GREEN)

@@ -637,7 +637,7 @@ static inline Operand operand_new(void) {
 
 
 // Returns true if an operand is a number
-static inline bool operand_is_number(Operand *operand) {
+static inline bool operand_is_num(Operand *operand) {
 	return operand->type == OP_NUMBER || operand->type == OP_INTEGER;
 }
 
@@ -772,10 +772,16 @@ static bool fold_arith_integers(Parser *parser, TokenType operator,
 	int32_t left_value = unsigned_to_signed(left->value);
 	int32_t right_value = unsigned_to_signed(right.value);
 
-	// If we're performing a division which results in a fractional answer,
-	// then we can't fold this as integers
-	if (operator == TOKEN_DIV && left_value % right_value != 0) {
-		return false;
+	if (operator == TOKEN_DIV) {
+		// If we're performing a division which results in a fractional answer,
+		// then we can't fold this as integers
+		if (left_value % right_value != 0) {
+			return false;
+		} else if (right_value == 0) {
+			// Attempt to divide by zero
+			err_fatal(parser, &parser->lexer.token, "Attempt to divide by 0");
+			return false;
+		}
 	}
 
 	// Compute the integer result as a 32 bit integer in case it exceeds the
@@ -808,13 +814,21 @@ static bool fold_arith(Parser *parser, TokenType operator, Operand *left,
 	}
 
 	// Only fold if both are numbers
-	if (!operand_is_number(left) || !operand_is_number(&right)) {
+	if (!operand_is_num(left) || !operand_is_num(&right)) {
 		return false;
 	}
 
 	// Extract values and compute result
 	double left_value = operand_to_num(parser, left);
 	double right_value = operand_to_num(parser, &right);
+
+	// Check we're not dividing by zero
+	if (operator == TOKEN_DIV && right_value == 0.0) {
+		err_fatal(parser, &parser->lexer.token, "Attempt to divide by 0");
+		return false;
+	}
+
+	// Calculate the result
 	double result = arith_number(operator, left_value, right_value);
 
 	// Set resulting operand
@@ -929,7 +943,7 @@ static bool fold_ord(Parser *parser, TokenType operator, Operand *left,
 		int16_t left_value = unsigned_to_signed(left->value);
 		int16_t right_value = unsigned_to_signed(right.value);
 		ord_number(result, operator, left_value, right_value);
-	} else if (operand_is_number(left) && operand_is_number(&right)) {
+	} else if (operand_is_num(left) && operand_is_num(&right)) {
 		// Comparing two numbers
 		double left_value = operand_to_num(parser, left);
 		double right_value = operand_to_num(parser, &right);
@@ -1175,6 +1189,13 @@ static bool binary_is_valid(TokenType operator, OpType op) {
 // Emit bytecode for a binary arithmetic operation
 static void binary_arith(Parser *parser, uint16_t slot, TokenType operator,
 		Operand *left, Operand right) {
+	// Check we're not dividing by zero
+	if (operator == TOKEN_DIV && operand_is_num(&right) &&
+			operand_to_num(parser, &right) == 0.0) {
+		err_fatal(parser, &parser->lexer.token, "Attempt to divide by 0");
+		return;
+	}
+
 	// Emit the operation
 	BytecodeOpcode opcode = opcode_arith(operator, left->type, right.type);
 	fn_emit(parser_fn(parser), opcode, slot, left->value, right.value);
