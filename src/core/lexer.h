@@ -137,7 +137,7 @@ typedef struct {
 
 // Create a new lexer on an interpreter state in the package `pkg`, lexing the
 // source code at `source`
-Lexer lexer_new(HyState *state, Index pkg, Index source);
+Lexer lexer_new(HyState *state, Index pkg_index, Index src_index);
 
 // Lex the next token in the source code
 void lexer_next(Lexer *lexer);

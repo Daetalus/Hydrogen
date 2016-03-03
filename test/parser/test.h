@@ -29,7 +29,7 @@ extern "C" {
 	HyState *state = hy_new();                                       \
 	Index pkg_index = pkg_new(state);                                \
 	Package *pkg = &vec_at(state->packages, pkg_index);              \
-	Index src_index = pkg_add_string(pkg, source);                   \
+	Index src_index = state_add_source_string(state, source);        \
 	Index main_fn;                                                   \
 	HyError *err = pkg_parse(pkg, src_index, &main_fn);              \
 	if (err != NULL) {                                               \

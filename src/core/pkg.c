@@ -35,7 +35,6 @@ Index pkg_new(HyState *state) {
 	Package *pkg = &vec_last(state->packages);
 	Index index = vec_len(state->packages) - 1;
 	pkg->name = NULL;
-	vec_new(pkg->sources, Source, 4);
 	pkg->parser = parser_new(state, index);
 	vec_new(pkg->names, Identifier, 8);
 	vec_new(pkg->locals, HyValue, 8);
@@ -45,14 +44,7 @@ Index pkg_new(HyState *state) {
 
 // Releases resources allocated by a package
 void pkg_free(Package *pkg) {
-	for (uint32_t i = 0; i < vec_len(pkg->sources); i++) {
-		Source *src = &vec_at(pkg->sources, i);
-		free(src->file);
-		free(src->contents);
-	}
-
 	free(pkg->name);
-	vec_free(pkg->sources);
 	parser_free(&pkg->parser);
 	vec_free(pkg->names);
 	vec_free(pkg->locals);
@@ -75,7 +67,7 @@ HyError * pkg_parse(Package *pkg, Index source, Index *main_fn) {
 	// Check for error
 	if (state->error != NULL) {
 		// Reset the error
-		return vm_reset_error(state);
+		return state_reset_error(state);
 	}
 
 	// Set the main function's index
@@ -83,59 +75,6 @@ HyError * pkg_parse(Package *pkg, Index source, Index *main_fn) {
 		*main_fn = index;
 	}
 	return NULL;
-}
-
-
-// Returns the contents of a file
-static char * file_contents(char *path) {
-	FILE *f = fopen(path, "r");
-	if (f == NULL) {
-		return NULL;
-	}
-
-	// Get the length of the file
-	fseek(f, 0, SEEK_END);
-	size_t length = ftell(f);
-	rewind(f);
-
-	// Read its contents
-	char *contents = malloc(sizeof(char) * (length + 1));
-	fread(contents, sizeof(char), length, f);
-	fclose(f);
-	contents[length] = '\0';
-	return contents;
-}
-
-
-// Adds a file as a source on the package
-Index pkg_add_file(Package *pkg, char *path) {
-	// Read the contents of the file
-	char *contents = file_contents(path);
-	if (contents == NULL) {
-		return NOT_FOUND;
-	}
-
-	vec_inc(pkg->sources);
-	Source *src = &vec_last(pkg->sources);
-	src->contents = contents;
-
-	// Copy the file path into our own heap allocated string
-	src->file = malloc(strlen(path) + 1);
-	strcpy(src->file, path);
-	return vec_len(pkg->sources) - 1;
-}
-
-
-// Adds a string as a source on the package
-Index pkg_add_string(Package *pkg, char *source) {
-	vec_inc(pkg->sources);
-	Source *src = &vec_last(pkg->sources);
-	src->file = NULL;
-
-	// Copy the source code into our own heap allocated string
-	src->contents = malloc(strlen(source) + 1);
-	strcpy(src->contents, source);
-	return vec_len(pkg->sources) - 1;
 }
 
 

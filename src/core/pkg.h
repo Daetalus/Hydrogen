@@ -11,28 +11,12 @@
 #include "parser.h"
 
 
-// Some source code, either from a file or string
-typedef struct {
-	// The path to the file the source code came from, or NULL if the source
-	// code didn't come from a file
-	char *file;
-
-	// The source code itself
-	char *contents;
-} Source;
-
-
 // A package is a collection of variables (including functions, since function
 // are variables), and struct definitions
 typedef struct {
 	// The name of the package, used when the user wants to import the package
 	// from somewhere
 	char *name;
-
-	// A package can have multiple source code locations associated with it,
-	// from files, strings, or definitions made using the API. So we need an
-	// array of source locations
-	Vec(Source) sources;
 
 	// A parser, to generate bytecode from source code. This is kept in the
 	// package so we can save which variables we've defined, etc for each time
@@ -59,12 +43,6 @@ void pkg_free(Package *pkg);
 // and setting `main_fn` to the index of the function that will execute the
 // code at the top level of the provided source code
 HyError * pkg_parse(Package *pkg, Index source, Index *main_fn);
-
-// Adds a file as a source on the package
-Index pkg_add_file(Package *pkg, char *path);
-
-// Adds a string as a source on the package
-Index pkg_add_string(Package *pkg, char *source);
 
 // Finds a package with the name `name`
 Index pkg_find(HyState *state, char *name, uint32_t length);

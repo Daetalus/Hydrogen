@@ -13,10 +13,10 @@ extern "C" {
 
 
 // Creates a new lexer
-#define LEXER(code)                                                       \
-	HyState *state = hy_new();                                            \
-	Index pkg = pkg_new(state);                                           \
-	Index source = pkg_add_string(&vec_at(state->packages, pkg), (code)); \
+#define LEXER(code)                                        \
+	HyState *state = hy_new();                             \
+	Index pkg = pkg_new(state);                            \
+	Index source = state_add_source_string(state, (code)); \
 	Lexer lexer = lexer_new(state, pkg, source);
 
 

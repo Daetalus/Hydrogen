@@ -157,10 +157,8 @@ static int digits(int number) {
 
 
 // Prints a line in a source code object
-static void print_location(HyState *state, Index pkg_index, Index src_index,
-		uint32_t line) {
-	Package *pkg = &vec_at(state->packages, pkg_index);
-	Source *src = &vec_at(pkg->sources, src_index);
+static void print_location(HyState *state, Index src_index, uint32_t line) {
+	Source *src = &vec_at(state->sources, src_index);
 	if (src->file == NULL) {
 		printf("<string>:%d", line);
 	} else {
@@ -261,7 +259,7 @@ static void print_info(HyState *state, Index ins_index, Instruction ins) {
 	case STRUCT_SET_F: {
 		Function *fn = &vec_at(state->functions, ins_arg(ins, 2));
 		printf("    ; ");
-		print_location(state, fn->package, fn->source, fn->line);
+		print_location(state, fn->source, fn->line);
 		break;
 	}
 
@@ -327,7 +325,7 @@ void debug_ins(HyState *state, Function *fn, Index ins_index) {
 // Pretty prints the entire bytecode of a function to the standard output
 void debug_fn(HyState *state, Function *fn) {
 	// File and line
-	print_location(state, fn->package, fn->source, fn->line);
+	print_location(state, fn->source, fn->line);
 
 	// Name
 	if (fn->name != NULL) {
@@ -383,7 +381,7 @@ static void print_fields(StructDefinition *def, bool value_predicate) {
 void debug_struct(HyState *state, StructDefinition *def) {
 	// Name
 	printf("Struct `%.*s`, ", def->length, def->name);
-	print_location(state, def->package, def->source, def->line);
+	print_location(state, def->source, def->line);
 
 	// Fields
 	printf("    fields: ");
@@ -435,24 +433,22 @@ HyError * parse_and_print_bytecode(HyState *state, Index index, Index source) {
 
 // Read source code from a file and parse it into bytecode, printing it to
 // the standard output
-HyError * hy_print_bytecode_file(HyState *state, HyPackage index, char *path) {
-	Package *pkg = &vec_at(state->packages, index);
-	Index source = pkg_add_file(pkg, path);
+HyError * hy_print_bytecode_file(HyState *state, HyPackage pkg, char *path) {
+	Index source = state_add_source_file(state, path);
 
 	// Check we could open the file
 	if (source == NOT_FOUND) {
 		return err_failed_to_open_file(path);
 	}
 
-	return parse_and_print_bytecode(state, index, source);
+	return parse_and_print_bytecode(state, pkg, source);
 }
 
 
 // Parse source code into bytecode and print it to the standard output. An
 // error object is returned if one occurred during parsing, otherwise NULL
 // is returned
-HyError * hy_print_bytecode_string(HyState *state, HyPackage index, char *src) {
-	Package *pkg = &vec_at(state->packages, index);
-	Index source = pkg_add_string(pkg, src);
-	return parse_and_print_bytecode(state, index, source);
+HyError * hy_print_bytecode_string(HyState *state, HyPackage pkg, char *src) {
+	Index source = state_add_source_string(state, src);
+	return parse_and_print_bytecode(state, pkg, source);
 }

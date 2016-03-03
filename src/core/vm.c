@@ -45,6 +45,7 @@ HyError * hy_run_string(HyState *state, char *source) {
 HyState * hy_new(void) {
 	HyState *state = malloc(sizeof(HyState));
 
+	vec_new(state->sources, Source, 4);
 	vec_new(state->packages, Package, 4);
 	vec_new(state->functions, Function, 8);
 	vec_new(state->natives, NativeFunction, 8);
@@ -65,6 +66,11 @@ HyState * hy_new(void) {
 
 // Release all resources allocated by an interpreter state
 void hy_free(HyState *state) {
+	for (uint32_t i = 0; i < vec_len(state->sources); i++) {
+		Source *src = &vec_at(state->sources, i);
+		free(src->file);
+		free(src->contents);
+	}
 	for (uint32_t i = 0; i < vec_len(state->packages); i++) {
 		pkg_free(&vec_at(state->packages, i));
 	}
@@ -81,6 +87,7 @@ void hy_free(HyState *state) {
 		free(vec_at(state->strings, i));
 	}
 
+	vec_free(state->sources);
 	vec_free(state->packages);
 	vec_free(state->functions);
 	vec_free(state->natives);
@@ -95,7 +102,7 @@ void hy_free(HyState *state) {
 
 
 // Resets an interpreter state's error, returning the current error
-HyError * vm_reset_error(HyState *state) {
+HyError * state_reset_error(HyState *state) {
 	HyError *err = state->error;
 	state->error = NULL;
 	return err;
@@ -103,7 +110,9 @@ HyError * vm_reset_error(HyState *state) {
 
 
 // Parses and runs some source code
-HyError * vm_parse_and_run(HyState *state, Package *pkg, Index source) {
+HyError * vm_parse_and_run(HyState *state, HyPackage pkg_index, Index source) {
+	Package *pkg = &vec_at(state->packages, pkg_index);
+
 	// Parse the source code
 	Index main_fn = 0;
 	HyError *err = pkg_parse(pkg, source, &main_fn);
@@ -119,9 +128,8 @@ HyError * vm_parse_and_run(HyState *state, Package *pkg, Index source) {
 // Execute a file on a package. The file's contents will be read and executed
 // as source code. The file's path will be used in relevant errors. An error
 // object is returned if one occurs, otherwise NULL is returned
-HyError * hy_pkg_run_file(HyState *state, HyPackage index, char *path) {
-	Package *pkg = &vec_at(state->packages, index);
-	Index source = pkg_add_file(pkg, path);
+HyError * hy_pkg_run_file(HyState *state, HyPackage pkg, char *path) {
+	Index source = state_add_source_file(state, path);
 
 	// Check we could find the file
 	if (source == NOT_FOUND) {
@@ -135,9 +143,8 @@ HyError * hy_pkg_run_file(HyState *state, HyPackage index, char *path) {
 
 // Execute some source code on a package. An error object is returned if one
 // occurs, otherwise NULL is returned
-HyError * hy_pkg_run_string(HyState *state, HyPackage index, char *source) {
-	Package *pkg = &vec_at(state->packages, index);
-	Index source_index = pkg_add_string(pkg, source);
+HyError * hy_pkg_run_string(HyState *state, HyPackage pkg, char *source) {
+	Index source_index = state_add_source_string(state, source);
 	return vm_parse_and_run(state, pkg, source_index);
 }
 
@@ -151,7 +158,7 @@ Index state_add_constant(HyState *state, HyValue constant) {
 
 
 // Creates a new string constant that is `length` bytes long
-Index state_add_string(HyState *state, uint32_t length) {
+Index state_add_literal(HyState *state, uint32_t length) {
 	vec_inc(state->strings);
 	vec_last(state->strings) = malloc(sizeof(String) + length + 1);
 	String *string = vec_last(state->strings);
@@ -180,6 +187,59 @@ Index state_add_field(HyState *state, Identifier ident) {
 	last->name = ident.name;
 	last->length = ident.length;
 	return vec_len(state->fields) - 1;
+}
+
+
+// Returns the contents of a file
+static char * file_contents(char *path) {
+	FILE *f = fopen(path, "r");
+	if (f == NULL) {
+		return NULL;
+	}
+
+	// Get the length of the file
+	fseek(f, 0, SEEK_END);
+	size_t length = ftell(f);
+	rewind(f);
+
+	// Read its contents
+	char *contents = malloc(sizeof(char) * (length + 1));
+	fread(contents, sizeof(char), length, f);
+	fclose(f);
+	contents[length] = '\0';
+	return contents;
+}
+
+
+// Adds a file as a source code object on the interpreter
+Index state_add_source_file(HyState *state, char *path) {
+	// Read the contents of the file
+	char *contents = file_contents(path);
+	if (contents == NULL) {
+		return NOT_FOUND;
+	}
+
+	vec_inc(state->sources);
+	Source *src = &vec_last(state->sources);
+	src->contents = contents;
+
+	// Copy the file path into our own heap allocated string
+	src->file = malloc(strlen(path) + 1);
+	strcpy(src->file, path);
+	return vec_len(state->sources) - 1;
+}
+
+
+// Adds a string as a source code object on the interpreter
+Index state_add_source_string(HyState *state, char *source) {
+	vec_inc(state->sources);
+	Source *src = &vec_last(state->sources);
+	src->file = NULL;
+
+	// Copy the source code into our own heap allocated string
+	src->contents = malloc(strlen(source) + 1);
+	strcpy(src->contents, source);
+	return vec_len(state->sources) - 1;
 }
 
 

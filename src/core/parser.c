@@ -355,8 +355,7 @@ static Index import_find(Parser *parser, char *name, uint32_t length) {
 // already been loaded. Returns the index of the newly imported package
 static Index import_new(Parser *parser, Token *token, char *path, char *name) {
 	// Find the path to the actual package
-	Package *parent = &vec_at(parser->state->packages, parser->package);
-	Source *source = &vec_at(parent->sources, parser->source);
+	Source *source = &vec_at(parser->state->sources, parser->source);
 	char *resolved = import_pkg_path(source->file, path);
 	if (resolved != path) {
 		free(path);
@@ -368,15 +367,15 @@ static Index import_new(Parser *parser, Token *token, char *path, char *name) {
 	child->name = name;
 
 	// Add a file to the package
-	Index child_source = pkg_add_file(child, resolved);
-	if (child_source == NOT_FOUND) {
+	Index child_src = state_add_source_file(parser->state, resolved);
+	if (child_src == NOT_FOUND) {
 		// Failed to open file
 		err_fatal(parser, token, "Undefined import package");
 		return NOT_FOUND;
 	}
 
 	// Compile the package
-	Index main_fn = parser_parse(&child->parser, child_source);
+	Index main_fn = parser_parse(&child->parser, child_src);
 
 	// Insert a call to the package's main function
 	uint16_t slot = local_reserve(parser);
@@ -851,7 +850,7 @@ static bool fold_concat(Parser *parser, Operand *left, Operand right) {
 
 	// Concatenate strings into result
 	uint32_t length = left_str->length + right_str->length;
-	Index index = state_add_string(parser->state, length);
+	Index index = state_add_literal(parser->state, length);
 	String *result = vec_at(parser->state->strings, index);
 	strncpy(&result->contents[0], left_str->contents, left_str->length);
 	strncpy(&result->contents[left_str->length], right_str->contents,
@@ -1648,7 +1647,7 @@ static Operand operand_string(Parser *parser) {
 	// Extract the literal into a new string on the interpreter
 	// Subtract 2 as the token's length includes the two quotes surrounding
 	// the string
-	Index index = state_add_string(parser->state, lexer->token.length - 2);
+	Index index = state_add_literal(parser->state, lexer->token.length - 2);
 	String *string = vec_at(parser->state->strings, index);
 	lexer_extract_string(lexer, &lexer->token, string->contents);
 

@@ -18,6 +18,17 @@
 #include "value.h"
 
 
+// Some source code, either from a file or string
+typedef struct {
+	// The path to the file the source code came from, or NULL if the source
+	// code didn't come from a file
+	char *file;
+
+	// The source code itself
+	char *contents;
+} Source;
+
+
 // Information stored about a function's caller when a function call is
 // triggered
 typedef struct {
@@ -46,6 +57,7 @@ struct hy_state {
 	// packages in order to simplify the bytecode (we don't have to specify
 	// a package index in each instruction). The cost is that we can only define
 	// 2^16 functions/structs/etc across all packages, rather than per package
+	Vec(Source) sources;
 	Vec(Package) packages;
 	Vec(Function) functions;
 	Vec(NativeFunction) natives;
@@ -80,16 +92,22 @@ struct hy_state {
 Index state_add_constant(HyState *state, HyValue constant);
 
 // Creates a new string constant that is `length` bytes long
-Index state_add_string(HyState *state, uint32_t length);
+Index state_add_literal(HyState *state, uint32_t length);
 
 // Adds a field name to the interpreter state's fields list. If a field matching
 // `ident` already exists, then it returns the index of the existing field
 Index state_add_field(HyState *state, Identifier ident);
 
+// Adds a file as a source code object on the interpreter
+Index state_add_source_file(HyState *state, char *path);
+
+// Adds a string as a source code object on the interpreter
+Index state_add_source_string(HyState *state, char *source);
+
+// Resets an interpreter state's error, returning the current error object
+HyError * state_reset_error(HyState *state);
+
 // Executes a function on the interpreter state
 HyError * vm_run_fn(HyState *state, Index fn);
-
-// Resets an interpreter state's error, returning the current error
-HyError * vm_reset_error(HyState *state);
 
 #endif

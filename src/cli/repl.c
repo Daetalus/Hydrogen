@@ -163,9 +163,6 @@ static void input_backspace(Input *input) {
 		vec_remove(*line, input->x - 1);
 		input->x--;
 		input_draw_line(input);
-	} else {
-		// Merge this line and the previous one
-		// TODO
 	}
 }
 
@@ -174,12 +171,6 @@ static void input_backspace(Input *input) {
 static void input_delete(Input *input) {
 	Line *line = &vec_at(input->lines, input->y);
 	vec_remove(*line, input->x);
-}
-
-
-// Insert a newline at the current cursor location
-static void input_newline(Input *input) {
-	// TODO
 }
 
 
