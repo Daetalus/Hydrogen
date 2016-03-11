@@ -16,6 +16,7 @@ Index struct_new(HyState *state, Index pkg) {
 	def->name = NULL;
 	def->length = 0;
 	def->package = pkg;
+	def->line = 0;
 	def->constructor = NOT_FOUND;
 	vec_new(def->fields, Identifier, 8);
 	vec_new(def->values, HyValue, 8);
@@ -41,6 +42,22 @@ Index struct_find(HyState *state, Index pkg, char *name, uint32_t length) {
 		}
 	}
 	return NOT_FOUND;
+}
+
+
+// Creates a new field with the default value `value` on the struct
+Index struct_field_new(StructDefinition *def, char *name, uint32_t length,
+		HyValue value) {
+	// Name of field
+	vec_inc(def->fields);
+	Identifier *ident = &vec_last(def->fields);
+	ident->name = name;
+	ident->length = length;
+
+	// Default value
+	vec_inc(def->values);
+	vec_last(def->values) = value;
+	return vec_len(def->fields) - 1;
 }
 
 

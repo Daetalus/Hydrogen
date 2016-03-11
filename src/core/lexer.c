@@ -176,11 +176,10 @@ static void block_comment(Lexer *lexer) {
 		token.start = start - 2;
 		token.length = 2;
 
-		HyError *err = err_new();
-		err_print(err, "Unterminated block comment");
-		err_attach_token(lexer->state, err, &token);
-		err_trigger(lexer->state, err);
-		return;
+		Error err = err_new(lexer->state);
+		err_print(&err, "Unterminated block comment");
+		err_code(&err, &token);
+		err_trigger(&err);
 	}
 
 	// We've already consumed the first character of the final terminator, so
@@ -228,10 +227,10 @@ static void string(Lexer *lexer) {
 
 	// Check the string has a terminating quote
 	if (eof(lexer)) {
-		HyError *err = err_new();
-		err_print(err, "Unterminated string literal");
-		err_attach_token(lexer->state, err, token);
-		err_trigger(lexer->state, err);
+		Error err = err_new(lexer->state);
+		err_print(&err, "Unterminated string literal");
+		err_code(&err, token);
+		err_trigger(&err);
 		return;
 	}
 
@@ -305,11 +304,11 @@ static void ensure_not_identifier(Lexer *lexer) {
 
 	// Trigger an error if the current character is part of an identifier
 	if (is_identifier(current(lexer))) {
-		HyError *err = err_new();
-		err_print(err, "Unexpected identifier after number ");
-		err_print_token(err, token);
-		err_attach_token(lexer->state, err, token);
-		err_trigger(lexer->state, err);
+		Error err = err_new(lexer->state);
+		err_print(&err, "Unexpected identifier after number ");
+		err_print_token(&err, token);
+		err_code(&err, token);
+		err_trigger(&err);
 	}
 }
 
@@ -370,11 +369,11 @@ static bool number(Lexer *lexer) {
 		token->type = TOKEN_IDENTIFIER;
 		token->length = 2;
 
-		HyError *err = err_new();
-		err_print(err, "Invalid base prefix ");
-		err_print_token(err, token);
-		err_attach_token(lexer->state, err, token);
-		err_trigger(lexer->state, err);
+		Error err = err_new(lexer->state);
+		err_print(&err, "Invalid base prefix ");
+		err_print_token(&err, token);
+		err_code(&err, token);
+		err_trigger(&err);
 		return false;
 	}
 
@@ -682,13 +681,13 @@ void invalid_escape_sequence(Lexer *lexer, Token *string, char *start) {
 	}
 
 	// Trigger error
-	HyError *err = err_new();
-	err_print(err, "Invalid escape sequence");
+	Error err = err_new(lexer->state);
+	err_print(&err, "Invalid escape sequence");
 	if (display_sequence) {
-		err_print(err, " `%.*s`", token.length, token.start);
+		err_print(&err, " `%.*s`", token.length, token.start);
 	}
-	err_attach_token(lexer->state, err, &token);
-	err_trigger(lexer->state, err);
+	err_code(&err, &token);
+	err_trigger(&err);
 }
 
 

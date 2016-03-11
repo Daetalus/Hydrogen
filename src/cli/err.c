@@ -143,7 +143,7 @@ static void print_code(HyError *err, int align) {
 
 	// Replaces spaces on the line of code
 	uint32_t tab_padding;
-	char *tabless_line = replace_tabs(err->line_contents, &tab_padding);
+	char *tabless_line = replace_tabs(err->code, &tab_padding);
 
 	// Code
 	print_color(COLOR_WHITE);
@@ -157,7 +157,7 @@ static void print_code(HyError *err, int align) {
 
 	// Underline
 	fputc('^', stderr);
-	for (int32_t i = 0; i < err->length - 1; i++) {
+	for (int i = 0; i < (int) err->length - 1; i++) {
 		fputc('~', stderr);
 	}
 
@@ -172,7 +172,7 @@ void print_err(HyError *err) {
 	int align = print_description(err);
 
 	// Line of source code
-	if (err->line_contents != NULL) {
+	if (err->code != NULL) {
 		print_code(err, align);
 	}
 }

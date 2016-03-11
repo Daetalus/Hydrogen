@@ -64,8 +64,8 @@ typedef struct {
 #define vec_capacity(array) ((array).capacity)
 
 
-// Increases the capacity of a vector if the length of the array plus 1 exceeds
-// the current capacity
+// Increases the capacity of a vector if the current capacity of the array is
+// less than `limit`, increasing the capacity to `new_capacity`
 #define vec_resize(array, limit, new_capacity)                          \
 	if ((limit) > vec_capacity(array)) {                                \
 		vec_capacity(array) = (new_capacity);                           \

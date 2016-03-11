@@ -6,151 +6,158 @@
 #include <setjmp.h>
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
 
 #include "err.h"
 #include "vm.h"
+#include "debug.h"
 
 
-// The maximum size of an error description
-#define MAX_DESCRIPTION_SIZE 1023
+// The maximum length that can be printed by a single print operation
+#define MIN_CAPACITY 128
 
-// The maximum number of characters to print when printing an unrecognised
-// token
+// The maximum number of characters to print for an unrecognised token
 #define MAX_UNRECOGNISED_CHARACTERS 25
+
+// The number of spaces to have in a tab character
+#define TABS_TO_SPACES 2
 
 
 // Creates a new error object without any associated details yet. The error can
 // be constructed using the building functions below
-HyError * err_new(void) {
+Error err_new(HyState *state) {
+	// Create the underlying error object
 	HyError *err = malloc(sizeof(HyError));
-
-	// Allocate a description and place a NULL terminator at the start
-	err->description = malloc(MAX_DESCRIPTION_SIZE + 1);
-	err->description[0] = '\0';
-
+	err->description = NULL;
 	err->file = NULL;
-	err->line_contents = NULL;
+	err->code = NULL;
 	err->line = 0;
 	err->column = 0;
 	err->length = 0;
-	err->stack_trace = NULL;
-	err->stack_trace_length = 0;
-	return err;
-}
 
-
-// Creates a new failed to open file error
-HyError * err_failed_to_open_file(char *path) {
-	HyError *err = err_new();
-	err->file = malloc(strlen(path) + 1);
-	strcpy(err->file, path);
-	err_print(err, "Failed to open file");
-	return err;
+	Error parent;
+	parent.native = err;
+	parent.state = state;
+	vec_new(parent.description, char, 128);
+	return parent;
 }
 
 
 // Release resources allocated by an error object
 void hy_err_free(HyError *err) {
+	if (err == NULL) {
+		return;
+	}
+
 	free(err->description);
 	free(err->file);
-	free(err->line_contents);
-	free(err->stack_trace);
+	free(err->code);
+	free(err);
 }
 
 
 // Prints a string to an error's description using a `va_list` as arguments to
 // the format string
-void err_print_varargs(HyError *err, char *fmt, va_list args) {
-	// Calculate the length and remaining capacity of the description
-	uint32_t length = strlen(err->description);
-	uint32_t capacity = MAX_DESCRIPTION_SIZE - length;
+void err_print_va(Error *err, char *fmt, va_list args) {
+	// Ensure the description has at least 128 characters of extra capacity
+	uint32_t limit = vec_len(err->description) + MIN_CAPACITY;
+	vec_resize(err->description, limit, vec_capacity(err->description) * 2);
 
-	// Print the format string to the description
-	vsnprintf(&err->description[length], capacity, fmt, args);
+	// Print the message
+	char *description = &vec_at(err->description, vec_len(err->description));
+	int size = vsnprintf(description, MIN_CAPACITY, fmt, args);
+	ASSERT(size < MIN_CAPACITY);
+	vec_len(err->description) += size;
 }
 
 
 // Prints a string to an error's description
-void err_print(HyError *err, char *fmt, ...) {
+void err_print(Error *err, char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
-	err_print_varargs(err, fmt, args);
+	err_print_va(err, fmt, args);
 	va_end(args);
 }
 
 
 // Prints an unrecognised token to a description buffer
-static void print_unrecognised(char *description, uint32_t capacity,
-		Token *token) {
+static void err_print_unrecognised(Error *err, Token *token) {
 	// Print until the first whitespace character, or the 25th character
 	char *cursor = token->start;
-	while (*cursor != '\0' && *cursor != ' ' && *cursor != '\t' &&
-			*cursor != '\n' && *cursor != '\r' &&
+	while (*cursor != '\0' && !isspace(*cursor) &&
 			cursor - token->start <= MAX_UNRECOGNISED_CHARACTERS) {
 		cursor++;
 	}
-	uint32_t length = cursor - token->start;
 
 	// Write to the description string
+	uint32_t length = cursor - token->start;
 	if (length == 0) {
 		// Couldn't print any characters
-		snprintf(description, capacity, "unrecognised token");
+		err_print(err, "<unrecognised>");
 	} else {
-		snprintf(description, capacity, "unrecognised token `%.*s`", length,
-			token->start);
+		// Print part of the unrecognised token
+		err_print(err, "<unrecognised `%.*s`>", length, token->start);
 	}
 }
 
 
 // Returns the length of the line starting at `cursor`
 static uint32_t line_length(char *cursor) {
-	uint32_t length = 0;
+	char *start = cursor;
 	while (*cursor != '\0' && *cursor != '\n' && *cursor != '\r') {
-		length++;
 		cursor++;
 	}
-	return length;
+	return cursor - start;
 }
 
 
 // Prints a token to an error's description, surrounded in grave accents
-void err_print_token(HyError *err, Token *token) {
-	// Calculate the length and remaining capacity of the description
-	// Keep track of the capacity so we don't potentially cause a buffer
-	// overflow
-	uint32_t length = strlen(err->description);
-	uint32_t capacity = MAX_DESCRIPTION_SIZE - length;
-
-	// If the token has a length, then we can just print it directly from its
-	// source
-	char *description = &err->description[length];
-	if (token->type == TOKEN_ELSE_IF) {
+void err_print_token(Error *err, Token *token) {
+	switch (token->type) {
+	case TOKEN_ELSE_IF:
 		// `else if` has the potential to be spread across multiple lines
 		// because of the arbitrary amount of whitespace between the two words,
 		// so print it separately from the rest of the tokens
-		snprintf(description, capacity, "`else if`");
-	} else if (token->type == TOKEN_STRING) {
+		err_print(err, "`else if`");
+		break;
+
+	case TOKEN_STRING: {
 		// Strings also have the potential to span multiple lines, so print
 		// only the first line
-		uint32_t line = line_length(token->start);
-		uint32_t actual = line < token->length ? line : token->length;
-		snprintf(description, capacity, "`%.*s`", actual, token->start);
-	} else if (token->length > 0) {
-		snprintf(description, capacity, "`%.*s`", token->length, token->start);
-	} else if (token->type == TOKEN_EOF) {
-		snprintf(description, capacity, "end of file");
-	} else if (token->type == TOKEN_UNRECOGNISED) {
-		print_unrecognised(description, capacity, token);
-	} else {
-		snprintf(description, capacity, "invalid token");
+		uint32_t line_len = line_length(token->start);
+		uint32_t length = line_len < token->length ? line_len : token->length;
+		err_print(err, "`%.*s`", length, token->start);
+		break;
+	}
+
+	case TOKEN_EOF:
+		// Print `end of file`
+		err_print(err, "end of file");
+		break;
+
+	case TOKEN_UNRECOGNISED:
+		// Unrecognised token
+		err_print_unrecognised(err, token);
+		break;
+
+	default:
+		if (token->length > 0) {
+			// Print the token straight from the source code
+			err_print(err, "`%.*s`", token->length, token->start);
+			break;
+		}
+
+		// This shouldn't happen
+		err_print(err, "<invalid>");
+		break;
 	}
 }
 
 
 // Returns a pointer to the start of the first line before the character at
 // `cursor`
-static char * line_start(char *cursor, char *source) {
-	while (cursor >= source && *cursor != '\n' && *cursor != '\r') {
+static char * line_start(char *cursor, char *start) {
+	while (cursor >= start && *cursor != '\n' && *cursor != '\r') {
 		cursor--;
 	}
 	return cursor + 1;
@@ -166,6 +173,8 @@ static uint32_t line_number(char *cursor, char *source) {
 			if (cursor > source && *cursor == '\n' && *(cursor - 1) == '\r') {
 				cursor--;
 			}
+
+			// Found a new line
 			line++;
 		}
 		cursor--;
@@ -178,51 +187,82 @@ static uint32_t line_number(char *cursor, char *source) {
 static uint32_t column_number(char *cursor, char *source) {
 	uint32_t column = 0;
 	while (cursor >= source && *cursor != '\n' && *cursor != '\r') {
+		if (*cursor == '\t') {
+			// Since we're treating tabs as multiple spaces, add some extra to
+			// the column number to account for it
+			column += TABS_TO_SPACES;
+		} else {
+			column++;
+		}
+
 		cursor--;
-		column++;
 	}
 	return column;
 }
 
 
-// Associate a token with the error
-void err_attach_token(HyState *state, HyError *err, Token *token) {
-	Source *src = &vec_at(state->sources, token->source);
+// Associates a line of source code with the error
+void err_code(Error *err, Token *token) {
+	HyError *native = err->native;
+	Source *src = &vec_at(err->state->sources, token->source);
 
-	// Copy across the file path
+	// File path
 	if (src->file != NULL) {
-		err->file = malloc(strlen(src->file) + 1);
-		strcpy(err->file, src->file);
+		native->file = malloc(strlen(src->file) + 1);
+		strcpy(native->file, src->file);
 	}
 
-	// Copy the line contents
+	// Line of source code
 	char *start = line_start(token->start, src->contents);
 	uint32_t length = line_length(start);
-	err->line_contents = malloc(length + 1);
-	strncpy(err->line_contents, start, length);
-	err->line_contents[length] = '\0';
+	native->code = malloc(length + 1);
+	strncpy(native->code, start, length);
+	native->code[length] = '\0';
 
-	// Ensure the length of the token doesn't extend past the end of the line
-	uint32_t max_length = line_length(token->start);
-	if (token->length > max_length) {
-		err->length = max_length;
+	// TODO: Handle length of unrecognised tokens properly
+	if (token->type == TOKEN_EOF) {
+		// Give the end of file token a length of 1 so we actually point to it
+		native->length = 1;
 	} else {
-		err->length = token->length;
+		// Ensure the length of the token doesn't extend past the end of the
+		// line
+		uint32_t max_length = line_length(token->start);
+		if (token->length > max_length) {
+			native->length = max_length;
+		} else {
+			native->length = token->length;
+		}
 	}
 
-	// Copy across the line and column numbers
-	err->line = line_number(token->start, src->contents);
-	err->column = column_number(token->start, src->contents);
+	// Line and column numbers
+	native->line = line_number(token->start, src->contents);
+	native->column = column_number(token->start, src->contents);
 }
 
 
-// Triggers a jump back to the error guard with the built error
-void err_trigger(HyState *state, HyError *err) {
-	if (state->error != NULL) {
-		// This shouldn't happen, but free the previous error anyway
-		hy_err_free(state->error);
-	}
+// Associates a file with an error object
+void err_file(Error *err, char *file) {
+	err->native->file = malloc(strlen(file) + 1);
+	strcpy(err->native->file, file);
+}
 
-	state->error = err;
-	longjmp(state->error_jmp, 1);
+
+// Constructs the native error object from the parent error, freeing resources
+// allocated by the parent at the same time
+HyError * err_make(Error *err) {
+	// Copy across the description into the native error
+	uint32_t length = vec_len(err->description);
+	err->native->description = malloc(length + 1);
+	strncpy(err->native->description, &vec_at(err->description, 0), length);
+	err->native->description[length] = '\0';
+	vec_free(err->description);
+	return err->native;
+}
+
+
+// Stops execution of the current code and jumps back to the error guard. Frees
+// any resources allocated by the error construction
+void err_trigger(Error *err) {
+	err->state->error = err_make(err);
+	longjmp(err->state->error_jmp, 1);
 }

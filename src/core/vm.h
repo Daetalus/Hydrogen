@@ -104,9 +104,6 @@ Index state_add_source_file(HyState *state, char *path);
 // Adds a string as a source code object on the interpreter
 Index state_add_source_string(HyState *state, char *source);
 
-// Resets an interpreter state's error, returning the current error object
-HyError * state_reset_error(HyState *state);
-
 // Executes a function on the interpreter state
 HyError * vm_run_fn(HyState *state, Index fn);
 

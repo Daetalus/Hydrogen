@@ -438,7 +438,10 @@ HyError * hy_print_bytecode_file(HyState *state, HyPackage pkg, char *path) {
 
 	// Check we could open the file
 	if (source == NOT_FOUND) {
-		return err_failed_to_open_file(path);
+		Error err = err_new(state);
+		err_print(&err, "Failed to open file");
+		err_file(&err, path);
+		return err_make(&err);
 	}
 
 	return parse_and_print_bytecode(state, pkg, source);

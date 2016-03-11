@@ -53,7 +53,7 @@ static int bytecode(Config *config) {
 
 	// Release resources
 	hy_free(state);
-	return (err == NULL) ? 0 : 1;
+	return (err == NULL) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 
@@ -79,7 +79,7 @@ static int run(Config *config) {
 
 	// Release resources
 	hy_free(state);
-	return (err == NULL) ? 0 : 1;
+	return (err == NULL) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 

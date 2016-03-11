@@ -25,7 +25,8 @@ typedef struct {
 	// The line of in the source code the struct was defined on
 	uint32_t line;
 
-	// The struct's constructor function, or -1 if no constructor is assigned
+	// The struct's constructor function, or `NOT_FOUND` if no constructor is
+	// assigned
 	Index constructor;
 
 	// The hash of the name of all fields contained in this struct, and their
@@ -45,6 +46,10 @@ void struct_free(StructDefinition *def);
 // Returns the index of the struct with the name `name` that is in the package
 // `pkg`
 Index struct_find(HyState *state, Index pkg, char *name, uint32_t length);
+
+// Creates a new field with the default value `value` on the struct
+Index struct_field_new(StructDefinition *def, char *name, uint32_t length,
+	HyValue value);
 
 // Returns the index of a field with the name `name`
 Index struct_field_find(StructDefinition *def, char *name, uint32_t length);

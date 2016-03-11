@@ -67,7 +67,9 @@ HyError * pkg_parse(Package *pkg, Index source, Index *main_fn) {
 	// Check for error
 	if (state->error != NULL) {
 		// Reset the error
-		return state_reset_error(state);
+		HyError *err = state->error;
+		state->error = NULL;
+		return err;
 	}
 
 	// Set the main function's index

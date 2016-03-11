@@ -38,68 +38,60 @@ static bool parser_is_top_level(Parser *parser) {
 }
 
 
+// Triggers a fatal error unconditionally
+static void err_fatal(Parser *parser, Token *code, char *fmt, ...) {
+	Error err = err_new(parser->state);
 
-//
-//  Error Handling
-//
-
-// Expects a token with type `type` to be the current token on the lexer,
-// triggering an error if it is not found. Variable argument version of the
-// function below
-static void err_unexpected_vararg(Parser *parser, Token *token, char *fmt,
-		va_list args) {
-	HyError *err = err_new();
-
-	// Print format string
-	err_print_varargs(err, fmt, args);
-
-	// Print found token
-	err_print(err, ", found ");
-	err_print_token(err, token);
-
-	// Attach token and trigger error
-	err_attach_token(parser->state, err, token);
-	err_trigger(parser->state, err);
-}
-
-
-// Expects a token with type `type` to be the current token on the lexer,
-// triggering an error if it is not found
-static void err_unexpected(Parser *parser, Token *token, char *fmt, ...) {
+	// Description
 	va_list args;
 	va_start(args, fmt);
-	err_unexpected_vararg(parser, token, fmt, args);
+	err_print_va(&err, fmt, args);
 	va_end(args);
+
+	// Token
+	err_code(&err, code);
+	err_trigger(&err);
 }
 
 
-// Expects a token with type `type` to be the lexer's current token, triggering
-// an error on it if this is not the case
-static void err_expect(Parser *parser, TokenType type, Token *token,
+// Triggers an unexpected token error unconditionally
+static void err_unexpected(Parser *parser, Token *code, char *fmt, ...) {
+	Lexer *lexer = &parser->lexer;
+	Error err = err_new(parser->state);
+
+	// Description
+	va_list args;
+	va_start(args, fmt);
+	err_print_va(&err, fmt, args);
+	va_end(args);
+
+	// Token
+	err_print(&err, ", found ");
+	err_print_token(&err, &lexer->token);
+	err_code(&err, code);
+	err_trigger(&err);
+}
+
+
+// Triggers an error if the lexer's current token doesn't match `expected`
+static void err_expect(Parser *parser, TokenType expected, Token *code,
 		char *fmt, ...) {
-	if (parser->lexer.token.type != type) {
-		// Token doesn't match expected
+	Lexer *lexer = &parser->lexer;
+	if (lexer->token.type != expected) {
+		Error err = err_new(parser->state);
+
+		// Description
 		va_list args;
 		va_start(args, fmt);
-		err_unexpected_vararg(parser, token, fmt, args);
+		err_print_va(&err, fmt, args);
 		va_end(args);
+
+		// Token
+		err_print(&err, ", found ");
+		err_print_token(&err, &lexer->token);
+		err_code(&err, code);
+		err_trigger(&err);
 	}
-}
-
-
-// Triggers a fatal error on the token `token` with the message `fmt`
-static void err_fatal(Parser *parser, Token *token, char *fmt, ...) {
-	HyError *err = err_new();
-
-	// Print format string
-	va_list args;
-	va_start(args, fmt);
-	err_print_varargs(err, fmt, args);
-	va_end(args);
-
-	// Attach token and trigger error
-	err_attach_token(parser->state, err, token);
-	err_trigger(parser->state, err);
 }
 
 
@@ -370,8 +362,11 @@ static Index import_new(Parser *parser, Token *token, char *path, char *name) {
 	Index child_src = state_add_source_file(parser->state, resolved);
 	if (child_src == NOT_FOUND) {
 		// Failed to open file
-		err_fatal(parser, token, "Undefined import package");
-		return NOT_FOUND;
+		Error err = err_new(parser->state);
+		err_print(&err, "Failed to open file");
+		err_code(&err, token);
+		free(resolved);
+		err_trigger(&err);
 	}
 
 	// Compile the package
@@ -395,9 +390,11 @@ static void import(Parser *parser, Token *token) {
 
 	// Validate path
 	if (!import_is_valid(path)) {
+		Error err = err_new(parser->state);
+		err_print(&err, "Invalid import path `%.*s`", path);
+		err_code(&err, token);
 		free(path);
-		err_fatal(parser, token, "Invalid import path");
-		return;
+		err_trigger(&err);
 	}
 
 	// Extract the name of the package from the import path
@@ -406,10 +403,12 @@ static void import(Parser *parser, Token *token) {
 
 	// Check if the import name already exists
 	if (import_find(parser, name, length) != NOT_FOUND) {
+		Error err = err_new(parser->state);
+		err_print(&err, "Package named `%.*s` already imported", name);
+		err_code(&err, token);
 		free(name);
 		free(path);
-		err_fatal(parser, token, "Package already imported");
-		return;
+		err_trigger(&err);
 	}
 
 	// Check if the package has already been loaded
@@ -436,30 +435,28 @@ static void parse_multi_import(Parser *parser) {
 	lexer_next(lexer);
 
 	// Expect at least one string
-	err_expect(parser, TOKEN_STRING, &open_parenthesis,
-		"Expected string after `(` in multi-import");
 
 	// Expect a comma separated list of strings
+	Token comma = lexer->token;
 	while (lexer->token.type == TOKEN_STRING) {
 		// Expect a string
-		err_expect(parser, TOKEN_STRING, &open_parenthesis,
-			"Expected string after `,` in multi-import");
+		err_expect(parser, TOKEN_STRING, &comma,
+			"Expected string after `,` in import");
 
-		// Import it
+		// Import the package
 		import(parser, &lexer->token);
-
-		// Consume the string
 		lexer_next(lexer);
 
 		// Consume an optional comma
 		if (lexer->token.type == TOKEN_COMMA) {
+			comma = lexer->token;
 			lexer_next(lexer);
 		}
 	}
 
 	// Expect a closing parenthesis
-	err_expect(parser, TOKEN_CLOSE_PARENTHESIS, &open_parenthesis,
-		"Expected `)` to close `(` in multi-import");
+	err_expect(parser, TOKEN_STRING, &open_parenthesis,
+		"Expected `)` to close `(` in import");
 	lexer_next(lexer);
 }
 
@@ -1479,18 +1476,17 @@ static void postfix_field_access(Parser *parser, uint16_t slot,
 		Operand *operand) {
 	Lexer *lexer = &parser->lexer;
 
-	// Can only index locals
-	if (operand->type != OP_LOCAL) {
-		err_fatal(parser, &lexer->token, "Attempt to index non-local");
-		return;
-	}
-
 	// Skip the dot
 	Token dot = lexer->token;
 	lexer_next(lexer);
 
 	// Expect an identifier
 	err_expect(parser, TOKEN_IDENTIFIER, &dot, "Expected identifier after `.`");
+
+	// Can only index locals
+	if (operand->type != OP_LOCAL) {
+		err_fatal(parser, &dot, "Attempt to index non-local");
+	}
 
 	// Add the field to the state's field list
 	Identifier ident;
@@ -1557,7 +1553,7 @@ static void postfix_call(Parser *parser, uint16_t slot, Operand *operand) {
 	uint32_t locals_count = parser->scope->locals_count;
 
 	// Operand must be a local, function, or native function
-	uint16_t base;
+	uint16_t base = 0;
 	if (operand->type == OP_LOCAL &&
 			operand->value == parser->scope->locals_count - 1) {
 		// If the local is on the top of the stack, don't bother allocating a
@@ -1571,7 +1567,6 @@ static void postfix_call(Parser *parser, uint16_t slot, Operand *operand) {
 	} else {
 		// Not calling a function
 		err_fatal(parser, &lexer->token, "Attempt to call non-function");
-		return;
 	}
 
 	// Parse the function arguments into consecutive slots on top of the stack
@@ -1680,13 +1675,12 @@ static Operand operand_top_level(Parser *parser, Index package, uint16_t slot) {
 	lexer_next(lexer);
 
 	// Expect a `.`
-	err_expect(parser, TOKEN_DOT, &pkg_name,
-		"Expected `.` after package name `%.*s`", pkg_name.length,
-		pkg_name.start);
+	Token dot = lexer->token;
+	err_expect(parser, TOKEN_DOT, &pkg_name, "Expected `.` after package name");
 	lexer_next(lexer);
 
 	// Expect an identifier
-	err_expect(parser, TOKEN_IDENTIFIER, &pkg_name,
+	err_expect(parser, TOKEN_IDENTIFIER, &dot,
 		"Expected identifier after `.` in package field access");
 
 	// Find the index of the field
@@ -1695,8 +1689,9 @@ static Operand operand_top_level(Parser *parser, Index package, uint16_t slot) {
 	if (field == NOT_FOUND) {
 		// Trigger an undefined field error
 		err_fatal(parser, &lexer->token,
-			"Undefined field `%.*s` on package `%.*s`", lexer->token.length,
-			lexer->token.start, pkg_name.length, pkg_name.start);
+			"Undefined field `%.*s` on package `%.*s`",
+			lexer->token.length, lexer->token.start,
+			pkg_name.length, pkg_name.start);
 	}
 	lexer_next(lexer);
 
@@ -1747,8 +1742,8 @@ static Operand operand_identifier(Parser *parser, uint16_t slot) {
 
 	default:
 		// Undefined variable
-		err_fatal(parser, &lexer->token, "Undefined variable `%.*s`", length,
-			name);
+		err_fatal(parser, &lexer->token, "Undefined variable `%.*s`",
+			length, name);
 		break;
 	}
 
@@ -1769,9 +1764,8 @@ static Operand operand_subexpr(Parser *parser, uint16_t slot) {
 	Operand operand = parse_expr(parser, slot);
 
 	// Expect a closing parenthesis
-	if (lexer->token.type != TOKEN_CLOSE_PARENTHESIS) {
-		err_fatal(parser, &start, "Expected `)` to close `(` in expression");
-	}
+	err_expect(parser, TOKEN_CLOSE_PARENTHESIS, &start,
+		"Expected `)` to close `(` in expression");
 
 	// Skip the closing parenthesis
 	lexer_next(lexer);
@@ -1981,7 +1975,6 @@ static void parse_declaration(Parser *parser) {
 	if (!local_is_unique(parser, name.start, name.length)) {
 		err_fatal(parser, &name, "Variable `%.*s` already defined",
 			name.length, name.start);
-		return;
 	}
 
 	// Parse expression into top level local if this is the uppermost function
@@ -2076,7 +2069,6 @@ static void parse_assignment_or_call(Parser *parser) {
 		while (expr_postfix(parser, slot, &operand)) {}
 	} else {
 		err_unexpected(parser, &ident, "Expected `=` or `(` after identifier");
-		return;
 	}
 
 	// Free the temporary local we allocated for the original identifier
@@ -2331,7 +2323,6 @@ static void parse_break(Parser *parser) {
 	// Ensure we're inside a loop
 	if (parser->scope->loop == NULL) {
 		err_fatal(parser, &lexer->token, "`break` not inside loop");
-		return;
 	}
 
 	// Skip the break token
@@ -2357,6 +2348,7 @@ static uint32_t parse_fn_definition_args(Parser *parser) {
 	Lexer *lexer = &parser->lexer;
 
 	// Expect an opening parenthesis
+	Token open = lexer->token;
 	err_expect(parser, TOKEN_OPEN_PARENTHESIS, &lexer->token,
 		"Expected `(` after function name in declaration");
 	lexer_next(lexer);
@@ -2385,7 +2377,7 @@ static uint32_t parse_fn_definition_args(Parser *parser) {
 	}
 
 	// Expect a closing parenthesis
-	err_expect(parser, TOKEN_CLOSE_PARENTHESIS, &lexer->token,
+	err_expect(parser, TOKEN_CLOSE_PARENTHESIS, &open,
 		"Expected `)` after function declaration arguments");
 	lexer_next(lexer);
 	return arity;
@@ -2503,6 +2495,62 @@ static void parse_return(Parser *parser) {
 
 
 //
+//  Struct Definition
+//
+
+// Parses a struct definition
+void parse_struct(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+
+	// Skip the `struct` token
+	Token struct_keyword = lexer->token;
+	lexer_next(lexer);
+
+	// Expect the name of the struct (an identifier)
+	err_expect(parser, TOKEN_IDENTIFIER, &struct_keyword,
+		"Expected identifier after `struct`");
+	char *name = lexer->token.start;
+	uint32_t length = lexer->token.length;
+
+	// Check no other struct with this name is defined in this package
+	Index pkg = parser->package;
+	if (struct_find(parser->state, pkg, name, length) != NOT_FOUND) {
+		err_fatal(parser, &lexer->token, "Struct `%.*s` is already defined",
+			length, name);
+	}
+	lexer_next(lexer);
+
+	// Create a new struct definition
+	Index def_index = struct_new(parser->state, pkg);
+	StructDefinition *def = &vec_at(parser->state->structs, def_index);
+	def->name = name;
+	def->length = length;
+	def->source = parser->source;
+	def->line = lexer->line;
+
+	// Expect an open brace
+	Token open = lexer->token;
+	err_expect(parser, TOKEN_OPEN_BRACE, &lexer->token,
+		"Expected `{` after struct name");
+	lexer_next(lexer);
+
+	// Expect at least 1 identifier
+	err_expect(parser, TOKEN_IDENTIFIER, &open,
+		"Expected struct field name after `{`");
+
+	// Expect a comma separated list of identifiers
+	while (lexer->token.type == TOKEN_IDENTIFIER) {
+		// Check a field with this name isn't already defined
+
+
+		// Save the name of the field
+
+	}
+}
+
+
+
+//
 //  Blocks and Statements
 //
 
@@ -2511,52 +2559,46 @@ static void parse_statement(Parser *parser) {
 	Lexer *lexer = &parser->lexer;
 
 	switch (lexer->token.type) {
-		// Package import
 	case TOKEN_IMPORT:
 		parse_import(parser);
 		break;
 
-		// Local declaration
 	case TOKEN_LET:
 		parse_declaration(parser);
 		break;
 
-		// If statement
 	case TOKEN_IF:
 		parse_if(parser);
 		break;
 
-		// While loop
 	case TOKEN_WHILE:
 		parse_while(parser);
 		break;
 
-		// Infinite loop
 	case TOKEN_LOOP:
 		parse_loop(parser);
 		break;
 
-		// Break statement
 	case TOKEN_BREAK:
 		parse_break(parser);
 		break;
 
-		// Function definition
 	case TOKEN_FN:
 		parse_fn_definition(parser);
 		break;
 
-		// Return
 	case TOKEN_RETURN:
 		parse_return(parser);
 		break;
 
-		// Unconditional block
 	case TOKEN_OPEN_BRACE:
 		parse_braced_block(parser);
 		break;
 
-		// Assignment or function call
+	case TOKEN_STRUCT:
+		parse_struct(parser);
+		break;
+
 	default:
 		parse_assignment_or_call(parser);
 		break;

@@ -10,28 +10,49 @@
 #include <stdarg.h>
 
 #include "lexer.h"
+#include "vm.h"
+
+
+// An error struct containing more information that we don't want to expose to
+// the user through the C API
+typedef struct {
+	// The underlying error object
+	HyError *native;
+
+	// The interpreter state the error will be triggered on
+	HyState *state;
+
+	// The description of the error as it's being constructed
+	Vec(char) description;
+} Error;
+
 
 // Creates a new error object without any associated details yet. The error can
 // be constructed using the building functions below
-HyError * err_new(void);
-
-// Creates a new failed to open file error
-HyError * err_failed_to_open_file(char *path);
+Error err_new(HyState *state);
 
 // Prints a string to an error's description using a `va_list` as arguments to
 // the format string
-void err_print_varargs(HyError *err, char *fmt, va_list args);
+void err_print_va(Error *err, char *fmt, va_list args);
 
 // Prints a string to an error's description
-void err_print(HyError *err, char *fmt, ...);
+void err_print(Error *err, char *fmt, ...);
 
 // Prints a token to an error's description, surrounded in grave accents
-void err_print_token(HyError *err, Token *token);
+void err_print_token(Error *err, Token *token);
 
-// Associate a token with the error
-void err_attach_token(HyState *state, HyError *err, Token *token);
+// Associates a line of source code with the error
+void err_code(Error *err, Token *token);
 
-// Triggers a jump back to the error guard with the built error
-void err_trigger(HyState *state, HyError *err);
+// Associates a file with an error object
+void err_file(Error *err, char *file);
+
+// Constructs the native error object from the parent error, freeing resources
+// allocated by the parent at the same time
+HyError * err_make(Error *err);
+
+// Stops execution of the current code and jumps back to the error guard. Frees
+// any resources allocated by the error construction
+void err_trigger(Error *err);
 
 #endif
