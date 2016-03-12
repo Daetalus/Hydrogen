@@ -2542,12 +2542,31 @@ void parse_struct(Parser *parser) {
 
 	// Expect a comma separated list of identifiers
 	while (lexer->token.type == TOKEN_IDENTIFIER) {
-		// Check a field with this name isn't already defined
+		char *field_name = lexer->token.start;
+		uint32_t field_length = lexer->token.length;
 
+		// Check a field with this name isn't already defined
+		if (struct_field_find(def, field_name, field_length) != NOT_FOUND) {
+			err_fatal(parser, &lexer->token, "Duplicate field `%.*s`",
+				field_length, field_name);
+		}
 
 		// Save the name of the field
+		struct_field_new(def, field_name, field_length, VALUE_NIL);
 
+		// Expect a comma
+		lexer_next(lexer);
+		if (lexer->token.type == TOKEN_COMMA) {
+			lexer_next(lexer);
+		} else {
+			break;
+		}
 	}
+
+	// Expect a closing brace
+	err_expect(parser, TOKEN_CLOSE_BRACE, &open,
+		"Expected `}` to close `{` in struct definition");
+	lexer_next(lexer);
 }
 
 

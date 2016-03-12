@@ -18,11 +18,10 @@
 // Tests defining a struct with zero, one, and more than one field.
 TEST(Struct, Definition) {
 	COMPILER(
-		"struct Test\n"
-		"struct Test2 {\n"
+		"struct Test {\n"
 		"	field1\n"
 		"}\n"
-		"struct Test3 {\n"
+		"struct Test2 {\n"
 		"	field1, field2, field3\n"
 		"}\n"
 	);
@@ -30,23 +29,19 @@ TEST(Struct, Definition) {
 	// No actual instructions
 	INS(RET0, 0, 0, 0);
 
-	ASSERT_EQ(vec_len(state->structs), 3u);
+	ASSERT_EQ(vec_len(state->structs), 2u);
 
 	ASSERT_STREQN(vec_at(state->structs, 0).name, "Test",
 		vec_at(state->structs, 0).length);
-	ASSERT_EQ(vec_len(vec_at(state->structs, 0).fields), 0u);
+	ASSERT_EQ(vec_len(vec_at(state->structs, 0).fields), 1u);
+	ASSERT_FIELD(0, 0, "field1");
 
 	ASSERT_STREQN(vec_at(state->structs, 1).name, "Test2",
 		vec_at(state->structs, 1).length);
-	ASSERT_EQ(vec_len(vec_at(state->structs, 1).fields), 1u);
+	ASSERT_EQ(vec_len(vec_at(state->structs, 1).fields), 3u);
 	ASSERT_FIELD(1, 0, "field1");
-
-	ASSERT_STREQN(vec_at(state->structs, 2).name, "Test3",
-		vec_at(state->structs, 2).length);
-	ASSERT_EQ(vec_len(vec_at(state->structs, 2).fields), 3u);
-	ASSERT_FIELD(2, 0, "field1");
-	ASSERT_FIELD(2, 1, "field2");
-	ASSERT_FIELD(2, 2, "field3");
+	ASSERT_FIELD(1, 1, "field2");
+	ASSERT_FIELD(1, 2, "field3");
 
 	FREE();
 }
@@ -171,7 +166,7 @@ TEST(Struct, GetMethod) {
 
 
 // Tests the use of `self` within a struct's method.
-TEST(Struct, UseSelf) {
+TEST(Struct, Self) {
 	COMPILER(
 		"struct Test {\n"
 		"	field1\n"
