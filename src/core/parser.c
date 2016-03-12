@@ -525,7 +525,7 @@ typedef struct {
 
 
 // Forward declaration
-static Index parse_fn_definition_body(Parser *parser);
+static Index parse_fn_definition_body(Parser *parser, bool is_method);
 static Operand parse_expr(Parser *parser, uint16_t slot);
 static void expr_emit(Parser *parser, uint16_t slot);
 
@@ -1784,7 +1784,7 @@ static Operand operand_anonymous_fn(Parser *parser) {
 	// Parse the function into a new operand
 	Operand operand = operand_new();
 	operand.type = OP_FUNCTION;
-	operand.value = parse_fn_definition_body(parser);
+	operand.value = parse_fn_definition_body(parser, false);
 	return operand;
 }
 
@@ -2422,14 +2422,24 @@ static uint32_t parse_fn_definition_args(Parser *parser) {
 
 // Parses the arguments and body to a function definition with the name `name`
 // Returns the index of the created function
-static Index parse_fn_definition_body(Parser *parser) {
+static Index parse_fn_definition_body(Parser *parser, bool is_method) {
 	// Create a new function scope
 	FunctionScope scope = scope_new(parser);
 	Function *child = &vec_at(parser->state->functions, scope.fn_index);
 	scope_push(parser, &scope);
 
-	// Parse arguments to definition
-	child->arity = parse_fn_definition_args(parser);
+	// Add the self argument if this is a method
+	child->arity = 0;
+	if (is_method) {
+		uint16_t slot = local_new(parser);
+		Local *self = local_get(parser, slot);
+		self->name = "self";
+		self->length = 4;
+		child->arity++;
+	}
+
+	// Parse arguments specified by definition
+	child->arity += parse_fn_definition_args(parser);
 
 	// Parse the function's contents
 	parse_braced_block(parser);
@@ -2448,16 +2458,12 @@ static Index parse_fn_definition_body(Parser *parser) {
 }
 
 
-// Parses a function definition
-static void parse_fn_definition(Parser *parser) {
+// Parses a function (not method) definition
+static void parse_fn_definition(Parser *parser, Token *fn_token) {
 	Lexer *lexer = &parser->lexer;
 
-	// Skip the `fn` token
-	Token fn_token = lexer->token;
-	lexer_next(lexer);
-
 	// Expect the name of the function
-	err_expect(parser, TOKEN_IDENTIFIER, &fn_token,
+	err_expect(parser, TOKEN_IDENTIFIER, fn_token,
 		"Expected identifier after `fn`");
 	char *name = lexer->token.start;
 	uint32_t length = lexer->token.length;
@@ -2478,7 +2484,7 @@ static void parse_fn_definition(Parser *parser) {
 	}
 
 	// Parse the rest of the function
-	Index fn_index = parse_fn_definition_body(parser);
+	Index fn_index = parse_fn_definition_body(parser, false);
 
 	// Set the function's name
 	Function *fn = &vec_at(parser->state->functions, fn_index);
@@ -2490,6 +2496,74 @@ static void parse_fn_definition(Parser *parser) {
 		fn_emit(parser_fn(parser), MOV_TF, slot, fn_index, parser->package);
 	} else {
 		fn_emit(parser_fn(parser), MOV_LF, slot, fn_index, 0);
+	}
+}
+
+
+// Parses a method definition
+static void parse_method_definition(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+
+	// Skip the open parenthesis
+	Token open = lexer->token;
+	lexer_next(lexer);
+
+	// Expect the name of a struct
+	err_expect(parser, TOKEN_IDENTIFIER, &open,
+		"Expected struct name after `(` in method definition");
+	char *struct_name = lexer->token.start;
+	uint32_t struct_length = lexer->token.length;
+
+	// Ensure the struct exists
+	Index struct_index = struct_find(parser->state, parser->package,
+		struct_name, struct_length);
+	if (struct_index == NOT_FOUND) {
+		err_fatal(parser, &lexer->token, "Undefined struct `%.*s`",
+			struct_length, struct_name);
+	}
+	lexer_next(lexer);
+
+	// Expect a closing parenthesis
+	Token close = lexer->token;
+	err_expect(parser, TOKEN_CLOSE_PARENTHESIS, &open,
+		"Expected `)` to close `(` after struct name in method definition");
+	lexer_next(lexer);
+
+	// Expect the name of the method
+	err_expect(parser, TOKEN_IDENTIFIER, &close,
+		"Expected method name after `)` in method definition");
+	char *name = lexer->token.start;
+	uint32_t length = lexer->token.length;
+	lexer_next(lexer);
+
+	// Parse the rest of the function
+	Index fn_index = parse_fn_definition_body(parser, true);
+
+	// Set the function's name
+	Function *fn = &vec_at(parser->state->functions, fn_index);
+	fn->name = name;
+	fn->length = length;
+
+	// Add a field to the struct
+	StructDefinition *def = &vec_at(parser->state->structs, struct_index);
+	struct_field_new(def, name, length, fn_to_val(fn_index));
+}
+
+
+// Parses a function or method definition
+static void parse_fn_or_method_definition(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+
+	// Skip the `fn` token
+	Token fn_token = lexer->token;
+	lexer_next(lexer);
+
+	// Check if there's an open parenthesis, meaning we're parsing a method on
+	// a struct
+	if (lexer->token.type == TOKEN_OPEN_PARENTHESIS) {
+		parse_method_definition(parser);
+	} else {
+		parse_fn_definition(parser, &fn_token);
 	}
 }
 
@@ -2648,7 +2722,7 @@ static void parse_statement(Parser *parser) {
 		break;
 
 	case TOKEN_FN:
-		parse_fn_definition(parser);
+		parse_fn_or_method_definition(parser);
 		break;
 
 	case TOKEN_RETURN:
