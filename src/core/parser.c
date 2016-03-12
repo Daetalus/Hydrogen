@@ -1790,7 +1790,40 @@ static Operand operand_anonymous_fn(Parser *parser) {
 
 // Parse a struct instantiation
 static Operand operand_instantiation(Parser *parser, uint16_t slot) {
-	// TODO: struct instantiation
+	Lexer *lexer = &parser->lexer;
+
+	// Skip the `new` token
+	Token new_token = lexer->token;
+	lexer_next(lexer);
+
+	// Expect the name of a struct
+	err_expect(parser, TOKEN_IDENTIFIER, &new_token,
+		"Expected name of struct after `new`");
+	Token ident = lexer->token;
+	char *name = lexer->token.start;
+	uint32_t length = lexer->token.length;
+
+	// Find the struct definition
+	Index index = struct_find(parser->state, parser->package, name, length);
+	if (index == NOT_FOUND) {
+		err_fatal(parser, &lexer->token, "Undefined struct `%.*s`",
+			length, name);
+	}
+	lexer_next(lexer);
+
+	// Expect an open and close parenthesis for now
+	Token open = lexer->token;
+	err_expect(parser, TOKEN_OPEN_PARENTHESIS, &ident,
+		"Expected `(` after struct name");
+	lexer_next(lexer);
+	err_expect(parser, TOKEN_CLOSE_PARENTHESIS, &open,
+		"Expected `)` to close `(` in struct instantiation");
+	lexer_next(lexer);
+
+	// Emit bytecode
+	fn_emit(parser_fn(parser), STRUCT_NEW, slot, index, 0);
+
+	// Create operand
 	Operand operand = operand_new();
 	operand.type = OP_LOCAL;
 	operand.value = slot;
