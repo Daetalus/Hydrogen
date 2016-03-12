@@ -2534,40 +2534,9 @@ static void parse_return(Parser *parser) {
 //  Struct Definition
 //
 
-// Parses a struct definition
-void parse_struct(Parser *parser) {
+// Parses the fields list for a struct definition
+void parse_struct_fields(Parser *parser, StructDefinition *def) {
 	Lexer *lexer = &parser->lexer;
-
-	// Skip the `struct` token
-	Token struct_keyword = lexer->token;
-	lexer_next(lexer);
-
-	// Expect the name of the struct (an identifier)
-	err_expect(parser, TOKEN_IDENTIFIER, &struct_keyword,
-		"Expected identifier after `struct`");
-	char *name = lexer->token.start;
-	uint32_t length = lexer->token.length;
-
-	// Check no other struct with this name is defined in this package
-	Index pkg = parser->package;
-	if (struct_find(parser->state, pkg, name, length) != NOT_FOUND) {
-		err_fatal(parser, &lexer->token, "Struct `%.*s` is already defined",
-			length, name);
-	}
-	lexer_next(lexer);
-
-	// Create a new struct definition
-	Index def_index = struct_new(parser->state, pkg);
-	StructDefinition *def = &vec_at(parser->state->structs, def_index);
-	def->name = name;
-	def->length = length;
-	def->source = parser->source;
-	def->line = lexer->line;
-
-	// If there's no open brace, then this is a struct without any fields
-	if (lexer->token.type != TOKEN_OPEN_BRACE) {
-		return;
-	}
 
 	// Skip the opening brace
 	Token open = lexer->token;
@@ -2604,6 +2573,43 @@ void parse_struct(Parser *parser) {
 	err_expect(parser, TOKEN_CLOSE_BRACE, &open,
 		"Expected `}` to close `{` in struct definition");
 	lexer_next(lexer);
+}
+
+
+// Parses a struct definition
+void parse_struct(Parser *parser) {
+	Lexer *lexer = &parser->lexer;
+
+	// Skip the `struct` token
+	Token struct_keyword = lexer->token;
+	lexer_next(lexer);
+
+	// Expect the name of the struct (an identifier)
+	err_expect(parser, TOKEN_IDENTIFIER, &struct_keyword,
+		"Expected identifier after `struct`");
+	char *name = lexer->token.start;
+	uint32_t length = lexer->token.length;
+
+	// Check no other struct with this name is defined in this package
+	Index pkg = parser->package;
+	if (struct_find(parser->state, pkg, name, length) != NOT_FOUND) {
+		err_fatal(parser, &lexer->token, "Struct `%.*s` is already defined",
+			length, name);
+	}
+	lexer_next(lexer);
+
+	// Create a new struct definition
+	Index def_index = struct_new(parser->state, pkg);
+	StructDefinition *def = &vec_at(parser->state->structs, def_index);
+	def->name = name;
+	def->length = length;
+	def->source = parser->source;
+	def->line = lexer->line;
+
+	// If there's an open brace, then parse the fields for the struct
+	if (lexer->token.type == TOKEN_OPEN_BRACE) {
+		parse_struct_fields(parser, def);
+	}
 }
 
 
