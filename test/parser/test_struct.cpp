@@ -100,8 +100,8 @@ TEST(Struct, SetField) {
 	);
 
 	INS(STRUCT_NEW, 0, 0, 0);
-	INS(MOV_LT, 0, 0, 0);
 	INS(MOV_TL, 0, 0, 0);
+	INS(MOV_LT, 0, 0, 0);
 	INS(STRUCT_SET_I, 0, 3, 0);
 
 	INS(MOV_LT, 0, 0, 0);
