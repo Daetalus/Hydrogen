@@ -1494,6 +1494,7 @@ static void postfix_field_access(Parser *parser, uint16_t slot,
 	ident.length = lexer->token.length;
 	Index field_index = state_add_field(parser->state, ident);
 	fn_emit(parser_fn(parser), STRUCT_FIELD, slot, operand->value, field_index);
+	lexer_next(lexer);
 
 	// The field is now in `slot`
 	operand->type = OP_LOCAL;

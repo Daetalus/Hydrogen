@@ -53,3 +53,4 @@ fn (Test) new(arg1, arg2) {
 
 let c = new Test3(3, 4)
 io.println(c.field) // expect: 7
+io.println((new Test3(1, 2)).field) // expect: 3
