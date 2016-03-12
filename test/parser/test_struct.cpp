@@ -6,6 +6,15 @@
 #include "test.h"
 
 
+// Asserts the struct at index `struct_index` has the name `struct_name`, and
+// has `fields_count` number of fields.
+#define ASSERT_STRUCT(struct_index, struct_name, fields_count) {   \
+	StructDefinition *def = &vec_at(state->structs, struct_index); \
+	ASSERT_STREQN(def->name, struct_name, def->length);            \
+	ASSERT_EQ(vec_len(def->fields), fields_count ## u);            \
+}
+
+
 // Asserts the field at index `field_index` of the struct at `struct_index` is
 // named `name`.
 #define ASSERT_FIELD(struct_index, field_index, field_name) {      \
@@ -18,10 +27,11 @@
 // Tests defining a struct with zero, one, and more than one field.
 TEST(Struct, Definition) {
 	COMPILER(
-		"struct Test {\n"
+		"struct Test\n"
+		"struct Test2 {\n"
 		"	field1\n"
 		"}\n"
-		"struct Test2 {\n"
+		"struct Test3 {\n"
 		"	field1, field2, field3\n"
 		"}\n"
 	);
@@ -29,19 +39,21 @@ TEST(Struct, Definition) {
 	// No actual instructions
 	INS(RET0, 0, 0, 0);
 
-	ASSERT_EQ(vec_len(state->structs), 2u);
+	// Number of defined structs
+	ASSERT_EQ(vec_len(state->structs), 3u);
 
-	ASSERT_STREQN(vec_at(state->structs, 0).name, "Test",
-		vec_at(state->structs, 0).length);
-	ASSERT_EQ(vec_len(vec_at(state->structs, 0).fields), 1u);
-	ASSERT_FIELD(0, 0, "field1");
+	// Test
+	ASSERT_STRUCT(0, "Test", 0);
 
-	ASSERT_STREQN(vec_at(state->structs, 1).name, "Test2",
-		vec_at(state->structs, 1).length);
-	ASSERT_EQ(vec_len(vec_at(state->structs, 1).fields), 3u);
+	// Test2
+	ASSERT_STRUCT(1, "Test2", 1);
 	ASSERT_FIELD(1, 0, "field1");
-	ASSERT_FIELD(1, 1, "field2");
-	ASSERT_FIELD(1, 2, "field3");
+
+	// Test3
+	ASSERT_STRUCT(2, "Test3", 3);
+	ASSERT_FIELD(2, 0, "field1");
+	ASSERT_FIELD(2, 1, "field2");
+	ASSERT_FIELD(2, 2, "field3");
 
 	FREE();
 }

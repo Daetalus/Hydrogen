@@ -2564,10 +2564,13 @@ void parse_struct(Parser *parser) {
 	def->source = parser->source;
 	def->line = lexer->line;
 
-	// Expect an open brace
+	// If there's no open brace, then this is a struct without any fields
+	if (lexer->token.type != TOKEN_OPEN_BRACE) {
+		return;
+	}
+
+	// Skip the opening brace
 	Token open = lexer->token;
-	err_expect(parser, TOKEN_OPEN_BRACE, &lexer->token,
-		"Expected `{` after struct name");
 	lexer_next(lexer);
 
 	// Expect at least 1 identifier
