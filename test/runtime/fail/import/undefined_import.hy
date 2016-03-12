@@ -1,4 +1,4 @@
 
-// expect error: Undefined import package
+// expect error: Failed to resolve package `wefoij`
 
 import "wefoij"

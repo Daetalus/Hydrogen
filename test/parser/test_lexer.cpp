@@ -3,13 +3,7 @@
 //  Lexer Tests
 //
 
-extern "C" {
-#include <hydrogen.h>
-#include <lexer.h>
-#include <vm.h>
-}
-
-#include <gtest/gtest.h>
+#include "test.h"
 
 
 // Creates a new lexer
@@ -23,19 +17,6 @@ extern "C" {
 // Frees resources allocated for a test
 #define FREE() \
 	hy_free(state);
-
-
-// Asserts two strings are equal up to the given length (since this function is
-// annoyingly missing from the Google test framework)
-#define ASSERT_STREQN(first, second, length) { \
-	char first_str[length + 1];                \
-	char second_str[length + 1];               \
-	strncpy(first_str, (first), length);       \
-	strncpy(second_str, (second), length);     \
-	first_str[length] = '\0';                  \
-	second_str[length] = '\0';                 \
-	ASSERT_STREQ(first_str, second_str);       \
-}
 
 
 // Reads the next token from the lexer and ensures it matches the given type

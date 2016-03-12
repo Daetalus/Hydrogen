@@ -72,8 +72,8 @@ parser_test(loop)
 parser_test(while)
 parser_test(fn)
 parser_test(import)
+parser_test(struct)
 # parser_test(upvalue)
-# parser_test(struct)
 
 
 # Require Python for runtime tests

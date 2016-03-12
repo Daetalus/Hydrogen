@@ -363,7 +363,7 @@ static Index import_new(Parser *parser, Token *token, char *path, char *name) {
 	if (child_src == NOT_FOUND) {
 		// Failed to open file
 		Error err = err_new(parser->state);
-		err_print(&err, "Failed to open file");
+		err_print(&err, "Failed to resolve package `%s`", name);
 		err_code(&err, token);
 		free(resolved);
 		err_trigger(&err);
@@ -1370,7 +1370,7 @@ static void expr_binary(Parser *parser, uint16_t slot, Token *op, Operand *left,
 	if (!binary_is_valid(op->type, left->type) ||
 			!binary_is_valid(op->type, right.type)) {
 		// Trigger an invalid operand error
-		err_unexpected(parser, op, "Invalid operand to binary operator `%.*s`",
+		err_fatal(parser, op, "Invalid operand to binary operator `%.*s`",
 			op->length, op->start);
 		return;
 	}
@@ -1445,7 +1445,7 @@ static void expr_unary(Parser *parser, uint16_t slot, Token *op,
 	// Ensure operand is of a valid type
 	if (!unary_is_valid(op->type, operand->type)) {
 		// Trigger an invalid operand error
-		err_unexpected(parser, op, "Invalid operand to unary operator `%.*s`",
+		err_fatal(parser, op, "Invalid operand to unary operator `%.*s`",
 			op->length, op->start);
 		return;
 	}
@@ -1676,7 +1676,9 @@ static Operand operand_top_level(Parser *parser, Index package, uint16_t slot) {
 
 	// Expect a `.`
 	Token dot = lexer->token;
-	err_expect(parser, TOKEN_DOT, &pkg_name, "Expected `.` after package name");
+	err_expect(parser, TOKEN_DOT, &pkg_name,
+		"Expected `.` after package name `%.*s`",
+		pkg_name.length, pkg_name.start);
 	lexer_next(lexer);
 
 	// Expect an identifier

@@ -1,4 +1,4 @@
 
-// expect error: Invalid operand to binary operator `+`
+// expect error: Invalid operand to binary operator `\+`
 
 let a = 3 + "hello"

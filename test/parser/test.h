@@ -12,9 +12,24 @@ extern "C" {
 #include <bytecode.h>
 #include <debug.h>
 #include <value.h>
+#include <struct.h>
+#include <lexer.h>
 }
 
 #include <gtest/gtest.h>
+
+
+// Asserts two strings are equal up to the given length (since this function is
+// annoyingly missing from the Google test framework)
+#define ASSERT_STREQN(first, second, length) { \
+	char first_str[length + 1];                \
+	char second_str[length + 1];               \
+	strncpy(first_str, (first), length);       \
+	strncpy(second_str, (second), length);     \
+	first_str[length] = '\0';                  \
+	second_str[length] = '\0';                 \
+	ASSERT_STREQ(first_str, second_str);       \
+}
 
 
 // Selects the function whose bytecode we are asserting
@@ -41,8 +56,7 @@ extern "C" {
 
 
 // Frees resources allocated when creating a compiler
-#define FREE() \
-	hy_free(state);
+#define FREE() hy_free(state);
 
 
 // Asserts the next instruction has the opcode `opcode` and 3 arguments `arg1`,
