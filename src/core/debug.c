@@ -297,6 +297,14 @@ static void print_info(HyState *state, Index ins_index, Instruction ins) {
 
 		// Field name
 		printf("%.*s", name->length, name->name);
+		break;
+	}
+
+		// Field name
+	case STRUCT_FIELD: {
+		Identifier *field = &vec_at(state->fields, ins_arg(ins, 3));
+		printf("    ; <%d>.%.*s", ins_arg(ins, 1), field->length, field->name);
+		break;
 	}
 
 	default:

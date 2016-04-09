@@ -1493,6 +1493,8 @@ static void postfix_field_access(Parser *parser, uint16_t slot,
 	ident.name = lexer->token.start;
 	ident.length = lexer->token.length;
 	Index field_index = state_add_field(parser->state, ident);
+
+	// Emit bytecode
 	fn_emit(parser_fn(parser), STRUCT_FIELD, slot, operand->value, field_index);
 	lexer_next(lexer);
 
@@ -1585,9 +1587,9 @@ static void postfix_call(Parser *parser, uint16_t slot, Operand *operand) {
 }
 
 
-// Emit bytecode to perform a postfix operation which can be set. These are
-// struct field and array accesses
-static bool postfix_accesses(Parser *parser, uint16_t slot, Operand *operand) {
+// Emit bytecode to perform only postfix operations which are valid on the left
+// hand side of an assignment. These include struct field and array accesses
+static bool postfix_assignable(Parser *parser, uint16_t slot, Operand *operand) {
 	switch (parser->lexer.token.type) {
 	case TOKEN_DOT:
 		postfix_field_access(parser, slot, operand);
@@ -1608,7 +1610,7 @@ static bool expr_postfix(Parser *parser, uint16_t slot, Operand *operand) {
 		postfix_call(parser, slot, operand);
 		return true;
 	default:
-		return postfix_accesses(parser, slot, operand);
+		return postfix_assignable(parser, slot, operand);
 	}
 }
 
@@ -2086,7 +2088,7 @@ static void parse_assignment_or_call(Parser *parser) {
 
 	// Iteratively parse postfix struct field or array accesses
 	bool requires_slot = false;
-	while (postfix_accesses(parser, slot, &operand)) {
+	while (postfix_assignable(parser, slot, &operand)) {
 		requires_slot = true;
 	}
 

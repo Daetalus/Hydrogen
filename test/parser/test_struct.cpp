@@ -212,12 +212,12 @@ TEST(Struct, CallMethod) {
 	);
 
 	FN(0);
+	debug_fn(state, fn);
 	INS(STRUCT_NEW, 0, 0, 0);
 	INS(MOV_TL, 0, 0, 0);
 
 	INS(MOV_LT, 0, 0, 0);
 	INS(STRUCT_FIELD, 0, 0, 0);
-	INS(MOV_LT, 1, 0, 0);
 	INS(CALL, 0, 1, 0);
 	INS(MOV_TL, 1, 0, 0);
 
