@@ -6,21 +6,21 @@
 cmake_minimum_required(VERSION 2.8)
 project(Hydrogen)
 
-# Set the default build type to `release`.
+# Set the default build type to `Release`.
 IF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 	SET(CMAKE_BUILD_TYPE Release)
 ENDIF(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 
 # Set debug and release flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -Wno-write-strings")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
-set(CMAKE_CXX_FLAGS_DEBUG ${CMAKE_C_FLAGS_DEBUG})
-set(CMAKE_CXX_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
 
 # Main include directory and common header files
-include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/src/common)
+include_directories(
+	${CMAKE_SOURCE_DIR}/include
+	${CMAKE_SOURCE_DIR}/src/common
+)
 
 # Core library
 file(GLOB_RECURSE CORE_SOURCES ${CMAKE_SOURCE_DIR}/src/core/*)
@@ -35,45 +35,58 @@ file(GLOB_RECURSE CLI_SOURCES ${CMAKE_SOURCE_DIR}/src/cli/*)
 add_executable(cli ${CLI_SOURCES})
 target_link_libraries(cli hydrogen hylib)
 
-# Enable testing using Google's testing framework
-add_subdirectory(${CMAKE_SOURCE_DIR}/test/gtest/googletest)
+
+
+#
+#  Testing
+#
+
+# Enable testing
 enable_testing()
 
 # Add include directories for tests
 include_directories(
 	${CMAKE_SOURCE_DIR}/src/core
-	${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR}
+	${CMAKE_SOURCE_DIR}/test
+	${CMAKE_SOURCE_DIR}/test/mock
 )
 
+# Build testing framework
+file(GLOB TEST_SOURCES ${CMAKE_SOURCE_DIR}/test/test.c)
+add_library(testing STATIC ${TEST_SOURCES})
 
-# Macro for adding a parser test program.
-macro(parser_test name)
+# Build mock framework
+file(GLOB_RECURSE MOCK_SOURCES ${CMAKE_SOURCE_DIR}/test/mock/*)
+add_library(mock STATIC ${MOCK_SOURCES})
+
+# Macro for adding a test program.
+macro(test folder name)
 	# Create the executable
 	add_executable(
 		test_${name}
-		${CMAKE_SOURCE_DIR}/test/parser/test_${name}.cpp
+		${CMAKE_SOURCE_DIR}/test/${folder}/test_${name}.c
 	)
 
 	# Link against Hydrogen and Google Test
-	target_link_libraries(test_${name} hydrogen hylib gtest gtest_main)
+	target_link_libraries(test_${name} hydrogen hylib testing mock)
 
 	# Register the test
 	add_test(test_${name} test_${name})
 endmacro()
 
 # Add parser tests
-parser_test(vec)
-parser_test(lexer)
-parser_test(ins)
-parser_test(jmp)
-parser_test(expr)
-parser_test(if)
-parser_test(loop)
-parser_test(while)
-parser_test(fn)
-parser_test(import)
-parser_test(struct)
-# parser_test(upvalue)
+test(parser vec)
+test(parser lexer)
+#test(parser ins)
+#test(parser jmp)
+#test(parser expr)
+#test(parser if)
+#test(parser loop)
+#test(parser while)
+#test(parser fn)
+#test(parser import)
+#test(parser struct)
+# test(parser upvalue)
 
 
 # Require Python for runtime tests

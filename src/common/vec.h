@@ -7,6 +7,7 @@
 #define VEC_H
 
 #include <stdlib.h>
+#include <string.h>
 
 
 // An index into a vector
@@ -33,6 +34,14 @@ typedef struct {
 		uint32_t length;       \
 		uint32_t capacity;     \
 	}
+
+
+// Creates a NULL vector.
+#define vec_null() {NULL, 0, 0, 0}
+
+
+// Evaluates to true if a vector is NULL.
+#define vec_is_null(array) ((array).values == NULL)
 
 
 // Initialises an undefined vector
