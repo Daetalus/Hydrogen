@@ -86,7 +86,7 @@ test(parser loop)
 test(parser while)
 test(parser fn)
 test(parser import)
-#test(parser struct)
+test(parser struct)
 # test(parser upvalue)
 
 
