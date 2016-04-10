@@ -167,7 +167,7 @@ typedef struct {
 	ObjectHeader;
 
 	// A pointer to the parent struct to which this method belongs
-	Struct *parent;
+	HyValue parent;
 
 	// The index of the function containing this method's bytecode
 	Index fn;

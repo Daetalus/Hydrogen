@@ -354,7 +354,7 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 		&&BC_MOV_UF, &&BC_MOV_UV,
 		&&BC_MOV_LU, &&BC_UPVALUE_CLOSE,
 		&&BC_MOV_TL, &&BC_MOV_TI, &&BC_MOV_TN, &&BC_MOV_TS, &&BC_MOV_TP,
-		&&BC_MOV_TF, &&BC_MOV_TV, &&BC_MOV_LT,
+		&&BC_MOV_TF, &&BC_MOV_TV, &&BC_MOV_LT, &&BC_MOV_SELF,
 
 		// Operators
 		&&BC_ADD_LL, &&BC_ADD_LI, &&BC_ADD_LN, &&BC_ADD_IL, &&BC_ADD_NL,
@@ -443,6 +443,10 @@ BC_MOV_LF:
 	NEXT();
 BC_MOV_LV:
 	STACK(INS(1)) = native_to_val(INS(2));
+	NEXT();
+
+BC_MOV_SELF:
+	STACK(INS(1)) = call_stack[*call_stack_count - 1].self;
 	NEXT();
 
 
@@ -712,7 +716,7 @@ BC_LOOP:
 
 BC_CALL: {
 	HyValue fn_value = STACK(INS(1));
-	if (val_is_fn(fn_value)) {
+	if (val_is_fn(fn_value) || val_is_method(fn_value)) {
 		// Create a stack frame for the calling function to save the required
 		// state
 		Index index = (*call_stack_count)++;
@@ -721,14 +725,20 @@ BC_CALL: {
 		call_stack[index].return_slot = stack_start + INS(3);
 		call_stack[index].ip = ip;
 
-		// Set up state for the called function
+		// Set the self argument
 		stack_start = stack_start + INS(1) + 1;
-		fn = &functions[val_to_fn(fn_value)];
+		if (val_is_method(fn_value)) {
+			Method *method = (Method *) val_to_ptr(fn_value);
+			call_stack[index].self = method->parent;
+			fn = &functions[method->fn];
+		} else {
+			call_stack[index].self = VALUE_NIL;
+			fn = &functions[val_to_fn(fn_value)];
+		}
+
+		// Set up state for the called function
 		ip = &vec_at(fn->instructions, 0);
 		DISPATCH();
-	} else if (val_is_method(fn_value)) {
-		Method *method = val_to_ptr(fn_value);
-		// TODO
 	} else if (val_is_native(fn_value)) {
 		// Create a set of arguments to pass to the native function
 		HyArgs args;
@@ -740,6 +750,7 @@ BC_CALL: {
 	} else {
 		// TODO: trigger attempt to call non-function error
 		printf("attempt to call non-function\n");
+		goto finish;
 	}
 }
 
@@ -795,13 +806,14 @@ BC_STRUCT_NEW: {
 	instance->definition = def_index;
 
 	// Set the instance's fields
+	HyValue parent = ptr_to_val(instance);
 	for (uint32_t i = 0; i < vec_len(def->fields); i++) {
 		Index fn_index = vec_at(def->methods, i);
 		if (fn_index != NOT_FOUND) {
 			// Create the method
 			Method *method = malloc(sizeof(Method));
 			method->type = OBJ_METHOD;
-			method->parent = instance;
+			method->parent = parent;
 			method->fn = fn_index;
 
 			// Set the field

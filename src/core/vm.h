@@ -35,6 +35,10 @@ typedef struct {
 	// A pointer to the calling function being executed in this frame
 	Function *fn;
 
+	// A pointer to the `self` argument for methods, or VALUE_NIL if this isn't
+	// a method call.
+	HyValue self;
+
 	// The start of the calling function's locals on the stack (absolute stack
 	// position)
 	uint32_t stack_start;

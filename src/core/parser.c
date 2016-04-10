@@ -1969,7 +1969,7 @@ bool expr_exists(TokenType token) {
 		token == TOKEN_INTEGER || token == TOKEN_NUMBER ||
 		token == TOKEN_TRUE || token == TOKEN_FALSE || token == TOKEN_NIL ||
 		token == TOKEN_FN || token == TOKEN_SUB || token == TOKEN_NOT ||
-		token == TOKEN_BIT_NOT;
+		token == TOKEN_BIT_NOT || token == TOKEN_SELF;
 }
 
 
