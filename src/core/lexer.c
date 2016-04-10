@@ -442,6 +442,7 @@ static bool keyword(Lexer *lexer) {
 	KEYWORD("nil", TOKEN_NIL)
 	KEYWORD("struct", TOKEN_STRUCT)
 	KEYWORD("new", TOKEN_NEW)
+	KEYWORD("self", TOKEN_SELF)
 
 	return false;
 }

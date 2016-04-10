@@ -84,6 +84,7 @@ typedef enum {
 	TOKEN_IMPORT,
 	TOKEN_STRUCT,
 	TOKEN_NEW,
+	TOKEN_SELF,
 
 	// Comments
 	// Not actually emitted by the lexer, but used in generating error messages
