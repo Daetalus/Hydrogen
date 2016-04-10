@@ -653,8 +653,8 @@ BC_IS_FALSE_L: {
 		NEXT();                                                       \
                                                                       \
 	BC_ ## ins ## _LI:                                                \
-		if (ensure_num(STACK(INS(1)) op                               \
-				(double) unsigned_to_signed(INS(2)))) {               \
+		if (ensure_num(STACK(INS(1))) op                               \
+				(double) unsigned_to_signed(INS(2))) {               \
 			ip++;                                                     \
 		}                                                             \
 		NEXT();                                                       \

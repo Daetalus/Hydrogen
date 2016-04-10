@@ -63,6 +63,7 @@
 typedef enum {
 	OBJ_STRING,
 	OBJ_STRUCT,
+	OBJ_METHOD,
 } ObjectType;
 
 
@@ -154,6 +155,20 @@ typedef struct {
 	// The values of each field on the struct
 	HyValue fields[0];
 } Struct;
+
+
+// Methods on structs are stored as their own heap allocated objects, since we
+// need to store a reference back to the parent struct.
+typedef struct {
+	// The object header
+	ObjectHeader;
+
+	// A pointer to the parent struct to which this method belongs
+	Struct *parent;
+
+	// The index of the function containing this method's bytecode
+	Index fn;
+} Method;
 
 
 
