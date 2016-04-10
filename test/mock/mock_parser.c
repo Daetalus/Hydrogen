@@ -35,6 +35,7 @@ void mock_parser_free(MockParser *parser) {
 // Switch to testing a different function.
 void switch_fn(MockParser *parser, Index fn) {
 	parser->fn = fn;
+	parser->ins = 0;
 }
 
 
