@@ -147,7 +147,7 @@ void test_method_definition(void) {
 	ins(&p, RET0, 0, 0, 0);
 
 	switch_fn(&p, 1);
-	ins(&p, MOV_LI, 1, 3, 0);
+	ins(&p, MOV_LI, 0, 3, 0);
 	ins(&p, RET0, 0, 0, 0);
 
 	mock_parser_free(&p);
@@ -176,7 +176,7 @@ void test_get_method(void) {
 	ins(&p, RET0, 0, 0, 0);
 
 	switch_fn(&p, 1);
-	ins(&p, MOV_LI, 1, 3, 0);
+	ins(&p, MOV_LI, 0, 3, 0);
 	ins(&p, RET0, 0, 0, 0);
 
 	mock_parser_free(&p);
@@ -198,7 +198,8 @@ void test_self(void) {
 	ins(&p, RET0, 0, 0, 0);
 
 	switch_fn(&p, 1);
-	ins(&p, STRUCT_FIELD, 1, 0, 0);
+	ins(&p, MOV_SELF, 0, 0, 0);
+	ins(&p, STRUCT_FIELD, 0, 0, 0);
 	ins(&p, RET0, 0, 0, 0);
 
 	mock_parser_free(&p);
@@ -232,7 +233,7 @@ void test_method_call(void) {
 	ins(&p, RET0, 0, 0, 0);
 
 	switch_fn(&p, 1);
-	ins(&p, MOV_LI, 1, 3, 0);
+	ins(&p, MOV_LI, 0, 3, 0);
 	ins(&p, RET0, 0, 0, 0);
 
 	mock_parser_free(&p);
@@ -256,12 +257,12 @@ void test_upvalue_method_call(void) {
 
 	switch_fn(&p, 0);
 	ins(&p, STRUCT_NEW, 0, 0, 0);
-	ins(&p, MOV_LF, 1, 2, 0);
+	ins(&p, MOV_LF, 0, 2, 0);
 	ins(&p, UPVALUE_CLOSE, 0, 0, 0);
 	ins(&p, RET0, 0, 0, 0);
 
 	switch_fn(&p, 1);
-	ins(&p, MOV_LI, 1, 3, 0);
+	ins(&p, MOV_LI, 0, 3, 0);
 	ins(&p, RET0, 0, 0, 0);
 
 	switch_fn(&p, 2);

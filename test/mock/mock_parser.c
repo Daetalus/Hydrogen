@@ -18,7 +18,7 @@ void check_err(HyError *err) {
 		return;
 	}
 
-	printf("\nCompilation error!\n");
+	printf("Compilation error!\n");
 	printf("%s\n", err->description);
 	printf("Line: %d\n", err->line);
 	printf("Column: %d\n", err->column);

@@ -631,6 +631,15 @@ static inline Operand operand_new(void) {
 }
 
 
+// Create a new operand with the type `OP_LOCAL` and value `slot`.
+static inline Operand operand_local(uint16_t slot) {
+	Operand operand;
+	operand.type = OP_LOCAL;
+	operand.value = slot;
+	return operand;
+}
+
+
 // Returns true if an operand is a number
 static inline bool operand_is_num(Operand *operand) {
 	return operand->type == OP_NUMBER || operand->type == OP_INTEGER;
@@ -1703,10 +1712,7 @@ static Operand operand_top_level(Parser *parser, Index package, uint16_t slot) {
 	fn_emit(parser_fn(parser), MOV_LT, slot, field, package);
 
 	// Return the operand
-	Operand operand = operand_new();
-	operand.type = OP_LOCAL;
-	operand.value = slot;
-	return operand;
+	return operand_local(slot);
 }
 
 
@@ -1826,10 +1832,24 @@ static Operand operand_instantiation(Parser *parser, uint16_t slot) {
 	fn_emit(parser_fn(parser), STRUCT_NEW, slot, index, 0);
 
 	// Create operand
-	Operand operand = operand_new();
-	operand.type = OP_LOCAL;
-	operand.value = slot;
-	return operand;
+	return operand_local(slot);
+}
+
+
+// Parse the use of the `self` operand in a method
+static Operand operand_self(Parser *parser, uint16_t slot) {
+	// TODO: Ensure we only use the self argument in a method
+	Lexer *lexer = &parser->lexer;
+
+	// Skip the `self` token
+	Token self_token = lexer->token;
+	lexer_next(lexer);
+
+	// Emit bytecode to store the self argument into the slot
+	fn_emit(parser_fn(parser), MOV_SELF, slot, 0, 0);
+
+	// Create operand
+	return operand_local(slot);
 }
 
 
@@ -1855,6 +1875,8 @@ static Operand expr_operand(Parser *parser, uint16_t slot) {
 		return operand_anonymous_fn(parser);
 	case TOKEN_NEW:
 		return operand_instantiation(parser, slot);
+	case TOKEN_SELF:
+		return operand_self(parser, slot);
 	default:
 		err_unexpected(parser, &lexer->token, "Expected operand in expression");
 		return operand_new();
@@ -2426,18 +2448,10 @@ static uint32_t parse_fn_definition_args(Parser *parser) {
 static Index parse_fn_definition_body(Parser *parser, bool is_method) {
 	// Create a new function scope
 	FunctionScope scope = scope_new(parser);
+	scope.is_method = is_method;
 	Function *child = &vec_at(parser->state->functions, scope.fn_index);
 	scope_push(parser, &scope);
-
-	// Add the self argument if this is a method
 	child->arity = 0;
-	if (is_method) {
-		uint16_t slot = local_new(parser);
-		Local *self = local_get(parser, slot);
-		self->name = "self";
-		self->length = 4;
-		child->arity++;
-	}
 
 	// Parse arguments specified by definition
 	child->arity += parse_fn_definition_args(parser);

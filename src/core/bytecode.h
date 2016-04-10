@@ -76,6 +76,12 @@ typedef enum {
 	// * `package`: index of package containing top level local
 	MOV_LT,
 
+	// Retrieves the self argument in a method call.
+	//
+	// Arguments:
+	// * `slot`: the stack slot to store the self argumen tin
+	MOV_SELF,
+
 
 	//
 	//  Math

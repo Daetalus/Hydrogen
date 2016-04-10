@@ -835,7 +835,7 @@ BC_STRUCT_FIELD: {
 #define STRUCT_SET(value) {                                                     \
 	Struct *instance = val_to_ptr(STACK(INS(3)));                               \
 	Identifier *field = &fields[INS(1)];                                        \
-	Index field_index = struct_field_index(structs, instance, field);                    \
+	Index field_index = struct_field_index(structs, instance, field);           \
                                                                                 \
 	if (field_index != NOT_FOUND) {                                             \
 		instance->fields[field_index] = (value);                                \
