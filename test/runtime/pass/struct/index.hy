@@ -27,7 +27,7 @@ let t2 = new Test()
 t2.field1 = 20
 t2.field2 = 40
 
-io.println(t1.field1 + t2.field1) // expect: 30
+io.println(t.field1 + t2.field1) // expect: 30
 io.println(t2.field2 + 60) // expect: 100
 
 

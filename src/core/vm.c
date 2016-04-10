@@ -322,6 +322,26 @@ static inline bool val_comp(StructDefinition *structs, HyValue left,
 }
 
 
+// Searches for a field in a struct
+static inline Index struct_field_index(StructDefinition *structs,
+		Struct *instance, Identifier *field) {
+	// Get the struct definition
+	StructDefinition *def = &structs[instance->definition];
+
+	// Get the index of the field we're looking for
+	for (uint32_t i = 0; i < vec_len(def->fields); i++) {
+		Identifier *potential = &vec_at(def->fields, i);
+		if (field->length == potential->length &&
+				strncmp(field->name, potential->name, potential->length) == 0) {
+			return i;
+		}
+	}
+
+	// Couldn't find the field
+	return NOT_FOUND;
+}
+
+
 // Executes a function on the interpreter state
 HyError * vm_run_fn(HyState *state, Index fn_index) {
 	// Indexed labels for computed gotos, used to increase performance by using
@@ -375,7 +395,7 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 	Function *functions = &vec_at(state->functions, 0);
 	NativeFunction *natives = &vec_at(state->natives, 0);
 	StructDefinition *structs = &vec_at(state->structs, 0);
-
+	Identifier *fields = &vec_at(state->fields, 0);
 	HyValue *constants = &vec_at(state->constants, 0);
 	String **strings = &vec_at(state->strings, 0);
 
@@ -706,6 +726,9 @@ BC_CALL: {
 		fn = &functions[val_to_fn(fn_value)];
 		ip = &vec_at(fn->instructions, 0);
 		DISPATCH();
+	} else if (val_is_method(fn_value)) {
+		Method *method = val_to_ptr(fn_value);
+		// TODO
 	} else if (val_is_native(fn_value)) {
 		// Create a set of arguments to pass to the native function
 		HyArgs args;
@@ -760,24 +783,83 @@ BC_RET_V:
 	//  Structs
 	//
 
-BC_STRUCT_NEW:
+BC_STRUCT_NEW: {
+	// Get the struct definition
+	uint32_t def_index = INS(2);
+	StructDefinition *def = &structs[def_index];
+	uint32_t field_length = sizeof(HyValue) * vec_len(def->fields);
+
+	// Create the instance
+	Struct *instance = malloc(sizeof(Struct) + field_length);
+	instance->type = OBJ_STRUCT;
+	instance->definition = def_index;
+
+	// Set the instance's fields
+	for (uint32_t i = 0; i < vec_len(def->fields); i++) {
+		Index fn_index = vec_at(def->methods, i);
+		if (fn_index != NOT_FOUND) {
+			// Create the method
+			Method *method = malloc(sizeof(Method));
+			method->type = OBJ_METHOD;
+			method->parent = instance;
+			method->fn = fn_index;
+
+			// Set the field
+			instance->fields[i] = ptr_to_val(method);
+		} else {
+			instance->fields[i] = VALUE_NIL;
+		}
+	}
+
+	// Store onto the stack
+	STACK(INS(1)) = ptr_to_val(instance);
 	NEXT();
-BC_STRUCT_FIELD:
-	NEXT();
+}
+
+BC_STRUCT_FIELD: {
+	Struct *instance = val_to_ptr(STACK(INS(2)));
+	Identifier *field = &fields[INS(3)];
+	Index field_index = struct_field_index(structs, instance, field);
+
+	if (field_index != NOT_FOUND) {
+		STACK(INS(1)) = instance->fields[field_index];
+		NEXT();
+	} else {
+		printf("Undefined field on struct %.*s\n", field->length, field->name);
+		goto finish;
+	}
+}
+
+
+// Helper to set a field on a struct
+#define STRUCT_SET(value) {                                                     \
+	Struct *instance = val_to_ptr(STACK(INS(3)));                               \
+	Identifier *field = &fields[INS(1)];                                        \
+	Index field_index = struct_field_index(structs, instance, field);                    \
+                                                                                \
+	if (field_index != NOT_FOUND) {                                             \
+		instance->fields[field_index] = (value);                                \
+		NEXT();                                                                 \
+	} else {                                                                    \
+		printf("Undefined field on struct %.*s\n", field->length, field->name); \
+		goto finish;                                                            \
+	}                                                                           \
+}
+
 BC_STRUCT_SET_L:
-	NEXT();
+	STRUCT_SET(STACK(INS(2)));
 BC_STRUCT_SET_I:
-	NEXT();
+	STRUCT_SET(int_to_val(INS(2)));
 BC_STRUCT_SET_N:
-	NEXT();
+	STRUCT_SET(constants[INS(2)]);
 BC_STRUCT_SET_S:
-	NEXT();
+	STRUCT_SET(ptr_to_val(string_copy(strings[INS(2)])));
 BC_STRUCT_SET_P:
-	NEXT();
+	STRUCT_SET(prim_to_val(INS(2)))
 BC_STRUCT_SET_F:
-	NEXT();
+	STRUCT_SET(fn_to_val(INS(2)));
 BC_STRUCT_SET_V:
-	NEXT();
+	STRUCT_SET(native_to_val(INS(2)));
 
 finish:
 	return NULL;

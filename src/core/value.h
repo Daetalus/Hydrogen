@@ -115,7 +115,7 @@ static inline uint32_t string_size(String *str) {
 static inline String * string_copy(String *original) {
 	// Allocate memory for the new string
 	uint32_t size = string_size(original);
-	String *copy = (String *) malloc(size);
+	String *copy = malloc(size);
 
 	// Copy the old string into the new one
 	memcpy(copy, original, size);
@@ -128,7 +128,7 @@ static inline String * string_copy(String *original) {
 static inline String * string_concat(String *left, String *right) {
 	// Allocate memory for new string
 	uint32_t length = left->length + right->length;
-	String *concat = (String *) malloc(sizeof(String) + length + 1);
+	String *concat = malloc(sizeof(String) + length + 1);
 	concat->type = OBJ_STRING;
 	concat->length = length;
 	strncpy(&concat->contents[0], left->contents, left->length);
@@ -275,6 +275,12 @@ static inline bool val_is_str(HyValue val) {
 // Returns true if a value is a struct
 static inline bool val_is_struct(HyValue val) {
 	return val_is_ptr(val) && ((Object *) val_to_ptr(val))->type == OBJ_STRUCT;
+}
+
+
+// Returns true if a value is a method on a struct
+static inline bool val_is_method(HyValue val) {
+	return val_is_ptr(val) && ((Object *) val_to_ptr(val))->type == OBJ_METHOD;
 }
 
 
