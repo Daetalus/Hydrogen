@@ -79,6 +79,11 @@ void test_trigger_error(AssertInfo info, char *message, ...);
 #define neq_ch(left, right)   _check (left != right, "%c == %c", left, right)
 #define neq_num(left, right)  _check (left != right, "%g == %g", left, right)
 
+// Ensure one value is less than another.
+#define lt_int(left, right)  _check (left < right, "%d >= %d", left, right)
+#define lt_uint(left, right) _check (left < right, "%u >= %u", left, right)
+#define lt_num(left, right)  _check (left < right, "%g >= %g", left, right)
+
 // Ensures two NULL terminated strings are equal.
 #define eq_str(left, right) \
 	_check(strcmp(left, right) == 0, "\"%s\" != \"%s\"", left, right)

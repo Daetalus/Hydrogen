@@ -10,10 +10,10 @@
 #include <vm.h>
 #include <lexer.h>
 
-// Frees a mock lexer.
-void mock_lexer_free(Lexer *lexer);
-
 // Creates a new lexer to run tests on.
 Lexer mock_lexer(char *code);
+
+// Frees a mock lexer.
+void mock_lexer_free(Lexer *lexer);
 
 #endif

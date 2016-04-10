@@ -58,6 +58,7 @@ add_library(testing STATIC ${TEST_SOURCES})
 # Build mock framework
 file(GLOB_RECURSE MOCK_SOURCES ${CMAKE_SOURCE_DIR}/test/mock/*)
 add_library(mock STATIC ${MOCK_SOURCES})
+target_link_libraries(mock testing)
 
 # Macro for adding a test program.
 macro(test folder name)
@@ -77,8 +78,8 @@ endmacro()
 # Add parser tests
 test(parser vec)
 test(parser lexer)
-#test(parser ins)
-#test(parser jmp)
+test(parser ins)
+test(parser jmp)
 #test(parser expr)
 #test(parser if)
 #test(parser loop)
