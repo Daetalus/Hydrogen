@@ -223,13 +223,12 @@ void test_method_call(void) {
 
 	ins(&p, MOV_LT, 0, 0, 0);
 	ins(&p, STRUCT_FIELD, 0, 0, 0);
-	ins(&p, CALL, 0, 1, 0);
+	ins(&p, CALL, 0, 0, 0);
 	ins(&p, MOV_TL, 1, 0, 0);
 
 	ins(&p, MOV_LT, 0, 0, 0);
 	ins(&p, STRUCT_FIELD, 0, 0, 0);
-	ins(&p, MOV_LT, 1, 0, 0);
-	ins(&p, CALL, 0, 1, 0);
+	ins(&p, CALL, 0, 0, 0);
 	ins(&p, RET0, 0, 0, 0);
 
 	switch_fn(&p, 1);

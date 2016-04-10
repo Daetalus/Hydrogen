@@ -13,7 +13,7 @@ io.println(t.field1 + t.field2) // expect: 30
 io.println(t.field1 + 100) // expect: 110
 
 let c = t.field2
-io.prinltn(c) // expect: 20
+io.println(c) // expect: 20
 
 
 fn something(a_struct) {

@@ -105,7 +105,6 @@ static FunctionScope scope_new(Parser *parser) {
 	FunctionScope scope;
 	scope.parent = NULL;
 	scope.fn_index = fn_new(parser->state);
-	scope.is_method = false;
 	scope.loop = NULL;
 	scope.block_depth = 0;
 
@@ -2548,7 +2547,7 @@ static void parse_method_definition(Parser *parser) {
 
 	// Add a field to the struct
 	StructDefinition *def = &vec_at(parser->state->structs, struct_index);
-	struct_field_new(def, name, length, fn_to_val(fn_index));
+	struct_method_new(def, name, length, fn_index);
 }
 
 
@@ -2634,7 +2633,7 @@ void parse_struct_fields(Parser *parser, StructDefinition *def) {
 		}
 
 		// Save the name of the field
-		struct_field_new(def, field_name, field_length, VALUE_NIL);
+		struct_field_new(def, field_name, field_length);
 
 		// Expect a comma
 		lexer_next(lexer);

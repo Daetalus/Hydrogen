@@ -19,7 +19,7 @@ Index struct_new(HyState *state, Index pkg) {
 	def->line = 0;
 	def->constructor = NOT_FOUND;
 	vec_new(def->fields, Identifier, 8);
-	vec_new(def->values, HyValue, 8);
+	vec_new(def->methods, Index, 8);
 	return vec_len(state->structs) - 1;
 }
 
@@ -27,7 +27,7 @@ Index struct_new(HyState *state, Index pkg) {
 // Frees resources allocated by a struct definition
 void struct_free(StructDefinition *def) {
 	vec_free(def->fields);
-	vec_free(def->values);
+	vec_free(def->methods);
 }
 
 
@@ -45,19 +45,32 @@ Index struct_find(HyState *state, Index pkg, char *name, uint32_t length) {
 }
 
 
-// Creates a new field with the default value `value` on the struct
-Index struct_field_new(StructDefinition *def, char *name, uint32_t length,
-		HyValue value) {
-	// Name of field
+// Creates a new field or method on the struct, depending on the value of `fn`.
+Index struct_field_or_method_new(StructDefinition *def, char *name,
+		uint32_t length, Index fn) {
+	// Name of the field
 	vec_inc(def->fields);
 	Identifier *ident = &vec_last(def->fields);
 	ident->name = name;
 	ident->length = length;
 
-	// Default value
-	vec_inc(def->values);
-	vec_last(def->values) = value;
+	// Method index
+	vec_inc(def->methods);
+	vec_last(def->methods) = fn;
 	return vec_len(def->fields) - 1;
+}
+
+
+// Creates a new field on the struct
+Index struct_field_new(StructDefinition *def, char *name, uint32_t length) {
+	return struct_field_or_method_new(def, name, length, NOT_FOUND);
+}
+
+
+// Creates a new method on the struct with the function defined at `fn`
+Index struct_method_new(StructDefinition *def, char *name, uint32_t length,
+		Index fn) {
+	return struct_field_or_method_new(def, name, length, fn);
 }
 
 

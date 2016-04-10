@@ -64,6 +64,9 @@ void test_trigger_error(AssertInfo info, char *message, ...);
 		test_trigger_error(info, __VA_ARGS__); \
 	}                                          \
 
+// Triggers an error.
+#define trigger() _check(false, "Fatal error")
+
 // Ensure two values are equal.
 #define check(condition)     _check (condition, "Condition is false")
 #define eq_int(left, right)  _check (left == right, "%d != %d", left, right)

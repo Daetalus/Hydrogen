@@ -29,11 +29,13 @@ typedef struct {
 	// assigned
 	Index constructor;
 
-	// The hash of the name of all fields contained in this struct, and their
-	// default values. The default values are `memcpy`'d into instances of the
-	// struct when they are instantiated
+	// The name of all fields on this struct, in the order they were defined
 	Vec(Identifier) fields;
-	Vec(HyValue) values;
+
+	// For each field in the order they appear in the `fields` array, if the
+	// field is a method, then this will be the index of the function containing
+	// the method's bytecode. Otherwise, the value will be NOT_FOUND
+	Vec(Index) methods;
 } StructDefinition;
 
 
@@ -47,9 +49,12 @@ void struct_free(StructDefinition *def);
 // `pkg`
 Index struct_find(HyState *state, Index pkg, char *name, uint32_t length);
 
-// Creates a new field with the default value `value` on the struct
-Index struct_field_new(StructDefinition *def, char *name, uint32_t length,
-	HyValue value);
+// Creates a new field on the struct
+Index struct_field_new(StructDefinition *def, char *name, uint32_t length);
+
+// Creates a new method on the struct with the function defined at `fn`
+Index struct_method_new(StructDefinition *def, char *name, uint32_t length,
+	Index fn);
 
 // Returns the index of a field with the name `name`
 Index struct_field_find(StructDefinition *def, char *name, uint32_t length);

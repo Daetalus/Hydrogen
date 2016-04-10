@@ -86,7 +86,7 @@ typedef struct {
 
 
 // A string stored as a heap allocated object. The size of the string object
-// depends on the string's length, as we use the "C struct hack" to store its
+// depends on the string's length, as we use the C struct hack to store its
 // contents. This is where we allocate more memory than the size of the struct
 // at runtime, then use a zero length array as the last field of the struct to
 // access this extra memory, where we store the string's contents
@@ -140,7 +140,7 @@ static inline String * string_concat(String *left, String *right) {
 }
 
 
-// Similar to strings, struct fields are stored using the "C struct hack"
+// Similar to strings, struct fields are stored using the struct hack.
 typedef struct {
 	// The object header
 	ObjectHeader;
@@ -152,13 +152,16 @@ typedef struct {
 	// definition
 	Index definition;
 
-	// The values of each field on the struct
+	// The values of each field on the struct. When the struct is first
+	// instantiated, normal fields will be set to nil, and methods will have a
+	// method value created for them
 	HyValue fields[0];
 } Struct;
 
 
 // Methods on structs are stored as their own heap allocated objects, since we
-// need to store a reference back to the parent struct.
+// need to store a reference back to the parent struct. Methods are garbage
+// collected the same way as any other object.
 typedef struct {
 	// The object header
 	ObjectHeader;
