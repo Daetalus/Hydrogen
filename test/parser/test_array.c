@@ -30,6 +30,30 @@ void test_definition(void) {
 }
 
 
+// Tests nested definitions of arrays
+void test_nested_definitions(void) {
+	MockParser p = mock_parser(
+		"let a = [1, [1, 2, []], 3]"
+	);
+
+	ins(&p, ARRAY_NEW, 0, 0, 0);
+	ins(&p, ARRAY_I_SET_I, 0, 1, 0);
+
+	ins(&p, ARRAY_NEW, 1, 0, 0);
+	ins(&p, ARRAY_I_SET_I, 0, 1, 1);
+	ins(&p, ARRAY_I_SET_I, 1, 2, 1);
+	ins(&p, ARRAY_NEW, 2, 0, 0);
+	ins(&p, ARRAY_I_SET_L, 2, 2, 1);
+	ins(&p, ARRAY_I_SET_L, 1, 1, 0);
+
+	ins(&p, ARRAY_I_SET_I, 2, 3, 0);
+	ins(&p, MOV_TL, 0, 0, 0);
+	ins(&p, RET0, 0, 0, 0);
+
+	mock_parser_free(&p);
+}
+
+
 // Tests accessing elements from an array
 void test_access(void) {
 	MockParser p = mock_parser(
@@ -65,8 +89,40 @@ void test_access(void) {
 }
 
 
+// Tests nested array element access
+void test_nested_access(void) {
+	MockParser p = mock_parser(
+		"{\n"
+		"let a = []\n"
+		"let b = []\n"
+		"let c = a[b[0]]\n"
+		"let d = a[0][1]\n"
+		"let e = a[0][1][2]\n"
+		"}\n"
+	);
+
+	ins(&p, ARRAY_NEW, 0, 0, 0);
+	ins(&p, ARRAY_NEW, 1, 0, 0);
+
+	ins(&p, ARRAY_GET_I, 3, 0, 1);
+	ins(&p, ARRAY_GET_L, 2, 3, 0);
+
+	ins(&p, ARRAY_GET_I, 3, 0, 0);
+	ins(&p, ARRAY_GET_I, 3, 1, 3);
+
+	ins(&p, ARRAY_GET_I, 4, 0, 0);
+	ins(&p, ARRAY_GET_I, 4, 1, 4);
+	ins(&p, ARRAY_GET_I, 4, 2, 4);
+	ins(&p, RET0, 0, 0, 0);
+
+	mock_parser_free(&p);
+}
+
+
 int main(int argc, char *argv[]) {
 	test_pass("Definition", test_definition);
+	test_pass("Nested definitions", test_nested_definitions);
 	test_pass("Element access", test_access);
+	test_pass("Nested element access", test_nested_access);
 	return test_run(argc, argv);
 }
