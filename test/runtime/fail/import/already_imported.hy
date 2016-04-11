@@ -1,5 +1,5 @@
 
-// expect error: Package already imported
+// expect error: Package named `io` already imported
 
 import "io"
 

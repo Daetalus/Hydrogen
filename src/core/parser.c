@@ -390,7 +390,7 @@ static void import(Parser *parser, Token *token) {
 	// Validate path
 	if (!import_is_valid(path)) {
 		Error err = err_new(parser->state);
-		err_print(&err, "Invalid import path `%.*s`", path);
+		err_print(&err, "Invalid import path `%s`", path);
 		err_code(&err, token);
 		free(path);
 		err_trigger(&err);
