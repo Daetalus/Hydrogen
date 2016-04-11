@@ -43,6 +43,13 @@ static char opcode_names[][50] = {
 	"STRUCT_SET_L", "STRUCT_SET_I", "STRUCT_SET_N", "STRUCT_SET_S",
 	"STRUCT_SET_P", "STRUCT_SET_F", "STRUCT_SET_V",
 
+	"ARRAY_NEW",
+	"ARRAY_GET_L", "ARRAY_GET_I",
+	"ARRAY_I_SET_L", "ARRAY_I_SET_I", "ARRAY_I_SET_N", "ARRAY_I_SET_S",
+	"ARRAY_I_SET_P", "ARRAY_I_SET_F", "ARRAY_I_SET_V",
+	"ARRAY_L_SET_L", "ARRAY_L_SET_I", "ARRAY_L_SET_N", "ARRAY_L_SET_S",
+	"ARRAY_L_SET_P", "ARRAY_L_SET_F", "ARRAY_L_SET_V",
+
 	"NO_OP",
 };
 
@@ -93,6 +100,15 @@ static uint32_t argument_count[] = {
 	3, /* STRUCT_SET_S */ 3, /* STRUCT_SET_P */ 3, /* STRUCT_SET_F */
 	3, /* STRUCT_SET_V */
 
+	1, /* ARRAY_NEW */
+	3, /* ARRAY_GET_L */ 3, /* ARRAY_GET_I */
+	3, /* ARRAY_I_SET_L */ 3, /* ARRAY_I_SET_I */ 3, /* ARRAY_I_SET_N */
+	3, /* ARRAY_I_SET_S */ 3, /* ARRAY_I_SET_P */ 3, /* ARRAY_I_SET_F */
+	3, /* ARRAY_I_SET_V */
+	3, /* ARRAY_L_SET_L */ 3, /* ARRAY_L_SET_I */ 3, /* ARRAY_L_SET_N */
+	3, /* ARRAY_L_SET_S */ 3, /* ARRAY_L_SET_P */ 3, /* ARRAY_L_SET_F */
+	3, /* ARRAY_L_SET_V */
+
 	0, /* NO_OP */
 };
 
@@ -142,6 +158,15 @@ static uint32_t integer_argument[] = {
 	0, /* STRUCT_SET_L */ 2, /* STRUCT_SET_I */ 0, /* STRUCT_SET_N */
 	0, /* STRUCT_SET_S */ 0, /* STRUCT_SET_P */ 0, /* STRUCT_SET_F */
 	0, /* STRUCT_SET_V */
+
+	0, /* ARRAY_NEW */
+	0, /* ARRAY_GET_L */ 0, /* ARRAY_GET_I */
+	0, /* ARRAY_I_SET_L */ 2, /* ARRAY_I_SET_I */ 0, /* ARRAY_I_SET_N */
+	0, /* ARRAY_I_SET_S */ 0, /* ARRAY_I_SET_P */ 0, /* ARRAY_I_SET_F */
+	0, /* ARRAY_I_SET_V */
+	0, /* ARRAY_L_SET_L */ 2, /* ARRAY_L_SET_I */ 0, /* ARRAY_L_SET_N */
+	0, /* ARRAY_L_SET_S */ 0, /* ARRAY_L_SET_P */ 0, /* ARRAY_L_SET_F */
+	0, /* ARRAY_L_SET_V */
 };
 
 

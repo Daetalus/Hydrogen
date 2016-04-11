@@ -388,6 +388,16 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 		&&BC_STRUCT_SET_L, &&BC_STRUCT_SET_I, &&BC_STRUCT_SET_N,
 		&&BC_STRUCT_SET_S, &&BC_STRUCT_SET_P, &&BC_STRUCT_SET_F,
 		&&BC_STRUCT_SET_V,
+
+		// Arrays
+		&&BC_ARRAY_NEW,
+		&&BC_ARRAY_GET_L, &&BC_ARRAY_GET_I,
+		&&BC_ARRAY_I_SET_L, &&BC_ARRAY_I_SET_I, &&BC_ARRAY_I_SET_N,
+		&&BC_ARRAY_I_SET_S, &&BC_ARRAY_I_SET_P, &&BC_ARRAY_I_SET_F,
+		&&BC_ARRAY_I_SET_V,
+		&&BC_ARRAY_L_SET_L, &&BC_ARRAY_L_SET_I, &&BC_ARRAY_L_SET_N,
+		&&BC_ARRAY_L_SET_S, &&BC_ARRAY_L_SET_P, &&BC_ARRAY_L_SET_F,
+		&&BC_ARRAY_L_SET_V,
 	};
 
 	// Cache pointers to arrays on the interpreter state
@@ -406,7 +416,7 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 
 	// Get a pointer to the function we're executing
 	Function *fn = &functions[fn_index];
-	// debug_fn(state, fn);
+	debug_fn(state, fn);
 
 	// The current instruction we're executing
 	Instruction *ip = &vec_at(fn->instructions, 0);
@@ -677,8 +687,8 @@ BC_IS_FALSE_L: {
 		NEXT();                                                       \
                                                                       \
 	BC_ ## ins ## _LI:                                                \
-		if (ensure_num(STACK(INS(1))) op                               \
-				(double) unsigned_to_signed(INS(2))) {               \
+		if (ensure_num(STACK(INS(1))) op                              \
+				(double) unsigned_to_signed(INS(2))) {                \
 			ip++;                                                     \
 		}                                                             \
 		NEXT();                                                       \
@@ -873,18 +883,18 @@ BC_STRUCT_FIELD: {
 
 
 // Helper to set a field on a struct
-#define STRUCT_SET(value) {                                                     \
-	Struct *instance = val_to_ptr(STACK(INS(3)));                               \
-	Identifier *field = &fields[INS(1)];                                        \
-	Index field_index = struct_field_index(structs, instance, field);           \
-                                                                                \
-	if (field_index != NOT_FOUND) {                                             \
-		instance->fields[field_index] = (value);                                \
-		NEXT();                                                                 \
-	} else {                                                                    \
-		printf("Undefined field on struct %.*s\n", field->length, field->name); \
-		goto finish;                                                            \
-	}                                                                           \
+#define STRUCT_SET(value) {                                                    \
+	Struct *instance = val_to_ptr(STACK(INS(3)));                              \
+	Identifier *field = &fields[INS(1)];                                       \
+	Index field_index = struct_field_index(structs, instance, field);          \
+                                                                               \
+	if (field_index != NOT_FOUND) {                                            \
+		instance->fields[field_index] = (value);                               \
+		NEXT();                                                                \
+	} else {                                                                   \
+		printf("Undefined field (struct %.*s)\n", field->length, field->name); \
+		goto finish;                                                           \
+	}                                                                          \
 }
 
 BC_STRUCT_SET_L:
@@ -901,6 +911,112 @@ BC_STRUCT_SET_F:
 	STRUCT_SET(fn_to_val(INS(2)));
 BC_STRUCT_SET_V:
 	STRUCT_SET(native_to_val(INS(2)));
+
+
+	//
+	//  Arrays
+	//
+
+BC_ARRAY_NEW: {
+	Array *array = malloc(sizeof(Array));
+	array->type = OBJ_ARRAY;
+	array->length = 0;
+	array->capacity = 4;
+	array->contents = malloc(sizeof(HyValue) * array->capacity);
+	STACK(INS(1)) = ptr_to_val(array);
+	NEXT();
+}
+
+
+// Helper to index an array
+#define ARRAY_GET(index) {                         \
+	if (!val_is_array(STACK(INS(3)))) {            \
+		printf("Attempt to index non-array\n");    \
+		goto finish;                               \
+	}                                              \
+                                                   \
+	Array *array = val_to_ptr(STACK(INS(3)));      \
+	if ((index) < 0 || (index) >= array->length) { \
+		printf("Array index out of bounds\n");     \
+		goto finish;                               \
+	}                                              \
+                                                   \
+	STACK(INS(1)) = array->contents[(index)];      \
+	NEXT();                                        \
+}
+
+BC_ARRAY_GET_L: {
+	// Check we're indexing by a number
+	if (!val_is_num(STACK(INS(2)))) {
+		printf("Expected integer when indexing array\n");
+		goto finish;
+	}
+
+	int64_t index = (int64_t) val_to_num(STACK(INS(2)));
+	ARRAY_GET(index);
+}
+
+BC_ARRAY_GET_I:
+	ARRAY_GET(INS(2));
+
+
+// Helper to set an index in an array
+#define ARRAY_I_SET(index, value) {                \
+	if (!val_is_array(STACK(INS(3)))) {            \
+		printf("Attempt to index non-array\n");    \
+		goto finish;                               \
+	}                                              \
+                                                   \
+	Array *array = val_to_ptr(STACK(INS(3)));      \
+	if ((index) < 0 || (index) >= array->length) { \
+		printf("Array index out of bounds\n");     \
+		goto finish;                               \
+	}                                              \
+                                                   \
+	array->contents[(index)] = (value);            \
+	NEXT();                                        \
+}
+
+BC_ARRAY_I_SET_L:
+	ARRAY_I_SET(INS(1), STACK(INS(2)));
+BC_ARRAY_I_SET_I:
+	ARRAY_I_SET(INS(1), int_to_val(INS(2)));
+BC_ARRAY_I_SET_N:
+	ARRAY_I_SET(INS(1), constants[INS(2)]);
+BC_ARRAY_I_SET_S:
+	ARRAY_I_SET(INS(1), ptr_to_val(string_copy(strings[INS(2)])));
+BC_ARRAY_I_SET_P:
+	ARRAY_I_SET(INS(1), prim_to_val(INS(2)));
+BC_ARRAY_I_SET_F:
+	ARRAY_I_SET(INS(1), fn_to_val(INS(2)));
+BC_ARRAY_I_SET_V:
+	ARRAY_I_SET(INS(1), native_to_val(INS(2)));
+
+
+#define ARRAY_L_SET(value) {                              \
+	if (!val_is_num(STACK(INS(2)))) {                     \
+		printf("Expected integer when indexing array\n"); \
+		goto finish;                                      \
+	}                                                     \
+                                                          \
+	int64_t index = (int64_t) val_to_num(STACK(INS(2)));  \
+	ARRAY_I_SET(index, value);                            \
+}
+
+BC_ARRAY_L_SET_L:
+	ARRAY_L_SET(STACK(INS(2)));
+BC_ARRAY_L_SET_I:
+	ARRAY_L_SET(int_to_val(INS(2)));
+BC_ARRAY_L_SET_N:
+	ARRAY_L_SET(constants[INS(2)]);
+BC_ARRAY_L_SET_S:
+	ARRAY_L_SET(ptr_to_val(string_copy(strings[INS(2)])));
+BC_ARRAY_L_SET_P:
+	ARRAY_L_SET(prim_to_val(INS(2)));
+BC_ARRAY_L_SET_F:
+	ARRAY_L_SET(fn_to_val(INS(2)));
+BC_ARRAY_L_SET_V:
+	ARRAY_L_SET(native_to_val(INS(2)));
 
 finish:
 	return NULL;

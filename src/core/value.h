@@ -64,6 +64,7 @@ typedef enum {
 	OBJ_STRING,
 	OBJ_STRUCT,
 	OBJ_METHOD,
+	OBJ_ARRAY,
 } ObjectType;
 
 
@@ -140,7 +141,7 @@ static inline String * string_concat(String *left, String *right) {
 }
 
 
-// Similar to strings, struct fields are stored using the struct hack.
+// Similar to strings, struct fields are stored using the struct hack
 typedef struct {
 	// The object header
 	ObjectHeader;
@@ -161,7 +162,7 @@ typedef struct {
 
 // Methods on structs are stored as their own heap allocated objects, since we
 // need to store a reference back to the parent struct. Methods are garbage
-// collected the same way as any other object.
+// collected the same way as any other object
 typedef struct {
 	// The object header
 	ObjectHeader;
@@ -172,6 +173,17 @@ typedef struct {
 	// The index of the function containing this method's bytecode
 	Index fn;
 } Method;
+
+
+// A Hydrogen array object
+typedef struct {
+	// The object header
+	ObjectHeader;
+
+	// The length, capacity, and contents of the array
+	uint32_t length, capacity;
+	HyValue *contents;
+} Array;
 
 
 
@@ -281,6 +293,12 @@ static inline bool val_is_struct(HyValue val) {
 // Returns true if a value is a method on a struct
 static inline bool val_is_method(HyValue val) {
 	return val_is_ptr(val) && ((Object *) val_to_ptr(val))->type == OBJ_METHOD;
+}
+
+
+// Returns true if a value is a method on a struct
+static inline bool val_is_array(HyValue val) {
+	return val_is_ptr(val) && ((Object *) val_to_ptr(val))->type == OBJ_ARRAY;
 }
 
 
