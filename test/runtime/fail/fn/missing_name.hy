@@ -1,5 +1,5 @@
 
-// expect error: Expected identifier after `fn`, found `\(`
+// expect error: Undefined struct `hello`
 
 fn (hello, there) {
 	// ...
