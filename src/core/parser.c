@@ -1824,7 +1824,6 @@ static Operand operand_instantiation(Parser *parser, uint16_t struct_slot) {
 	fn_emit(parser_fn(parser), STRUCT_NEW, struct_slot, index, 0);
 
 	// Expect an open parenthesis
-	Token open = lexer->token;
 	err_expect(parser, TOKEN_OPEN_PARENTHESIS, &ident,
 		"Expected `(` after struct name");
 
@@ -1859,6 +1858,47 @@ static Operand operand_self(Parser *parser, uint16_t slot) {
 	fn_emit(parser_fn(parser), MOV_SELF, slot, 0, 0);
 
 	// Create operand
+	return operand_local(slot);
+}
+
+
+// Parse an array operand
+static Operand operand_array(Parser *parser, uint16_t slot) {
+	Lexer *lexer = &parser->lexer;
+
+	// Skip the opening bracket
+	Token open = lexer->token;
+	lexer_next(lexer);
+
+	// Create a new array
+	fn_emit(parser_fn(parser), ARRAY_NEW, slot, 0, 0);
+
+	// Continually parse array elements
+	uint16_t index = 0;
+	while (lexer->token.type != TOKEN_EOF &&
+			lexer->token.type != TOKEN_CLOSE_BRACKET) {
+		// Parse an expression into a temporary slot
+		uint16_t element_slot = local_reserve(parser);
+		Operand element = parse_expr(parser, element_slot);
+		local_free(parser);
+
+		// Emit bytecode to store the expression into the array
+		expr_discharge(parser, ARRAY_I_SET_L, index, element, slot);
+		index++;
+
+		// Expect a comma
+		if (lexer->token.type == TOKEN_COMMA) {
+			lexer_next(lexer);
+		} else {
+			break;
+		}
+	}
+
+	// Expect a closing bracket
+	err_expect(parser, TOKEN_CLOSE_BRACKET, &open,
+		"Expected `]` to close `[` in array");
+	lexer_next(lexer);
+
 	return operand_local(slot);
 }
 
@@ -1900,6 +1940,8 @@ static Operand expr_operand(Parser *parser, uint16_t slot) {
 		return operand_instantiation(parser, slot);
 	case TOKEN_SELF:
 		return operand_self(parser, slot);
+	case TOKEN_OPEN_BRACKET:
+		return operand_array(parser, slot);
 	default:
 		err_unexpected(parser, &lexer->token, "Expected operand in expression");
 		return operand_new();

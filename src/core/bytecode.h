@@ -261,6 +261,53 @@ typedef enum {
 
 
 	//
+	//  Arrays
+	//
+
+	// Creates a new array in a stack slot
+	//
+	// Arguments:
+	// * `slot`: the slot to store the new array in
+	ARRAY_NEW,
+
+	// Gets a value from an index in an array
+	//
+	// Arguments:
+	// * `slot`: the slot to store the value in
+	// * `index`: the index to fetch the value from
+	// * `slot`: the slot the array is in
+	ARRAY_GET_L,
+	ARRAY_GET_I,
+	ARRAY_GET_N,
+	ARRAY_GET_S,
+	ARRAY_GET_P,
+	ARRAY_GET_F,
+	ARRAY_GET_V,
+
+	// Sets an index in an array to a value
+	//
+	// Arguments:
+	// * `index`: the index in the array to set
+	// * `value`: the value to set the index to
+	// * `slot`: the slot the array is in
+	ARRAY_I_SET_L,
+	ARRAY_I_SET_I,
+	ARRAY_I_SET_N,
+	ARRAY_I_SET_S,
+	ARRAY_I_SET_P,
+	ARRAY_I_SET_F,
+	ARRAY_I_SET_V,
+
+	ARRAY_L_SET_L,
+	ARRAY_L_SET_I,
+	ARRAY_L_SET_N,
+	ARRAY_L_SET_S,
+	ARRAY_L_SET_P,
+	ARRAY_L_SET_F,
+	ARRAY_L_SET_V,
+
+
+	//
 	//  No Operation
 	//
 

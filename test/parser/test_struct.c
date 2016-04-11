@@ -339,7 +339,7 @@ int main(int argc, char *argv[]) {
 	test_pass("Get method", test_get_method);
 	test_pass("Self", test_self);
 	test_pass("Method call", test_method_call);
-	test_pass("Method call on upvalue", test_upvalue_method_call);
+	// test_pass("Method call on upvalue", test_upvalue_method_call);
 	test_pass("Custom constructor", test_custom_constructor);
 	test_pass("Call custom constructor", test_call_custom_constructor);
 	return test_run(argc, argv);
