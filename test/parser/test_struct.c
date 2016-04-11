@@ -76,8 +76,10 @@ void test_instantiation(void) {
 	);
 
 	ins(&p, STRUCT_NEW, 0, 0, 0);
+	ins(&p, STRUCT_CALL_CONSTRUCTOR, 0, 1, 0);
 	ins(&p, MOV_TL, 0, 0, 0);
 	ins(&p, STRUCT_NEW, 0, 0, 0);
+	ins(&p, STRUCT_CALL_CONSTRUCTOR, 0, 1, 0);
 	ins(&p, MOV_TL, 1, 0, 0);
 	ins(&p, RET0, 0, 0, 0);
 
@@ -96,6 +98,7 @@ void test_get_field(void) {
 	);
 
 	ins(&p, STRUCT_NEW, 0, 0, 0);
+	ins(&p, STRUCT_CALL_CONSTRUCTOR, 0, 1, 0);
 	ins(&p, MOV_TL, 0, 0, 0);
 	ins(&p, MOV_LT, 0, 0, 0);
 	ins(&p, STRUCT_FIELD, 0, 0, 0);
@@ -118,6 +121,7 @@ void test_set_field(void) {
 	);
 
 	ins(&p, STRUCT_NEW, 0, 0, 0);
+	ins(&p, STRUCT_CALL_CONSTRUCTOR, 0, 1, 0);
 	ins(&p, MOV_TL, 0, 0, 0);
 	ins(&p, MOV_LT, 0, 0, 0);
 	ins(&p, STRUCT_SET_I, 0, 3, 0);
@@ -169,6 +173,7 @@ void test_get_method(void) {
 
 	switch_fn(&p, 0);
 	ins(&p, STRUCT_NEW, 0, 0, 0);
+	ins(&p, STRUCT_CALL_CONSTRUCTOR, 0, 1, 0);
 	ins(&p, MOV_TL, 0, 0, 0);
 	ins(&p, MOV_LT, 0, 0, 0);
 	ins(&p, STRUCT_FIELD, 0, 0, 0);
@@ -220,6 +225,7 @@ void test_method_call(void) {
 
 	switch_fn(&p, 0);
 	ins(&p, STRUCT_NEW, 0, 0, 0);
+	ins(&p, STRUCT_CALL_CONSTRUCTOR, 0, 1, 0);
 	ins(&p, MOV_TL, 0, 0, 0);
 
 	ins(&p, MOV_LT, 0, 0, 0);
@@ -257,6 +263,7 @@ void test_upvalue_method_call(void) {
 
 	switch_fn(&p, 0);
 	ins(&p, STRUCT_NEW, 0, 0, 0);
+	ins(&p, STRUCT_CALL_CONSTRUCTOR, 0, 1, 0);
 	ins(&p, MOV_LF, 0, 2, 0);
 	ins(&p, UPVALUE_CLOSE, 0, 0, 0);
 	ins(&p, RET0, 0, 0, 0);
@@ -309,15 +316,14 @@ void test_call_custom_constructor(void) {
 
 	switch_fn(&p, 0);
 	ins(&p, STRUCT_NEW, 0, 0, 0);
-	ins(&p, MOV_LF, 1, 1, 0);
-	ins(&p, MOV_LL, 2, 0, 0);
-	ins(&p, MOV_LI, 3, 3, 0);
-	ins(&p, CALL, 1, 2, 2);
+	ins(&p, MOV_LI, 1, 3, 0);
+	ins(&p, STRUCT_CALL_CONSTRUCTOR, 0, 1, 1);
 	ins(&p, MOV_TL, 0, 0, 0);
 	ins(&p, RET0, 0, 0, 0);
 
 	switch_fn(&p, 1);
-	ins(&p, STRUCT_SET_L, 0, 1, 0);
+	ins(&p, MOV_SELF, 1, 0, 0);
+	ins(&p, STRUCT_SET_L, 0, 0, 1);
 	ins(&p, RET0, 0, 0, 0);
 
 	mock_parser_free(&p);

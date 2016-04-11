@@ -1554,7 +1554,8 @@ static uint16_t parse_call_args(Parser *parser) {
 
 // Emit bytecode for a function call as a postfix operator. Stores the return
 // value of the function call into `slot`
-static void postfix_call(Parser *parser, uint16_t slot, Operand *operand) {
+static void postfix_call(Parser *parser, uint16_t return_slot,
+		Operand *operand) {
 	Lexer *lexer = &parser->lexer;
 
 	// Save the number of locals on the top of the stack before we parse the
@@ -1584,14 +1585,14 @@ static void postfix_call(Parser *parser, uint16_t slot, Operand *operand) {
 	uint16_t arity = parse_call_args(parser);
 
 	// Emit the call instruction
-	fn_emit(parser_fn(parser), CALL, base, arity, slot);
+	fn_emit(parser_fn(parser), CALL, base, arity, return_slot);
 
 	// Free allocated locals
 	parser->scope->locals_count = locals_count;
 
 	// Set resulting operand to return value of function
 	operand->type = OP_LOCAL;
-	operand->value = slot;
+	operand->value = return_slot;
 }
 
 
@@ -1797,7 +1798,7 @@ static Operand operand_anonymous_fn(Parser *parser) {
 
 
 // Parse a struct instantiation
-static Operand operand_instantiation(Parser *parser, uint16_t slot) {
+static Operand operand_instantiation(Parser *parser, uint16_t struct_slot) {
 	Lexer *lexer = &parser->lexer;
 
 	// Skip the `new` token
@@ -1819,20 +1820,30 @@ static Operand operand_instantiation(Parser *parser, uint16_t slot) {
 	}
 	lexer_next(lexer);
 
-	// Expect an open and close parenthesis for now
+	// Emit bytecode for the struct instantiation
+	fn_emit(parser_fn(parser), STRUCT_NEW, struct_slot, index, 0);
+
+	// Expect an open parenthesis
 	Token open = lexer->token;
 	err_expect(parser, TOKEN_OPEN_PARENTHESIS, &ident,
 		"Expected `(` after struct name");
-	lexer_next(lexer);
-	err_expect(parser, TOKEN_CLOSE_PARENTHESIS, &open,
-		"Expected `)` to close `(` in struct instantiation");
-	lexer_next(lexer);
 
-	// Emit bytecode
-	fn_emit(parser_fn(parser), STRUCT_NEW, slot, index, 0);
+	// Save the number of locals on the top of the stack so we can deallocate
+	// all arguments to the constructor call easily
+	uint32_t locals_count = parser->scope->locals_count;
 
-	// Create operand
-	return operand_local(slot);
+	// Parse the arguments to the function
+	uint16_t base = parser->scope->locals_count;
+	uint16_t arity = parse_call_args(parser);
+
+	// Emit the call instruction
+	fn_emit(parser_fn(parser), STRUCT_CALL_CONSTRUCTOR, struct_slot, base,
+		arity);
+
+	// Free arguments to the constructor call
+	parser->scope->locals_count = locals_count;
+
+	return operand_local(struct_slot);
 }
 
 

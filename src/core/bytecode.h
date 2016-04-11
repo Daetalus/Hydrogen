@@ -225,6 +225,16 @@ typedef enum {
 	// * `struct_index`: the index of the struct's definition in the VM's list
 	STRUCT_NEW,
 
+	// Calls the constructor function of a struct
+	//
+	// Arguments:
+	// * `struct_slot`: the stack slot containing the struct to call the
+	//   constructor of
+	// * `base`: the stack slot containing the first argument to the constructor
+	//   call
+	// * `arity`: the number of arguments to pass to the constructor
+	STRUCT_CALL_CONSTRUCTOR,
+
 	// Moves the contents of a struct's field into a local slot
 	//
 	// Arguments:

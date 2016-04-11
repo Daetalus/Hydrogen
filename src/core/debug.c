@@ -17,7 +17,7 @@ static char opcode_names[][50] = {
 	"MOV_UL", "MOV_UI", "MOV_UN", "MOV_US", "MOV_UP", "MOV_UF", "MOV_UV",
 	"MOV_UL", "UPVALUE_CLOSE",
 	"MOV_TL", "MOV_TI", "MOV_TN", "MOV_TS", "MOV_TP", "MOV_TF", "MOV_TV",
-	"MOV_LT",
+	"MOV_LT", "MOV_SELF",
 
 	"ADD_LL", "ADD_LI", "ADD_LN", "ADD_IL", "ADD_NL",
 	"SUB_LL", "SUB_LI", "SUB_LN", "SUB_IL", "SUB_NL",
@@ -39,7 +39,7 @@ static char opcode_names[][50] = {
 	"CALL", "RET0", "RET_L", "RET_I", "RET_N", "RET_S", "RET_P", "RET_F",
 	"RET_V",
 
-	"STRUCT_NEW", "STRUCT_FIELD",
+	"STRUCT_NEW", "STRUCT_CALL_CONSTRUCTOR", "STRUCT_FIELD",
 	"STRUCT_SET_L", "STRUCT_SET_I", "STRUCT_SET_N", "STRUCT_SET_S",
 	"STRUCT_SET_P", "STRUCT_SET_F", "STRUCT_SET_V",
 
@@ -59,7 +59,7 @@ static uint32_t argument_count[] = {
 
 	3, /* MOV_TL */ 3, /* MOV_TI */ 3, /* MOV_TN */ 3, /* MOV_TS */
 	3, /* MOV_TP */ 3, /* MOV_TF */ 3, /* MOV_TV */
-	3, /* MOV_LT */
+	3, /* MOV_LT */ 1, /* MOV_SELF */
 
 	3, /* ADD_LL */ 3, /* ADD_LI */ 3, /* ADD_LN */ 3, /* ADD_IL */
 	3, /* ADD_NL */
@@ -88,7 +88,7 @@ static uint32_t argument_count[] = {
 	3, /* CALL */ 0, /* RET0 */ 2, /* RET_L */ 2, /* RET_I */ 2, /* RET_N */
 	2, /* RET_S */ 2, /* RET_P */ 2, /* RET_F */ 2, /* RET_V */
 
-	2, /* STRUCT_NEW */ 3, /* STRUCT_FIELD */
+	2, /* STRUCT_NEW */ 3, /* STRUCT_CALL_CONSTRUCTOR */ 3, /* STRUCT_FIELD */
 	3, /* STRUCT_SET_L */ 3, /* STRUCT_SET_I */ 3, /* STRUCT_SET_N */
 	3, /* STRUCT_SET_S */ 3, /* STRUCT_SET_P */ 3, /* STRUCT_SET_F */
 	3, /* STRUCT_SET_V */
@@ -110,7 +110,7 @@ static uint32_t integer_argument[] = {
 
 	0, /* MOV_TL */ 2, /* MOV_TI */ 0, /* MOV_TN */ 0, /* MOV_TS */
 	0, /* MOV_TP */ 0, /* MOV_TF */ 0, /* MOV_TV */
-	0, /* MOV_LT */
+	0, /* MOV_LT */ 0, /* MOV_SELF */
 
 	0, /* ADD_LL */ 3, /* ADD_LI */ 0, /* ADD_LN */ 2, /* ADD_IL */
 	0, /* ADD_NL */
@@ -138,7 +138,7 @@ static uint32_t integer_argument[] = {
 	0, /* JMP */ 0, /* LOOP */
 	0, /* CALL */ 0, /* RET0 */ 0, /* RET */
 
-	0, /* STRUCT_NEW */ 0, /* STRUCT_FIELD */
+	0, /* STRUCT_NEW */ 0, /* STRUCT_CALL_CONSTRUCTOR */ 0, /* STRUCT_FIELD */
 	0, /* STRUCT_SET_L */ 2, /* STRUCT_SET_I */ 0, /* STRUCT_SET_N */
 	0, /* STRUCT_SET_S */ 0, /* STRUCT_SET_P */ 0, /* STRUCT_SET_F */
 	0, /* STRUCT_SET_V */

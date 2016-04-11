@@ -22,14 +22,14 @@ struct Test2 {
 	field
 }
 
-fn (Test) new() {
+fn (Test2) new() {
 	self.field = "wow"
 	io.println(self.field)
 	self.hello()
 	io.println(self.field)
 }
 
-fn (Test) hello() {
+fn (Test2) hello() {
 	self.field = "hello"
 }
 
@@ -47,7 +47,7 @@ struct Test3 {
 	field
 }
 
-fn (Test) new(arg1, arg2) {
+fn (Test3) new(arg1, arg2) {
 	self.field = arg1 + arg2
 }
 

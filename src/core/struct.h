@@ -8,6 +8,7 @@
 
 #include <hydrogen.h>
 
+#include <value.h>
 #include <vec.h>
 
 
@@ -25,8 +26,8 @@ typedef struct {
 	// The line of in the source code the struct was defined on
 	uint32_t line;
 
-	// The struct's constructor function, or `NOT_FOUND` if no constructor is
-	// assigned
+	// The struct's constructor function. If there is no constructor, the
+	// function index inside the method struct is set to NOT_FOUND
 	Index constructor;
 
 	// The name of all fields on this struct, in the order they were defined

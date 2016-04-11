@@ -384,7 +384,7 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 		&&BC_RET_P, &&BC_RET_F, &&BC_RET_V,
 
 		// Structs
-		&&BC_STRUCT_NEW, &&BC_STRUCT_FIELD,
+		&&BC_STRUCT_NEW, &&BC_STRUCT_CALL_CONSTRUCTOR, &&BC_STRUCT_FIELD,
 		&&BC_STRUCT_SET_L, &&BC_STRUCT_SET_I, &&BC_STRUCT_SET_N,
 		&&BC_STRUCT_SET_S, &&BC_STRUCT_SET_P, &&BC_STRUCT_SET_F,
 		&&BC_STRUCT_SET_V,
@@ -736,6 +736,8 @@ BC_CALL: {
 			fn = &functions[val_to_fn(fn_value)];
 		}
 
+		// TODO: Check arity of function call against arity in *ip
+
 		// Set up state for the called function
 		ip = &vec_at(fn->instructions, 0);
 		DISPATCH();
@@ -796,14 +798,13 @@ BC_RET_V:
 
 BC_STRUCT_NEW: {
 	// Get the struct definition
-	uint32_t def_index = INS(2);
-	StructDefinition *def = &structs[def_index];
+	StructDefinition *def = &structs[INS(2)];
 	uint32_t field_length = sizeof(HyValue) * vec_len(def->fields);
 
 	// Create the instance
 	Struct *instance = malloc(sizeof(Struct) + field_length);
 	instance->type = OBJ_STRUCT;
-	instance->definition = def_index;
+	instance->definition = INS(2);
 
 	// Set the instance's fields
 	HyValue parent = ptr_to_val(instance);
@@ -826,6 +827,34 @@ BC_STRUCT_NEW: {
 	// Store onto the stack
 	STACK(INS(1)) = ptr_to_val(instance);
 	NEXT();
+}
+
+BC_STRUCT_CALL_CONSTRUCTOR: {
+	Struct *instance = val_to_ptr(STACK(INS(1)));
+	StructDefinition *def = &structs[instance->definition];
+
+	// Only call the constructor if it exists
+	// TODO: Check arity of constructor against arity in *ip
+	if (def->constructor == NOT_FOUND) {
+		NEXT();
+	}
+
+	// Set up the new function's stack frame
+	Index index = (*call_stack_count)++;
+	call_stack[index].fn = fn;
+	call_stack[index].stack_start = stack_start;
+
+	// Set the return slot to one after all the arguments to the function
+	// This slot will not be used by anything
+	// Do this because we don't care about the return value from a constructor
+	call_stack[index].return_slot = stack_start + INS(2) + INS(3) + 1;
+
+	call_stack[index].ip = ip;
+	call_stack[index].self = STACK(INS(1));
+	stack_start = stack_start + INS(2);
+	fn = &functions[def->constructor];
+	ip = &vec_at(fn->instructions, 0);
+	DISPATCH();
 }
 
 BC_STRUCT_FIELD: {
