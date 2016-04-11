@@ -289,7 +289,8 @@ void test_custom_constructor(void) {
 	ins(&p, RET0, 0, 0, 0);
 
 	switch_fn(&p, 1);
-	ins(&p, STRUCT_SET_L, 0, 1, 0);
+	ins(&p, MOV_SELF, 1, 0, 0);
+	ins(&p, STRUCT_SET_L, 0, 0, 1);
 	ins(&p, RET0, 0, 0, 0);
 
 	mock_parser_free(&p);

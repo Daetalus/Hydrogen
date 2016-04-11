@@ -1842,7 +1842,6 @@ static Operand operand_self(Parser *parser, uint16_t slot) {
 	Lexer *lexer = &parser->lexer;
 
 	// Skip the `self` token
-	Token self_token = lexer->token;
 	lexer_next(lexer);
 
 	// Emit bytecode to store the self argument into the slot
@@ -1850,6 +1849,19 @@ static Operand operand_self(Parser *parser, uint16_t slot) {
 
 	// Create operand
 	return operand_local(slot);
+}
+
+
+// Parse an operand which can be assigned to (`self` or an identifier)
+static Operand expr_operand_assignable(Parser *parser, uint16_t slot) {
+	switch (parser->lexer.token.type) {
+	case TOKEN_IDENTIFIER:
+		return operand_identifier(parser, slot);
+	case TOKEN_SELF:
+		return operand_self(parser, slot);
+	default:
+		return operand_new();
+	}
 }
 
 
@@ -2099,13 +2111,19 @@ static void parse_assignment(Parser *parser, Operand operand, uint16_t slot) {
 static void parse_assignment_or_call(Parser *parser) {
 	Lexer *lexer = &parser->lexer;
 
-	// Expect an identifier
-	err_expect(parser, TOKEN_IDENTIFIER, &lexer->token, "Expected identifier");
+	// Expect an identifier or `self`
+	if (lexer->token.type != TOKEN_IDENTIFIER &&
+			lexer->token.type != TOKEN_SELF) {
+		err_fatal(parser, &lexer->token, "Expected identifier");
+	}
 	Token ident = lexer->token;
 
 	// Parse identifier into a temporary local
 	uint16_t slot = local_reserve(parser);
-	Operand operand = operand_identifier(parser, slot);
+	Operand operand = expr_operand_assignable(parser, slot);
+	if (operand.type == OP_NONE) {
+		err_fatal(parser, &lexer->token, "Expected identifier");
+	}
 
 	// Iteratively parse postfix struct field or array accesses
 	bool requires_slot = false;
@@ -2515,6 +2533,25 @@ static void parse_fn_definition(Parser *parser, Token *fn_token) {
 }
 
 
+// Parses the body of a custom constructor
+static void parse_constructor(Parser *parser, StructDefinition *def) {
+	Lexer *lexer = &parser->lexer;
+
+	// Skip `new` token
+	lexer_next(lexer);
+
+	// Ensure we haven't already defined a constructor on this struct
+	if (def->constructor != NOT_FOUND) {
+		err_fatal(parser, &lexer->token,
+			"Constructor already defined on struct `%.*s`", def->length,
+			def->name);
+	}
+
+	// Parse the function body
+	def->constructor = parse_fn_definition_body(parser, true);
+}
+
+
 // Parses a method definition
 static void parse_method_definition(Parser *parser) {
 	Lexer *lexer = &parser->lexer;
@@ -2544,7 +2581,13 @@ static void parse_method_definition(Parser *parser) {
 		"Expected `)` to close `(` after struct name in method definition");
 	lexer_next(lexer);
 
-	// Expect the name of the method
+	// Check if this is a custom constructor
+	StructDefinition *def = &vec_at(parser->state->structs, struct_index);
+	if (lexer->token.type == TOKEN_NEW) {
+		parse_constructor(parser, def);
+		return;
+	}
+
 	err_expect(parser, TOKEN_IDENTIFIER, &close,
 		"Expected method name after `)` in method definition");
 	char *name = lexer->token.start;
@@ -2560,7 +2603,6 @@ static void parse_method_definition(Parser *parser) {
 	fn->length = length;
 
 	// Add a field to the struct
-	StructDefinition *def = &vec_at(parser->state->structs, struct_index);
 	struct_method_new(def, name, length, fn_index);
 }
 
