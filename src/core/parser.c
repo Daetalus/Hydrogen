@@ -403,7 +403,7 @@ static void import(Parser *parser, Token *token) {
 	// Check if the import name already exists
 	if (import_find(parser, name, length) != NOT_FOUND) {
 		Error err = err_new(parser->state);
-		err_print(&err, "Package named `%.*s` already imported", name);
+		err_print(&err, "Package named `%.*s` already imported", length, name);
 		err_code(&err, token);
 		free(name);
 		free(path);
