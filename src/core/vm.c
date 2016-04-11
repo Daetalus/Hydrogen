@@ -342,6 +342,16 @@ static inline Index struct_field_index(StructDefinition *structs,
 }
 
 
+// Rounds a number up to the nearest power of 2
+static inline uint32_t ceil_power_of_2(uint32_t value) {
+	uint32_t power = 2;
+	while (value >>= 1) {
+		power <<= 1;
+	}
+	return power;
+}
+
+
 // Executes a function on the interpreter state
 HyError * vm_run_fn(HyState *state, Index fn_index) {
 	// Indexed labels for computed gotos, used to increase performance by using
@@ -416,7 +426,7 @@ HyError * vm_run_fn(HyState *state, Index fn_index) {
 
 	// Get a pointer to the function we're executing
 	Function *fn = &functions[fn_index];
-	debug_fn(state, fn);
+	// debug_fn(state, fn);
 
 	// The current instruction we're executing
 	Instruction *ip = &vec_at(fn->instructions, 0);
@@ -920,8 +930,8 @@ BC_STRUCT_SET_V:
 BC_ARRAY_NEW: {
 	Array *array = malloc(sizeof(Array));
 	array->type = OBJ_ARRAY;
-	array->length = 0;
-	array->capacity = 4;
+	array->length = INS(2);
+	array->capacity = ceil_power_of_2(array->length);
 	array->contents = malloc(sizeof(HyValue) * array->capacity);
 	STACK(INS(1)) = ptr_to_val(array);
 	NEXT();

@@ -268,6 +268,7 @@ typedef enum {
 	//
 	// Arguments:
 	// * `slot`: the slot to store the new array in
+	// * `size`: the starting length of the array
 	ARRAY_NEW,
 
 	// Gets a value from an index in an array

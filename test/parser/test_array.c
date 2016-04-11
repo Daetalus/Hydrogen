@@ -14,7 +14,7 @@ void test_definition(void) {
 	);
 
 	switch_fn(&p, 0);
-	ins(&p, ARRAY_NEW, 0, 0, 0);
+	ins(&p, ARRAY_NEW, 0, 4, 0);
 	ins(&p, ARRAY_I_SET_I, 0, 1, 0);
 	ins(&p, ARRAY_I_SET_S, 1, 0, 0);
 	ins(&p, ARRAY_I_SET_I, 2, 58, 0);
@@ -36,10 +36,10 @@ void test_nested_definitions(void) {
 		"let a = [1, [1, 2, []], 3]"
 	);
 
-	ins(&p, ARRAY_NEW, 0, 0, 0);
+	ins(&p, ARRAY_NEW, 0, 3, 0);
 	ins(&p, ARRAY_I_SET_I, 0, 1, 0);
 
-	ins(&p, ARRAY_NEW, 1, 0, 0);
+	ins(&p, ARRAY_NEW, 1, 3, 0);
 	ins(&p, ARRAY_I_SET_I, 0, 1, 1);
 	ins(&p, ARRAY_I_SET_I, 1, 2, 1);
 	ins(&p, ARRAY_NEW, 2, 0, 0);
@@ -67,7 +67,7 @@ void test_access(void) {
 		"}\n"
 	);
 
-	ins(&p, ARRAY_NEW, 0, 0, 0);
+	ins(&p, ARRAY_NEW, 0, 4, 0);
 	ins(&p, ARRAY_I_SET_I, 0, 1, 0);
 	ins(&p, ARRAY_I_SET_I, 1, 2, 0);
 	ins(&p, ARRAY_I_SET_I, 2, 3, 0);

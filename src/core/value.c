@@ -48,6 +48,8 @@ HyType hy_type(HyValue value) {
 		return HY_STRING;
 	} else if (val_is_struct(value)) {
 		return HY_STRUCT;
+	} else if (val_is_array(value)) {
+		return HY_ARRAY;
 	} else if (val_is_fn(value) || val_is_native(value)) {
 		return HY_FUNCTION;
 	} else {

@@ -100,7 +100,7 @@ static uint32_t argument_count[] = {
 	3, /* STRUCT_SET_S */ 3, /* STRUCT_SET_P */ 3, /* STRUCT_SET_F */
 	3, /* STRUCT_SET_V */
 
-	1, /* ARRAY_NEW */
+	2, /* ARRAY_NEW */
 	3, /* ARRAY_GET_L */ 3, /* ARRAY_GET_I */
 	3, /* ARRAY_I_SET_L */ 3, /* ARRAY_I_SET_I */ 3, /* ARRAY_I_SET_N */
 	3, /* ARRAY_I_SET_S */ 3, /* ARRAY_I_SET_P */ 3, /* ARRAY_I_SET_F */

@@ -34,6 +34,8 @@ static uint32_t io_print_value(HyValue value) {
 		return printf("struct");
 	case HY_FUNCTION:
 		return printf("fn");
+	default:
+		return printf("<unimplemented>");
 	}
 }
 

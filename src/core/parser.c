@@ -1913,10 +1913,11 @@ static Operand operand_array(Parser *parser, uint16_t slot) {
 	lexer_next(lexer);
 
 	// Create a new array
-	fn_emit(parser_fn(parser), ARRAY_NEW, slot, 0, 0);
+	Function *fn = parser_fn(parser);
+	Index ins_index = fn_emit(fn, ARRAY_NEW, slot, 0, 0);
 
 	// Continually parse array elements
-	uint16_t index = 0;
+	uint16_t count = 0;
 	while (lexer->token.type != TOKEN_EOF &&
 			lexer->token.type != TOKEN_CLOSE_BRACKET) {
 		// Parse an expression into a temporary slot
@@ -1925,8 +1926,8 @@ static Operand operand_array(Parser *parser, uint16_t slot) {
 		local_free(parser);
 
 		// Emit bytecode to store the expression into the array
-		expr_discharge(parser, ARRAY_I_SET_L, index, element, slot);
-		index++;
+		expr_discharge(parser, ARRAY_I_SET_L, count, element, slot);
+		count++;
 
 		// Expect a comma
 		if (lexer->token.type == TOKEN_COMMA) {
@@ -1940,6 +1941,11 @@ static Operand operand_array(Parser *parser, uint16_t slot) {
 	err_expect(parser, TOKEN_CLOSE_BRACKET, &open,
 		"Expected `]` to close `[` in array");
 	lexer_next(lexer);
+
+	// Update the ARRAY_NEW instruction to contain the starting size of the
+	// array
+	Instruction ins = vec_at(fn->instructions, ins_index);
+	vec_at(fn->instructions, ins_index) = ins_set(ins, 2, count);
 
 	return operand_local(slot);
 }
