@@ -119,10 +119,68 @@ void test_nested_access(void) {
 }
 
 
+// Tests assignment to array elements
+void test_assignment(void) {
+	MockParser p = mock_parser(
+		"{\n"
+		"let a = []\n"
+		"a[0] = 1\n"
+		"a[1] = 2\n"
+		"let b = 3\n"
+		"a[b] = 5\n"
+		"a[b * 2 + 3] = 10\n"
+		"}\n"
+	);
+
+	ins(&p, ARRAY_NEW, 0, 0, 0);
+	ins(&p, ARRAY_I_SET_I, 0, 1, 0);
+	ins(&p, ARRAY_I_SET_I, 1, 2, 0);
+	ins(&p, MOV_LI, 1, 3, 0);
+	ins(&p, ARRAY_L_SET_I, 1, 5, 0);
+
+	ins(&p, MUL_LI, 3, 1, 2);
+	ins(&p, ADD_LI, 3, 3, 3);
+	ins(&p, ARRAY_L_SET_I, 3, 10, 0);
+
+	ins(&p, RET0, 0, 0, 0);
+}
+
+
+// Tests nested array element assignment
+void test_nested_asssignment(void) {
+	MockParser p = mock_parser(
+		"{\n"
+		"let a = []\n"
+		"let b = []\n"
+		"a[0][1] = 3\n"
+		"a[b[0]] = 10\n"
+		"a[0][1][2] = 11\n"
+		"}\n"
+	);
+
+	ins(&p, ARRAY_NEW, 0, 0, 0);
+	ins(&p, ARRAY_NEW, 1, 0, 0);
+
+	ins(&p, ARRAY_GET_I, 2, 0, 0);
+	ins(&p, ARRAY_I_SET_I, 1, 3, 2);
+
+	ins(&p, ARRAY_GET_I, 3, 0, 1);
+	ins(&p, ARRAY_L_SET_I, 3, 10, 0);
+
+	ins(&p, ARRAY_GET_I, 2, 0, 0);
+	ins(&p, ARRAY_GET_I, 2, 1, 2);
+	ins(&p, ARRAY_I_SET_I, 2, 11, 2);
+
+	ins(&p, RET0, 0, 0, 0);
+}
+
+
 int main(int argc, char *argv[]) {
 	test_pass("Definition", test_definition);
 	test_pass("Nested definitions", test_nested_definitions);
 	test_pass("Element access", test_access);
 	test_pass("Nested element access", test_nested_access);
+	test_pass("Assignment", test_assignment);
+	test_pass("Nested assignment", test_nested_asssignment);
 	return test_run(argc, argv);
 }

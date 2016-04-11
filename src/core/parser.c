@@ -2177,7 +2177,8 @@ static void parse_assignment(Parser *parser, Operand operand, uint16_t slot) {
 	BytecodeOpcode opcode = ins_arg(retrieval, 0);
 
 	// If the retrieval was a specially emitted storage instruction
-	if (opcode == MOV_LT || opcode == MOV_LU || opcode == STRUCT_FIELD) {
+	if (opcode == MOV_LT || opcode == MOV_LU || opcode == STRUCT_FIELD ||
+			opcode == ARRAY_GET_L || opcode == ARRAY_GET_I) {
 		// Remove the last retrieval instruction
 		vec_len(parser_fn(parser)->instructions)--;
 
@@ -2199,6 +2200,13 @@ static void parse_assignment(Parser *parser, Operand operand, uint16_t slot) {
 			uint16_t struct_slot = ins_arg(retrieval, 2);
 			uint16_t field = ins_arg(retrieval, 3);
 			expr_discharge(parser, STRUCT_SET_L, field, result, struct_slot);
+		} else if (opcode == ARRAY_GET_L || opcode == ARRAY_GET_I) {
+			// Array access
+			BytecodeOpcode base = (opcode == ARRAY_GET_L) ? ARRAY_L_SET_L :
+				ARRAY_I_SET_L;
+			uint16_t array_slot = ins_arg(retrieval, 3);
+			uint16_t index = ins_arg(retrieval, 2);
+			expr_discharge(parser, base, index, result, array_slot);
 		}
 
 		// Free the temporary local we parsed the expression into
