@@ -2011,11 +2011,14 @@ static void parse_declaration_local(Parser *parser, char *name,
 	// Allocate new local
 	uint16_t slot = local_new(parser);
 	Local *local = local_get(parser, slot);
-	local->name = name;
-	local->length = length;
 
 	// Parse expression into new local
 	expr_emit(parser, slot);
+
+	// Set the name of the local after we parse the expression, so we can't
+	// actually use the local inside the expression
+	local->name = name;
+	local->length = length;
 }
 
 
@@ -2024,13 +2027,19 @@ static void parse_declaration_top_level(Parser *parser, char *name,
 		uint32_t length) {
 	// Allocate new top level local
 	Package *pkg = parser_pkg(parser);
-	Index top_level = pkg_local_add(pkg, name, length, VALUE_NIL);
+	Index top_level = pkg_local_add(pkg, NULL, 0, VALUE_NIL);
 
 	// Parse expression into top level
 	uint16_t temp = local_reserve(parser);
 	Operand result = parse_expr(parser, temp);
 	expr_discharge(parser, MOV_TL, top_level, result, parser->package);
 	local_free(parser);
+
+	// Set the name of the top level after we parse the expression, so we can't
+	// actually use the top level inside the expression
+	Identifier *ident = &vec_at(pkg->names, top_level);
+	ident->name = name;
+	ident->length = length;
 }
 
 
@@ -2152,8 +2161,9 @@ static void parse_assignment_or_call(Parser *parser) {
 	if (lexer->token.type == TOKEN_ASSIGN) {
 		// Assignment
 		parse_assignment(parser, operand, slot);
-	} else if (lexer->token.type == TOKEN_OPEN_PARENTHESIS) {
-		// Function call, so just keep parsing postfix operators
+	} else if (lexer->token.type == TOKEN_OPEN_PARENTHESIS ||
+			lexer->token.type == TOKEN_OPEN_BRACKET) {
+		// Function call or array index, so just keep parsing postfix operators
 		while (expr_postfix(parser, slot, &operand)) {}
 	} else {
 		err_unexpected(parser, &ident, "Expected `=` or `(` after identifier");
