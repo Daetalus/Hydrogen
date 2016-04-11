@@ -274,15 +274,10 @@ typedef enum {
 	//
 	// Arguments:
 	// * `slot`: the slot to store the value in
-	// * `index`: the index to fetch the value from
+	// * `index`: the index into the array
 	// * `slot`: the slot the array is in
 	ARRAY_GET_L,
 	ARRAY_GET_I,
-	ARRAY_GET_N,
-	ARRAY_GET_S,
-	ARRAY_GET_P,
-	ARRAY_GET_F,
-	ARRAY_GET_V,
 
 	// Sets an index in an array to a value
 	//

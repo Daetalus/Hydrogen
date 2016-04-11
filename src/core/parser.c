@@ -1512,6 +1512,45 @@ static void postfix_field_access(Parser *parser, uint16_t slot,
 }
 
 
+// Emit bytecode for an array access as a postfix operator. Stores the resulting
+// indexed value in `slot`
+static void postfix_array_access(Parser *parser, uint16_t slot,
+		Operand *operand) {
+	Lexer *lexer = &parser->lexer;
+
+	// Skip the opening bracket
+	Token open = lexer->token;
+	lexer_next(lexer);
+
+	// Can only index locals
+	if (operand->type != OP_LOCAL) {
+		err_fatal(parser, &open, "Attempt to index non-local");
+	}
+
+	// Parse an expression into a temporary slot
+	uint16_t index_slot = local_reserve(parser);
+	Operand index = parse_expr(parser, index_slot);
+	local_free(parser);
+
+	// Expect a closing bracket
+	err_expect(parser, TOKEN_CLOSE_BRACKET, &open,
+		"Expected `]` to close `[` in array access");
+	lexer_next(lexer);
+
+	// The index must be an integer or local
+	if (index.type != OP_LOCAL && index.type != OP_INTEGER) {
+		err_fatal(parser, &open, "Array index must be an integer");
+	}
+
+	// Emit bytecode for the access
+	expr_discharge(parser, ARRAY_GET_L, slot, index, operand->value);
+
+	// The field is in `slot`
+	operand->type = OP_LOCAL;
+	operand->value = slot;
+}
+
+
 // Parse the arguments to a function call into consecutive local slots on the
 // top of the stack. Returns the arity of the function call
 static uint16_t parse_call_args(Parser *parser) {
@@ -1602,6 +1641,9 @@ static bool postfix_assignable(Parser *parser, uint16_t slot, Operand *operand) 
 	switch (parser->lexer.token.type) {
 	case TOKEN_DOT:
 		postfix_field_access(parser, slot, operand);
+		return true;
+	case TOKEN_OPEN_BRACKET:
+		postfix_array_access(parser, slot, operand);
 		return true;
 	default:
 		return false;
