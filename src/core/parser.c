@@ -1849,25 +1849,46 @@ static Operand operand_instantiation(Parser *parser, uint16_t struct_slot) {
 
 	// Expect the name of a struct
 	err_expect(parser, TOKEN_IDENTIFIER, &new_token,
-		"Expected name of struct after `new`");
+		"Expected struct name after `new`");
 	Token ident = lexer->token;
-	char *name = lexer->token.start;
-	uint32_t length = lexer->token.length;
+	char *name = ident.start;
+	uint32_t length = ident.length;
+	lexer_next(lexer);
+
+	// If there's a dot after the struct name, then the struct is in a different
+	// package
+	Index package = parser->package;
+	if (lexer->token.type == TOKEN_DOT) {
+		// Find the package
+		package = import_find(parser, name, length);
+		if (package == NOT_FOUND) {
+			err_fatal(parser, &ident, "Undefined package `%.*s`");
+		}
+
+		Token dot = lexer->token;
+		lexer_next(lexer);
+
+		// Expect an identifier after the dot
+		err_expect(parser, TOKEN_IDENTIFIER, &dot,
+			"Expected struct name after `.` in struct instantiation");
+		name = lexer->token.start;
+		length = lexer->token.length;
+		lexer_next(lexer);
+	}
 
 	// Find the struct definition
-	Index index = struct_find(parser->state, parser->package, name, length);
+	Index index = struct_find(parser->state, package, name, length);
 	if (index == NOT_FOUND) {
-		err_fatal(parser, &lexer->token, "Undefined struct `%.*s`",
+		err_fatal(parser, &ident, "Undefined struct `%.*s`",
 			length, name);
 	}
-	lexer_next(lexer);
 
 	// Emit bytecode for the struct instantiation
 	fn_emit(parser_fn(parser), STRUCT_NEW, struct_slot, index, 0);
 
 	// Expect an open parenthesis
 	err_expect(parser, TOKEN_OPEN_PARENTHESIS, &ident,
-		"Expected `(` after struct name");
+		"Expected `(` after struct name in struct instantiation");
 
 	// Save the number of locals on the top of the stack so we can deallocate
 	// all arguments to the constructor call easily

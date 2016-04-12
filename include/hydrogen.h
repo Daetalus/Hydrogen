@@ -28,6 +28,9 @@ typedef struct hy_args HyArgs;
 // The prototype for a native function
 typedef HyValue (* HyNativeFn)(HyState *state, HyArgs *args);
 
+// The prototype for a method on a native struct
+typedef HyValue (* HyNativeMethod)(HyState *state, void *data, HyArgs *args);
+
 
 // Contains data describing an error
 typedef struct {
