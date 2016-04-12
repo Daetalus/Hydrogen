@@ -12,7 +12,7 @@
 
 
 // The name of each opcode, in the exact order they were defined in
-static char opcode_names[][50] = {
+static char *opcode_names[] = {
 	"MOV_LL", "MOV_LI", "MOV_LN", "MOV_LS", "MOV_LP", "MOV_LF", "MOV_LV",
 	"MOV_UL", "MOV_UI", "MOV_UN", "MOV_US", "MOV_UP", "MOV_UF", "MOV_UV",
 	"MOV_UL", "UPVALUE_CLOSE",
@@ -167,6 +167,8 @@ static uint32_t integer_argument[] = {
 	0, /* ARRAY_L_SET_L */ 2, /* ARRAY_L_SET_I */ 0, /* ARRAY_L_SET_N */
 	0, /* ARRAY_L_SET_S */ 0, /* ARRAY_L_SET_P */ 0, /* ARRAY_L_SET_F */
 	0, /* ARRAY_L_SET_V */
+
+	0, /* NO_OP */
 };
 
 

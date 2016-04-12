@@ -93,7 +93,11 @@ double hy_expect_number(HyValue value) {
 
 
 // Converts a value into a string, triggering an error if it isn't a string
-// Do not try and free the returned string. It will be garbage collected later
+//
+// Do not try and free the returned string. It will be garbage collected later.
+//
+// Don't modify the returned string. It should be treated as read only, and a
+// copy should be made if you want to modify it.
 char * hy_expect_string(HyValue value) {
 	if (!val_is_str(value)) {
 		// TODO: Trigger error
@@ -102,6 +106,21 @@ char * hy_expect_string(HyValue value) {
 	return &(((String *) val_to_ptr(value))->contents[0]);
 }
 
+
+// Converts a value into an array, triggering an error if it isn't one
+HyArray * hy_expect_array(HyValue value) {
+	if (!val_is_array(value)) {
+		// TODO: Trigger error
+		return NULL;
+	}
+	return (Array *) val_to_ptr(value);
+}
+
+
+
+//
+//  Function Arguments
+//
 
 // Returns the number of arguments passed to a native function
 uint32_t hy_args_count(HyArgs *args) {
@@ -116,4 +135,48 @@ HyValue hy_arg(HyArgs *args, uint32_t index) {
 	} else {
 		return args->stack[args->start + index];
 	}
+}
+
+
+
+//
+//  Arrays
+//
+
+// Create an empty array with the suggested capacity
+HyArray * hy_array_new(uint32_t capacity) {
+	HyArray *array = malloc(sizeof(HyArray));
+	array->type = OBJ_ARRAY;
+	array->length = 0;
+	array->capacity = ceil_power_of_2(capacity);
+	array->contents = malloc(sizeof(HyValue) * array->capacity);
+	return array;
+}
+
+
+// Returns the length of an array
+uint32_t hy_array_len(HyArray *array) {
+	return array->length;
+}
+
+
+// Fetches a value at an index in an array
+HyValue hy_array_get(HyArray *array, uint32_t index) {
+	if (index >= array->length) {
+		// TODO: Trigger out of bounds error
+		return VALUE_NIL;
+	}
+	return array->contents[index];
+}
+
+
+// Appends a value to the end of an array
+void hy_array_append(HyArray *array, HyValue value) {
+	// TODO
+}
+
+
+// Inserts a value into an array at the specified index
+void hy_array_insert(HyArray *array, uint32_t index, HyValue value) {
+	// TODO
 }

@@ -176,7 +176,7 @@ typedef struct {
 
 
 // A Hydrogen array object
-typedef struct {
+typedef struct hy_array {
 	// The object header
 	ObjectHeader;
 
@@ -341,6 +341,16 @@ static inline HyValue native_to_val(uint16_t index) {
 // Returns the index of a native function from its value
 static inline uint16_t val_to_native(HyValue val) {
 	return val & ~(QUIET_NAN | TAG_NATIVE);
+}
+
+
+// Rounds a number up to the nearest power of 2
+static inline uint32_t ceil_power_of_2(uint32_t value) {
+	uint32_t power = 2;
+	while (value >>= 1) {
+		power <<= 1;
+	}
+	return power;
 }
 
 #endif

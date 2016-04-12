@@ -127,6 +127,10 @@ typedef enum {
 } HyType;
 
 
+// A Hydrogen array
+typedef struct hy_array HyArray;
+
+
 // Returns a nil value
 HyValue hy_nil(void);
 
@@ -138,6 +142,10 @@ HyValue hy_number(double number);
 
 // Copies a string into a garbage collected value
 HyValue hy_string(HyState *state, char *string);
+
+// Turns an array into a value
+HyValue hy_array(HyArray *array);
+
 
 // Returns the type of a value
 HyType hy_type(HyValue value);
@@ -157,13 +165,37 @@ bool hy_expect_bool(HyValue value);
 double hy_expect_number(HyValue value);
 
 // Converts a value into a string, triggering an error if it isn't a string
-// Do not try and free the returned string. It will be garbage collected later
+//
+// Do not try and free the returned string. It will be garbage collected later.
+//
+// Don't modify the returned string. It should be treated as read only, and a
+// copy should be made if you want to modify it.
 char * hy_expect_string(HyValue value);
+
+// Converts a value into an array, triggering an error if it isn't one
+HyArray * hy_expect_array(HyValue value);
+
 
 // Returns the number of arguments passed to a native function
 uint32_t hy_args_count(HyArgs *args);
 
 // Returns the `index`th argument passed to a native function
 HyValue hy_arg(HyArgs *args, uint32_t index);
+
+
+// Create an empty array with the suggested capacity
+HyArray * hy_array_new(uint32_t capacity);
+
+// Returns the length of an array
+uint32_t hy_array_len(HyArray *array);
+
+// Fetches a value at an index in an array
+HyValue hy_array_get(HyArray *array, uint32_t index);
+
+// Appends a value to the end of an array
+void hy_array_append(HyArray *array, HyValue value);
+
+// Inserts a value into an array at the specified index
+void hy_array_insert(HyArray *array, uint32_t index, HyValue value);
 
 #endif

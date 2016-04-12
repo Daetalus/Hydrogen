@@ -307,7 +307,7 @@ typedef enum {
 	//  No Operation
 	//
 
-	// Must be the last opcode
+	// Must be the last opcode in this list
 	NO_OP,
 } BytecodeOpcode;
 
