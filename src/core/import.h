@@ -9,11 +9,11 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-// Returns the final path to a package to import from the path to the parent
-// package and the import path
+// Return the file path to a package that we want to import from the path to
+// the parent package and the path given in the import statement.
 char * import_pkg_path(char *parent, char *child);
 
-// Returns true if an import path is valid
+// Return true if an import path (given in an import statement) is valid.
 bool import_is_valid(char *path);
 
 #endif

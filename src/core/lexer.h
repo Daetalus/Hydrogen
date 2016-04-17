@@ -12,9 +12,9 @@
 #include <vec.h>
 
 
-// All possible token types
+// All possible token types.
 typedef enum {
-	// Mathematical operators
+	// Math
 	TOKEN_ADD,
 	TOKEN_SUB,
 	TOKEN_MUL,
@@ -22,7 +22,7 @@ typedef enum {
 	TOKEN_MOD,
 	TOKEN_CONCAT,
 
-	// Comparison operators
+	// Comparison
 	TOKEN_EQ,
 	TOKEN_NEQ,
 	TOKEN_LT,
@@ -30,7 +30,7 @@ typedef enum {
 	TOKEN_GT,
 	TOKEN_GE,
 
-	// Assignment operators
+	// Assignment
 	TOKEN_ASSIGN,
 	TOKEN_ADD_ASSIGN,
 	TOKEN_SUB_ASSIGN,
@@ -38,12 +38,12 @@ typedef enum {
 	TOKEN_DIV_ASSIGN,
 	TOKEN_MOD_ASSIGN,
 
-	// Boolean operators
+	// Boolean
 	TOKEN_AND,
 	TOKEN_OR,
 	TOKEN_NOT,
 
-	// Bitwise operators
+	// Bitwise
 	TOKEN_BIT_AND,
 	TOKEN_BIT_OR,
 	TOKEN_BIT_XOR,
@@ -88,7 +88,7 @@ typedef enum {
 
 	// Comments
 	// Not actually emitted by the lexer, but used in generating error messages
-	// that relate to comments (like unterminated block comment error)
+	// that relate to comments (like an unterminated block comment).
 	TOKEN_COMMENT,
 
 	// Other
@@ -97,20 +97,20 @@ typedef enum {
 } TokenType;
 
 
-// A token emitted by the lexer
+// A token emitted by the lexer.
 typedef struct {
-	// The type of the token
+	// The type of the token.
 	TokenType type;
 
-	// The location and length of the token in the source code
+	// The location and length of the token in the source code.
 	char *start;
 	uint32_t length;
 
-	// The package and source code index in the package the token is located in
+	// The package and source code index in the package the token is located in.
 	Index package;
 	Index source;
 
-	// The value of a token if it's a number or integer
+	// The value of a token (if it holds a value).
 	union {
 		double number;
 		int16_t integer;
@@ -118,36 +118,34 @@ typedef struct {
 } Token;
 
 
-// A lexer, which converts source code into a stream of tokens
+// A lexer, which converts source code into a stream of tokens.
 typedef struct {
-	// The interpreter state the lexer was created on
+	// The interpreter state the lexer was created on.
 	HyState *state;
 
-	// A pointer to the start of the source code we are lexing
+	// A pointer to the start of the source code we are lexing.
 	char *source;
 
-	// The current cursor position and line number in the source code
+	// The current cursor position and line number in the source code.
 	char *cursor;
 	uint32_t line;
 
-	// The most recently lexed token, which is updated every time the
-	// `lexer_next` function is called
+	// The most recently lexed token, updated every time `lexer_next` is called.
 	Token token;
 } Lexer;
 
 
-// Create a new lexer on an interpreter state in the package `pkg`, lexing the
-// source code at `source`
+// Create a new lexer on an interpreter state in the package `pkg`.
 Lexer lexer_new(HyState *state, Index pkg_index, Index src_index);
 
-// Lex the next token in the source code
+// Lex the next token in the source code.
 void lexer_next(Lexer *lexer);
 
 // String literals need to be extracted from a token separately because escape
 // sequences need to be parsed into their proper values. Stores the extracted
 // string directly into `buffer`. Ensure that `buffer` is at least as long as
 // token->length - 1 (since the token length includes the two surrounding
-// quotes). Returns the length of the parsed string
+// quotes). Returns the length of the parsed string.
 uint32_t lexer_extract_string(Lexer *lexer, Token *token, char *buffer);
 
 
@@ -156,37 +154,37 @@ uint32_t lexer_extract_string(Lexer *lexer, Token *token, char *buffer);
 //  Character Groupings
 //
 
-// Returns true if a character is a newline
+// Returns true if a character is a newline.
 static inline bool is_newline(char ch) {
 	return ch == '\n' || ch == '\r';
 }
 
 
-// Returns true if a character is whitespace
+// Returns true if a character is whitespace.
 static inline bool is_whitespace(char ch) {
 	return is_newline(ch) || ch == ' ' || ch == '\t';
 }
 
 
-// Returns true if a character is a decimal digit
+// Returns true if a character is a decimal digit.
 static inline bool is_decimal(char ch) {
 	return ch >= '0' && ch <= '9';
 }
 
 
-// Returns true if a character is a hexadecimal digit
+// Returns true if a character is a hexadecimal digit.
 static inline bool is_hex(char ch) {
 	return is_decimal(ch) || (ch >= 'a' && ch <= 'f');
 }
 
 
-// Returns true if a character can start an identifier
+// Returns true if a character can start an identifier.
 static inline bool is_identifier_start(char ch) {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_';
 }
 
 
-// Returns true if a character can be part of an identifier
+// Returns true if a character can be part of an identifier.
 static inline bool is_identifier(char ch) {
 	return is_identifier_start(ch) || is_decimal(ch);
 }

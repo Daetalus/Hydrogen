@@ -6,8 +6,8 @@
 #include "jmp.h"
 
 
-// Modifies the target of all jumps in a conditional expression to point the
-// location of the false case to `target`
+// Modify the target of all jumps in a conditional expression to point the
+// location of the false case to `target`.
 void jmp_false_case(Function *fn, Index jump, Index target) {
 	// Iterate over jump list
 	Index current = jump;
@@ -16,12 +16,12 @@ void jmp_false_case(Function *fn, Index jump, Index target) {
 		current = jmp_next(fn, current);
 	}
 
-	// Point the original jump to the false case
+	// Point the original jump to the false case (not lazily)
 	jmp_target(fn, jump, target);
 }
 
 
-// Returns the inverted opcode for a conditional opcode
+// Return the inverted opcode for a conditional opcode.
 static BytecodeOpcode jmp_inverted_opcode(BytecodeOpcode opcode) {
 	if (opcode == IS_TRUE_L) {
 		return IS_FALSE_L;
@@ -45,10 +45,13 @@ static BytecodeOpcode jmp_inverted_opcode(BytecodeOpcode opcode) {
 }
 
 
-// Inverts the condition of a conditional jump operation
+// Invert the condition of a conditional jump operation.
 void jmp_invert_condition(Function *fn, Index jump) {
+	// Get the current condition opcode
 	Instruction ins = vec_at(fn->instructions, jump - 1);
 	BytecodeOpcode current = (BytecodeOpcode) ins_arg(ins, 0);
+
+	// Set it to the inverted version of this opcode
 	BytecodeOpcode inverted = jmp_inverted_opcode(current);
 	vec_at(fn->instructions, jump - 1) = ins_set(ins, 0, inverted);
 }

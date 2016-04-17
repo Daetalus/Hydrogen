@@ -10,8 +10,8 @@
 #include "import.h"
 
 
-// Returns the position of the last occurrence of the given character, or
-// `NOT_FOUND` if the character can't be found
+// Return the position of the last occurrence of the given character, or
+// `NOT_FOUND` if the character can't be found.
 static Index last_occurrence(char *string, char ch) {
 	int32_t last = strlen(string) - 1;
 	while (last >= 0 && string[last] != ch) {
@@ -21,8 +21,8 @@ static Index last_occurrence(char *string, char ch) {
 }
 
 
-// Returns a heap allocated string (that needs to be freed) containing the name
-// of a package based off its file path
+// Return a heap allocated string (that needs to be freed) containing the name
+// of a package based off its file path.
 char * hy_pkg_name(char *path) {
 	// Find the last path component
 	uint32_t length = strlen(path);
@@ -66,8 +66,8 @@ char * hy_pkg_name(char *path) {
 
 
 
-// Returns the final path to a package to import from the path to the parent
-// package and the import path
+// Return the file path to a package that we want to import from the path to
+// the parent package and the path given in the import statement.
 char * import_pkg_path(char *parent, char *child) {
 	// Find the position of the last path component of the importing
 	// package's path
@@ -88,14 +88,14 @@ char * import_pkg_path(char *parent, char *child) {
 }
 
 
-// Returns true if a character in an import path is valid
-bool import_char_is_valid(char ch) {
+// Return true if a character in an import path is valid.
+static bool import_char_is_valid(char ch) {
 	return ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
 		(ch >= '0' && ch <= '9') || ch == '_' || ch == '/' || ch == '.');
 }
 
 
-// Returns true if an import path is valid
+// Return true if an import path (given in an import statement) is valid.
 bool import_is_valid(char *path) {
 	// Check every character in the path is valid
 	uint32_t length;

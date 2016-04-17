@@ -180,7 +180,7 @@ static char * err_line_start(char *cursor, char *start) {
 
 
 // Return a line of source code from a pointer to the start of the line.
-char * err_line_of_code(char *start) {
+static char * err_line_of_code(char *start) {
 	// Create a new string to hold the source code
 	uint32_t length = err_line_length(start);
 	char *line = malloc(length + 1);
