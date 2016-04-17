@@ -115,6 +115,7 @@ static inline void consume_whitespace(Lexer *lexer) {
 
 // Parse a block comment. Assume the first opening delimeter has been consumed.
 static void lex_block_comment(Lexer *lexer) {
+	// Save the starting character of the initial block comment
 	char *start = lexer->token.start;
 
 	// Keep consuming until we reach a terminator, keeping track of nested
@@ -131,7 +132,7 @@ static void lex_block_comment(Lexer *lexer) {
 
 	// Check if there were unterminated block comments
 	if (nested > 0) {
-		// Create a fake comment token for the start of the block comment
+		// Create a fake token for the start of the block comment
 		Token token = lexer->token;
 		token.type = TOKEN_COMMENT;
 		token.start = start - 2;
@@ -151,7 +152,7 @@ static void lex_block_comment(Lexer *lexer) {
 
 // Return true if we could lex a comment (block or single line).
 static bool lex_comment(Lexer *lexer) {
-	// Consume first `/`
+	// Consume the first `/`
 	consume(lexer);
 
 	if (current(lexer) == '/') {
@@ -162,8 +163,10 @@ static bool lex_comment(Lexer *lexer) {
 		consume(lexer);
 		lex_block_comment(lexer);
 	} else {
+		// Not a comment
 		return false;
 	}
+
 	return true;
 }
 
@@ -177,11 +180,12 @@ static void lex_string(Lexer *lexer) {
 	token->length = 2;
 
 	// Save the opening quote and skip over it
-	char ch = current(lexer);
+	char quote = current(lexer);
 	consume(lexer);
 
 	// Consume characters until we reach the end of the string
-	while (!eof(lexer) && !(current(lexer) == ch && peek(lexer, -1) != '\\')) {
+	while (!eof(lexer) &&
+			!(current(lexer) == quote && peek(lexer, -1) != '\\')) {
 		token->length++;
 		consume(lexer);
 	}
@@ -195,7 +199,7 @@ static void lex_string(Lexer *lexer) {
 		return;
 	}
 
-	// Consume closing quote
+	// Consume the closing quote
 	consume(lexer);
 }
 
@@ -225,37 +229,50 @@ static int lex_number_prefix(Lexer *lexer) {
 }
 
 
-// Return true if the number under the lexer's cursor is floating point.
-static bool number_is_float(Lexer *lexer, int base) {
-	// If we're starting with a hexadecimal prefix
-	if (base == 16) {
-		// Skip the first sequence of hexadecimal digits
-		// Start the position at 2 to skip the base prefix
-		uint32_t position = 2;
-		while (is_hex(peek(lexer, position))) {
-			position++;
-		}
-
-		// If the following character is a `p` (for power of 2 exponent) or a
-		// `.` followed by a hex digit, then we're dealing with a float
-		char ch = peek(lexer, position);
-		return ch == 'p' || ch == 'P' ||
-			(ch == '.' && is_hex(peek(lexer, position + 1)));
-	} else if (base == 10) {
-		// Skip the first sequence of decimal digits
-		uint32_t position = 0;
-		while (is_decimal(peek(lexer, position))) {
-			position++;
-		}
-
-		// If the following character is a `.` followed by a digit, or we have
-		// a decimal exponent, then the number is a float
-		char ch = peek(lexer, position);
-		return ch == 'e' || ch == 'E' ||
-			(ch == '.' && is_decimal(peek(lexer, position + 1)));
+// Return true if a hexadecimal number is floating point.
+static bool hex_is_float(Lexer *lexer) {
+	// Skip the first sequence of hexadecimal digits
+	// Start the position at 2 to skip the base prefix
+	uint32_t pos = 2;
+	while (is_hex(peek(lexer, pos))) {
+		pos++;
 	}
 
-	return false;
+	// If the following character is a `p` (for power of 2 exponent) or a
+	// `.` followed by a decimal digit, then we're dealing with a float
+	char ch = peek(lexer, pos);
+	return ch == 'p' || ch == 'P' ||
+		(ch == '.' && is_decimal(peek(lexer, pos + 1)));
+}
+
+
+// Return true if a decimal number is floating point.
+static bool decimal_is_float(Lexer *lexer) {
+	// Skip the first sequence of decimal digits
+	uint32_t pos = 0;
+	while (is_decimal(peek(lexer, pos))) {
+		pos++;
+	}
+
+	// If the following character is a `.` followed by a digit, or we have
+	// a decimal exponent, then the number is a float
+	// Unfortunately, C doesn't allow you to parse integers with exponents, so
+	// we have to treat integers with decimal exponents as floats
+	char ch = peek(lexer, pos);
+	return ch == 'e' || ch == 'E' ||
+		(ch == '.' && is_decimal(peek(lexer, pos + 1)));
+}
+
+
+// Return true if the number under the lexer's cursor is floating point.
+static bool number_is_float(Lexer *lexer, int base) {
+	if (base == 16) {
+		return hex_is_float(lexer);
+	} else if (base == 10) {
+		return decimal_is_float(lexer);
+	} else {
+		return false;
+	}
 }
 
 
@@ -279,6 +296,8 @@ static void lex_floating_point(Lexer *lexer) {
 	Token *token = &lexer->token;
 
 	// Parse a floating point number
+	// TODO: 0x0xef01 is parsed as a number because strtold accepts an optional
+	// hex prefix. Fix it
 	char *end;
 	token->type = TOKEN_NUMBER;
 	token->number = strtold(lexer->cursor, &end);
@@ -295,6 +314,8 @@ static void lex_integer(Lexer *lexer, int base) {
 	Token *token = &lexer->token;
 
 	// Parse integer
+	// TODO: 0x0xef01 is parsed as a number because strtoull accepts an optional
+	// hex prefix. Fix it
 	char *end;
 	uint64_t value = strtoull(lexer->cursor, &end, base);
 	token->length = end - lexer->cursor;
@@ -316,6 +337,22 @@ static void lex_integer(Lexer *lexer, int base) {
 }
 
 
+// Print an invalid base prefix error.
+static void invalid_base_prefix(Lexer *lexer) {
+	// Create a fake identifier for the base prefix
+	Token *token = &lexer->token;
+	token->type = TOKEN_IDENTIFIER;
+	token->length = 2;
+
+	// Trigger the error
+	Error err = err_new(lexer->state);
+	err_print(&err, "Invalid base prefix ");
+	err_print_token(&err, token);
+	err_token(&err, token);
+	err_trigger(&err);
+}
+
+
 // Lex a number. Return true if successful.
 static bool lex_number(Lexer *lexer) {
 	// Ensure we start with a decimal digit
@@ -325,21 +362,10 @@ static bool lex_number(Lexer *lexer) {
 
 	int base = lex_number_prefix(lexer);
 	if (base == -1) {
-		// Invalid base prefix
-		Token *token = &lexer->token;
-		token->type = TOKEN_IDENTIFIER;
-		token->length = 2;
-
-		Error err = err_new(lexer->state);
-		err_print(&err, "Invalid base prefix ");
-		err_print_token(&err, token);
-		err_token(&err, token);
-		err_trigger(&err);
+		invalid_base_prefix(lexer);
 		return false;
 	}
 
-	// Lex an integer if we're in octal or binary, or if we fit the conditions
-	// of an integer
 	if (number_is_float(lexer, base)) {
 		lex_floating_point(lexer);
 	} else {
@@ -355,7 +381,7 @@ static bool lex_number(Lexer *lexer) {
 }
 
 
-// Convenience method for defining a keyword.
+// Convenience method for associating a token with a keyword.
 #define KEYWORD(name, keyword)                    \
 	else if (matches_identifier(lexer, (name))) { \
 		token->type = (keyword);                  \
@@ -379,10 +405,12 @@ static bool lex_keyword(Lexer *lexer) {
 		// Check for a following `if`
 		consume_whitespace(lexer);
 		if (matches_identifier(lexer, "if")) {
+			// Found a following `if`, so this is an else if token
 			forward(lexer, 2);
 			token->type = TOKEN_ELSE_IF;
 			token->length = lexer->cursor - start;
 		} else {
+			// No `if`, so just an else token
 			token->type = TOKEN_ELSE;
 			token->length = 4;
 		}
@@ -411,7 +439,7 @@ static bool lex_keyword(Lexer *lexer) {
 
 // Lex an identifier. Return true if successful.
 static bool lex_identifier(Lexer *lexer) {
-	// Ensure we start with an identifier
+	// Ensure we start with an identifier character
 	if (!is_identifier_start(current(lexer))) {
 		return false;
 	}
@@ -598,7 +626,7 @@ static char lex_hex_escape_sequence(char **cursor) {
 	} else {
 		// Convert both characters to numbers
 		char result = hex_sequence_to_number(*cursor);
-		(*cursor) += 2;
+		*cursor += 2;
 		return result;
 	}
 }
@@ -607,19 +635,19 @@ static char lex_hex_escape_sequence(char **cursor) {
 // Returns the correct escape sequence for the character following the `\`.
 static char lex_escape_sequence(char **cursor) {
 	switch (**cursor) {
-	case 'a': return '\a';
-	case 'b': return '\b';
-	case 'f': return '\f';
-	case 'n': return '\n';
-	case 'r': return '\r';
-	case 't': return '\t';
-	case 'v': return '\v';
+	case 'a':  return '\a';
+	case 'b':  return '\b';
+	case 'f':  return '\f';
+	case 'n':  return '\n';
+	case 'r':  return '\r';
+	case 't':  return '\t';
+	case 'v':  return '\v';
 	case '\\': return '\\';
 	case '\'': return '\'';
-	case '"': return '"';
-	case '?': return '?';
-	case 'x': return lex_hex_escape_sequence(cursor);
-	default: return '\0';
+	case '"':  return '"';
+	case '?':  return '?';
+	case 'x':  return lex_hex_escape_sequence(cursor);
+	default:   return '\0';
 	}
 }
 
@@ -688,7 +716,7 @@ uint32_t lexer_extract_string(Lexer *lexer, Token *token, char *buffer) {
 		}
 	}
 
-	// Add NULL terminator
+	// Add the NULL terminator
 	buffer[length] = '\0';
 	return length;
 }
