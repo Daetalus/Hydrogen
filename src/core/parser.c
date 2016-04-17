@@ -3000,7 +3000,7 @@ void parser_free(Parser *parser) {
 Index parser_parse(Parser *parser, Index source) {
 	// Create a new lexer from the source code
 	parser->source = source;
-	parser->lexer = lexer_new(parser->state, parser->package, source);
+	parser->lexer = lexer_new(parser->state, source);
 
 	// Allocate a new function scope for the top level of the source code
 	FunctionScope scope = scope_new(parser);

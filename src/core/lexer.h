@@ -106,8 +106,7 @@ typedef struct {
 	char *start;
 	uint32_t length;
 
-	// The package and source code index in the package the token is located in.
-	Index package;
+	// The source code the token is defined in.
 	Index source;
 
 	// The value of a token (if it holds a value).
@@ -123,9 +122,6 @@ typedef struct {
 	// The interpreter state the lexer was created on.
 	HyState *state;
 
-	// A pointer to the start of the source code we are lexing.
-	char *source;
-
 	// The current cursor position and line number in the source code.
 	char *cursor;
 	uint32_t line;
@@ -135,8 +131,8 @@ typedef struct {
 } Lexer;
 
 
-// Create a new lexer on an interpreter state in the package `pkg`.
-Lexer lexer_new(HyState *state, Index pkg_index, Index src_index);
+// Create a new lexer on an interpreter state.
+Lexer lexer_new(HyState *state, Index src_index);
 
 // Lex the next token in the source code.
 void lexer_next(Lexer *lexer);
@@ -151,7 +147,7 @@ uint32_t lexer_extract_string(Lexer *lexer, Token *token, char *buffer);
 
 
 //
-//  Character Groupings
+//  Character Classification
 //
 
 // Returns true if a character is a newline.

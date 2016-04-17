@@ -30,6 +30,9 @@ typedef struct {
 	// is called at runtime, triggering an error if the two values aren't equal.
 	uint32_t arity;
 
+	// The number of locals allocated in this function.
+	uint32_t frame_size;
+
 	// The array of the function's bytecode instructions.
 	Vec(Instruction) instructions;
 } Function;

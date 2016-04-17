@@ -14,15 +14,13 @@
 
 
 // Create a new lexer on an interpreter state in the package `pkg`.
-Lexer lexer_new(HyState *state, Index pkg_index, Index src_index) {
+Lexer lexer_new(HyState *state, Index src_index) {
 	Source *src = &vec_at(state->sources, src_index);
 
 	Lexer lexer;
 	lexer.state = state;
-	lexer.source = src->contents;
 	lexer.cursor = src->contents;
 	lexer.line = 1;
-	lexer.token.package = pkg_index;
 	lexer.token.source = src_index;
 
 	// Lex the first token
