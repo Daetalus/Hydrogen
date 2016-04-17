@@ -32,7 +32,4 @@ void debug_ins(HyState *state, Function *fn, Index ins_index);
 // Pretty prints the entire bytecode of a function to the standard output
 void debug_fn(HyState *state, Function *fn);
 
-// Pretty prints a struct definition to the standard output
-void debug_struct(HyState *state, StructDefinition *def);
-
 #endif
