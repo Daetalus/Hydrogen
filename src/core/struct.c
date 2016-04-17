@@ -85,3 +85,32 @@ Index struct_field_find(StructDefinition *def, char *name, uint32_t length) {
 	}
 	return NOT_FOUND;
 }
+
+
+
+//
+//  Native Interface
+//
+
+// Add a native struct to a package. `size` specifies how much memory (in bytes)
+// needed in each instance of the struct. `constructor` is called every time an
+// instance of the struct is instantiated.
+HyStruct hy_add_struct(HyState *state, HyPackage pkg, char *name, uint32_t size,
+		HyNativeMethod constructor, uint32_t constructor_arity) {
+
+}
+
+
+// Sets the destructor on a native struct, which is called every time an
+// instance of the struct is garbage collected, to allow you to free any
+// associated resources
+void hy_set_destructor(HyState *state, HyStruct def, HyDestructor destructor) {
+
+}
+
+
+// Adds a method to a native struct
+void hy_add_method(HyState *state, HyStruct def, char *name, uint32_t arity,
+		HyNativeMethod method) {
+
+}

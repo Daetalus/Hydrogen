@@ -70,7 +70,7 @@ void native_free(NativeFunction *fn) {
 // Add a native function to a package. `arity` is the number of arguments the
 // function accepts. If it is set to -1, then the function can accept any number
 // of arguments
-void hy_add_native(HyState *state, HyPackage pkg, char *name, int32_t arity,
+void hy_add_fn(HyState *state, HyPackage pkg, char *name, int32_t arity,
 		HyNativeFn fn) {
 	// Copy the name into a heap allocated string
 	char *name_copy = malloc(strlen(name) + 1);

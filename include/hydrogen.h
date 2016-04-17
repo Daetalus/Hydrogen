@@ -9,6 +9,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+// Used to specify a variable argument function
+#define HY_VAR_ARG (~((uint32_t) 0))
+
 
 // The interpreter state, used to execute Hydrogen source code. Variables,
 // functions, etc. are preserved by the state across calls to `hy_run`
@@ -17,6 +20,9 @@ typedef struct hy_state HyState;
 // Stores package specific data like functions and structs defined in the
 // package
 typedef uint32_t HyPackage;
+
+// Represents a native struct
+typedef uint32_t HyStruct;
 
 // A type that represents all possible values a variable can hold
 typedef uint64_t HyValue;
@@ -30,6 +36,9 @@ typedef HyValue (* HyNativeFn)(HyState *state, HyArgs *args);
 
 // The prototype for a method on a native struct
 typedef HyValue (* HyNativeMethod)(HyState *state, void *data, HyArgs *args);
+
+// The prototype for a destructor on a native struct
+typedef void (* HyDestructor)(HyState *state, void *data);
 
 
 // Contains data describing an error
@@ -107,10 +116,26 @@ HyError * hy_print_bytecode_string(HyState *state, HyPackage pkg, char *source);
 
 
 // Add a native function to a package. `arity` is the number of arguments the
-// function accepts. If it is set to -1, then the function can accept any number
-// of arguments
-void hy_add_native(HyState *state, HyPackage pkg, char *name, int32_t arity,
+// function accepts. If it is set to HY_VAR_ARG, then the function can accept
+// any number of arguments
+void hy_add_fn(HyState *state, HyPackage pkg, char *name, uint32_t arity,
 	HyNativeFn fn);
+
+
+// Add a native struct to a package. `size` specifies how much memory (in bytes)
+// needed in each instance of the struct. `constructor` is called every time an
+// instance of the struct is instantiated.
+HyStruct hy_add_struct(HyState *state, HyPackage pkg, char *name, uint32_t size,
+	HyNativeMethod constructor, uint32_t constructor_arity);
+
+// Sets the destructor on a native struct, which is called every time an
+// instance of the struct is garbage collected, to allow you to free any
+// associated resources
+void hy_set_destructor(HyState *state, HyStruct def, HyDestructor destructor);
+
+// Adds a method to a native struct
+void hy_add_method(HyState *state, HyStruct def, char *name, uint32_t arity,
+	HyNativeMethod method);
 
 
 
