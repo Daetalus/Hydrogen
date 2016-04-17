@@ -57,12 +57,13 @@ static void consume(Lexer *lexer) {
 		return;
 	}
 
-	// Check for newlines so we can increment the current line
+	// Treat \r\n as a single newline
+	if (current(lexer) == '\r' && peek(lexer, 1) == '\n') {
+		lexer->cursor++;
+	}
+
+	// Check for newlines
 	if (current(lexer) == '\n' || current(lexer) == '\r') {
-		// Treat \r\n as a single newline character
-		if (current(lexer) == '\r' && peek(lexer, 1) == '\n') {
-			lexer->cursor++;
-		}
 		lexer->line++;
 	}
 
@@ -202,7 +203,7 @@ static void lex_string(Lexer *lexer) {
 // Lex a number prefix (doesn't consume it). Return the number base.
 static int lex_number_prefix(Lexer *lexer) {
 	// Must start with 0
-	if (current(lexer) != '0' || !is_identifier(peek(lexer, 1))) {
+	if (current(lexer) != '0' || !is_base_prefix(peek(lexer, 1))) {
 		return 10;
 	}
 
