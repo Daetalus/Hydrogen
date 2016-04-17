@@ -192,8 +192,8 @@ char * err_line_of_code(char *start) {
 }
 
 
-// Associate a line of source code with the error.
-void err_code(Error *err, Token *token) {
+// Associate a token with the error.
+void err_token(Error *err, Token *token) {
 	HyError *native = err->native;
 	Source *src = &vec_at(err->state->sources, token->source);
 
@@ -256,7 +256,7 @@ void err_trigger(Error *err) {
 	HyState *state = err->state;
 
 	// Set the error on the interpreter state
-	if (err->native != NULL) {
+	if (err->native->description != NULL) {
 		state->error = err->native;
 	} else {
 		state->error = err_make(err);

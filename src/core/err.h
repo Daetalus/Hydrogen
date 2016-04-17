@@ -41,8 +41,8 @@ void err_print(Error *err, char *fmt, ...);
 // Print a token to an error's description, surrounded in grave accents.
 void err_print_token(Error *err, Token *token);
 
-// Associate a line of source code with the error.
-void err_code(Error *err, Token *token);
+// Associate a token with the error.
+void err_token(Error *err, Token *token);
 
 // Associate a file with an error object.
 void err_file(Error *err, char *file);

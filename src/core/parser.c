@@ -59,7 +59,7 @@ static void err_fatal(Parser *parser, Token *code, char *fmt, ...) {
 	va_end(args);
 
 	// Token
-	err_code(&err, code);
+	err_token(&err, code);
 	err_trigger(&err);
 }
 
@@ -78,7 +78,7 @@ static void err_unexpected(Parser *parser, Token *code, char *fmt, ...) {
 	// Token
 	err_print(&err, ", found ");
 	err_print_token(&err, &lexer->token);
-	err_code(&err, code);
+	err_token(&err, code);
 	err_trigger(&err);
 }
 
@@ -99,7 +99,7 @@ static void err_expect(Parser *parser, TokenType expected, Token *code,
 		// Token
 		err_print(&err, ", found ");
 		err_print_token(&err, &lexer->token);
-		err_code(&err, code);
+		err_token(&err, code);
 		err_trigger(&err);
 	}
 }
@@ -373,7 +373,7 @@ static Index import_new(Parser *parser, Token *token, char *path, char *name) {
 		// Failed to open file
 		Error err = err_new(parser->state);
 		err_print(&err, "Failed to resolve package `%s`", name);
-		err_code(&err, token);
+		err_token(&err, token);
 		free(resolved);
 		err_trigger(&err);
 	}
@@ -401,7 +401,7 @@ static void import(Parser *parser, Token *token) {
 	if (!import_is_valid(path)) {
 		Error err = err_new(parser->state);
 		err_print(&err, "Invalid import path `%s`", path);
-		err_code(&err, token);
+		err_token(&err, token);
 		free(path);
 		err_trigger(&err);
 	}
@@ -414,7 +414,7 @@ static void import(Parser *parser, Token *token) {
 	if (import_find(parser, name, length) != NOT_FOUND) {
 		Error err = err_new(parser->state);
 		err_print(&err, "Package named `%.*s` already imported", length, name);
-		err_code(&err, token);
+		err_token(&err, token);
 		free(name);
 		free(path);
 		err_trigger(&err);
