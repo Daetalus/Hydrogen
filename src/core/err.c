@@ -13,18 +13,18 @@
 #include "debug.h"
 
 
-// The maximum length that can be printed by a single print operation
+// The maximum length that can be printed by a single print operation.
 #define MIN_CAPACITY 128
 
-// The maximum number of characters to print for an unrecognised token
+// The maximum number of characters to print for an unrecognised token.
 #define MAX_UNRECOGNISED_CHARACTERS 25
 
-// The number of spaces to have in a tab character
+// The number of spaces to have in a tab character.
 #define TABS_TO_SPACES 2
 
 
 // Creates a new error object without any associated details yet. The error can
-// be constructed using the building functions below
+// be constructed using the building functions below.
 Error err_new(HyState *state) {
 	// Create the underlying error object
 	HyError *err = malloc(sizeof(HyError));
@@ -43,7 +43,7 @@ Error err_new(HyState *state) {
 }
 
 
-// Release resources allocated by an error object
+// Release resources allocated by an error object.
 void hy_err_free(HyError *err) {
 	if (err == NULL) {
 		return;
@@ -57,7 +57,7 @@ void hy_err_free(HyError *err) {
 
 
 // Prints a string to an error's description using a `va_list` as arguments to
-// the format string
+// the format string.
 void err_print_va(Error *err, char *fmt, va_list args) {
 	// Ensure the description has at least 128 characters of extra capacity
 	uint32_t limit = vec_len(err->description) + MIN_CAPACITY;
@@ -71,8 +71,9 @@ void err_print_va(Error *err, char *fmt, va_list args) {
 }
 
 
-// Prints a string to an error's description
+// Prints a string to an error's description.
 void err_print(Error *err, char *fmt, ...) {
+	// Just use the vararg print function
 	va_list args;
 	va_start(args, fmt);
 	err_print_va(err, fmt, args);
@@ -80,7 +81,7 @@ void err_print(Error *err, char *fmt, ...) {
 }
 
 
-// Prints an unrecognised token to a description buffer
+// Prints an unrecognised token to a description buffer.
 static void err_print_unrecognised(Error *err, Token *token) {
 	// Print until the first whitespace character, or the 25th character
 	char *cursor = token->start;
@@ -101,7 +102,7 @@ static void err_print_unrecognised(Error *err, Token *token) {
 }
 
 
-// Returns the length of the line starting at `cursor`
+// Returns the length of the line starting at `cursor`.
 static uint32_t line_length(char *cursor) {
 	char *start = cursor;
 	while (*cursor != '\0' && *cursor != '\n' && *cursor != '\r') {
@@ -111,7 +112,7 @@ static uint32_t line_length(char *cursor) {
 }
 
 
-// Prints a token to an error's description, surrounded in grave accents
+// Prints a token to an error's description, surrounded in grave accents.
 void err_print_token(Error *err, Token *token) {
 	switch (token->type) {
 	case TOKEN_ELSE_IF:
@@ -155,7 +156,7 @@ void err_print_token(Error *err, Token *token) {
 
 
 // Returns a pointer to the start of the first line before the character at
-// `cursor`
+// `cursor`.
 static char * line_start(char *cursor, char *start) {
 	while (cursor >= start && *cursor != '\n' && *cursor != '\r') {
 		cursor--;
@@ -164,7 +165,7 @@ static char * line_start(char *cursor, char *start) {
 }
 
 
-// Returns the line number the character at `cursor` is on
+// Returns the line number the character at `cursor` is on.
 static uint32_t line_number(char *cursor, char *source) {
 	uint32_t line = 1;
 	while (cursor >= source) {
@@ -183,7 +184,7 @@ static uint32_t line_number(char *cursor, char *source) {
 }
 
 
-// Returns the column number for character at `cursor`
+// Returns the column number for character at `cursor`.
 static uint32_t column_number(char *cursor, char *source) {
 	uint32_t column = 0;
 	while (cursor >= source && *cursor != '\n' && *cursor != '\r') {
@@ -201,7 +202,7 @@ static uint32_t column_number(char *cursor, char *source) {
 }
 
 
-// Associates a line of source code with the error
+// Associates a line of source code with the error.
 void err_code(Error *err, Token *token) {
 	HyError *native = err->native;
 	Source *src = &vec_at(err->state->sources, token->source);
@@ -240,7 +241,7 @@ void err_code(Error *err, Token *token) {
 }
 
 
-// Associates a file with an error object
+// Associates a file with an error object.
 void err_file(Error *err, char *file) {
 	err->native->file = malloc(strlen(file) + 1);
 	strcpy(err->native->file, file);
@@ -248,7 +249,7 @@ void err_file(Error *err, char *file) {
 
 
 // Constructs the native error object from the parent error, freeing resources
-// allocated by the parent at the same time
+// allocated by the parent at the same time.
 HyError * err_make(Error *err) {
 	// Copy across the description into the native error
 	uint32_t length = vec_len(err->description);
@@ -261,7 +262,7 @@ HyError * err_make(Error *err) {
 
 
 // Stops execution of the current code and jumps back to the error guard. Frees
-// any resources allocated by the error construction
+// any resources allocated by the error construction.
 void err_trigger(Error *err) {
 	err->state->error = err_make(err);
 	longjmp(err->state->error_jmp, 1);

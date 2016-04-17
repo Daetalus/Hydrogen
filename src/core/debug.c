@@ -172,7 +172,7 @@ static uint32_t integer_argument[] = {
 };
 
 
-// Returns the number of digits in a number. Assumes the number is positive.
+// Return the number of digits in a number. Assumes the number is positive.
 static int digits(int number) {
 	int count = 0;
 	while (number > 0) {
@@ -183,7 +183,7 @@ static int digits(int number) {
 }
 
 
-// Prints the file path and line number for a piece of source code.
+// Print the file path and line number for a piece of source code.
 static void print_location(HyState *state, Index src_index, uint32_t line) {
 	Source *src = &vec_at(state->sources, src_index);
 	if (src->file == NULL) {
@@ -194,7 +194,7 @@ static void print_location(HyState *state, Index src_index, uint32_t line) {
 }
 
 
-// Prints an instruction's opcode.
+// Print an instruction's opcode.
 static void print_opcode(Instruction ins) {
 	// Find the length of the longest opcode
 	uint32_t max_length = 0;
@@ -211,7 +211,7 @@ static void print_opcode(Instruction ins) {
 }
 
 
-// Prints an instruction's arguments.
+// Print an instruction's arguments.
 static void print_arguments(Instruction ins) {
 	BytecodeOpcode opcode = ins_arg(ins, 0);
 	for (uint32_t i = 1; i <= argument_count[opcode]; i++) {
@@ -226,21 +226,21 @@ static void print_arguments(Instruction ins) {
 }
 
 
-// Prints a number, using an index into the interpreter state's constants list.
+// Print a number, using an index into the interpreter state's constants list.
 static void print_number(HyState *state, uint32_t index) {
 	double value = val_to_num(vec_at(state->constants, index));
 	printf("    ; %.15g", value);
 }
 
 
-// Prints a string, using an index into the interpreter state's strings list.
+// Print a string, using an index into the interpreter state's strings list.
 static void print_string(HyState *state, uint32_t index) {
 	char *str = &(vec_at(state->strings, index)->contents[0]);
 	printf("    ; \"%s\"", str);
 }
 
 
-// Prints useful information about the arguments to an instruction.
+// Print useful information about the arguments to an instruction.
 static void print_info(HyState *state, Index ins_index, Instruction ins) {
 	BytecodeOpcode opcode = ins_arg(ins, 0);
 	switch (opcode) {
@@ -351,7 +351,7 @@ static void print_info(HyState *state, Index ins_index, Instruction ins) {
 }
 
 
-// Pretty prints an instruction within a function's bytecode to the standard
+// Pretty print an instruction within a function's bytecode to the standard
 // output. The instruction index is used to calculate jump offsets.
 void debug_ins(HyState *state, Function *fn, Index ins_index) {
 	// Index
@@ -368,7 +368,7 @@ void debug_ins(HyState *state, Function *fn, Index ins_index) {
 }
 
 
-// Pretty prints the entire bytecode of a function to the standard output.
+// Pretty print the entire bytecode of a function to the standard output.
 void debug_fn(HyState *state, Function *fn) {
 	// File and line number
 	print_location(state, fn->source, fn->line);
