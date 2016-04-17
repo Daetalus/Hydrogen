@@ -15,16 +15,6 @@
 #include "struct.h"
 #include "ins.h"
 
-// Set to `true` when asserts should be checked, otherwise they'll be optimised
-// out by the compiler.
-#define DEBUG true
-
-// Ensure a condition is true.
-#define ASSERT(...)          \
-	if (DEBUG) {             \
-		assert(__VA_ARGS__); \
-	}
-
 // Pretty print an instruction within a function's bytecode to the standard
 // output. The instruction index is used to calculate jump offsets.
 void debug_ins(HyState *state, Function *fn, Index ins_index);

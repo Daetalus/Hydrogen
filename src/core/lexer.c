@@ -32,42 +32,6 @@ Lexer lexer_new(HyState *state, Index pkg_index, Index src_index) {
 }
 
 
-// Returns true if a character is a newline
-static inline bool is_newline(char ch) {
-	return ch == '\n' || ch == '\r';
-}
-
-
-// Returns true if a character is whitespace
-static inline bool is_whitespace(char ch) {
-	return is_newline(ch) || ch == ' ' || ch == '\t';
-}
-
-
-// Returns true if a character is a decimal digit
-static inline bool is_decimal(char ch) {
-	return ch >= '0' && ch <= '9';
-}
-
-
-// Returns true if a character is a hexadecimal digit
-static inline bool is_hex(char ch) {
-	return is_decimal(ch) || (ch >= 'a' && ch <= 'f');
-}
-
-
-// Returns true if a character can start an identifier
-static inline bool is_identifier_start(char ch) {
-	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_';
-}
-
-
-// Returns true if a character can be part of an identifier
-static inline bool is_identifier(char ch) {
-	return is_identifier_start(ch) || is_decimal(ch);
-}
-
-
 // Returns the character under the cursor
 static inline char current(Lexer *lexer) {
 	return *lexer->cursor;

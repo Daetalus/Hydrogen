@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "parser.h"
 #include "fn.h"
@@ -16,7 +17,16 @@
 #include "vm.h"
 #include "err.h"
 #include "import.h"
-#include "debug.h"
+
+
+// Set to true when assertions should be checked.
+#define DEBUG true
+
+// Assert a condition is true. Useful for debugging.
+#define ASSERT(condition)  \
+	if (DEBUG) {           \
+		assert(condition); \
+	}
 
 
 // Returns a pointer to the package we're parsing

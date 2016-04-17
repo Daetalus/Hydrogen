@@ -305,8 +305,8 @@ static void print_info(HyState *state, Index ins_index, Instruction ins) {
 	case MOV_TV:
 	case STRUCT_SET_V: {
 		NativeFunction *native = &vec_at(state->natives, ins_arg(ins, 2));
-		Package *pkg = &vec_at(state->packages, fn->package);
-		printf("    ; `%s.%s`", pkg->name, fn->name);
+		Package *pkg = &vec_at(state->packages, native->package);
+		printf("    ; `%s.%s`", pkg->name, native->name);
 		break;
 	}
 

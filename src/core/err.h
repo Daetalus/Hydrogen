@@ -47,12 +47,12 @@ void err_code(Error *err, Token *token);
 // Associate a file with an error object.
 void err_file(Error *err, char *file);
 
-// Construct the native error object from the parent error, freeing resources
+// Construct the native error object from the parent error. Free resources
 // allocated by the parent at the same time.
 HyError * err_make(Error *err);
 
-// Stop execution of the current code and jump back to the error guard. Frees
-// any resources allocated by the error construction.
+// Stop execution of the current code and jump back to the error guard. Free
+// any resources allocated during error construction.
 void err_trigger(Error *err);
 
 #endif

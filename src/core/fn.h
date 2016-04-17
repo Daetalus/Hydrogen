@@ -66,9 +66,9 @@ typedef struct {
 	// The index of the package this native function is defined in
 	Index package;
 
-	// The number of arguments accepted by the function. If it is set to -1,
-	// then this function accepts any number of arguments
-	int32_t arity;
+	// The number of arguments accepted by the function. If it is set to
+	// HY_VAR_ARG, then this function accepts any number of arguments.
+	uint32_t arity;
 
 	// The C function pointer
 	HyNativeFn fn;
