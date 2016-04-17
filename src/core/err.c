@@ -179,18 +179,13 @@ static char * err_line_start(char *cursor, char *start) {
 }
 
 
-// Return the line of source code from a token.
-char * err_line_of_code(Error *err, Token *token) {
-	Source *src = &vec_at(err->state->sources, token->source);
-
-	// Find the start of the line the token is on
-	char *start = err_line_start(token->start, src->contents);
-
+// Return a line of source code from a pointer to the start of the line.
+char * err_line_of_code(char *start) {
 	// Create a new string to hold the source code
 	uint32_t length = err_line_length(start);
 	char *line = malloc(length + 1);
 
-	// Copy it from the token
+	// Copy it from the string
 	strncpy(line, start, length);
 	line[length] = '\0';
 	return line;
@@ -210,7 +205,8 @@ void err_code(Error *err, Token *token) {
 	}
 
 	// Line of source code
-	native->code = err_line_of_code(err, token);
+	char *line_start = err_line_start(token->start, src->contents);
+	native->code = err_line_of_code(line_start);
 
 	// Length of the token
 	if (token->type == TOKEN_EOF || token->type == TOKEN_UNRECOGNISED) {
@@ -238,31 +234,34 @@ void err_file(Error *err, char *file) {
 // Construct the native error object from the parent error, freeing resources
 // allocated by the parent at the same time.
 HyError * err_make(Error *err) {
+	HyError *native = err->native;
+
 	// Allocate memory for the native error's description string
 	uint32_t length = vec_len(err->description);
-	err->native->description = malloc(length + 1);
-	char *native = err->native->description;
+	native->description = malloc(length + 1);
 
 	// Copy across the description
-	strncpy(native, &vec_at(err->description, 0), length);
-	native[length] = '\0';
+	strncpy(native->description, &vec_at(err->description, 0), length);
+	native->description[length] = '\0';
 
 	// Free resources allocated by the parent
 	vec_free(err->description);
-	return err->native;
+	return native;
 }
 
 
 // Stop execution of the current code and jump back to the error guard. Free
 // any resources allocated during error construction.
 void err_trigger(Error *err) {
+	HyState *state = err->state;
+
 	// Set the error on the interpreter state
 	if (err->native != NULL) {
-		err->state->error = err->native;
+		state->error = err->native;
 	} else {
-		err->state->error = err_make(err);
+		state->error = err_make(err);
 	}
 
 	// Jump back to the error guard
-	longjmp(err->state->error_jmp, 1);
+	longjmp(state->error_jmp, 1);
 }
