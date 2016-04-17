@@ -7,7 +7,7 @@
 #include "vm.h"
 
 
-// Defines a new function on the interpreter state
+// Define a new function on the interpreter state.
 Index fn_new(HyState *state) {
 	vec_inc(state->functions);
 	Function *fn = &vec_last(state->functions);
@@ -17,19 +17,18 @@ Index fn_new(HyState *state) {
 	fn->source = 0;
 	fn->line = 0;
 	fn->arity = 0;
-	fn->frame_size = 0;
 	vec_new(fn->instructions, Instruction, 64);
 	return vec_len(state->functions) - 1;
 }
 
 
-// Frees resources allocated by a function
+// Free resources allocated by a function.
 void fn_free(Function *fn) {
 	vec_free(fn->instructions);
 }
 
 
-// Appends a bytecode instruction to the end of the function's instruction list
+// Append a bytecode instruction to the end of the function's instruction list.
 Index fn_emit(Function *fn, BytecodeOpcode opcode, uint16_t arg1, uint16_t arg2,
 		uint16_t arg3) {
 	vec_inc(fn->instructions);
@@ -43,9 +42,9 @@ Index fn_emit(Function *fn, BytecodeOpcode opcode, uint16_t arg1, uint16_t arg2,
 //  Natives
 //
 
-// Defines a new native function on the package `pkg`
+// Define a new native function on the package `pkg`.
 Index native_new(HyState *state, Index pkg_index, char *name) {
-	// Create native function on interpreter state
+	// Create a native function on the interpreter state
 	vec_inc(state->natives);
 	NativeFunction *fn = &vec_last(state->natives);
 	fn->name = name;
@@ -53,7 +52,7 @@ Index native_new(HyState *state, Index pkg_index, char *name) {
 	fn->arity = 0;
 	fn->fn = NULL;
 
-	// Create local on package with a default value
+	// Create a local on package with a default value
 	Package *pkg = &vec_at(state->packages, pkg_index);
 	Index index = vec_len(state->natives) - 1;
 	pkg_local_add(pkg, name, strlen(name), native_to_val(index));
@@ -61,15 +60,15 @@ Index native_new(HyState *state, Index pkg_index, char *name) {
 }
 
 
-// Frees resources allocated by a native function
+// Free resources allocated by a native function.
 void native_free(NativeFunction *fn) {
 	free(fn->name);
 }
 
 
 // Add a native function to a package. `arity` is the number of arguments the
-// function accepts. If it is set to -1, then the function can accept any number
-// of arguments
+// function accepts. If it is set to HY_VAR_ARG, then the function can accept
+// any number of arguments.
 void hy_add_fn(HyState *state, HyPackage pkg, char *name, uint32_t arity,
 		HyNativeFn fn) {
 	// Copy the name into a heap allocated string
