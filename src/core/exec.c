@@ -653,6 +653,17 @@ BC_STRUCT_FIELD: {
 			STACK(INS(1)) = array->methods[method_index];
 			NEXT();
 		}
+	} else if (obj->type == OBJ_STRING) {
+		// String instance
+		String *string = (String *) obj;
+		Index method_index = core_method_find(string_core_methods,
+			STRING_CORE_METHODS_COUNT, field->name, field->length);
+
+		// If we found the field
+		if (method_index != NOT_FOUND) {
+			STACK(INS(1)) = string->methods[method_index];
+			NEXT();
+		}
 	} else {
 		// Attempt to index non-object
 		printf("attempt to index non-object");
