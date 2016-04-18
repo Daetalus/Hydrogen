@@ -125,6 +125,9 @@ typedef struct {
 	// definition.
 	Index definition;
 
+	// The number of fields on this struct.
+	uint32_t fields_count;
+
 	// The values of each field on the struct. When the struct is first
 	// instantiated, normal fields will be set to nil, and methods will have a
 	// method value created for them.
@@ -333,6 +336,104 @@ static inline uint32_t ceil_power_of_2(uint32_t value) {
 		power <<= 1;
 	}
 	return power;
+}
+
+
+
+//
+//  Comparison
+//
+
+// Forward declaration.
+static inline bool val_cmp(HyValue left, HyValue right);
+
+
+// Compare two strings for equality.
+static inline bool string_cmp(String *left, String *right) {
+	return strcmp(left->contents, right->contents) == 0;
+}
+
+
+// Compare two structs for equality.
+static bool struct_cmp(Struct *left, Struct *right) {
+	// Only equal if both are instances of the same struct
+	if (left->definition != right->definition) {
+		return false;
+	}
+
+	// Compare each field recursively
+	for (uint32_t i = 0; i < left->fields_count; i++) {
+		// Since we're doing this recursively, we need to check if the user's
+		// stored a reference to a struct in one of it's fields, so we don't
+		// end up recursing infinitely
+		// TODO
+		if (!val_cmp(left->fields[i], right->fields[i])) {
+			return false;
+		}
+	}
+
+	// All fields are equal
+	return true;
+}
+
+
+// Compare two methods for equality.
+static inline bool method_cmp(Method *left, Method *right) {
+	return left->parent == right->parent && left->fn == right->fn;
+}
+
+
+// Compare two arrays for equality.
+static inline bool array_cmp(Array *left, Array *right) {
+	// Lengths of arrays must be equal
+	if (left->length != right->length) {
+		return false;
+	}
+
+	// Check each element in the array
+	for (uint32_t i = 0; i < left->length; i++) {
+		if (!val_cmp(left->contents[i], right->contents[i])) {
+			return false;
+		}
+	}
+
+	// All elements match
+	return true;
+}
+
+
+// Compare two values for equality.
+static inline bool val_cmp(HyValue left, HyValue right) {
+	if (left == right) {
+		return true;
+	}
+
+	// If both are pointers
+	if (val_is_ptr(left) && val_is_ptr(right)) {
+		Object *left_obj = val_to_ptr(left);
+		Object *right_obj = val_to_ptr(right);
+
+		// Check the type of each GC object matches
+		if (left_obj->type != right_obj->type) {
+			return false;
+		}
+
+		// Compare based on type
+		switch (left_obj->type) {
+		case OBJ_STRING:
+			return string_cmp((String *) left_obj, (String *) right_obj);
+		case OBJ_STRUCT:
+			return struct_cmp((Struct *) left_obj, (Struct *) right_obj);
+		case OBJ_METHOD:
+			return method_cmp((Method *) left_obj, (Method *) right_obj);
+		case OBJ_ARRAY:
+			return array_cmp((Array *) left_obj, (Array *) right_obj);
+		default:
+			return false;
+		}
+	}
+
+	return false;
 }
 
 #endif

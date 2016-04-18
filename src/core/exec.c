@@ -43,72 +43,6 @@ static inline String * ensure_str(HyValue value) {
 }
 
 
-// Compare two strings for equality.
-static inline bool string_comp(String *left, String *right) {
-	return strcmp(left->contents, right->contents) == 0;
-}
-
-
-// Forward declaration.
-static inline bool val_comp(StructDefinition *structs, HyValue left,
-	HyValue right);
-
-
-// Compare two structs for equality.
-static bool struct_comp(StructDefinition *structs, Struct *left,
-		Struct *right) {
-	// Only equal if both are instances of the same struct
-	if (left->definition != right->definition) {
-		return false;
-	}
-
-	// Compare each field recursively
-	for (uint32_t i = 0; i < vec_len(structs[left->definition].fields); i++) {
-		// Since we're doing this recursively, we need to check if the user's
-		// stored a reference to a struct in one of it's fields, so we don't
-		// end up recursing infinitely
-		// TODO
-		if (!val_comp(structs, left->fields[i], right->fields[i])) {
-			return false;
-		}
-	}
-
-	// All fields are equal
-	return true;
-}
-
-
-// Compare two values for equality.
-static inline bool val_comp(StructDefinition *structs, HyValue left,
-		HyValue right) {
-	return left == right ||
-		(val_is_gc(left, OBJ_STRING) && val_is_gc(right, OBJ_STRING) &&
-			string_comp(val_to_ptr(left), val_to_ptr(right))) ||
-		(val_is_gc(left, OBJ_STRUCT) && val_is_gc(right, OBJ_STRUCT) &&
-			struct_comp(structs, val_to_ptr(left), val_to_ptr(right)));
-}
-
-
-// Search for a field in a struct.
-static inline Index struct_field_index(StructDefinition *structs,
-		Struct *instance, Identifier *field) {
-	// Get the struct definition
-	StructDefinition *def = &structs[instance->definition];
-
-	// Get the index of the field we're looking for
-	for (uint32_t i = 0; i < vec_len(def->fields); i++) {
-		Identifier *potential = &vec_at(def->fields, i);
-		if (field->length == potential->length &&
-				strncmp(field->name, potential->name, potential->length) == 0) {
-			return i;
-		}
-	}
-
-	// Couldn't find the field
-	return NOT_FOUND;
-}
-
-
 // Execute a function on the interpreter state.
 HyError * exec_fn(HyState *state, Index fn_index) {
 	// Indexed labels for computed gotos, used to increase performance by using
@@ -391,7 +325,7 @@ BC_IS_FALSE_L: {
 	// the code for each using a macro
 #define EQ(ins, op)                                                 \
 	BC_ ## ins ## _LL: {                                            \
-		if (op val_comp(structs, STACK(INS(1)), STACK(INS(2)))) {   \
+		if (op val_cmp(STACK(INS(1)), STACK(INS(2)))) {             \
 			ip++;                                                   \
 		}                                                           \
 		NEXT();                                                     \
@@ -411,7 +345,7 @@ BC_IS_FALSE_L: {
                                                                     \
 	BC_ ## ins ## _LS:                                              \
 		if (op (val_is_gc(STACK(INS(1)), OBJ_STRING) &&             \
-				string_comp(val_to_ptr(STACK(INS(1))),              \
+				string_cmp(val_to_ptr(STACK(INS(1))),               \
 					strings[INS(2)]))) {                            \
 			ip++;                                                   \
 		}                                                           \
@@ -583,6 +517,7 @@ BC_STRUCT_NEW: {
 	Struct *instance = malloc(sizeof(Struct) + field_length);
 	instance->type = OBJ_STRUCT;
 	instance->definition = INS(2);
+	instance->fields_count = vec_len(def->fields);
 
 	// Set the instance's fields
 	HyValue parent = ptr_to_val(instance);
@@ -638,7 +573,8 @@ BC_STRUCT_CALL_CONSTRUCTOR: {
 BC_STRUCT_FIELD: {
 	Struct *instance = val_to_ptr(STACK(INS(2)));
 	Identifier *field = &fields[INS(3)];
-	Index field_index = struct_field_index(structs, instance, field);
+	Index field_index = struct_field_find(&structs[instance->definition],
+		field->name, field->length);
 
 	if (field_index != NOT_FOUND) {
 		STACK(INS(1)) = instance->fields[field_index];
@@ -654,7 +590,8 @@ BC_STRUCT_FIELD: {
 #define STRUCT_SET(value) {                                                    \
 	Struct *instance = val_to_ptr(STACK(INS(3)));                              \
 	Identifier *field = &fields[INS(1)];                                       \
-	Index field_index = struct_field_index(structs, instance, field);          \
+	Index field_index = struct_field_find(&structs[instance->definition],      \
+		field->name, field->length);                                           \
                                                                                \
 	if (field_index != NOT_FOUND) {                                            \
 		instance->fields[field_index] = (value);                               \
