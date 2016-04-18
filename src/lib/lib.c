@@ -4,6 +4,8 @@
 //
 
 #include <hylib.h>
+#include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 
@@ -18,7 +20,7 @@ void hy_add_libs(HyState *state) {
 //  IO
 //
 
-// Prints a value to the standard output, returning the number of characters
+// Print a value to the standard output, returning the number of characters
 // printed.
 static uint32_t io_print_value(HyValue value) {
 	switch (hy_type(value)) {
@@ -40,7 +42,7 @@ static uint32_t io_print_value(HyValue value) {
 }
 
 
-// Prints a line to the standard output without a trailing newline.
+// Print a line to the standard output without a trailing newline.
 static HyValue io_print(HyState *state, HyArgs *args) {
 	uint32_t arity = hy_args_count(args);
 	uint32_t length = 0;
@@ -56,11 +58,33 @@ static HyValue io_print(HyState *state, HyArgs *args) {
 }
 
 
-// Prints a line to the standard output with a trailing newline.
+// Print a line to the standard output with a trailing newline.
 static HyValue io_println(HyState *state, HyArgs *args) {
 	HyValue result = io_print(state, args);
 	printf("\n");
 	return result;
+}
+
+
+// Create a new IO stream.
+static void * io_stream_new(HyState *state, HyArgs *args) {
+	char *value = "hello!";
+	char *mem = malloc(strlen(value) + 1);
+	strcpy(mem, value);
+	return mem;
+}
+
+
+// Free resources associated with an IO stream.
+static void io_stream_free(HyState *state, void *data) {
+	free(data);
+}
+
+
+// Print the contents of a stream.
+static HyValue io_stream_print(HyState *state, void *data, HyArgs *args) {
+	printf("Data: %s\n", (char *) data);
+	return hy_nil();
 }
 
 
@@ -69,4 +93,9 @@ void hy_add_io(HyState *state) {
 	HyPackage pkg = hy_add_pkg(state, "io");
 	hy_add_fn(state, pkg, "print", -1, io_print);
 	hy_add_fn(state, pkg, "println", -1, io_println);
+
+	// Add a test native struct
+	HyStruct stream = hy_add_struct(state, pkg, "Stream", io_stream_new, 0);
+	hy_set_destructor(state, stream, io_stream_free);
+	hy_add_method(state, stream, "print", 0, io_stream_print);
 }
