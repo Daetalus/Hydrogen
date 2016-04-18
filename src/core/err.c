@@ -8,7 +8,7 @@
 #include <stdio.h>
 
 #include "err.h"
-#include "vm.h"
+#include "state.h"
 #include "lexer.h"
 
 

@@ -1,6 +1,6 @@
 
 //
-//  Virtual Machine
+//  Interpreter State
 //
 
 #ifndef VM_H

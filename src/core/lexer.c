@@ -8,7 +8,7 @@
 #include <limits.h>
 
 #include "lexer.h"
-#include "vm.h"
+#include "state.h"
 #include "pkg.h"
 #include "err.h"
 

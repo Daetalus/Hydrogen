@@ -4,7 +4,7 @@
 //
 
 #include "fn.h"
-#include "vm.h"
+#include "state.h"
 
 
 // Define a new function on the interpreter state.

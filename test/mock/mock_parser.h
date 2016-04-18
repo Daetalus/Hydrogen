@@ -10,7 +10,7 @@
 #include <parser.h>
 #include <bytecode.h>
 #include <fn.h>
-#include <vm.h>
+#include <state.h>
 
 
 // A mock parser

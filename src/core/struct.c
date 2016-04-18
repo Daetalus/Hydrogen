@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include "struct.h"
-#include "vm.h"
+#include "state.h"
 
 
 // Create a new struct definition on the package `pkg`.

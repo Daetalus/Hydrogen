@@ -14,7 +14,7 @@
 #include "fn.h"
 #include "jmp.h"
 #include "pkg.h"
-#include "vm.h"
+#include "state.h"
 #include "err.h"
 #include "import.h"
 

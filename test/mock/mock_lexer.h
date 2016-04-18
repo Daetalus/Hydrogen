@@ -7,7 +7,7 @@
 #define MOCK_LEXER_H
 
 #include <hydrogen.h>
-#include <vm.h>
+#include <state.h>
 #include <lexer.h>
 
 // Creates a new lexer to run tests on.

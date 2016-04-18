@@ -3,7 +3,6 @@
 //  Mock Parser
 //
 
-#include <vm.h>
 #include <pkg.h>
 #include <bytecode.h>
 

@@ -1,13 +1,13 @@
 
 //
-//  Virtual Machine
+//  Interpreter State
 //
 
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
 
-#include "vm.h"
+#include "state.h"
 #include "err.h"
 #include "debug.h"
 

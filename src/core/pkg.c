@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 #include "pkg.h"
-#include "vm.h"
+#include "state.h"
 
 
 // Create a new package on the interpreter state. The name of the package is

@@ -6,7 +6,7 @@
 #include <mock_parser.h>
 #include <test.h>
 #include <struct.h>
-#include <vm.h>
+#include <state.h>
 
 
 // Asserts the struct at index `struct_index` has the name `struct_name`, and

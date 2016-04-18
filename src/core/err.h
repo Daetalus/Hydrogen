@@ -10,7 +10,7 @@
 #include <stdarg.h>
 
 #include "lexer.h"
-#include "vm.h"
+#include "state.h"
 
 
 // An error struct containing more information that we don't want to expose to

@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 #include "debug.h"
-#include "vm.h"
+#include "state.h"
 #include "pkg.h"
 #include "err.h"
 
