@@ -80,9 +80,6 @@ struct hy_args {
 };
 
 
-// Define a new native function on the package `pkg`.
-Index native_new(HyState *state, Index pkg, char *name);
-
 // Free resources allocated by a native function.
 void native_free(NativeFunction *fn);
 

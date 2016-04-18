@@ -91,27 +91,60 @@ Index struct_field_find(StructDefinition *def, char *name, uint32_t length) {
 
 
 //
-//  Native Interface
+//  Native Structs
 //
 
 // Add a native struct to a package. `size` specifies how much memory (in bytes)
 // needed in each instance of the struct. `constructor` is called every time an
 // instance of the struct is instantiated.
-HyStruct hy_add_struct(HyState *state, HyPackage pkg, char *name, uint32_t size,
-		HyNativeMethod constructor, uint32_t constructor_arity) {
+HyStruct hy_add_struct(HyState *state, HyPackage pkg, char *name,
+		HyConstructor constructor, uint32_t constructor_arity) {
+	vec_inc(state->native_structs);
+	NativeStructDefinition *def = &vec_last(state->native_structs);
+	def->package = pkg;
+	def->constructor = constructor;
+	def->constructor_arity = constructor_arity;
+	def->destructor = NULL;
+	vec_new(def->methods, NativeMethod, 4);
 
+	// Copy across name
+	def->name = malloc(strlen(name) + 1);
+	strcpy(def->name, name);
+	return vec_len(state->native_structs) - 1;
 }
 
 
 // Set the destructor on a native struct, called every time an instance of the
 // struct is garbage collected, to allow you to free any associated resources.
 void hy_set_destructor(HyState *state, HyStruct def, HyDestructor destructor) {
-
+	NativeStructDefinition *native = &vec_at(state->native_structs, def);
+	native->destructor = destructor;
 }
 
 
 // Add a method on a native struct.
 void hy_add_method(HyState *state, HyStruct def, char *name, uint32_t arity,
-		HyNativeMethod method) {
+		HyNativeMethod fn) {
+	NativeStructDefinition *native = &vec_at(state->native_structs, def);
+	vec_inc(native->methods);
+	NativeMethod *method = &vec_last(native->methods);
+	method->arity = arity;
+	method->fn = fn;
 
+	// Copy across name
+	method->name = malloc(strlen(name) + 1);
+	strcpy(method->name, name);
+}
+
+
+// Free resources associated with a native struct definition.
+void native_struct_free(NativeStructDefinition *def) {
+	// Methods
+	for (uint32_t i = 0; i < vec_len(def->methods); i++) {
+		NativeMethod *method = &vec_at(def->methods, i);
+		free(method->name);
+	}
+
+	vec_free(def->methods);
+	free(def->name);
 }

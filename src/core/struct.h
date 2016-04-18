@@ -60,4 +60,47 @@ Index struct_method_new(StructDefinition *def, char *name, uint32_t length,
 // couldn't be found.
 Index struct_field_find(StructDefinition *def, char *name, uint32_t length);
 
+
+// A native method on a native struct. Very similar to a native function, but
+// associated with a struct definition, rather than a package.
+typedef struct {
+	// The name of the method (heap allocated).
+	char *name;
+
+	// The arity of the method, or HY_VAR_ARG for an unspecified number of
+	// arguments.
+	uint32_t arity;
+
+	// The C function pointer to the native function.
+	HyNativeMethod fn;
+} NativeMethod;
+
+
+// A native struct is a wrapper around a `void *` pointer to some userdata
+// provided by a native constructor.
+typedef struct {
+	// The name of the native struct (heap allocated).
+	char *name;
+
+	// The package the struct is defined in.
+	Index package;
+
+	// The native constructor for the struct.
+	HyConstructor constructor;
+
+	// The number of arguments the constructor accepts, or HY_VAR_ARG for an
+	// unspecified number of arguments.
+	uint32_t constructor_arity;
+
+	// The native destructor for the struct, or NULL if there is no destructor.
+	HyDestructor destructor;
+
+	// A list of all native methods defined on the struct.
+	Vec(NativeMethod) methods;
+} NativeStructDefinition;
+
+
+// Free resources associated with a native struct definition.
+void native_struct_free(NativeStructDefinition *def);
+
 #endif

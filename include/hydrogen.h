@@ -37,6 +37,9 @@ typedef HyValue (* HyNativeFn)(HyState *state, HyArgs *args);
 // The prototype for a method on a native struct.
 typedef HyValue (* HyNativeMethod)(HyState *state, void *data, HyArgs *args);
 
+// The prototype for a constructor on a native struct.
+typedef void * (* HyConstructor)(HyState *state, HyArgs *args);
+
 // The prototype for a destructor on a native struct.
 typedef void (* HyDestructor)(HyState *state, void *data);
 
@@ -125,8 +128,8 @@ void hy_add_fn(HyState *state, HyPackage pkg, char *name, uint32_t arity,
 // Add a native struct to a package. `size` specifies how much memory (in bytes)
 // needed in each instance of the struct. `constructor` is called every time an
 // instance of the struct is instantiated.
-HyStruct hy_add_struct(HyState *state, HyPackage pkg, char *name, uint32_t size,
-	HyNativeMethod constructor, uint32_t constructor_arity);
+HyStruct hy_add_struct(HyState *state, HyPackage pkg, char *name,
+	HyConstructor constructor, uint32_t constructor_arity);
 
 // Set the destructor on a native struct, called every time an instance of the
 // struct is garbage collected, to allow you to free any associated resources.

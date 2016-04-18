@@ -62,9 +62,12 @@ struct hy_state {
 	// 2^16 functions/structs/etc across all packages, rather than per package.
 	Vec(Source) sources;
 	Vec(Package) packages;
+
 	Vec(Function) functions;
-	Vec(NativeFunction) natives;
+	Vec(NativeFunction) native_fns;
+
 	Vec(StructDefinition) structs;
+	Vec(NativeStructDefinition) native_structs;
 
 	// We can't store 64 bit values like numbers (doubles) and strings
 	// (pointers) directly in the bytecode (because each argument is only 16

@@ -143,7 +143,7 @@ HyError * exec_fn(HyState *state, Index fn_index) {
 	// Cache pointers to arrays on the interpreter state
 	Package *packages = &vec_at(state->packages, 0);
 	Function *functions = &vec_at(state->functions, 0);
-	NativeFunction *natives = &vec_at(state->natives, 0);
+	NativeFunction *native_fns = &vec_at(state->native_fns, 0);
 	StructDefinition *structs = &vec_at(state->structs, 0);
 	Identifier *fields = &vec_at(state->fields, 0);
 	HyValue *constants = &vec_at(state->constants, 0);
@@ -461,8 +461,6 @@ BC_CALL: {
 			fn = &functions[val_to_fn(fn_value, TAG_FN)];
 		}
 
-		// TODO: Check arity of function call against arity in *ip
-
 		// Set up state for the called function
 		ip = &vec_at(fn->instructions, 0);
 		DISPATCH();
@@ -472,7 +470,7 @@ BC_CALL: {
 		args.stack = stack;
 		args.start = stack_start + INS(1) + 1;
 		args.arity = INS(2);
-		NativeFunction *native = &natives[val_to_fn(fn_value, TAG_NATIVE)];
+		NativeFunction *native = &native_fns[val_to_fn(fn_value, TAG_NATIVE)];
 		STACK(INS(3)) = native->fn(state, &args);
 		NEXT();
 	} else {
@@ -520,7 +518,6 @@ BC_STRUCT_CALL_CONSTRUCTOR: {
 	StructDefinition *def = &structs[instance->definition];
 
 	// Only call the constructor if it exists
-	// TODO: Check arity of constructor against arity in *ip
 	if (def->constructor == NOT_FOUND) {
 		NEXT();
 	}

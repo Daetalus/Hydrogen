@@ -46,9 +46,12 @@ HyState * hy_new(void) {
 
 	vec_new(state->sources, Source, 4);
 	vec_new(state->packages, Package, 4);
+
 	vec_new(state->functions, Function, 8);
-	vec_new(state->natives, NativeFunction, 8);
-	vec_new(state->structs, StructDefinition, 8);
+	vec_new(state->native_fns, NativeFunction, 8);
+
+	vec_new(state->structs, StructDefinition, 4);
+	vec_new(state->native_structs, NativeStructDefinition, 4);
 
 	vec_new(state->constants, HyValue, 32);
 	vec_new(state->strings, String *, 16);
@@ -82,14 +85,19 @@ void hy_free(HyState *state) {
 		fn_free(&vec_at(state->functions, i));
 	}
 
-	// Natives
-	for (uint32_t i = 0; i < vec_len(state->natives); i++) {
-		native_free(&vec_at(state->natives, i));
+	// Native functions
+	for (uint32_t i = 0; i < vec_len(state->native_fns); i++) {
+		native_free(&vec_at(state->native_fns, i));
 	}
 
 	// Struct definitions
 	for (uint32_t i = 0; i < vec_len(state->structs); i++) {
 		struct_free(&vec_at(state->structs, i));
+	}
+
+	// Native struct definitions
+	for (uint32_t i = 0; i < vec_len(state->native_structs); i++) {
+		native_struct_free(&vec_at(state->native_structs, i));
 	}
 
 	// Strings
@@ -101,8 +109,9 @@ void hy_free(HyState *state) {
 	vec_free(state->sources);
 	vec_free(state->packages);
 	vec_free(state->functions);
-	vec_free(state->natives);
+	vec_free(state->native_fns);
 	vec_free(state->structs);
+	vec_free(state->native_structs);
 	vec_free(state->constants);
 	vec_free(state->strings);
 	vec_free(state->fields);

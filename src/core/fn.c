@@ -43,24 +43,6 @@ Index fn_emit(Function *fn, BytecodeOpcode opcode, uint16_t arg1, uint16_t arg2,
 //  Natives
 //
 
-// Define a new native function on the package `pkg`.
-Index native_new(HyState *state, Index pkg_index, char *name) {
-	// Create a native function on the interpreter state
-	vec_inc(state->natives);
-	NativeFunction *fn = &vec_last(state->natives);
-	fn->name = name;
-	fn->package = pkg_index;
-	fn->arity = 0;
-	fn->fn = NULL;
-
-	// Create a local on package with a default value
-	Package *pkg = &vec_at(state->packages, pkg_index);
-	Index index = vec_len(state->natives) - 1;
-	pkg_local_add(pkg, name, strlen(name), fn_to_val(index, TAG_NATIVE));
-	return index;
-}
-
-
 // Free resources allocated by a native function.
 void native_free(NativeFunction *fn) {
 	free(fn->name);
@@ -70,15 +52,22 @@ void native_free(NativeFunction *fn) {
 // Add a native function to a package. `arity` is the number of arguments the
 // function accepts. If it is set to HY_VAR_ARG, then the function can accept
 // any number of arguments.
-void hy_add_fn(HyState *state, HyPackage pkg, char *name, uint32_t arity,
+void hy_add_fn(HyState *state, HyPackage pkg_index, char *name, uint32_t arity,
 		HyNativeFn fn) {
 	// Copy the name into a heap allocated string
 	char *name_copy = malloc(strlen(name) + 1);
 	strcpy(name_copy, name);
 
 	// Create a new native function
-	Index index = native_new(state, pkg, name_copy);
-	NativeFunction *native = &vec_at(state->natives, index);
+	vec_inc(state->native_fns);
+	NativeFunction *native = &vec_last(state->native_fns);
+	native->name = name_copy;
+	native->package = pkg_index;
 	native->arity = arity;
 	native->fn = fn;
+
+	// Create a local on package with a default value
+	Package *pkg = &vec_at(state->packages, pkg_index);
+	Index index = vec_len(state->native_fns) - 1;
+	pkg_local_add(pkg, name, strlen(name), fn_to_val(index, TAG_NATIVE));
 }
