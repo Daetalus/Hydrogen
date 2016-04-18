@@ -186,7 +186,7 @@ HyError * exec_fn(HyState *state, Index fn_index) {
 	NativeStructDefinition *native_structs = &vec_at(state->native_structs, 0);
 	Identifier *fields = &vec_at(state->fields, 0);
 	HyValue *constants = &vec_at(state->constants, 0);
-	String **strings = &vec_at(state->strings, 0);
+	char **strings = &vec_at(state->strings, 0);
 
 	HyValue *stack = state->stack;
 	Frame *call_stack = state->call_stack;
@@ -337,13 +337,13 @@ BC_CONCAT_LL:
 	NEXT();
 
 BC_CONCAT_LS:
-	STACK(INS(1)) = ptr_to_val(string_concat(
+	STACK(INS(1)) = ptr_to_val(string_concat_right(
 		ensure_str(STACK(INS(2))), strings[INS(3)]
 	));
 	NEXT();
 
 BC_CONCAT_SL:
-	STACK(INS(1)) = ptr_to_val(string_concat(
+	STACK(INS(1)) = ptr_to_val(string_concat_left(
 		strings[INS(2)], ensure_str(STACK(INS(3)))
 	));
 	NEXT();
@@ -398,7 +398,7 @@ BC_IS_FALSE_L:
                                                                     \
 	BC_ ## ins ## _LS:                                              \
 		if (op (val_is_gc(STACK(INS(1)), OBJ_STRING) &&             \
-				string_cmp(val_to_ptr(STACK(INS(1))),               \
+				string_cmp_right(val_to_ptr(STACK(INS(1))),         \
 					strings[INS(2)]))) {                            \
 			ip++;                                                   \
 		}                                                           \

@@ -208,47 +208,6 @@ typedef struct hy_array {
 
 
 //
-//  Strings
-//
-
-// Calculate the size of a string in bytes.
-static inline uint32_t string_size(String *str) {
-	// Add 1 for the NULL terminator
-	return sizeof(String) + str->length + 1;
-}
-
-
-// Allocate a new string as a copy of another.
-static inline String * string_copy(String *original) {
-	// Allocate memory for the new string
-	uint32_t size = string_size(original);
-	String *copy = malloc(size);
-
-	// Copy the old string into the new one
-	memcpy(copy, original, size);
-	return copy;
-}
-
-
-// Allocate a new string and populate it with the concatenation of `left` and
-// `right`.
-static inline String * string_concat(String *left, String *right) {
-	// Allocate memory for new string
-	uint32_t length = left->length + right->length;
-	String *concat = malloc(sizeof(String) + length + 1);
-	concat->type = OBJ_STRING;
-	concat->length = length;
-	strncpy(&concat->contents[0], left->contents, left->length);
-	strncpy(&concat->contents[left->length], right->contents, right->length);
-	concat->contents[length] = '\0';
-
-	// No need to insert NULL terminator since we used calloc
-	return concat;
-}
-
-
-
-//
 //  Bitwise Type Conversion
 //
 
@@ -386,6 +345,78 @@ static inline uint32_t ceil_power_of_2(uint32_t value) {
 
 
 //
+//  Strings
+//
+
+// Allocate methods on a string instance.
+static inline void string_add_methods(String *string) {
+	for (uint32_t i = 0; i < STRING_CORE_METHODS_COUNT; i++) {
+		CoreMethod *def = &string_core_methods[i];
+		NativeMethod *method = malloc(sizeof(NativeMethod));
+		method->type = OBJ_NATIVE_METHOD;
+		method->data = string;
+		method->arity = def->arity;
+		method->fn = def->fn;
+		string->methods[i] = ptr_to_val(method);
+	}
+}
+
+
+// Create a new string.
+static inline String * string_new(uint32_t length) {
+	String *string = malloc(sizeof(String) + length + 1);
+	string->type = OBJ_STRING;
+	string->length = length;
+	string_add_methods(string);
+	return string;
+}
+
+
+// Allocate a new string as a copy of another.
+static inline String * string_copy(char *original) {
+	// Copy the string across into a new string
+	String *string = string_new(strlen(original));
+	strcpy(&string->contents[0], original);
+	return string;
+}
+
+
+// Concatenate two raw strings, and place the result in `result`.
+static inline void string_concat_raw(char *result, char *left,
+		uint32_t left_length, char *right) {
+	strncpy(result, left, left_length);
+	strcpy(&result[left_length], right);
+}
+
+
+// Concatenate two strings.
+static inline String * string_concat(String *left, String *right) {
+	String *result = string_new(left->length + right->length);
+	string_concat_raw(result->contents, left->contents, left->length,
+		right->contents);
+	return result;
+}
+
+
+// Concatenate two strings, where the left one is a `char *`.
+static inline String * string_concat_left(char *left, String *right) {
+	uint32_t left_length = strlen(left);
+	String *result = string_new(left_length + right->length);
+	string_concat_raw(result->contents, left, left_length, right->contents);
+	return result;
+}
+
+
+// Concatenate two strings, where the right one is a `char *`.
+static inline String * string_concat_right(String *left, char *right) {
+	String *result = string_new(left->length + strlen(right));
+	string_concat_raw(result->contents, left->contents, left->length, right);
+	return result;
+}
+
+
+
+//
 //  Comparison
 //
 
@@ -396,6 +427,12 @@ static inline bool val_cmp(HyValue left, HyValue right);
 // Compare two strings for equality.
 static inline bool string_cmp(String *left, String *right) {
 	return strcmp(left->contents, right->contents) == 0;
+}
+
+
+// Compare two strings for equality, where the right value is a `char *`.
+static inline bool string_cmp_right(String *left, char *right) {
+	return strcmp(left->contents, right) == 0;
 }
 
 

@@ -76,7 +76,7 @@ struct hy_state {
 	// The constants array holds all number literals and values defined using
 	// `const`. Struct fields are stored as the hash of the field name.
 	Vec(HyValue) constants;
-	Vec(String *) strings;
+	Vec(char *) strings;
 	Vec(Identifier) fields;
 
 	// The interpreter's runtime stack, used to store variables.
@@ -101,7 +101,7 @@ struct hy_state {
 Index state_add_constant(HyState *state, HyValue constant);
 
 // Create a new string constant that is `length` bytes long.
-Index state_add_literal(HyState *state, uint32_t length);
+Index state_add_string(HyState *state, uint32_t length);
 
 // Add a field name to the interpreter state's fields list. If a field matching
 // `ident` already exists, then it returns the index of the existing field.

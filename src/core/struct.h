@@ -78,7 +78,7 @@ typedef struct {
 
 // A native struct is a wrapper around a `void *` pointer to some userdata
 // provided by a native constructor.
-typedef struct {
+typedef struct native_method_definition {
 	// The name of the native struct (heap allocated).
 	char *name;
 

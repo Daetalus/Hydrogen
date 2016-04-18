@@ -728,7 +728,7 @@ static inline double operand_to_num(Parser *parser, Operand *operand) {
 
 // Convert a string operand into its underlying `char *` value.
 static inline char * operand_to_str(Parser *parser, Operand *operand) {
-	return &(vec_at(parser->state->strings, operand->value)->contents[0]);
+	return vec_at(parser->state->strings, operand->value);
 }
 
 
@@ -957,17 +957,18 @@ static bool fold_concat(Parser *parser, Operand *left, Operand right) {
 	}
 
 	// Extract string values
-	String *left_str = vec_at(parser->state->strings, left->value);
-	String *right_str = vec_at(parser->state->strings, right.value);
+	char *left_str = vec_at(parser->state->strings, left->value);
+	char *right_str = vec_at(parser->state->strings, right.value);
 
-	// Concatenate strings into result
-	uint32_t length = left_str->length + right_str->length;
-	Index index = state_add_literal(parser->state, length);
-	String *result = vec_at(parser->state->strings, index);
-	strncpy(&result->contents[0], left_str->contents, left_str->length);
-	strncpy(&result->contents[left_str->length], right_str->contents,
-		right_str->length);
-	result->contents[length] = '\0';
+	// Create the result string
+	uint32_t left_len = strlen(left_str);
+	uint32_t length = left_len + strlen(right_str);
+	Index index = state_add_string(parser->state, length);
+	char *result = vec_at(parser->state->strings, index);
+
+	// Concatenate both values into one string
+	strncpy(result, left_str, left_len);
+	strcpy(&result[left_len], right_str);
 
 	// Add result as a string to the interpreter state
 	left->type = OP_STRING;
@@ -1790,9 +1791,9 @@ static Operand operand_string(Parser *parser) {
 	// Extract the literal into a new string on the interpreter
 	// Subtract 2 as the token's length includes the two quotes surrounding
 	// the string
-	Index index = state_add_literal(parser->state, lexer->token.length - 2);
-	String *string = vec_at(parser->state->strings, index);
-	lexer_extract_string(lexer, &lexer->token, string->contents);
+	Index index = state_add_string(parser->state, lexer->token.length - 2);
+	char *string = vec_at(parser->state->strings, index);
+	lexer_extract_string(lexer, &lexer->token, string);
 
 	// Create an operand from it
 	Operand operand = operand_new();

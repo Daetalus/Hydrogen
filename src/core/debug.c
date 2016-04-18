@@ -231,15 +231,13 @@ static void print_arguments(Instruction ins) {
 
 // Print a number, using an index into the interpreter state's constants list.
 static void print_number(HyState *state, uint32_t index) {
-	double value = val_to_num(vec_at(state->constants, index));
-	printf("    ; %.15g", value);
+	printf("    ; %.15g", val_to_num(vec_at(state->constants, index)));
 }
 
 
 // Print a string, using an index into the interpreter state's strings list.
 static void print_string(HyState *state, uint32_t index) {
-	char *str = &(vec_at(state->strings, index)->contents[0]);
-	printf("    ; \"%s\"", str);
+	printf("    ; \"%s\"", vec_at(state->strings, index));
 }
 
 

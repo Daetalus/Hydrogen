@@ -54,7 +54,7 @@ HyState * hy_new(void) {
 	vec_new(state->native_structs, NativeStructDefinition, 4);
 
 	vec_new(state->constants, HyValue, 32);
-	vec_new(state->strings, String *, 16);
+	vec_new(state->strings, char *, 16);
 	vec_new(state->fields, Identifier, 16);
 
 	state->stack = malloc(sizeof(HyValue) * MAX_STACK_SIZE);
@@ -176,13 +176,9 @@ Index state_add_constant(HyState *state, HyValue constant) {
 
 
 // Create a new string constant that is `length` bytes long.
-Index state_add_literal(HyState *state, uint32_t length) {
+Index state_add_string(HyState *state, uint32_t length) {
 	vec_inc(state->strings);
-	vec_last(state->strings) = malloc(sizeof(String) + length + 1);
-	String *string = vec_last(state->strings);
-	string->type = OBJ_STRING;
-	string->length = length;
-	string->contents[0] = '\0';
+	vec_last(state->strings) = malloc(length + 1);
 	return vec_len(state->strings) - 1;
 }
 
