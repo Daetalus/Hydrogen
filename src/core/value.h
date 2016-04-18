@@ -10,9 +10,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <hydrogen.h>
-
 #include <vec.h>
-
 
 // * Values during runtime are stored as NaN tagged 64 bit unsigned integers
 // * An IEEE double precision floating point number can represent "not a
@@ -35,7 +33,6 @@
 // * Objects are stored using the "C struct hack", where we use a 0 length
 //   array as the last member of a struct definition, then heap allocate as
 //   much memory as we need at runtime
-
 
 // The sign bit. Only set if the value is a pointer
 #define SIGN ((uint64_t) 1 << 63)

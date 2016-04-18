@@ -8,7 +8,6 @@
 
 #include <hydrogen.h>
 #include <assert.h>
-
 #include <vec.h>
 
 #include "fn.h"

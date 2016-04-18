@@ -11,12 +11,10 @@
 #include "ins.h"
 #include "fn.h"
 
-
 // * Jump lists are like linked lists, except for jump instructions inside a
 //   function's bytecode
 // * Each jump instruction points to the previous jump instruction in the list
 //   by a relative offset stored in an argument in the instruction
-
 
 // The index of the argument in a jump instruction used to store the offset to
 // its target.

@@ -7,7 +7,6 @@
 #define STRUCT_H
 
 #include <hydrogen.h>
-
 #include <value.h>
 #include <vec.h>
 

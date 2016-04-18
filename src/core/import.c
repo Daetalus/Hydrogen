@@ -4,7 +4,6 @@
 //
 
 #include <string.h>
-
 #include <vec.h>
 
 #include "import.h"

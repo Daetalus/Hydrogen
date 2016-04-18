@@ -8,7 +8,6 @@
 
 #include <hydrogen.h>
 #include <setjmp.h>
-
 #include <vec.h>
 
 #include "pkg.h"
