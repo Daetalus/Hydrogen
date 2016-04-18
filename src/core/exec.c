@@ -45,6 +45,43 @@ static inline String * ensure_str(HyValue value) {
 }
 
 
+// Create a new instance of a struct.
+static inline HyValue struct_instantiate(StructDefinition *structs,
+		uint16_t index) {
+	StructDefinition *def = &structs[index];
+
+	// Create the instance
+	uint32_t fields_size = sizeof(HyValue) * vec_len(def->fields);
+	Struct *instance = malloc(sizeof(Struct) + fields_size);
+	instance->type = OBJ_STRUCT;
+	instance->definition = index;
+	instance->fields_count = vec_len(def->fields);
+
+	// Set the instance's fields
+	HyValue parent = ptr_to_val(instance);
+	for (uint32_t i = 0; i < vec_len(def->fields); i++) {
+		Index fn_index = vec_at(def->methods, i);
+
+		// Check if the field is a method on the struct
+		if (fn_index != NOT_FOUND) {
+			// Create the method
+			Method *method = malloc(sizeof(Method));
+			method->type = OBJ_METHOD;
+			method->parent = parent;
+			method->fn = fn_index;
+
+			// Set the field
+			instance->fields[i] = ptr_to_val(method);
+		} else {
+			// If it's not a method, set the field to nil
+			instance->fields[i] = VALUE_NIL;
+		}
+	}
+
+	return ptr_to_val(instance);
+}
+
+
 // Execute a function on the interpreter state.
 HyError * exec_fn(HyState *state, Index fn_index) {
 	// Indexed labels for computed gotos, used to increase performance by using
@@ -474,36 +511,7 @@ BC_RET0:
 	//
 
 BC_STRUCT_NEW: {
-	// Get the struct definition
-	StructDefinition *def = &structs[INS(2)];
-	uint32_t field_length = sizeof(HyValue) * vec_len(def->fields);
-
-	// Create the instance
-	Struct *instance = malloc(sizeof(Struct) + field_length);
-	instance->type = OBJ_STRUCT;
-	instance->definition = INS(2);
-	instance->fields_count = vec_len(def->fields);
-
-	// Set the instance's fields
-	HyValue parent = ptr_to_val(instance);
-	for (uint32_t i = 0; i < vec_len(def->fields); i++) {
-		Index fn_index = vec_at(def->methods, i);
-		if (fn_index != NOT_FOUND) {
-			// Create the method
-			Method *method = malloc(sizeof(Method));
-			method->type = OBJ_METHOD;
-			method->parent = parent;
-			method->fn = fn_index;
-
-			// Set the field
-			instance->fields[i] = ptr_to_val(method);
-		} else {
-			instance->fields[i] = VALUE_NIL;
-		}
-	}
-
-	// Store onto the stack
-	STACK(INS(1)) = ptr_to_val(instance);
+	STACK(INS(1)) = struct_instantiate(structs, INS(2));
 	NEXT();
 }
 
@@ -521,14 +529,14 @@ BC_STRUCT_CALL_CONSTRUCTOR: {
 	Index index = (*call_stack_count)++;
 	call_stack[index].fn = fn;
 	call_stack[index].stack_start = stack_start;
+	call_stack[index].ip = ip;
+	call_stack[index].self = STACK(INS(1));
 
 	// Set the return slot to one after all the arguments to the function
 	// This slot will not be used by anything
 	// Do this because we don't care about the return value from a constructor
 	call_stack[index].return_slot = stack_start + INS(2) + INS(3) + 1;
 
-	call_stack[index].ip = ip;
-	call_stack[index].self = STACK(INS(1));
 	stack_start = stack_start + INS(2);
 	fn = &functions[def->constructor];
 	ip = &vec_at(fn->instructions, 0);
