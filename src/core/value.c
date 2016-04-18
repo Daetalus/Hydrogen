@@ -53,6 +53,7 @@ HyType hy_type(HyValue value) {
 		case OBJ_NATIVE_STRUCT:
 			return HY_STRUCT;
 		case OBJ_METHOD:
+		case OBJ_NATIVE_METHOD:
 			return HY_METHOD;
 		case OBJ_ARRAY:
 			return HY_ARRAY;

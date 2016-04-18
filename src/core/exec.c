@@ -82,6 +82,43 @@ static inline HyValue struct_instantiate(StructDefinition *structs,
 }
 
 
+// Create a new instance of a native struct. Doesn't create the methods on the
+// struct until the constructor has been called.
+static inline HyValue native_struct_instantiate(NativeStructDefinition *structs,
+		uint16_t index) {
+	NativeStructDefinition *def = &structs[index];
+
+	// Create the instance
+	uint32_t methods_size = sizeof(HyValue) * vec_len(def->methods);
+	NativeStruct *instance = malloc(sizeof(NativeStruct) + methods_size);
+	instance->type = OBJ_NATIVE_STRUCT;
+	instance->definition = index;
+	instance->methods_count = vec_len(def->methods);
+	return ptr_to_val(instance);
+}
+
+
+// Set the methods on an instance of a native struct, after its native
+// constructor has been called.
+static inline void native_struct_construct(NativeStructDefinition *def,
+		NativeStruct *instance, void *data) {
+	// For each method in the definition
+	for (uint32_t i = 0; i < vec_len(def->methods); i++) {
+		NativeMethodDefinition *method_def = &vec_at(def->methods, i);
+
+		// Create the method
+		NativeMethod *method = malloc(sizeof(NativeMethod));
+
+		// Set the method's properties
+		method->type = OBJ_NATIVE_METHOD;
+		method->data = data;
+		method->arity = method_def->arity;
+		method->fn = method_def->fn;
+		instance->methods[i] = ptr_to_val(method);
+	}
+}
+
+
 // Execute a function on the interpreter state.
 HyError * exec_fn(HyState *state, Index fn_index) {
 	// Indexed labels for computed gotos, used to increase performance by using
@@ -146,6 +183,7 @@ HyError * exec_fn(HyState *state, Index fn_index) {
 	Function *functions = &vec_at(state->functions, 0);
 	NativeFunction *native_fns = &vec_at(state->native_fns, 0);
 	StructDefinition *structs = &vec_at(state->structs, 0);
+	NativeStructDefinition *native_structs = &vec_at(state->native_structs, 0);
 	Identifier *fields = &vec_at(state->fields, 0);
 	HyValue *constants = &vec_at(state->constants, 0);
 	String **strings = &vec_at(state->strings, 0);
@@ -465,14 +503,25 @@ BC_CALL: {
 		// Set up state for the called function
 		ip = &vec_at(fn->instructions, 0);
 		DISPATCH();
-	} else if (val_is_fn(fn_value, TAG_NATIVE)) {
+	} else if (val_is_fn(fn_value, TAG_NATIVE) ||
+			val_is_gc(fn_value, OBJ_NATIVE_METHOD)) {
 		// Create a set of arguments to pass to the native function
 		HyArgs args;
 		args.stack = stack;
 		args.start = stack_start + INS(1) + 1;
 		args.arity = INS(2);
-		NativeFunction *native = &native_fns[val_to_fn(fn_value, TAG_NATIVE)];
-		STACK(INS(3)) = native->fn(state, &args);
+
+		if (val_is_fn(fn_value, TAG_NATIVE)) {
+			// Call the native function
+			uint16_t index = val_to_fn(fn_value, TAG_NATIVE);
+			NativeFunction *native = &native_fns[index];
+			STACK(INS(3)) = native->fn(state, &args);
+		} else {
+			// Call the method
+			NativeMethod *method = val_to_ptr(fn_value);
+			STACK(INS(3)) = method->fn(state, method->data, &args);
+		}
+
 		NEXT();
 	} else {
 		// TODO: trigger attempt to call non-function error
@@ -515,49 +564,85 @@ BC_STRUCT_NEW: {
 }
 
 BC_NATIVE_STRUCT_NEW: {
+	STACK(INS(1)) = native_struct_instantiate(native_structs, INS(2));
 	NEXT();
 }
 
 BC_STRUCT_CALL_CONSTRUCTOR: {
-	Struct *instance = val_to_ptr(STACK(INS(1)));
-	StructDefinition *def = &structs[instance->definition];
+	Object *obj = val_to_ptr(STACK(INS(1)));
+	if (obj->type == OBJ_STRUCT) {
+		Struct *instance = (Struct *) obj;
+		StructDefinition *def = &structs[instance->definition];
 
-	// Only call the constructor if it exists
-	if (def->constructor == NOT_FOUND) {
+		// Only call the constructor if it exists
+		if (def->constructor == NOT_FOUND) {
+			NEXT();
+		}
+
+		// Set up the new function's stack frame
+		Index index = (*call_stack_count)++;
+		call_stack[index].fn = fn;
+		call_stack[index].stack_start = stack_start;
+		call_stack[index].ip = ip;
+		call_stack[index].self = STACK(INS(1));
+
+		// Set the return slot to one after all the arguments to the function
+		// This slot will not be used by anything
+		// Do this because we don't care about the return value from a constructor
+		call_stack[index].return_slot = stack_start + INS(2) + INS(3) + 1;
+
+		stack_start = stack_start + INS(2);
+		fn = &functions[def->constructor];
+		ip = &vec_at(fn->instructions, 0);
+		DISPATCH();
+	} else {
+		NativeStruct *instance = (NativeStruct *) obj;
+		NativeStructDefinition *def = &native_structs[instance->definition];
+
+		// Set up the arguments to the constructor call
+		HyArgs args;
+		args.stack = stack;
+		args.start = stack_start + INS(2) + 1;
+		args.arity = INS(3);
+
+		// Call the native constructor
+		void *data = def->constructor(state, &args);
+
+		// Set up the remaining methods on the instance using the data pointer
+		native_struct_construct(def, instance, data);
 		NEXT();
 	}
-
-	// Set up the new function's stack frame
-	Index index = (*call_stack_count)++;
-	call_stack[index].fn = fn;
-	call_stack[index].stack_start = stack_start;
-	call_stack[index].ip = ip;
-	call_stack[index].self = STACK(INS(1));
-
-	// Set the return slot to one after all the arguments to the function
-	// This slot will not be used by anything
-	// Do this because we don't care about the return value from a constructor
-	call_stack[index].return_slot = stack_start + INS(2) + INS(3) + 1;
-
-	stack_start = stack_start + INS(2);
-	fn = &functions[def->constructor];
-	ip = &vec_at(fn->instructions, 0);
-	DISPATCH();
 }
 
 BC_STRUCT_FIELD: {
-	Struct *instance = val_to_ptr(STACK(INS(2)));
 	Identifier *field = &fields[INS(3)];
-	Index field_index = struct_field_find(&structs[instance->definition],
-		field->name, field->length);
+	Object *obj = val_to_ptr(STACK(INS(2)));
 
-	if (field_index != NOT_FOUND) {
-		STACK(INS(1)) = instance->fields[field_index];
-		NEXT();
+	if (obj->type == OBJ_STRUCT) {
+		Struct *instance = (Struct *) obj;
+		Index field_index = struct_field_find(&structs[instance->definition],
+			field->name, field->length);
+
+		// If we found the field
+		if (field_index != NOT_FOUND) {
+			STACK(INS(1)) = instance->fields[field_index];
+			NEXT();
+		}
 	} else {
-		printf("Undefined field on struct %.*s\n", field->length, field->name);
-		goto finish;
+		NativeStruct *instance = (NativeStruct *) obj;
+		Index method_index = native_struct_method_find(
+			&native_structs[instance->definition], field->name, field->length);
+
+		// If we found the method
+		if (method_index != NOT_FOUND) {
+			STACK(INS(1)) = instance->methods[method_index];
+			NEXT();
+		}
 	}
+
+	// If we reach here, the field couldn't be found
+	printf("Undefined field on struct %.*s\n", field->length, field->name);
+	goto finish;
 }
 
 

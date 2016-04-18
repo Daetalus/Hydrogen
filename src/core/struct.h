@@ -105,6 +105,11 @@ typedef struct {
 Index native_struct_find(HyState *state, Index pkg, char *name,
 	uint32_t length);
 
+// Return the index of a field with the name `name`, or NOT_FOUND if one
+// couldn't be found.
+Index native_struct_method_find(NativeStructDefinition *def, char *name,
+	uint32_t length);
+
 // Free resources associated with a native struct definition.
 void native_struct_free(NativeStructDefinition *def);
 

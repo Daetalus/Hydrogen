@@ -73,6 +73,7 @@ typedef enum {
 	OBJ_STRUCT,
 	OBJ_NATIVE_STRUCT,
 	OBJ_METHOD,
+	OBJ_NATIVE_METHOD,
 	OBJ_ARRAY,
 } ObjType;
 
@@ -158,6 +159,9 @@ typedef struct {
 
 	// A pointer to the user data to pass to native method calls.
 	void *data;
+
+	// The number of arguments this method requires.
+	uint32_t arity;
 
 	// The native method to call.
 	HyNativeMethod fn;

@@ -163,3 +163,18 @@ Index native_struct_find(HyState *state, Index pkg, char *name,
 	}
 	return NOT_FOUND;
 }
+
+
+// Return the index of a field with the name `name`, or NOT_FOUND if one
+// couldn't be found.
+Index native_struct_method_find(NativeStructDefinition *def, char *name,
+		uint32_t length) {
+	for (uint32_t i = 0; i < vec_len(def->methods); i++) {
+		NativeMethodDefinition *method = &vec_at(def->methods, i);
+		if (length == strlen(method->name) &&
+				strncmp(name, method->name, length) == 0) {
+			return i;
+		}
+	}
+	return NOT_FOUND;
+}
