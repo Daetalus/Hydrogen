@@ -26,6 +26,7 @@
 // Ensure a value is a number, triggering an error if this is not the case.
 static inline double ensure_num(HyValue value) {
 	if (!val_is_num(value)) {
+		// TODO: Proper error handling
 		printf("Ensure num failed!\n");
 		exit(1);
 	}
@@ -36,6 +37,7 @@ static inline double ensure_num(HyValue value) {
 // Ensure a value is a string, triggering an error if this is not the case.
 static inline String * ensure_str(HyValue value) {
 	if (!val_is_gc(value, OBJ_STRING)) {
+		// TODO: Proper error handling
 		printf("Ensure str failed!\n");
 		exit(1);
 	}
@@ -134,27 +136,30 @@ HyError * exec_fn(HyState *state, Index fn_index) {
 	//  Stack Storage
 	//
 
-BC_MOV_LL:
-	STACK(INS(1)) = STACK(INS(2));
+	// Shorthand method for a set of 7 set instructions.
+#define SET(prefix, fn)                               \
+	BC_ ## prefix ## L:                               \
+		fn(STACK(INS(2)));                            \
+	BC_ ## prefix ## I:                               \
+		fn(int_to_val(INS(2)));                       \
+	BC_ ## prefix ## N:                               \
+		fn(constants[INS(2)]);                        \
+	BC_ ## prefix ## S:                               \
+		fn(ptr_to_val(string_copy(strings[INS(2)]))); \
+	BC_ ## prefix ## P:                               \
+		fn(prim_to_val(INS(2)));                      \
+	BC_ ## prefix ## F:                               \
+		fn(fn_to_val(INS(2), TAG_FN));                \
+	BC_ ## prefix ## V:                               \
+		fn(fn_to_val(INS(2), TAG_NATIVE));            \
+
+	// The set function for MOV_L* instructions.
+#define MOV_L(value)       \
+	STACK(INS(1)) = value; \
 	NEXT();
-BC_MOV_LI:
-	STACK(INS(1)) = int_to_val(INS(2));
-	NEXT();
-BC_MOV_LN:
-	STACK(INS(1)) = constants[INS(2)];
-	NEXT();
-BC_MOV_LS:
-	STACK(INS(1)) = ptr_to_val(string_copy(strings[INS(2)]));
-	NEXT();
-BC_MOV_LP:
-	STACK(INS(1)) = prim_to_val(INS(2));
-	NEXT();
-BC_MOV_LF:
-	STACK(INS(1)) = fn_to_val(INS(2), TAG_FN);
-	NEXT();
-BC_MOV_LV:
-	STACK(INS(1)) = fn_to_val(INS(2), TAG_NATIVE);
-	NEXT();
+
+	// All MOV_L* instructions.
+	SET(MOV_L, MOV_L);
 
 BC_MOV_SELF:
 	STACK(INS(1)) = call_stack[*call_stack_count - 1].self;
@@ -165,20 +170,12 @@ BC_MOV_SELF:
 	//  Upvalue Storage
 	//
 
-BC_MOV_UL:
+	// The set function for MOV_U* instructions.
+#define MOV_U(value) \
 	NEXT();
-BC_MOV_UI:
-	NEXT();
-BC_MOV_UN:
-	NEXT();
-BC_MOV_US:
-	NEXT();
-BC_MOV_UP:
-	NEXT();
-BC_MOV_UF:
-	NEXT();
-BC_MOV_UV:
-	NEXT();
+
+	// All MOV_U* instructions.
+	SET(MOV_U, MOV_U);
 
 BC_MOV_LU:
 	NEXT();
@@ -190,30 +187,14 @@ BC_UPVALUE_CLOSE:
 	//  Top Level Local Storage
 	//
 
-// Shorthand method to retrive a top level local on a package
-#define PKG_GET(pkg, field) vec_at(packages[INS(pkg)].locals, INS(field))
+	// The set function for MOV_T* instructions.
+#define MOV_T(value)                                 \
+	vec_at(packages[INS(3)].locals, INS(1)) = value; \
+	NEXT();
 
-BC_MOV_TL:
-	PKG_GET(3, 1) = STACK(INS(2));
-	NEXT();
-BC_MOV_TI:
-	PKG_GET(3, 1) = int_to_val(INS(2));
-	NEXT();
-BC_MOV_TN:
-	PKG_GET(3, 1) = constants[INS(2)];
-	NEXT();
-BC_MOV_TS:
-	PKG_GET(3, 1) = ptr_to_val(string_copy(strings[INS(2)]));
-	NEXT();
-BC_MOV_TP:
-	PKG_GET(3, 1) = prim_to_val(INS(2));
-	NEXT();
-BC_MOV_TF:
-	PKG_GET(3, 1) = fn_to_val(INS(2), TAG_FN);
-	NEXT();
-BC_MOV_TV:
-	PKG_GET(3, 1) = fn_to_val(INS(2), TAG_NATIVE);
-	NEXT();
+	// All MOV_T* instructions.
+	SET(MOV_T, MOV_T);
+
 BC_MOV_LT:
 	STACK(INS(1)) = vec_at(packages[INS(3)].locals, INS(2));
 	NEXT();
@@ -224,7 +205,7 @@ BC_MOV_LT:
 	//
 
 	// Since arithmetic instructions are all in the same form, use a define to
-	// generate code for each operator
+	// generate code for each operator.
 #define COMMA ,
 #define ARITH(ins, operator, fn)                         \
 	BC_ ## ins ## _LL:                                   \
@@ -305,24 +286,20 @@ BC_NEG_L:
 	//  Equality
 	//
 
-BC_IS_TRUE_L: {
-	HyValue arg = STACK(INS(1));
-	if (arg == VALUE_FALSE || arg == VALUE_NIL) {
+BC_IS_TRUE_L:
+	if (STACK(INS(1)) == VALUE_FALSE || STACK(INS(1)) == VALUE_NIL) {
 		ip++;
 	}
 	NEXT();
-}
 
-BC_IS_FALSE_L: {
-	HyValue arg = STACK(INS(1));
-	if (arg != VALUE_FALSE && arg != VALUE_NIL) {
+BC_IS_FALSE_L:
+	if (STACK(INS(1)) != VALUE_FALSE && STACK(INS(1)) != VALUE_NIL) {
 		ip++;
 	}
 	NEXT();
-}
 
 	// Since equality and inequality comparisons are nearly identical, generate
-	// the code for each using a macro
+	// the code for each using a macro.
 #define EQ(ins, op)                                                 \
 	BC_ ## ins ## _LL: {                                            \
 		if (op val_cmp(STACK(INS(1)), STACK(INS(2)))) {             \
@@ -379,7 +356,7 @@ BC_IS_FALSE_L: {
 	//  Ordering
 	//
 
-	// Use a macro to generate code for each of the order instructions
+	// Use a macro to generate code for each of the order instructions.
 #define ORD(ins, op)                                                  \
 	BC_ ## ins ## _LL:                                                \
 		if (ensure_num(STACK(INS(1))) op ensure_num(STACK(INS(2)))) { \
@@ -469,7 +446,7 @@ BC_CALL: {
 }
 
 
-// Shorthand for returning a value
+	// Shorthand for returning a value.
 #define RET(return_value) {                                \
 	Index index = --(*call_stack_count);                   \
 	stack[call_stack[index].return_slot] = (return_value); \
@@ -488,20 +465,8 @@ BC_RET0:
 	}
 	RET(VALUE_NIL);
 
-BC_RET_L:
-	RET(STACK(INS(2)));
-BC_RET_I:
-	RET(int_to_val(INS(2)));
-BC_RET_N:
-	RET(constants[INS(2)]);
-BC_RET_S:
-	RET(ptr_to_val(string_copy(strings[INS(2)])));
-BC_RET_P:
-	RET(prim_to_val(INS(2)));
-BC_RET_F:
-	RET(fn_to_val(INS(2), TAG_FN));
-BC_RET_V:
-	RET(fn_to_val(INS(2), TAG_NATIVE));
+	// All RET_* instructions.
+	SET(RET_, RET);
 
 
 	//
@@ -586,7 +551,7 @@ BC_STRUCT_FIELD: {
 }
 
 
-// Helper to set a field on a struct
+// The set function for STRUCT_SET_* instructions.
 #define STRUCT_SET(value) {                                                    \
 	Struct *instance = val_to_ptr(STACK(INS(3)));                              \
 	Identifier *field = &fields[INS(1)];                                       \
@@ -602,20 +567,8 @@ BC_STRUCT_FIELD: {
 	}                                                                          \
 }
 
-BC_STRUCT_SET_L:
-	STRUCT_SET(STACK(INS(2)));
-BC_STRUCT_SET_I:
-	STRUCT_SET(int_to_val(INS(2)));
-BC_STRUCT_SET_N:
-	STRUCT_SET(constants[INS(2)]);
-BC_STRUCT_SET_S:
-	STRUCT_SET(ptr_to_val(string_copy(strings[INS(2)])));
-BC_STRUCT_SET_P:
-	STRUCT_SET(prim_to_val(INS(2)))
-BC_STRUCT_SET_F:
-	STRUCT_SET(fn_to_val(INS(2), TAG_FN));
-BC_STRUCT_SET_V:
-	STRUCT_SET(fn_to_val(INS(2), TAG_NATIVE));
+	// All STRUCT_SET_* instructions.
+	SET(STRUCT_SET_, STRUCT_SET);
 
 
 	//
@@ -665,7 +618,7 @@ BC_ARRAY_GET_I:
 	ARRAY_GET(INS(2));
 
 
-// Helper to set an index in an array
+	// Helper to set an index in an array.
 #define ARRAY_I_SET(index, value) {                \
 	if (!val_is_gc(STACK(INS(3)), OBJ_ARRAY)) {    \
 		printf("Attempt to index non-array\n");    \
@@ -682,22 +635,14 @@ BC_ARRAY_GET_I:
 	NEXT();                                        \
 }
 
-BC_ARRAY_I_SET_L:
-	ARRAY_I_SET(INS(1), STACK(INS(2)));
-BC_ARRAY_I_SET_I:
-	ARRAY_I_SET(INS(1), int_to_val(INS(2)));
-BC_ARRAY_I_SET_N:
-	ARRAY_I_SET(INS(1), constants[INS(2)]);
-BC_ARRAY_I_SET_S:
-	ARRAY_I_SET(INS(1), ptr_to_val(string_copy(strings[INS(2)])));
-BC_ARRAY_I_SET_P:
-	ARRAY_I_SET(INS(1), prim_to_val(INS(2)));
-BC_ARRAY_I_SET_F:
-	ARRAY_I_SET(INS(1), fn_to_val(INS(2), TAG_FN));
-BC_ARRAY_I_SET_V:
-	ARRAY_I_SET(INS(1), fn_to_val(INS(2), TAG_NATIVE));
+	// Set function for ARRAY_I_SET_* instructions.
+#define ARRAY_I_SET_INS(value) ARRAY_I_SET(INS(1), value);
+
+	// All ARRAY_I_SET_* instructions.
+	SET(ARRAY_I_SET_, ARRAY_I_SET_INS);
 
 
+	// Set function for ARRAY_L_SET_* instructions.
 #define ARRAY_L_SET(value) {                              \
 	if (!val_is_num(STACK(INS(2)))) {                     \
 		printf("Expected integer when indexing array\n"); \
@@ -708,20 +653,9 @@ BC_ARRAY_I_SET_V:
 	ARRAY_I_SET(index, value);                            \
 }
 
-BC_ARRAY_L_SET_L:
-	ARRAY_L_SET(STACK(INS(2)));
-BC_ARRAY_L_SET_I:
-	ARRAY_L_SET(int_to_val(INS(2)));
-BC_ARRAY_L_SET_N:
-	ARRAY_L_SET(constants[INS(2)]);
-BC_ARRAY_L_SET_S:
-	ARRAY_L_SET(ptr_to_val(string_copy(strings[INS(2)])));
-BC_ARRAY_L_SET_P:
-	ARRAY_L_SET(prim_to_val(INS(2)));
-BC_ARRAY_L_SET_F:
-	ARRAY_L_SET(fn_to_val(INS(2), TAG_FN));
-BC_ARRAY_L_SET_V:
-	ARRAY_L_SET(fn_to_val(INS(2), TAG_NATIVE));
+	// All ARRAY_L_SET_* instructions.
+	SET(ARRAY_L_SET_, ARRAY_L_SET);
+
 
 finish:
 	return NULL;
