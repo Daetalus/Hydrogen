@@ -12,7 +12,7 @@
 
 // Create a new package on the interpreter state. The name of the package is
 // used when other packages want to import it. It can only consist of ASCII
-// letters (lowercase and uppercase), numbers, and underscores
+// letters (lowercase and uppercase), numbers, and underscores.
 HyPackage hy_add_pkg(HyState *state, char *name) {
 	// Create a new package
 	Index index = pkg_new(state);
@@ -28,8 +28,8 @@ HyPackage hy_add_pkg(HyState *state, char *name) {
 }
 
 
-// Defines a new package on the interpreter state. Returns the index of the
-// package
+// Define a new package on the interpreter state. Return the index of the new
+// package.
 Index pkg_new(HyState *state) {
 	vec_inc(state->packages);
 	Package *pkg = &vec_last(state->packages);
@@ -42,7 +42,7 @@ Index pkg_new(HyState *state) {
 }
 
 
-// Releases resources allocated by a package
+// Release resources allocated by a package.
 void pkg_free(Package *pkg) {
 	free(pkg->name);
 	parser_free(&pkg->parser);
@@ -51,9 +51,9 @@ void pkg_free(Package *pkg) {
 }
 
 
-// Parses some source code into bytecode, returning an error if one occurred,
+// Parse some source code into bytecode, returning an error if one occurred,
 // and setting `main_fn` to the index of the function that will execute the
-// code at the top level of the provided source code
+// code at the top level of the provided source code.
 HyError * pkg_parse(Package *pkg, Index source, Index *main_fn) {
 	HyState *state = pkg->parser.state;
 
@@ -76,11 +76,12 @@ HyError * pkg_parse(Package *pkg, Index source, Index *main_fn) {
 	if (main_fn != NULL) {
 		*main_fn = index;
 	}
+
 	return NULL;
 }
 
 
-// Finds a package with the name `name`
+// Find a package with the name `name`.
 Index pkg_find(HyState *state, char *name, uint32_t length) {
 	for (uint32_t i = 0; i < vec_len(state->packages); i++) {
 		Package *pkg = &vec_at(state->packages, i);
@@ -93,11 +94,12 @@ Index pkg_find(HyState *state, char *name, uint32_t length) {
 }
 
 
-// Adds a new top level local to a package with a default value of `value`
+// Add a new top level local to a package with a default value of `value`.
 Index pkg_local_add(Package *pkg, char *name, uint32_t length, HyValue value) {
 	vec_inc(pkg->locals);
 	vec_inc(pkg->names);
 
+	// Create an identifier with the name of the local
 	Identifier *ident = &vec_last(pkg->names);
 	ident->name = name;
 	ident->length = length;
@@ -106,7 +108,7 @@ Index pkg_local_add(Package *pkg, char *name, uint32_t length, HyValue value) {
 }
 
 
-// Finds the index of a local with the name `name`
+// Find the index of a local with the name `name`.
 Index pkg_local_find(Package *pkg, char *name, uint32_t length) {
 	for (uint32_t i = 0; i < vec_len(pkg->names); i++) {
 		Identifier *ident = &vec_at(pkg->names, i);
