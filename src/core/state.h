@@ -110,7 +110,4 @@ Index state_add_source_file(HyState *state, char *path);
 // Add a string as a source code object on the interpreter.
 Index state_add_source_string(HyState *state, char *source);
 
-// Execute a function on the interpreter state.
-HyError * vm_run_fn(HyState *state, Index fn);
-
 #endif
