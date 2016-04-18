@@ -149,6 +149,7 @@ typedef enum {
 	HY_NUMBER,
 	HY_STRING,
 	HY_STRUCT,
+	HY_METHOD,
 	HY_ARRAY,
 	HY_FUNCTION,
 } HyType;

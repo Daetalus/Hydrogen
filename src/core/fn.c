@@ -56,7 +56,7 @@ Index native_new(HyState *state, Index pkg_index, char *name) {
 	// Create a local on package with a default value
 	Package *pkg = &vec_at(state->packages, pkg_index);
 	Index index = vec_len(state->natives) - 1;
-	pkg_local_add(pkg, name, strlen(name), native_to_val(index));
+	pkg_local_add(pkg, name, strlen(name), fn_to_val(index, TAG_NATIVE));
 	return index;
 }
 

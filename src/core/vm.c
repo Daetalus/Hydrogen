@@ -12,17 +12,17 @@
 #include "debug.h"
 
 
-// The maximum stack size
+// The maximum stack size.
 #define MAX_STACK_SIZE 2048
 
-// The maximum call stack size storing data for function calls
+// The maximum call stack size storing data for function calls.
 #define MAX_CALL_STACK_SIZE 2048
 
 
-// Executes a file by creating a new interpreter state, reading the contents of
+// Execute a file by creating a new interpreter state, reading the contents of
 // the file, and executing the source code. Acts as a wrapper around other API
 // functions. Returns an error if one occurred, or NULL otherwise. The error
-// must be freed by calling `hy_err_free`
+// must be freed by calling `hy_err_free`.
 HyError * hy_run_file(HyState *state, char *path) {
 	char *name = hy_pkg_name(path);
 	HyPackage pkg = hy_add_pkg(state, name);
@@ -32,8 +32,8 @@ HyError * hy_run_file(HyState *state, char *path) {
 }
 
 
-// Executes some source code from a string. Returns an error if one occurred, or
-// NULL otherwise. The error must be freed by calling `hy_err_free`
+// Execute some source code from a string. Returns an error if one occurred, or
+// NULL otherwise. The error must be freed by calling `hy_err_free`.
 HyError * hy_run_string(HyState *state, char *source) {
 	HyPackage pkg = hy_add_pkg(state, NULL);
 	HyError *err = hy_pkg_run_string(state, pkg, source);
@@ -41,7 +41,7 @@ HyError * hy_run_string(HyState *state, char *source) {
 }
 
 
-// Create a new interpreter state
+// Create a new interpreter state.
 HyState * hy_new(void) {
 	HyState *state = malloc(sizeof(HyState));
 
@@ -64,29 +64,41 @@ HyState * hy_new(void) {
 }
 
 
-// Release all resources allocated by an interpreter state
+// Release all resources allocated by an interpreter state.
 void hy_free(HyState *state) {
+	// Source files
 	for (uint32_t i = 0; i < vec_len(state->sources); i++) {
 		Source *src = &vec_at(state->sources, i);
 		free(src->file);
 		free(src->contents);
 	}
+
+	// Packages
 	for (uint32_t i = 0; i < vec_len(state->packages); i++) {
 		pkg_free(&vec_at(state->packages, i));
 	}
+
+	// Functions
 	for (uint32_t i = 0; i < vec_len(state->functions); i++) {
 		fn_free(&vec_at(state->functions, i));
 	}
+
+	// Natives
 	for (uint32_t i = 0; i < vec_len(state->natives); i++) {
 		native_free(&vec_at(state->natives, i));
 	}
+
+	// Struct definitions
 	for (uint32_t i = 0; i < vec_len(state->structs); i++) {
 		struct_free(&vec_at(state->structs, i));
 	}
+
+	// Strings
 	for (uint32_t i = 0; i < vec_len(state->strings); i++) {
 		free(vec_at(state->strings, i));
 	}
 
+	// Arrays
 	vec_free(state->sources);
 	vec_free(state->packages);
 	vec_free(state->functions);
@@ -95,13 +107,17 @@ void hy_free(HyState *state) {
 	vec_free(state->constants);
 	vec_free(state->strings);
 	vec_free(state->fields);
+
+	// Runtime stacks
 	free(state->stack);
 	free(state->call_stack);
+
+	// The interpreter state itself
 	free(state);
 }
 
 
-// Parses and runs some source code
+// Parse and run some source code.
 HyError * vm_parse_and_run(HyState *state, HyPackage pkg_index, Index source) {
 	Package *pkg = &vec_at(state->packages, pkg_index);
 
@@ -119,7 +135,7 @@ HyError * vm_parse_and_run(HyState *state, HyPackage pkg_index, Index source) {
 
 // Execute a file on a package. The file's contents will be read and executed
 // as source code. The file's path will be used in relevant errors. An error
-// object is returned if one occurs, otherwise NULL is returned
+// object is returned if one occurs, otherwise NULL is returned.
 HyError * hy_pkg_run_file(HyState *state, HyPackage pkg, char *path) {
 	Index source = state_add_source_file(state, path);
 
@@ -136,14 +152,14 @@ HyError * hy_pkg_run_file(HyState *state, HyPackage pkg, char *path) {
 
 
 // Execute some source code on a package. An error object is returned if one
-// occurs, otherwise NULL is returned
+// occurs, otherwise NULL is returned.
 HyError * hy_pkg_run_string(HyState *state, HyPackage pkg, char *source) {
 	Index source_index = state_add_source_string(state, source);
 	return vm_parse_and_run(state, pkg, source_index);
 }
 
 
-// Adds a constant to the interpreter state, returning its index
+// Add a constant to the interpreter state, returning its index.
 Index state_add_constant(HyState *state, HyValue constant) {
 	vec_inc(state->constants);
 	vec_last(state->constants) = constant;
@@ -151,7 +167,7 @@ Index state_add_constant(HyState *state, HyValue constant) {
 }
 
 
-// Creates a new string constant that is `length` bytes long
+// Create a new string constant that is `length` bytes long.
 Index state_add_literal(HyState *state, uint32_t length) {
 	vec_inc(state->strings);
 	vec_last(state->strings) = malloc(sizeof(String) + length + 1);
@@ -163,8 +179,8 @@ Index state_add_literal(HyState *state, uint32_t length) {
 }
 
 
-// Adds a field name to the interpreter state's fields list. If a field matching
-// `ident` already exists, then it returns the index of the existing field
+// Add a field name to the interpreter state's fields list. If a field matching
+// `ident` already exists, then it returns the index of the existing field.
 Index state_add_field(HyState *state, Identifier ident) {
 	// Check for an existing field first (reverse order)
 	for (int i = vec_len(state->fields) - 1; i >= 0; i--) {
@@ -184,7 +200,7 @@ Index state_add_field(HyState *state, Identifier ident) {
 }
 
 
-// Returns the contents of a file
+// Return the contents of a file.
 static char * file_contents(char *path) {
 	FILE *f = fopen(path, "r");
 	if (f == NULL) {
@@ -205,7 +221,7 @@ static char * file_contents(char *path) {
 }
 
 
-// Adds a file as a source code object on the interpreter
+// Add a file as a source code object on the interpreter.
 Index state_add_source_file(HyState *state, char *path) {
 	// Read the contents of the file
 	char *contents = file_contents(path);
@@ -224,7 +240,7 @@ Index state_add_source_file(HyState *state, char *path) {
 }
 
 
-// Adds a string as a source code object on the interpreter
+// Add a string as a source code object on the interpreter.
 Index state_add_source_string(HyState *state, char *source) {
 	vec_inc(state->sources);
 	Source *src = &vec_last(state->sources);
@@ -242,7 +258,7 @@ Index state_add_source_string(HyState *state, char *source) {
 //  Execution
 //
 
-// Triggers the goto call for the next instruction
+// Trigger the goto call for the next instruction.
 #define DISPATCH() goto *dispatch_table[INS(0)];
 
 // Increments the instruction pointer and dispatches the next instruction
@@ -268,7 +284,7 @@ static inline double ensure_num(HyValue value) {
 
 // Ensures a value is a string, triggering an error if this is not the case
 static inline String * ensure_str(HyValue value) {
-	if (!val_is_str(value)) {
+	if (!val_is_gc(value, OBJ_STRING)) {
 		printf("Ensure str failed!\n");
 		exit(1);
 	}
@@ -315,9 +331,9 @@ static bool struct_comp(StructDefinition *structs, Struct *left,
 static inline bool val_comp(StructDefinition *structs, HyValue left,
 		HyValue right) {
 	return left == right ||
-		(val_is_str(left) && val_is_str(right) &&
+		(val_is_gc(left, OBJ_STRING) && val_is_gc(right, OBJ_STRING) &&
 			string_comp(val_to_ptr(left), val_to_ptr(right))) ||
-		(val_is_struct(left) && val_is_struct(right) &&
+		(val_is_gc(left, OBJ_STRUCT) && val_is_gc(right, OBJ_STRUCT) &&
 			struct_comp(structs, val_to_ptr(left), val_to_ptr(right)));
 }
 
@@ -449,10 +465,10 @@ BC_MOV_LP:
 	STACK(INS(1)) = prim_to_val(INS(2));
 	NEXT();
 BC_MOV_LF:
-	STACK(INS(1)) = fn_to_val(INS(2));
+	STACK(INS(1)) = fn_to_val(INS(2), TAG_FN);
 	NEXT();
 BC_MOV_LV:
-	STACK(INS(1)) = native_to_val(INS(2));
+	STACK(INS(1)) = fn_to_val(INS(2), TAG_NATIVE);
 	NEXT();
 
 BC_MOV_SELF:
@@ -508,10 +524,10 @@ BC_MOV_TP:
 	PKG_GET(3, 1) = prim_to_val(INS(2));
 	NEXT();
 BC_MOV_TF:
-	PKG_GET(3, 1) = fn_to_val(INS(2));
+	PKG_GET(3, 1) = fn_to_val(INS(2), TAG_FN);
 	NEXT();
 BC_MOV_TV:
-	PKG_GET(3, 1) = native_to_val(INS(2));
+	PKG_GET(3, 1) = fn_to_val(INS(2), TAG_NATIVE);
 	NEXT();
 BC_MOV_LT:
 	STACK(INS(1)) = vec_at(packages[INS(3)].locals, INS(2));
@@ -622,50 +638,50 @@ BC_IS_FALSE_L: {
 
 	// Since equality and inequality comparisons are nearly identical, generate
 	// the code for each using a macro
-#define EQ(ins, op)                                               \
-	BC_ ## ins ## _LL: {                                          \
-		if (op val_comp(structs, STACK(INS(1)), STACK(INS(2)))) { \
-			ip++;                                                 \
-		}                                                         \
-		NEXT();                                                   \
-	}                                                             \
-                                                                  \
-	BC_ ## ins ## _LI:                                            \
-		if (op (STACK(INS(1)) == int_to_val(INS(2)))) {           \
-			ip++;                                                 \
-		}                                                         \
-		NEXT();                                                   \
-                                                                  \
-	BC_ ## ins ## _LN:                                            \
-		if (op (STACK(INS(1)) == constants[INS(2)])) {            \
-			ip++;                                                 \
-		}                                                         \
-		NEXT();                                                   \
-                                                                  \
-	BC_ ## ins ## _LS:                                            \
-		if (op (val_is_str(STACK(INS(1))) &&                      \
-				string_comp(val_to_ptr(STACK(INS(1))),            \
-					strings[INS(2)]))) {                          \
-			ip++;                                                 \
-		}                                                         \
-		NEXT();                                                   \
-                                                                  \
-	BC_ ## ins ## _LP:                                            \
-		if (op (STACK(INS(1)) == prim_to_val(INS(2)))) {          \
-			ip++;                                                 \
-		}                                                         \
-		NEXT();                                                   \
-                                                                  \
-	BC_ ## ins ## _LF:                                            \
-		if (op (val_to_fn(STACK(INS(1))) == INS(2))) {            \
-			ip++;                                                 \
-		}                                                         \
-		NEXT();                                                   \
-                                                                  \
-	BC_ ## ins ## _LV:                                            \
-		if (op (val_to_native(STACK(INS(1))) == INS(2)))  {       \
-			ip++;                                                 \
-		}                                                         \
+#define EQ(ins, op)                                                 \
+	BC_ ## ins ## _LL: {                                            \
+		if (op val_comp(structs, STACK(INS(1)), STACK(INS(2)))) {   \
+			ip++;                                                   \
+		}                                                           \
+		NEXT();                                                     \
+	}                                                               \
+                                                                    \
+	BC_ ## ins ## _LI:                                              \
+		if (op (STACK(INS(1)) == int_to_val(INS(2)))) {             \
+			ip++;                                                   \
+		}                                                           \
+		NEXT();                                                     \
+                                                                    \
+	BC_ ## ins ## _LN:                                              \
+		if (op (STACK(INS(1)) == constants[INS(2)])) {              \
+			ip++;                                                   \
+		}                                                           \
+		NEXT();                                                     \
+                                                                    \
+	BC_ ## ins ## _LS:                                              \
+		if (op (val_is_gc(STACK(INS(1)), OBJ_STRING) &&             \
+				string_comp(val_to_ptr(STACK(INS(1))),              \
+					strings[INS(2)]))) {                            \
+			ip++;                                                   \
+		}                                                           \
+		NEXT();                                                     \
+                                                                    \
+	BC_ ## ins ## _LP:                                              \
+		if (op (STACK(INS(1)) == prim_to_val(INS(2)))) {            \
+			ip++;                                                   \
+		}                                                           \
+		NEXT();                                                     \
+                                                                    \
+	BC_ ## ins ## _LF:                                              \
+		if (op (val_to_fn(STACK(INS(1)), TAG_FN) == INS(2))) {      \
+			ip++;                                                   \
+		}                                                           \
+		NEXT();                                                     \
+                                                                    \
+	BC_ ## ins ## _LV:                                              \
+		if (op (val_to_fn(STACK(INS(1)), TAG_NATIVE) == INS(2)))  { \
+			ip++;                                                   \
+		}                                                           \
 		NEXT();
 
 	// Use the opposite comparison operation because we want to execute the
@@ -726,7 +742,7 @@ BC_LOOP:
 
 BC_CALL: {
 	HyValue fn_value = STACK(INS(1));
-	if (val_is_fn(fn_value) || val_is_method(fn_value)) {
+	if (val_is_fn(fn_value, TAG_FN) || val_is_gc(fn_value, OBJ_METHOD)) {
 		// Create a stack frame for the calling function to save the required
 		// state
 		Index index = (*call_stack_count)++;
@@ -737,13 +753,13 @@ BC_CALL: {
 
 		// Set the self argument
 		stack_start = stack_start + INS(1) + 1;
-		if (val_is_method(fn_value)) {
+		if (val_is_gc(fn_value, OBJ_METHOD)) {
 			Method *method = (Method *) val_to_ptr(fn_value);
 			call_stack[index].self = method->parent;
 			fn = &functions[method->fn];
 		} else {
 			call_stack[index].self = VALUE_NIL;
-			fn = &functions[val_to_fn(fn_value)];
+			fn = &functions[val_to_fn(fn_value, TAG_FN)];
 		}
 
 		// TODO: Check arity of function call against arity in *ip
@@ -751,13 +767,14 @@ BC_CALL: {
 		// Set up state for the called function
 		ip = &vec_at(fn->instructions, 0);
 		DISPATCH();
-	} else if (val_is_native(fn_value)) {
+	} else if (val_is_fn(fn_value, TAG_NATIVE)) {
 		// Create a set of arguments to pass to the native function
 		HyArgs args;
 		args.stack = stack;
 		args.start = stack_start + INS(1) + 1;
 		args.arity = INS(2);
-		STACK(INS(3)) = natives[val_to_native(fn_value)].fn(state, &args);
+		NativeFunction *native = &natives[val_to_fn(fn_value, TAG_NATIVE)];
+		STACK(INS(3)) = native->fn(state, &args);
 		NEXT();
 	} else {
 		// TODO: trigger attempt to call non-function error
@@ -797,9 +814,9 @@ BC_RET_S:
 BC_RET_P:
 	RET(prim_to_val(INS(2)));
 BC_RET_F:
-	RET(fn_to_val(INS(2)));
+	RET(fn_to_val(INS(2), TAG_FN));
 BC_RET_V:
-	RET(native_to_val(INS(2)));
+	RET(fn_to_val(INS(2), TAG_NATIVE));
 
 
 	//
@@ -908,9 +925,9 @@ BC_STRUCT_SET_S:
 BC_STRUCT_SET_P:
 	STRUCT_SET(prim_to_val(INS(2)))
 BC_STRUCT_SET_F:
-	STRUCT_SET(fn_to_val(INS(2)));
+	STRUCT_SET(fn_to_val(INS(2), TAG_FN));
 BC_STRUCT_SET_V:
-	STRUCT_SET(native_to_val(INS(2)));
+	STRUCT_SET(fn_to_val(INS(2), TAG_NATIVE));
 
 
 	//
@@ -930,7 +947,7 @@ BC_ARRAY_NEW: {
 
 // Helper to index an array
 #define ARRAY_GET(index) {                         \
-	if (!val_is_array(STACK(INS(3)))) {            \
+	if (!val_is_gc(STACK(INS(3)), OBJ_ARRAY)) {    \
 		printf("Attempt to index non-array\n");    \
 		goto finish;                               \
 	}                                              \
@@ -962,7 +979,7 @@ BC_ARRAY_GET_I:
 
 // Helper to set an index in an array
 #define ARRAY_I_SET(index, value) {                \
-	if (!val_is_array(STACK(INS(3)))) {            \
+	if (!val_is_gc(STACK(INS(3)), OBJ_ARRAY)) {    \
 		printf("Attempt to index non-array\n");    \
 		goto finish;                               \
 	}                                              \
@@ -988,9 +1005,9 @@ BC_ARRAY_I_SET_S:
 BC_ARRAY_I_SET_P:
 	ARRAY_I_SET(INS(1), prim_to_val(INS(2)));
 BC_ARRAY_I_SET_F:
-	ARRAY_I_SET(INS(1), fn_to_val(INS(2)));
+	ARRAY_I_SET(INS(1), fn_to_val(INS(2), TAG_FN));
 BC_ARRAY_I_SET_V:
-	ARRAY_I_SET(INS(1), native_to_val(INS(2)));
+	ARRAY_I_SET(INS(1), fn_to_val(INS(2), TAG_NATIVE));
 
 
 #define ARRAY_L_SET(value) {                              \
@@ -1014,9 +1031,9 @@ BC_ARRAY_L_SET_S:
 BC_ARRAY_L_SET_P:
 	ARRAY_L_SET(prim_to_val(INS(2)));
 BC_ARRAY_L_SET_F:
-	ARRAY_L_SET(fn_to_val(INS(2)));
+	ARRAY_L_SET(fn_to_val(INS(2), TAG_FN));
 BC_ARRAY_L_SET_V:
-	ARRAY_L_SET(native_to_val(INS(2)));
+	ARRAY_L_SET(fn_to_val(INS(2), TAG_NATIVE));
 
 finish:
 	return NULL;

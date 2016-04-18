@@ -9,7 +9,7 @@
 #include "vm.h"
 
 
-// Creates a new struct definition on the package `pkg`
+// Create a new struct definition on the package `pkg`.
 Index struct_new(HyState *state, Index pkg) {
 	vec_inc(state->structs);
 	StructDefinition *def = &vec_last(state->structs);
@@ -24,15 +24,15 @@ Index struct_new(HyState *state, Index pkg) {
 }
 
 
-// Frees resources allocated by a struct definition
+// Free resources allocated by a struct definition
 void struct_free(StructDefinition *def) {
 	vec_free(def->fields);
 	vec_free(def->methods);
 }
 
 
-// Returns the index of the struct with the name `name` that is in the package
-// `pkg`
+// Return the index of the struct with the name `name` in the package `pkg`, or
+// NOT_FOUND if one couldn't be found.
 Index struct_find(HyState *state, Index pkg, char *name, uint32_t length) {
 	for (uint32_t i = 0; i < vec_len(state->structs); i++) {
 		StructDefinition *def = &vec_at(state->structs, i);
@@ -45,7 +45,7 @@ Index struct_find(HyState *state, Index pkg, char *name, uint32_t length) {
 }
 
 
-// Creates a new field or method on the struct, depending on the value of `fn`.
+// Create a new field or method on the struct, depending on the value of `fn`.
 Index struct_field_or_method_new(StructDefinition *def, char *name,
 		uint32_t length, Index fn) {
 	// Name of the field
@@ -61,20 +61,22 @@ Index struct_field_or_method_new(StructDefinition *def, char *name,
 }
 
 
-// Creates a new field on the struct
+// Create a new field on the struct. Return the index of the field.
 Index struct_field_new(StructDefinition *def, char *name, uint32_t length) {
 	return struct_field_or_method_new(def, name, length, NOT_FOUND);
 }
 
 
-// Creates a new method on the struct with the function defined at `fn`
+// Create a new method on the struct with the function defined at `fn`. Return
+// the index of the field the method was created at.
 Index struct_method_new(StructDefinition *def, char *name, uint32_t length,
 		Index fn) {
 	return struct_field_or_method_new(def, name, length, fn);
 }
 
 
-// Returns the index of a field with the name `name`
+// Return the index of a field with the name `name`, or NOT_FOUND if one
+// couldn't be found.
 Index struct_field_find(StructDefinition *def, char *name, uint32_t length) {
 	for (uint32_t i = 0; i < vec_len(def->fields); i++) {
 		Identifier *ident = &vec_at(def->fields, i);
@@ -101,15 +103,14 @@ HyStruct hy_add_struct(HyState *state, HyPackage pkg, char *name, uint32_t size,
 }
 
 
-// Sets the destructor on a native struct, which is called every time an
-// instance of the struct is garbage collected, to allow you to free any
-// associated resources
+// Set the destructor on a native struct, called every time an instance of the
+// struct is garbage collected, to allow you to free any associated resources.
 void hy_set_destructor(HyState *state, HyStruct def, HyDestructor destructor) {
 
 }
 
 
-// Adds a method to a native struct
+// Add a method on a native struct.
 void hy_add_method(HyState *state, HyStruct def, char *name, uint32_t arity,
 		HyNativeMethod method) {
 

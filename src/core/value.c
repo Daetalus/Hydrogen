@@ -7,25 +7,25 @@
 #include "fn.h"
 
 
-// Returns a nil value
+// Return a nil value.
 HyValue hy_nil(void) {
 	return VALUE_NIL;
 }
 
 
-// Converts a boolean into a value
+// Convert a boolean into a value.
 HyValue hy_bool(bool boolean) {
 	return prim_to_val(boolean ? TAG_TRUE : TAG_FALSE);
 }
 
 
-// Converts a number into a value
+// Convert a number into a value.
 HyValue hy_number(double number) {
 	return num_to_val(number);
 }
 
 
-// Copies a string into a garbage collected value
+// Copy a string into a garbage collected value.
 HyValue hy_string(HyState *state, char *string) {
 	uint32_t length = strlen(string);
 	String *obj = malloc(sizeof(String) + length + 1);
@@ -36,7 +36,7 @@ HyValue hy_string(HyState *state, char *string) {
 }
 
 
-// Returns the type of a value
+// Return the type of a value.
 HyType hy_type(HyValue value) {
 	if (value == VALUE_NIL) {
 		return HY_NIL;
@@ -44,13 +44,10 @@ HyType hy_type(HyValue value) {
 		return HY_BOOL;
 	} else if (val_is_num(value)) {
 		return HY_NUMBER;
-	} else if (val_is_str(value)) {
-		return HY_STRING;
-	} else if (val_is_struct(value)) {
-		return HY_STRUCT;
-	} else if (val_is_array(value)) {
-		return HY_ARRAY;
-	} else if (val_is_fn(value) || val_is_native(value)) {
+	} else if (val_is_ptr(value)) {
+		Object *obj = val_to_ptr(value);
+		return HY_STRING + obj->type;
+	} else if (val_is_fn(value, TAG_FN) || val_is_fn(value, TAG_NATIVE)) {
 		return HY_FUNCTION;
 	} else {
 		return HY_NIL;
@@ -58,20 +55,20 @@ HyType hy_type(HyValue value) {
 }
 
 
-// Returns true if a value is nil or not
+// Return true if a value is nil or not.
 bool hy_is_nil(HyValue value) {
 	return value == HY_NIL;
 }
 
 
-// Converts a value to a boolean, ignoring the type of the value
+// Convert a value to a boolean, ignoring the type of the value.
 bool hy_to_bool(HyValue value) {
 	return value != VALUE_FALSE && value != VALUE_NIL;
 }
 
 
-// Converts a value into a boolean, triggering an error if the value is not a
-// boolean in type
+// Convert a value into a boolean, triggering an error if the value is not a
+// boolean in type.
 bool hy_expect_bool(HyValue value) {
 	if (value != VALUE_TRUE && value != VALUE_FALSE) {
 		// TODO: Trigger error
@@ -81,8 +78,8 @@ bool hy_expect_bool(HyValue value) {
 }
 
 
-// Converts a value into a number, triggering an error if the value isn't a
-// number
+// Convert a value into a number, triggering an error if the value isn't a
+// number.
 double hy_expect_number(HyValue value) {
 	if (!val_is_num(value)) {
 		// TODO: Trigger error
@@ -92,14 +89,14 @@ double hy_expect_number(HyValue value) {
 }
 
 
-// Converts a value into a string, triggering an error if it isn't a string
+// Convert a value into a string, triggering an error if it isn't a string.
 //
 // Do not try and free the returned string. It will be garbage collected later.
 //
 // Don't modify the returned string. It should be treated as read only, and a
 // copy should be made if you want to modify it.
 char * hy_expect_string(HyValue value) {
-	if (!val_is_str(value)) {
+	if (!val_is_gc(value, OBJ_STRING)) {
 		// TODO: Trigger error
 		return NULL;
 	}
@@ -107,9 +104,9 @@ char * hy_expect_string(HyValue value) {
 }
 
 
-// Converts a value into an array, triggering an error if it isn't one
+// Convert a value into an array, triggering an error if it isn't one.
 HyArray * hy_expect_array(HyValue value) {
-	if (!val_is_array(value)) {
+	if (!val_is_gc(value, OBJ_ARRAY)) {
 		// TODO: Trigger error
 		return NULL;
 	}
@@ -122,13 +119,13 @@ HyArray * hy_expect_array(HyValue value) {
 //  Function Arguments
 //
 
-// Returns the number of arguments passed to a native function
+// Return the number of arguments passed to a native function.
 uint32_t hy_args_count(HyArgs *args) {
 	return args->arity;
 }
 
 
-// Returns the `index`th argument passed to a native function
+// Return the argument at `index` passed to a native function.
 HyValue hy_arg(HyArgs *args, uint32_t index) {
 	if (index >= args->arity) {
 		return VALUE_NIL;
@@ -143,7 +140,7 @@ HyValue hy_arg(HyArgs *args, uint32_t index) {
 //  Arrays
 //
 
-// Create an empty array with the suggested capacity
+// Create an empty array with the suggested capacity.
 HyArray * hy_array_new(uint32_t capacity) {
 	HyArray *array = malloc(sizeof(HyArray));
 	array->type = OBJ_ARRAY;
@@ -154,13 +151,13 @@ HyArray * hy_array_new(uint32_t capacity) {
 }
 
 
-// Returns the length of an array
+// Return the length of an array.
 uint32_t hy_array_len(HyArray *array) {
 	return array->length;
 }
 
 
-// Fetches a value at an index in an array
+// Fetch a value at an index in an array.
 HyValue hy_array_get(HyArray *array, uint32_t index) {
 	if (index >= array->length) {
 		// TODO: Trigger out of bounds error
@@ -170,13 +167,13 @@ HyValue hy_array_get(HyArray *array, uint32_t index) {
 }
 
 
-// Appends a value to the end of an array
+// Append a value to the end of an array.
 void hy_array_append(HyArray *array, HyValue value) {
 	// TODO
 }
 
 
-// Inserts a value into an array at the specified index
+// Insert a value into an array at the specified index.
 void hy_array_insert(HyArray *array, uint32_t index, HyValue value) {
 	// TODO
 }
