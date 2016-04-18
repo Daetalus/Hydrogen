@@ -4,7 +4,7 @@ The Hydrogen Programming Language
 
 Hydrogen is a small, lightweight programming language with C-style syntax. It's intepreted, dynamically typed, and sports a blazingly fast tracing JIT compiler, along with an easy to use C API, allowing you to quickly embed Hydrogen in your own programs.
 
- The core language and standard library are written in C and have no external dependencies. The tests are in C++ and use the [Google Testing Framework](https://github.com/google/googletest). The runtime tests are executed using a custom Python script.
+ The core language and standard library are written in C and have no external dependencies. The tests are written using a small custom testing framework. The runtime tests are executed using a custom Python script.
 
 
 ## Example
