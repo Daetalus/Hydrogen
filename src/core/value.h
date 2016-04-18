@@ -12,6 +12,8 @@
 #include <hydrogen.h>
 #include <vec.h>
 
+#include "lib.h"
+
 // * Values during runtime are stored as NaN tagged 64 bit unsigned integers
 // * An IEEE double precision floating point number can represent "not a
 //   number" (NaN)
@@ -110,6 +112,9 @@ typedef struct {
 	// the string.
 	uint32_t length;
 
+	// All methods defined on the string.
+	HyValue methods[STRING_CORE_METHODS_COUNT];
+
 	// The contents of the string, NULL terminated.
 	char contents[0];
 } String;
@@ -195,6 +200,9 @@ typedef struct hy_array {
 	// The length, capacity, and contents of the array.
 	uint32_t length, capacity;
 	HyValue *contents;
+
+	// All methods defined on the array.
+	HyValue methods[ARRAY_CORE_METHODS_COUNT];
 } Array;
 
 

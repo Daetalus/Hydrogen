@@ -1581,7 +1581,7 @@ static void postfix_field_access(Parser *parser, uint16_t slot,
 	err_expect(parser, TOKEN_IDENTIFIER, &dot, "Expected identifier after `.`");
 
 	// Can only index locals
-	if (operand->type != OP_LOCAL) {
+	if (operand->type != OP_LOCAL && operand->type != OP_STRING) {
 		err_fatal(parser, &dot, "Attempt to index non-local");
 	}
 

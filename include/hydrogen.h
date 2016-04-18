@@ -213,20 +213,4 @@ uint32_t hy_args_count(HyArgs *args);
 // Return the argument at `index` passed to a native function.
 HyValue hy_arg(HyArgs *args, uint32_t index);
 
-
-// Create an empty array with the suggested capacity.
-HyArray * hy_array_new(uint32_t capacity);
-
-// Return the length of an array.
-uint32_t hy_array_len(HyArray *array);
-
-// Fetch a value at an index in an array.
-HyValue hy_array_get(HyArray *array, uint32_t index);
-
-// Append a value to the end of an array.
-void hy_array_append(HyArray *array, HyValue value);
-
-// Insert a value into an array at the specified index.
-void hy_array_insert(HyArray *array, uint32_t index, HyValue value);
-
 #endif

@@ -480,6 +480,8 @@ BC_LOOP:
 
 BC_CALL: {
 	HyValue fn_value = STACK(INS(1));
+
+	// Check if we're calling a Hydrogen function or a native one
 	if (val_is_fn(fn_value, TAG_FN) || val_is_gc(fn_value, OBJ_METHOD)) {
 		// Create a stack frame for the calling function to save the required
 		// state
@@ -619,6 +621,7 @@ BC_STRUCT_FIELD: {
 	Object *obj = val_to_ptr(STACK(INS(2)));
 
 	if (obj->type == OBJ_STRUCT) {
+		// Struct instance
 		Struct *instance = (Struct *) obj;
 		Index field_index = struct_field_find(&structs[instance->definition],
 			field->name, field->length);
@@ -628,7 +631,8 @@ BC_STRUCT_FIELD: {
 			STACK(INS(1)) = instance->fields[field_index];
 			NEXT();
 		}
-	} else {
+	} else if (obj->type == OBJ_NATIVE_STRUCT) {
+		// Native struct instance
 		NativeStruct *instance = (NativeStruct *) obj;
 		Index method_index = native_struct_method_find(
 			&native_structs[instance->definition], field->name, field->length);
@@ -638,10 +642,25 @@ BC_STRUCT_FIELD: {
 			STACK(INS(1)) = instance->methods[method_index];
 			NEXT();
 		}
+	} else if (obj->type == OBJ_ARRAY) {
+		// Array instance
+		Array *array = (Array *) obj;
+		Index method_index = core_method_find(array_core_methods,
+			ARRAY_CORE_METHODS_COUNT, field->name, field->length);
+
+		// If we found the field
+		if (method_index != NOT_FOUND) {
+			STACK(INS(1)) = array->methods[method_index];
+			NEXT();
+		}
+	} else {
+		// Attempt to index non-object
+		printf("attempt to index non-object");
+		goto finish;
 	}
 
-	// If we reach here, the field couldn't be found
-	printf("Undefined field on struct %.*s\n", field->length, field->name);
+	// If we reach here, we were given an object, but not a valid field name
+	printf("Undefined field `%.*s` on object\n", field->length, field->name);
 	goto finish;
 }
 
@@ -676,6 +695,18 @@ BC_ARRAY_NEW: {
 	array->length = INS(2);
 	array->capacity = ceil_power_of_2(array->length);
 	array->contents = malloc(sizeof(HyValue) * array->capacity);
+
+	// Methods on the array
+	for (uint32_t i = 0; i < ARRAY_CORE_METHODS_COUNT; i++) {
+		CoreMethod *def = &array_core_methods[i];
+		NativeMethod *method = malloc(sizeof(NativeMethod));
+		method->type = OBJ_NATIVE_METHOD;
+		method->data = array;
+		method->arity = def->arity;
+		method->fn = def->fn;
+		array->methods[i] = ptr_to_val(method);
+	}
+
 	STACK(INS(1)) = ptr_to_val(array);
 	NEXT();
 }
