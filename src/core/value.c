@@ -46,7 +46,19 @@ HyType hy_type(HyValue value) {
 		return HY_NUMBER;
 	} else if (val_is_ptr(value)) {
 		Object *obj = val_to_ptr(value);
-		return HY_STRING + obj->type;
+		switch (obj->type) {
+		case OBJ_STRING:
+			return HY_STRING;
+		case OBJ_STRUCT:
+		case OBJ_NATIVE_STRUCT:
+			return HY_STRUCT;
+		case OBJ_METHOD:
+			return HY_METHOD;
+		case OBJ_ARRAY:
+			return HY_ARRAY;
+		default:
+			return HY_NIL;
+		}
 	} else if (val_is_fn(value, TAG_FN) || val_is_fn(value, TAG_NATIVE)) {
 		return HY_FUNCTION;
 	} else {

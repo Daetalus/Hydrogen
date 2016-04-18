@@ -1933,6 +1933,34 @@ static Operand operand_anonymous_fn(Parser *parser) {
 }
 
 
+// Emit bytecode for a struct constructor call.
+static Operand operand_emit_struct(Parser *parser, uint16_t struct_slot,
+		BytecodeOpcode opcode, Index index, Token *ident) {
+	// Emit bytecode for the instantiation
+	fn_emit(parser_fn(parser), opcode, struct_slot, index, 0);
+
+	// Expect an open parenthesis
+	err_expect(parser, TOKEN_OPEN_PARENTHESIS, ident,
+		"Expected `(` after struct name in struct instantiation");
+
+	// Save the number of locals on the top of the stack so we can deallocate
+	// all arguments to the constructor call easily
+	uint32_t locals_count = parser->scope->locals_count;
+
+	// Parse the arguments to the function
+	uint16_t base = parser->scope->locals_count;
+	uint16_t arity = parse_call_args(parser);
+
+	// Emit the call instruction
+	fn_emit(parser_fn(parser), STRUCT_CALL_CONSTRUCTOR, struct_slot, base,
+		arity);
+
+	// Free arguments to the constructor call
+	parser->scope->locals_count = locals_count;
+	return operand_local(struct_slot);
+}
+
+
 // Parse a struct instantiation.
 static Operand operand_instantiation(Parser *parser, uint16_t struct_slot) {
 	Lexer *lexer = &parser->lexer;
@@ -1966,41 +1994,29 @@ static Operand operand_instantiation(Parser *parser, uint16_t struct_slot) {
 		// Expect an identifier after the dot
 		err_expect(parser, TOKEN_IDENTIFIER, &dot,
 			"Expected struct name after `.` in struct instantiation");
+		ident = lexer->token;
 		name = lexer->token.start;
 		length = lexer->token.length;
 		lexer_next(lexer);
 	}
 
-	// Find the struct definition
-	Index index = struct_find(parser->state, package, name, length);
-	if (index == NOT_FOUND) {
-		err_fatal(parser, &ident, "Undefined struct `%.*s`",
-			length, name);
+	// Try find a native struct with this name on the package
+	Index index = native_struct_find(parser->state, package, name, length);
+	if (index != NOT_FOUND) {
+		return operand_emit_struct(parser, struct_slot, NATIVE_STRUCT_NEW,
+			index, &ident);
 	}
 
-	// Emit bytecode for the struct instantiation
-	fn_emit(parser_fn(parser), STRUCT_NEW, struct_slot, index, 0);
+	// Otherwise try find a user defined struct
+	index = struct_find(parser->state, package, name, length);
+	if (index != NOT_FOUND) {
+		return operand_emit_struct(parser, struct_slot, STRUCT_NEW, index,
+			&ident);
+	}
 
-	// Expect an open parenthesis
-	err_expect(parser, TOKEN_OPEN_PARENTHESIS, &ident,
-		"Expected `(` after struct name in struct instantiation");
-
-	// Save the number of locals on the top of the stack so we can deallocate
-	// all arguments to the constructor call easily
-	uint32_t locals_count = parser->scope->locals_count;
-
-	// Parse the arguments to the function
-	uint16_t base = parser->scope->locals_count;
-	uint16_t arity = parse_call_args(parser);
-
-	// Emit the call instruction
-	fn_emit(parser_fn(parser), STRUCT_CALL_CONSTRUCTOR, struct_slot, base,
-		arity);
-
-	// Free arguments to the constructor call
-	parser->scope->locals_count = locals_count;
-
-	return operand_local(struct_slot);
+	// If we reached here, then we couldn't find a struct with this name at all
+	err_fatal(parser, &ident, "Undefined struct `%.*s`", length, name);
+	return operand_new();
 }
 
 

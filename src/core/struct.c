@@ -105,7 +105,7 @@ HyStruct hy_add_struct(HyState *state, HyPackage pkg, char *name,
 	def->constructor = constructor;
 	def->constructor_arity = constructor_arity;
 	def->destructor = NULL;
-	vec_new(def->methods, NativeMethod, 4);
+	vec_new(def->methods, NativeMethodDefinition, 4);
 
 	// Copy across name
 	def->name = malloc(strlen(name) + 1);
@@ -127,7 +127,7 @@ void hy_add_method(HyState *state, HyStruct def, char *name, uint32_t arity,
 		HyNativeMethod fn) {
 	NativeStructDefinition *native = &vec_at(state->native_structs, def);
 	vec_inc(native->methods);
-	NativeMethod *method = &vec_last(native->methods);
+	NativeMethodDefinition *method = &vec_last(native->methods);
 	method->arity = arity;
 	method->fn = fn;
 
@@ -141,10 +141,25 @@ void hy_add_method(HyState *state, HyStruct def, char *name, uint32_t arity,
 void native_struct_free(NativeStructDefinition *def) {
 	// Methods
 	for (uint32_t i = 0; i < vec_len(def->methods); i++) {
-		NativeMethod *method = &vec_at(def->methods, i);
+		NativeMethodDefinition *method = &vec_at(def->methods, i);
 		free(method->name);
 	}
 
 	vec_free(def->methods);
 	free(def->name);
+}
+
+
+// Return the index of the native struct with the name `name` in the package
+// `pkg`, or NOT_FOUND if one couldn't be found.
+Index native_struct_find(HyState *state, Index pkg, char *name,
+		uint32_t length) {
+	for (uint32_t i = 0; i < vec_len(state->native_structs); i++) {
+		NativeStructDefinition *def = &vec_at(state->native_structs, i);
+		if (pkg == def->package && length == strlen(def->name) &&
+				strncmp(name, def->name, length) == 0) {
+			return i;
+		}
+	}
+	return NOT_FOUND;
 }

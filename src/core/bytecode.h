@@ -16,10 +16,10 @@
 //
 // * There are a maximum of 256 opcodes (since the opcode must fit in 1 byte)
 
-// Instruction operation codes for Hydrogen bytecode
+// Instruction operation codes for Hydrogen bytecode.
 //
 // The order of these opcodes is important as the parser relies on integer
-// arithmetic to compute opcodes for expressions
+// arithmetic to compute opcodes for expressions.
 //
 // Postfix meanings:
 // * L: local
@@ -74,7 +74,7 @@ typedef enum {
 	// * `package`: index of package containing top level local
 	MOV_LT,
 
-	// Retrieves the self argument in a method call.
+	// Retrieve the self argument in a method call.
 	//
 	// Arguments:
 	// * `slot`: the stack slot to store the self argumen tin
@@ -169,10 +169,10 @@ typedef enum {
 	//  Control flow
 	//
 
-	// Jumps forwards by `amount` instructions
+	// Jump forwards by `amount` instructions.
 	JMP,
 
-	// Jumps backwards by `amount` instructions (used for loops)
+	// Jump backwards by `amount` instructions (used for loops).
 	LOOP,
 
 
@@ -184,7 +184,7 @@ typedef enum {
 	// arguments to the function are placed after this first slot (the number
 	// of arguments specified by `arity`). The return values of the function
 	// replace the arguments and function object (they start in slot `base`)
-	// The number of return values expected is given by `return`
+	// The number of return values expected is given by `return`.
 	//
 	// Arguments:
 	// * `base`: the stack slot containing the function to call and arguments to
@@ -194,10 +194,10 @@ typedef enum {
 	//   function
 	CALL,
 
-	// Returns nothing from a function
+	// Return nothing from a function.
 	RET0,
 
-	// Returns a value from a function
+	// Return a value from a function.
 	//
 	// Arguments:
 	// * First arg: not in use (used as padding to maintain consistency with
@@ -216,14 +216,22 @@ typedef enum {
 	//  Structs
 	//
 
-	// Creates an instance of a struct
+	// Create an instance of a struct.
 	//
 	// Arguments:
 	// * `slot`: where to store the new struct on the stack
 	// * `struct_index`: the index of the struct's definition in the VM's list
 	STRUCT_NEW,
 
-	// Calls the constructor function of a struct
+	// Create an instance of a native struct.
+	//
+	// Arguments:
+	// * `slot`: where to store the new instance
+	// * `index`: the index into the interpreter's native structs list
+	//   specifying which struct to instantiate
+	NATIVE_STRUCT_NEW,
+
+	// Call the constructor function of a struct.
 	//
 	// Arguments:
 	// * `struct_slot`: the stack slot containing the struct to call the
@@ -233,7 +241,7 @@ typedef enum {
 	// * `arity`: the number of arguments to pass to the constructor
 	STRUCT_CALL_CONSTRUCTOR,
 
-	// Moves the contents of a struct's field into a local slot
+	// Move the contents of a struct's field into a local slot.
 	//
 	// Arguments:
 	// * `slot`: where to store the contents of the field
@@ -242,7 +250,7 @@ typedef enum {
 	//   struct field name list
 	STRUCT_FIELD,
 
-	// Sets the contents of a struct's field
+	// Set the contents of a struct's field.
 	//
 	// Arguments:
 	// * `field_name`: the name of the field, as an index into the VM's struct
@@ -262,14 +270,14 @@ typedef enum {
 	//  Arrays
 	//
 
-	// Creates a new array in a stack slot
+	// Create a new array in a stack slot.
 	//
 	// Arguments:
 	// * `slot`: the slot to store the new array in
 	// * `size`: the starting length of the array
 	ARRAY_NEW,
 
-	// Gets a value from an index in an array
+	// Get a value from an index in an array.
 	//
 	// Arguments:
 	// * `slot`: the slot to store the value in
@@ -278,7 +286,7 @@ typedef enum {
 	ARRAY_GET_L,
 	ARRAY_GET_I,
 
-	// Sets an index in an array to a value
+	// Set an index in an array to a value.
 	//
 	// Arguments:
 	// * `index`: the index in the array to set
@@ -305,7 +313,7 @@ typedef enum {
 	//  No Operation
 	//
 
-	// Must be the last opcode in this list
+	// Must be the last opcode in this enum.
 	NO_OP,
 } BytecodeOpcode;
 

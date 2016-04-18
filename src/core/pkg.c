@@ -14,6 +14,8 @@
 // used when other packages want to import it. It can only consist of ASCII
 // letters (lowercase and uppercase), numbers, and underscores.
 HyPackage hy_add_pkg(HyState *state, char *name) {
+	// TODO: Ensure no package with this name is already defined
+
 	// Create a new package
 	Index index = pkg_new(state);
 	Package *pkg = &vec_at(state->packages, index);

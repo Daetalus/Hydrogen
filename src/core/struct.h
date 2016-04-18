@@ -73,7 +73,7 @@ typedef struct {
 
 	// The C function pointer to the native function.
 	HyNativeMethod fn;
-} NativeMethod;
+} NativeMethodDefinition;
 
 
 // A native struct is a wrapper around a `void *` pointer to some userdata
@@ -96,9 +96,14 @@ typedef struct {
 	HyDestructor destructor;
 
 	// A list of all native methods defined on the struct.
-	Vec(NativeMethod) methods;
+	Vec(NativeMethodDefinition) methods;
 } NativeStructDefinition;
 
+
+// Return the index of the native struct with the name `name` in the package
+// `pkg`, or NOT_FOUND if one couldn't be found.
+Index native_struct_find(HyState *state, Index pkg, char *name,
+	uint32_t length);
 
 // Free resources associated with a native struct definition.
 void native_struct_free(NativeStructDefinition *def);

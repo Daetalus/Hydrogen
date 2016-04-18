@@ -71,6 +71,7 @@
 typedef enum {
 	OBJ_STRING,
 	OBJ_STRUCT,
+	OBJ_NATIVE_STRUCT,
 	OBJ_METHOD,
 	OBJ_ARRAY,
 } ObjType;
@@ -113,6 +114,21 @@ typedef struct {
 } String;
 
 
+// Methods on structs are stored as their own heap allocated objects, since we
+// need to store a reference back to the parent struct. Methods are garbage
+// collected the same way as any other object.
+typedef struct {
+	// The object header.
+	ObjHeader;
+
+	// A pointer to the parent struct to which this method belongs.
+	HyValue parent;
+
+	// The index of the function containing this method's bytecode.
+	Index fn;
+} Method;
+
+
 // Similar to strings, struct fields are stored using the struct hack.
 typedef struct {
 	// The object header.
@@ -135,19 +151,36 @@ typedef struct {
 } Struct;
 
 
-// Methods on structs are stored as their own heap allocated objects, since we
-// need to store a reference back to the parent struct. Methods are garbage
-// collected the same way as any other object.
+// A native method on a native struct instance.
 typedef struct {
 	// The object header.
 	ObjHeader;
 
-	// A pointer to the parent struct to which this method belongs.
-	HyValue parent;
+	// A pointer to the user data to pass to native method calls.
+	void *data;
 
-	// The index of the function containing this method's bytecode.
-	Index fn;
-} Method;
+	// The native method to call.
+	HyNativeMethod fn;
+} NativeMethod;
+
+
+// A native struct instance.
+typedef struct {
+	// The object header.
+	ObjHeader;
+
+	// The definition of this struct.
+	Index definition;
+
+	// The user data pointer.
+	void *data;
+
+	// The number of native methods on this struct.
+	uint32_t methods_count;
+
+	// All native methods on this struct.
+	HyValue methods[0];
+} NativeStruct;
 
 
 // A Hydrogen array object.

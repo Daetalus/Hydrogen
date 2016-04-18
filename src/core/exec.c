@@ -124,7 +124,8 @@ HyError * exec_fn(HyState *state, Index fn_index) {
 		&&BC_RET_P, &&BC_RET_F, &&BC_RET_V,
 
 		// Structs
-		&&BC_STRUCT_NEW, &&BC_STRUCT_CALL_CONSTRUCTOR, &&BC_STRUCT_FIELD,
+		&&BC_STRUCT_NEW, &&BC_NATIVE_STRUCT_NEW, &&BC_STRUCT_CALL_CONSTRUCTOR,
+		&&BC_STRUCT_FIELD,
 		&&BC_STRUCT_SET_L, &&BC_STRUCT_SET_I, &&BC_STRUCT_SET_N,
 		&&BC_STRUCT_SET_S, &&BC_STRUCT_SET_P, &&BC_STRUCT_SET_F,
 		&&BC_STRUCT_SET_V,
@@ -510,6 +511,10 @@ BC_RET0:
 
 BC_STRUCT_NEW: {
 	STACK(INS(1)) = struct_instantiate(structs, INS(2));
+	NEXT();
+}
+
+BC_NATIVE_STRUCT_NEW: {
 	NEXT();
 }
 

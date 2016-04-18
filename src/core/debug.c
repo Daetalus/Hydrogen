@@ -39,7 +39,8 @@ static char *opcode_names[] = {
 	"CALL", "RET0", "RET_L", "RET_I", "RET_N", "RET_S", "RET_P", "RET_F",
 	"RET_V",
 
-	"STRUCT_NEW", "STRUCT_CALL_CONSTRUCTOR", "STRUCT_FIELD",
+	"STRUCT_NEW", "NATIVE_STRUCT_NEW", "STRUCT_CALL_CONSTRUCTOR",
+	"STRUCT_FIELD",
 	"STRUCT_SET_L", "STRUCT_SET_I", "STRUCT_SET_N", "STRUCT_SET_S",
 	"STRUCT_SET_P", "STRUCT_SET_F", "STRUCT_SET_V",
 
@@ -95,7 +96,8 @@ static uint32_t argument_count[] = {
 	3, /* CALL */ 0, /* RET0 */ 2, /* RET_L */ 2, /* RET_I */ 2, /* RET_N */
 	2, /* RET_S */ 2, /* RET_P */ 2, /* RET_F */ 2, /* RET_V */
 
-	2, /* STRUCT_NEW */ 3, /* STRUCT_CALL_CONSTRUCTOR */ 3, /* STRUCT_FIELD */
+	2, /* STRUCT_NEW */ 2, /* NATIVE_STRUCT_NEW */
+	3, /* STRUCT_CALL_CONSTRUCTOR */ 3, /* STRUCT_FIELD */
 	3, /* STRUCT_SET_L */ 3, /* STRUCT_SET_I */ 3, /* STRUCT_SET_N */
 	3, /* STRUCT_SET_S */ 3, /* STRUCT_SET_P */ 3, /* STRUCT_SET_F */
 	3, /* STRUCT_SET_V */
@@ -154,7 +156,8 @@ static uint32_t integer_argument[] = {
 	0, /* JMP */ 0, /* LOOP */
 	0, /* CALL */ 0, /* RET0 */ 0, /* RET */
 
-	0, /* STRUCT_NEW */ 0, /* STRUCT_CALL_CONSTRUCTOR */ 0, /* STRUCT_FIELD */
+	0, /* STRUCT_NEW */ 0, /* NATIVE_STRUCT_NEW */
+	0, /* STRUCT_CALL_CONSTRUCTOR */ 0, /* STRUCT_FIELD */
 	0, /* STRUCT_SET_L */ 2, /* STRUCT_SET_I */ 0, /* STRUCT_SET_N */
 	0, /* STRUCT_SET_S */ 0, /* STRUCT_SET_P */ 0, /* STRUCT_SET_F */
 	0, /* STRUCT_SET_V */
